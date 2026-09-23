@@ -1,0 +1,29 @@
+{
+  "name": "vireo-react",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Vireo — React 19 edition (Vite + TypeScript + Tailwind v4). Aurora design language on the shared --ax-* token core.",
+  "license": "LicenseRef-Envato-Regular",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "apexcharts": "^4.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.3.0"
+  }
+}
