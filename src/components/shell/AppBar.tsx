@@ -141,7 +141,7 @@ export function AppBar({ onCommand, onCustomizer }: { onCommand: () => void; onC
   return (
     <header className="ax-appbar" role="banner">
       {/* 1 · BRAND — the way out of the app, back to the dashboard */}
-      <Link className="ax-appbar__brand" to="/dashboards/solar-erp" aria-label="Exit to dashboard">
+      <Link className="ax-appbar__brand" to="/jammu/dashboard" aria-label="Exit to dashboard">
         <img
           src="/logo-full.png"
           alt="KLK VENTURES (P) LTD"

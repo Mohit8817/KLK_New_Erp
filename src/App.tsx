@@ -82,7 +82,9 @@ const CryptoExchange = lazy(() => import('./pages/crypto/Exchange'));
 const CryptoMarketcap = lazy(() => import('./pages/crypto/Marketcap'));
 const CryptoTransactions = lazy(() => import('./pages/crypto/Transactions'));
 const CryptoWallet = lazy(() => import('./pages/crypto/Wallet'));
-const DashboardsSolarErp = lazy(() => import('./pages/dashboards/SolarErp'));
+const JammuDashboard = lazy(() => import('./pages/jammu/JammuDashboard'));
+const JammuAddSRT70MW = lazy(() => import('./pages/jammu/AddJammuSRT70MW'));
+const JammuAddSRT70MWSingleCard = lazy(() => import('./pages/jammu/AddJammuSRT70MWSingleCard'));
 const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
 const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
@@ -279,8 +281,11 @@ const shell: Record<string, PageComponent> = {
   'crypto/marketcap': CryptoMarketcap,
   'crypto/transactions': CryptoTransactions,
   'crypto/wallet': CryptoWallet,
-  'dashboards/solar-erp': DashboardsSolarErp,
-  'dashboards/erp': DashboardsSolarErp,
+  'jammu/dashboard': JammuDashboard,
+  'jammu/add-srt-70mw': JammuAddSRT70MW,
+  'jammu/add-srt-new': JammuAddSRT70MWSingleCard,
+  'dashboards/solar-erp': JammuDashboard,
+  'dashboards/erp': JammuDashboard,
   'dashboards/analytics': DashboardsAnalytics,
   'dashboards/crm': DashboardsCrm,
   'dashboards/crypto': DashboardsCrypto,
@@ -438,7 +443,7 @@ export function App() {
           </Route>
           {/* Dashboard shell */}
           <Route element={<Layout />}>
-            <Route index element={wrap(DashboardsSolarErp)} />
+            <Route index element={wrap(JammuDashboard)} />
             <Route path="dashboards/sales" element={wrap(Sales)} />
             {Object.entries(shell).map(([slug, C]) => (
               <Route key={slug} path={slug} element={wrap(C)} />

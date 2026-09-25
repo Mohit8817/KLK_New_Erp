@@ -161,7 +161,7 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>
       {/* ===== BRAND ===== */}
       <div className="ax-sidebar__brand">
-        <Link className="ax-sidebar__logo" to="/dashboards/solar-erp" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }}>
+        <Link className="ax-sidebar__logo" to="/jammu/dashboard" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }}>
           <img
             src="/logo-abbr.png"
             alt="KLK"
