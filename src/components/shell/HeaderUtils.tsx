@@ -22,9 +22,10 @@
  * reference makes between shell.css §18 and `_bindBands()` in js/alpine/index.js.
  */
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Dropdown } from '../ui/Dropdown';
 import { useCustomizer } from '../../context/CustomizerContext';
+import { useAuth } from '../../context/AuthContext';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const ICON = {
@@ -103,8 +104,18 @@ const LANGS: Array<[string, string]> = [
 
 export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
   const c = useCustomizer();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [full, setFull] = useState(false);
   const shed = useShed();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     const onFs = () => setFull(!!document.fullscreenElement);
@@ -272,15 +283,26 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         )}
       >
         <div className="ax-profile__card">
-          <img className="ax-avatar" src="https://i.pravatar.cc/80?img=12" alt="" width={40} height={40} />
-          <span className="ax-profile__card-meta"><b>Jacob Gerrald</b><small>jacob@vireo.io</small></span>
+          <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-sm shrink-0">
+            {user?.name ? user.name.slice(0, 2).toUpperCase() : (user?.role === 'vendor' ? 'VN' : 'KL')}
+          </div>
+          <span className="ax-profile__card-meta">
+            <b>{user?.name || (user?.role === 'vendor' ? `Vendor (${user?.vendor_id || ''})` : 'KLK Solar User')}</b>
+            <small>{user?.email || (user?.vendor_id ? `ID: ${user.vendor_id}` : 'erp@klksolar.com')}</small>
+          </span>
         </div>
         <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile">View Profile</Link>
         <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile-settings">Account Settings</Link>
         <Link className="ax-dropdown__item" role="menuitem" to="/pages/support">Support</Link>
-        <Link className="ax-dropdown__item" role="menuitem" to="/pages/activity-log">Activity Log</Link>
         <div className="ax-dropdown__divider" role="separator"></div>
-        <Link className="ax-dropdown__item ax-dropdown__item--danger" role="menuitem" to="/pages/logout">Log Out</Link>
+        <button
+          type="button"
+          className="ax-dropdown__item ax-dropdown__item--danger w-full text-left cursor-pointer"
+          role="menuitem"
+          onClick={handleLogout}
+        >
+          Log Out
+        </button>
       </Dropdown>
 
       {/* 11 · CUSTOMIZER TRIGGER */}

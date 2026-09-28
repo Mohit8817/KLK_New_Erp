@@ -10,8 +10,6 @@
  * /ARIA match the reference 1:1.
  */
 import { useEffect, useRef, useState } from 'react';
-// eslint-disable-next-line import/no-unresolved
-import 'leaflet/dist/leaflet.css';
 import '../../styles/leaflet-theme.css';
 import { PageHead } from '../../components/shell/PageHead';
 
@@ -86,7 +84,7 @@ export function Leaflet() {
   useEffect(() => {
     let cancelled = false;
     if (!mapEl.current) return;
-    import('leaflet').then((mod) => {
+    (Function('return import("leaflet")')() as Promise<any>).then((mod) => {
       const L = (mod as any).default ?? mod;
       if (cancelled || !mapEl.current || ctx.current.map) return;
       const map = L.map(mapEl.current, { zoomControl: false, attributionControl: true, center: [48.5, 4.0], zoom: 5, scrollWheelZoom: false });

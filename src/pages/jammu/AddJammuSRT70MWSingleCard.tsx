@@ -683,7 +683,7 @@ export function AddJammuSRT70MWSingleCard() {
 
       {/* Header */}
       <PageHead
-        title="Add Jammu SRT 70MW (Unified Single Card)"
+        title="Add Jammu SRT 70M"
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
             Single Main Card View · Section 1 to 7 Sequential Breakdown · Jammu 70MW Grid-Connected Scheme

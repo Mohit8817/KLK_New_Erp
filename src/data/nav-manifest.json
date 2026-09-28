@@ -102,6 +102,27 @@
       "alias": null
     },
     {
+      "id": "jammu.login",
+      "title": "Solar ERP Login",
+      "slug": "login",
+      "icon": "login",
+      "parent": "grp.jammu",
+      "section": null,
+      "order": 3,
+      "badge": {
+        "type": "New"
+      },
+      "keywords": [
+        "login",
+        "solar",
+        "auth",
+        "signin",
+        "vendor"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
       "id": "grp.dashboards",
       "title": "Dashboards",
       "slug": "jammu/dashboard",

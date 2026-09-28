@@ -205,6 +205,8 @@ export function JammuDashboard() {
   });
   const [uploadSearchQuery, setUploadSearchQuery] = useState<string>('');
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState<boolean>(false);
+  void isProcessingFile;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filtered materials
@@ -775,7 +777,7 @@ export function JammuDashboard() {
                 </span>
               </div>
               <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-                {ARROW_UP} 91.0%
+                {ARROW_UP} 91.0%  
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
@@ -807,7 +809,7 @@ export function JammuDashboard() {
                 </span>
               </div>
               <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-                {ARROW_UP} 76.0%
+                {ARROW_UP} 76.0%6
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>

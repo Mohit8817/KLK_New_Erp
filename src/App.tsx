@@ -1,26 +1,11 @@
-/*
- * Vireo React — router + route registry (FULL wiring, code-split).
- *
- * Every one of the 185 manifest slugs resolves to its real page component, each
- * lazy-loaded (React.lazy) so the shell ships small and page code is fetched on
- * demand (parity with the vue/next editions).
- * - Content pages render as children of <Layout> (sidebar/header/breadcrumb shell).
- *   Their <Suspense> boundary sits at the <Outlet>, so the shell stays mounted
- *   while a page chunk loads.
- * - The 13 apps/* routes render as children of <AppLayout> — the FULL-SCREEN app
- *   shell (slim app bar only: no sidebar, header, footer or breadcrumb).
- * - Standalone pages (auth/*, error/*, pages/landing|logout|coming-soon) render
- *   OUTSIDE both layouts — they own their full-viewport shell. "/" = Sales
- *   dashboard; "dashboards/sales" redirects to "/". Unknown paths render 404.
- *
- * Maps are generated from the page-component tree + nav-manifest slugs; add a
- * page by dropping its component in src/pages/** and adding one map entry.
- */
+
 import { lazy, Suspense, type ReactElement } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/shell/Layout';
 import { AppLayout } from './components/shell/AppLayout';
 import { CustomizerProvider } from './context/CustomizerContext';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { DocumentTitle } from './hooks/useDocumentTitle';
 
 type PageComponent = ReturnType<typeof lazy>;
@@ -34,8 +19,6 @@ const AuthLockScreenCover = lazy(() => import('./pages/auth/LockScreenCover'));
 const AuthMaintenance = lazy(() => import('./pages/auth/Maintenance'));
 const AuthResetPasswordBasic = lazy(() => import('./pages/auth/ResetPasswordBasic'));
 const AuthResetPasswordCover = lazy(() => import('./pages/auth/ResetPasswordCover'));
-const AuthSignInBasic = lazy(() => import('./pages/auth/SignInBasic'));
-const AuthSignInCover = lazy(() => import('./pages/auth/SignInCover'));
 const AuthSignUpBasic = lazy(() => import('./pages/auth/SignUpBasic'));
 const AuthSignUpCover = lazy(() => import('./pages/auth/SignUpCover'));
 const AuthTwoStepBasic = lazy(() => import('./pages/auth/TwoStepBasic'));
@@ -48,6 +31,7 @@ const Error503 = lazy(() => import('./pages/error/Error503'));
 const PagesComingSoon = lazy(() => import('./pages/pages/ComingSoon'));
 const PagesLanding = lazy(() => import('./pages/pages/Landing'));
 const PagesLogout = lazy(() => import('./pages/pages/Logout'));
+const SolarLogin = lazy(() => import('./pages/login/login'));
 const AppsCalendar = lazy(() => import('./pages/apps/Calendar'));
 const AppsChat = lazy(() => import('./pages/apps/Chat'));
 const AppsContacts = lazy(() => import('./pages/apps/Contacts'));
@@ -224,8 +208,8 @@ const standalone: Record<string, PageComponent> = {
   'auth/maintenance': AuthMaintenance,
   'auth/reset-password-basic': AuthResetPasswordBasic,
   'auth/reset-password-cover': AuthResetPasswordCover,
-  'auth/sign-in-basic': AuthSignInBasic,
-  'auth/sign-in-cover': AuthSignInCover,
+  'auth/sign-in-basic': SolarLogin,
+  'auth/sign-in-cover': SolarLogin,
   'auth/sign-up-basic': AuthSignUpBasic,
   'auth/sign-up-cover': AuthSignUpCover,
   'auth/two-step-basic': AuthTwoStepBasic,
@@ -238,6 +222,10 @@ const standalone: Record<string, PageComponent> = {
   'pages/coming-soon': PagesComingSoon,
   'pages/landing': PagesLanding,
   'pages/logout': PagesLogout,
+  'login': SolarLogin,
+  'pages/login': SolarLogin,
+  'auth/solar-login': SolarLogin,
+  'auth/login': SolarLogin,
 };
 
 // The 13 app routes — rendered as children of <AppLayout> (full-screen app shell:
@@ -427,33 +415,35 @@ const wrap = (C: PageComponent): ReactElement => (
 
 export function App() {
   return (
-    <CustomizerProvider>
-      <BrowserRouter>
-        <DocumentTitle />
-        <Routes>
-          {/* Standalone (no app shell) */}
-          {Object.entries(standalone).map(([slug, C]) => (
-            <Route key={slug} path={slug} element={wrap(C)} />
-          ))}
-          {/* Full-screen app shell (apps/*) */}
-          <Route element={<AppLayout />}>
-            {Object.entries(appShell).map(([slug, C]) => (
+    <AuthProvider>
+      <CustomizerProvider>
+        <BrowserRouter>
+          <DocumentTitle />
+          <Routes>
+            {/* Standalone (no app shell) */}
+            {Object.entries(standalone).map(([slug, C]) => (
               <Route key={slug} path={slug} element={wrap(C)} />
             ))}
-          </Route>
-          {/* Dashboard shell */}
-          <Route element={<Layout />}>
-            <Route index element={wrap(JammuDashboard)} />
-            <Route path="dashboards/sales" element={wrap(Sales)} />
-            {Object.entries(shell).map(([slug, C]) => (
-              <Route key={slug} path={slug} element={wrap(C)} />
-            ))}
-          </Route>
-          {/* Unknown → 404 screen (standalone) */}
-          <Route path="*" element={wrap(standalone['error/404'])} />
-        </Routes>
-      </BrowserRouter>
-    </CustomizerProvider>
+            {/* Full-screen app shell (apps/*) */}
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              {Object.entries(appShell).map(([slug, C]) => (
+                <Route key={slug} path={slug} element={wrap(C)} />
+              ))}
+            </Route>
+            {/* Dashboard shell */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={wrap(JammuDashboard)} />
+              <Route path="dashboards/sales" element={wrap(Sales)} />
+              {Object.entries(shell).map(([slug, C]) => (
+                <Route key={slug} path={slug} element={wrap(C)} />
+              ))}
+            </Route>
+            {/* Unknown → 404 screen (standalone) */}
+            <Route path="*" element={wrap(standalone['error/404'])} />
+          </Routes>
+        </BrowserRouter>
+      </CustomizerProvider>
+    </AuthProvider>
   );
 }
 
