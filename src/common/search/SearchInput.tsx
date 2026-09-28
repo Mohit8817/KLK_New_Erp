@@ -1,131 +1,136 @@
-import { useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent, type CSSProperties } from 'react';
-
-const ICON_SEARCH = (
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="11" cy="11" r="8" />
-    <path d="M21 21l-4.35-4.35" />
-  </svg>
-);
-
-const ICON_CLEAR = (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
+import { type ChangeEvent, type CSSProperties } from 'react';
 
 export interface SearchInputProps {
   /** The search text value */
   value: string;
   /** Callback on text change */
   onChange: (value: string) => void;
-  /** Placeholder text */
+  /** Optional callback to reset page to 1 on search change */
+  onSearch?: (value: string) => void;
+  /** Placeholder text (default: 'Search…') */
   placeholder?: string;
-  /** Size variant: sm (32px high) or md (40px high) */
+  /** Size variant: sm (ax-input--sm) or regular (ax-input) */
   size?: 'sm' | 'md';
-  /** Optional debounce delay in ms */
-  debounceMs?: number;
-  /** Optional clear callback */
-  onClear?: () => void;
-  /** Additional container styling */
-  className?: string;
-  /** Custom width style */
+  /** Optional container style overrides */
   style?: CSSProperties;
+  /** Optional input style overrides */
+  inputStyle?: CSSProperties;
+  /** Optional container className */
+  className?: string;
   /** Disabled state */
   disabled?: boolean;
   /** Accessibility label */
   ariaLabel?: string;
+  /** Show clear button when value is present (default: true) */
+  showClear?: boolean;
 }
 
+/**
+ * Universal Search Input matching Grid.js markup and Aurora theme CSS tokens.
+ * Uses exact classes: ax-input, ax-input--sm with the embedded SVG search icon.
+ */
 export function SearchInput({
   value,
   onChange,
-  placeholder = 'Search...',
+  onSearch,
+  placeholder = 'Search…',
   size = 'sm',
-  debounceMs = 0,
-  onClear,
-  className = '',
   style,
+  inputStyle,
+  className = '',
   disabled = false,
-  ariaLabel = 'Search records',
+  ariaLabel = 'Search the grid',
+  showClear = true,
 }: SearchInputProps) {
-  const [internalValue, setInternalValue] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Sync internal state if prop value changes externally
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
-
-  // Handle debounce
-  useEffect(() => {
-    if (debounceMs <= 0) return;
-    const timer = setTimeout(() => {
-      if (internalValue !== value) {
-        onChange(internalValue);
-      }
-    }, debounceMs);
-    return () => clearTimeout(timer);
-  }, [internalValue, debounceMs, onChange, value]);
-
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    setInternalValue(val);
-    if (debounceMs <= 0) {
-      onChange(val);
-    }
+    onChange(val);
+    if (onSearch) onSearch(val);
   };
 
   const handleClear = () => {
-    setInternalValue('');
     onChange('');
-    if (onClear) onClear();
-    inputRef.current?.focus();
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
-      handleClear();
-    }
+    if (onSearch) onSearch('');
   };
 
   const isSm = size === 'sm';
 
   return (
     <div
-      className={`relative inline-flex items-center text-slate-400 focus-within:text-[#1A66FF] ${className}`}
-      style={style}
+      className={className}
+      style={{
+        position: 'relative',
+        flex: '1 1 220px',
+        maxWidth: 300,
+        ...style,
+      }}
     >
-      {/* Search Icon */}
-      <span className="absolute left-3 flex items-center pointer-events-none transition-colors">
-        {ICON_SEARCH}
-      </span>
+      {/* Grid.js Search Icon */}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          insetInlineStart: 11,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 18,
+          height: 18,
+          color: 'var(--ax-text-subtle)',
+          pointerEvents: 'none',
+        }}
+      >
+        <path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+        <path d="M21 21l-6 -6" />
+      </svg>
 
-      {/* Input Field */}
+      {/* Grid.js Input */}
       <input
-        ref={inputRef}
         type="search"
-        value={internalValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
+        className={`ax-input${isSm ? ' ax-input--sm' : ''}`}
         placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
         disabled={disabled}
         aria-label={ariaLabel}
-        autoComplete="off"
-        className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 outline-none transition-all focus:border-[#1A66FF] focus:ring-2 focus:ring-[#1A66FF]/15 ${
-          isSm ? 'h-9 pl-9 pr-8 text-xs sm:text-sm' : 'h-11 pl-10 pr-9 text-sm'
-        }`}
+        style={{
+          paddingInlineStart: 34,
+          paddingInlineEnd: showClear && value ? 28 : undefined,
+          width: '100%',
+          ...inputStyle,
+        }}
       />
 
-      {/* Clear Button */}
-      {internalValue && (
+      {/* Optional clear button */}
+      {showClear && value && !disabled && (
         <button
           type="button"
           onClick={handleClear}
-          aria-label="Clear search query"
-          className="absolute right-2.5 p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          aria-label="Clear search"
+          style={{
+            position: 'absolute',
+            insetInlineEnd: 8,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'transparent',
+            border: 'none',
+            padding: 2,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--ax-text-subtle)',
+          }}
         >
-          {ICON_CLEAR}
+          <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       )}
     </div>

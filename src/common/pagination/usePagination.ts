@@ -6,47 +6,60 @@ export interface UsePaginationOptions<T> {
   initialPage?: number;
 }
 
+/**
+ * Universal pagination hook identical to the logic in Grid.js table.
+ * Calculates totalPages, curPage, start, paged slice, rangeStart, rangeEnd, pageList.
+ */
 export function usePagination<T>({
   data,
-  initialPageSize = 10,
+  initialPageSize = 8,
   initialPage = 1,
 }: UsePaginationOptions<T>) {
-  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
   const totalItems = data.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const curPage = Math.max(1, Math.min(page, totalPages));
 
-  // Auto adjust page if data length shrinks
-  const safePage = Math.min(currentPage, totalPages);
+  const start = (curPage - 1) * pageSize;
+  const paged = useMemo(() => data.slice(start, start + pageSize), [data, start, pageSize]);
+  const rangeStart = totalItems ? start + 1 : 0;
+  const rangeEnd = Math.min(curPage * pageSize, totalItems);
+  const pageList = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
-  const paginatedData = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, safePage, pageSize]);
-
-  const from = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const to = Math.min(safePage * pageSize, totalItems);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  const handlePageChange = (newPage: number) => {
+    setPage(Math.max(1, Math.min(newPage, totalPages)));
   };
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
-    setCurrentPage(1);
+    setPage(1);
   };
 
   return {
-    paginatedData,
-    currentPage: safePage,
-    pageSize,
+    // Exact Grid.js names
+    paged,
+    curPage,
     totalPages,
+    rangeStart,
+    rangeEnd,
+    pageList,
+    page: curPage,
+    pageSize,
     totalItems,
-    from,
-    to,
     setPage: handlePageChange,
     setPageSize: handlePageSizeChange,
+    nextPage: () => handlePageChange(curPage + 1),
+    prevPage: () => handlePageChange(curPage - 1),
+    canNext: curPage < totalPages,
+    canPrev: curPage > 1,
+
+    // Compatibility aliases
+    paginatedData: paged,
+    currentPage: curPage,
+    from: rangeStart,
+    to: rangeEnd,
   };
 }
 

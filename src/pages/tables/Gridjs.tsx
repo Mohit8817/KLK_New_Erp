@@ -1,5 +1,5 @@
 /*
- * Vireo React — Grid.js (tables/gridjs).
+ * KLK ERP — Grid.js (tables/gridjs).
  *
  * Faithful re-expression of src/html/tables/gridjs.html. The reference uses an
  * Alpine `axGrid()` data-grid (global search, sortable columns, pagination);

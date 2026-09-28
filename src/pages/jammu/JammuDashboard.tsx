@@ -574,6 +574,9 @@ export function JammuDashboard() {
               {ICON_DOWNLOAD}
               <span className="ax-btn__label">Export JPDCL Report</span>
             </button>
+            <Link to="/jammu/viewdata" className="ax-btn ax-btn--secondary" title="View 49-field technical survey records">
+              <span className="ax-btn__label">View Survey Data</span>
+            </Link>
             <Link to="/jammu/add-srt-new" className="ax-btn ax-btn--secondary" title="Unified single card form">
               <span className="ax-btn__label">Single Card Form</span>
             </Link>

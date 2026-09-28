@@ -39,18 +39,16 @@ export function StatusTools() {
   );
 }
 
-const HEX_LOGO = (
-  <svg viewBox="0 0 32 32" width={24} height={24} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="axmk0" x1={4} y1={4} x2={28} y2={28} gradientUnits="userSpaceOnUse"><stop stopColor="#2BC4B0" /><stop offset="0.55" stopColor="#1E9E96" /><stop offset="1" stopColor="#6D5CF0" /></linearGradient></defs><path d="M4 4 H16 A12 12 0 0 1 28 16 V28 A0 0 0 0 1 28 28 H16 A12 12 0 0 1 4 16 V4 Z" fill="url(#axmk0)" stroke="none" /><circle cx="20.5" cy="11.5" r="2.6" fill="#0A0C11" fillOpacity="0.92" stroke="none" /></svg>
-);
-
 /** Centered brand lockup (links home). */
 export function StatusBrand() {
   return (
-    <Link to="/" aria-label="Vireo home" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-3)', textDecoration: 'none' }}>
-      <span aria-hidden="true" style={{ display: 'inline-grid', placeItems: 'center', width: 40, height: 40, borderRadius: 'var(--ax-radius-md)', background: 'var(--ax-gradient-accent)', color: 'var(--ax-on-accent)', boxShadow: '0 8px 22px -8px rgba(var(--ax-accent-rgb),.7)' }}>
-        {HEX_LOGO}
-      </span>
-      <span style={{ fontFamily: 'var(--ax-font-display)', fontWeight: 600, fontSize: 'var(--ax-text-lg)', color: 'var(--ax-text-strong)', letterSpacing: '.01em' }}>Vireo</span>
+    <Link to="/" aria-label="KLK ERP home" style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-3)', textDecoration: 'none' }}>
+      <img
+        src="/logo-abbr.png"
+        alt="KLK"
+        style={{ width: 40, height: 40, objectFit: 'contain' }}
+      />
+      <span style={{ fontFamily: 'var(--ax-font-display)', fontWeight: 700, fontSize: 'var(--ax-text-xl)', color: 'var(--ax-text-strong)', letterSpacing: '.01em' }}>KLK ERP</span>
     </Link>
   );
 }

@@ -261,6 +261,7 @@ const shell: Record<string, PageComponent> = {
   'jammu/dashboard': JammuDashboard,
   'jammu/add-srt-70mw': JammuAddSRT70MW,
   'jammu/add-srt-new': JammuAddSRT70MWSingleCard,
+
   'dashboards/solar-erp': JammuDashboard,
   'dashboards/erp': JammuDashboard,
   'dashboards/analytics': DashboardsAnalytics,

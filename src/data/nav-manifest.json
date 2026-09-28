@@ -1,5 +1,5 @@
 {
-  "$schema": "vireo-nav-manifest/v1",
+  "$schema": "klk-nav-manifest/v1",
   "meta": {
     "spec": "specs/02-INFORMATION-ARCHITECTURE.md",
     "registryRoutes": 189,
@@ -97,6 +97,30 @@
         "single",
         "card",
         "form"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "jammu.viewdata",
+      "title": "View Survey Data",
+      "slug": "jammu/viewdata",
+      "icon": "table",
+      "parent": "grp.jammu",
+      "section": null,
+      "order": 3,
+      "badge": {
+        "type": "New"
+      },
+      "keywords": [
+        "view",
+        "data",
+        "jammu",
+        "srt",
+        "survey",
+        "table",
+        "records",
+        "sites"
       ],
       "inMenu": true,
       "alias": null

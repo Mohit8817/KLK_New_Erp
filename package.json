@@ -1,9 +1,9 @@
 {
-  "name": "vireo-react",
+  "name": "klk-ventures-erp",
   "private": true,
-  "version": "1.1.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Vireo — React 19 edition (Vite + TypeScript + Tailwind v4). Aurora design language on the shared --ax-* token core.",
+  "description": "KLK Ventures ERP System — Core Manufacturing Lines (Lithium Battery Packs, Solar Water Pumps, Solar Street Lights, Solar Panels, Rooftop Systems, Metal Structure).",
   "license": "LicenseRef-Envato-Regular",
   "scripts": {
     "dev": "vite",
