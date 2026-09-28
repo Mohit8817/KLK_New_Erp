@@ -15,6 +15,8 @@ export interface UserSession {
   role: 'user' | 'vendor';
   token?: string;
   loginTime: string;
+  rawResponse?: any;
+  [key: string]: any;
 }
 
 export interface LoginResponse {
@@ -101,7 +103,7 @@ class AuthService {
 
       // Handle common response formats from Laravel API
       const token = result.token || result.access_token || result.data?.token || result.data?.access_token || 'klk_user_session_token_' + Date.now();
-      const userData = result.user || result.data?.user || {
+      const userData = result.user || result.data?.user || result.data || {
         name: email.split('@')[0].toUpperCase(),
         email: email.trim(),
         role: 'user',
@@ -113,6 +115,7 @@ class AuthService {
         role: 'user',
         token,
         loginTime: new Date().toISOString(),
+        rawResponse: result,
         ...userData,
       };
 
@@ -144,7 +147,7 @@ class AuthService {
       });
 
       const token = result.token || result.access_token || result.data?.token || result.data?.access_token || 'klk_vendor_session_token_' + Date.now();
-      const vendorData = result.vendor || result.user || result.data?.vendor || {
+      const vendorData = result.vendor || result.user || result.data?.vendor || result.data?.user || result.data || {
         name: `Vendor (${vendorId.trim()})`,
         vendor_id: vendorId.trim(),
         role: 'vendor',
@@ -156,6 +159,7 @@ class AuthService {
         role: 'vendor',
         token,
         loginTime: new Date().toISOString(),
+        rawResponse: result,
         ...vendorData,
       };
 
@@ -205,9 +209,19 @@ class AuthService {
     try {
       const json = JSON.stringify(session);
       sessionStorage.setItem('klk_user_session', json);
+      if (session.rawResponse) {
+        try {
+          sessionStorage.setItem('klk_raw_login_response', JSON.stringify(session.rawResponse));
+        } catch { /* ignore circular or big objects */ }
+      }
       if (persistLocal) {
         localStorage.setItem('klk_user_session', json);
         localStorage.setItem('klk_auth_token', session.token || '');
+        if (session.rawResponse) {
+          try {
+            localStorage.setItem('klk_raw_login_response', JSON.stringify(session.rawResponse));
+          } catch { /* ignore */ }
+        }
       }
     } catch (e) {
       console.error('Failed to save session:', e);
@@ -226,6 +240,18 @@ class AuthService {
     return null;
   }
 
+  getRawResponse(): any {
+    try {
+      const raw = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
+      if (raw) return JSON.parse(raw);
+      const session = this.getSession();
+      return session?.rawResponse || null;
+    } catch (e) {
+      console.error('Failed to parse raw response:', e);
+      return null;
+    }
+  }
+
   getToken(): string | null {
     const session = this.getSession();
     return session?.token || localStorage.getItem('klk_auth_token') || null;
@@ -238,7 +264,9 @@ class AuthService {
   clearSession(): void {
     try {
       sessionStorage.removeItem('klk_user_session');
+      sessionStorage.removeItem('klk_raw_login_response');
       localStorage.removeItem('klk_user_session');
+      localStorage.removeItem('klk_raw_login_response');
       localStorage.removeItem('klk_auth_token');
     } catch (e) {
       console.error('Failed to clear session:', e);

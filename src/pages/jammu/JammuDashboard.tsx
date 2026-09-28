@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 import { PageHead } from '../../components/shell/PageHead';
 import { ApexChart } from '../../components/charts/ApexChart';
 import {
+  Pagination,
+  usePagination,
+  SearchInput,
+  ExportButton,
+  type ExportColumn,
+} from '../../common';
+import {
   JAMMU_SOLAR_OVERVIEW,
   PHASE_DETAILS_DATA,
   PHASE_WISE_REPORT,
@@ -16,6 +23,18 @@ import {
   WORKFORCE_STATS,
   type ReportBifurcationRow,
 } from '../../data/demo/solarErpData';
+
+const MATERIAL_EXPORT_COLUMNS: ExportColumn<(typeof SOLAR_MATERIALS_DATA)[0]>[] = [
+  { header: 'Material Name', accessor: 'name' },
+  { header: 'Specification', accessor: 'specification' },
+  { header: 'Category', accessor: 'category' },
+  { header: 'Required', accessor: (m) => `${m.required} ${m.unit}` },
+  { header: 'Supplied', accessor: 'supplied' },
+  { header: 'Installed', accessor: 'installed' },
+  { header: 'In Transit', accessor: 'inTransit' },
+  { header: 'Pending', accessor: 'pending' },
+  { header: 'Status', accessor: 'status' },
+];
 
 const cv = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -212,11 +231,21 @@ export function JammuDashboard() {
   // Filtered materials
   const filteredMaterials = useMemo(() => {
     return SOLAR_MATERIALS_DATA.filter((m) => {
-      const matchCat = materialFilter === 'All' || m.category === materialFilter; 8
+      const matchCat = materialFilter === 'All' || m.category === materialFilter;
       const matchQuery = !searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.specification.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchQuery;
     });
   }, [materialFilter, searchQuery]);
+
+  // Working pagination for Solar Materials table from common folder
+  const {
+    paginatedData: paginatedMaterials,
+    currentPage: materialPage,
+    pageSize: materialPageSize,
+    totalItems: totalMaterialItems,
+    setPage: setMaterialPage,
+    setPageSize: setMaterialPageSize,
+  } = usePagination({ data: filteredMaterials, initialPageSize: 8 });
 
   // Filtered recent projects
   const filteredProjects = useMemo(() => {
@@ -243,30 +272,7 @@ export function JammuDashboard() {
     }
   }, [activeTab]);
 
-  // Export Solar Materials & Equipment to CSV
-  const exportMaterialsToCSV = () => {
-    const headers = ['Material Name', 'Specification', 'Category', 'Required', 'Unit', 'Supplied', 'Installed', 'In Transit', 'Pending', 'Status'];
-    const rows = filteredMaterials.map((m) => [
-      `"${m.name.replace(/"/g, '""')}"`,
-      `"${m.specification.replace(/"/g, '""')}"`,
-      `"${m.category}"`,
-      m.required,
-      `"${m.unit}"`,
-      m.supplied,
-      m.installed,
-      m.inTransit,
-      m.pending,
-      `"${m.status}"`,
-    ]);
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Jammu_Solar_Materials_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+
 
   // Export uploaded data to CSV
   const exportUploadedDataToCSV = () => {
@@ -1230,14 +1236,13 @@ export function JammuDashboard() {
               <p className="ax-card__subtitle">Procurement, warehouse supply, installation consumption &amp; transit statuses</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap' }}>
-                <input
-                  type="search"
-                  className="ax-input ax-input--sm"
-                  placeholder="Search material..."
-                  style={{ minWidth: 160 }}
+              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+                <SearchInput
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={setSearchQuery}
+                  placeholder="Search material..."
+                  size="sm"
+                  style={{ minWidth: 170 }}
                 />
                 <select
                   className="ax-input ax-input--sm"
@@ -1255,15 +1260,12 @@ export function JammuDashboard() {
                   <option value="Junction Box">Junction Box</option>
                   <option value="Safety & Protection">Safety &amp; Protection</option>
                 </select>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={exportMaterialsToCSV}
-                  title="Export Solar Materials & Equipment records to Excel/CSV"
-                >
-                  {ICON_DOWNLOAD}
-                  <span className="ax-btn__label">Export Excel/CSV</span>
-                </button>
+                <ExportButton
+                  data={filteredMaterials}
+                  columns={MATERIAL_EXPORT_COLUMNS}
+                  filename={`Jammu_Solar_Materials_${new Date().toISOString().slice(0, 10)}`}
+                  label="Export Excel/CSV"
+                />
               </div>
             </div>
           </div>
@@ -1283,7 +1285,7 @@ export function JammuDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredMaterials.map((mat) => (
+                {paginatedMaterials.map((mat) => (
                   <tr key={mat.id} className="ax-table__row">
                     <td className="ax-table__td">
                       <div style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{mat.name}</div>
@@ -1307,6 +1309,18 @@ export function JammuDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Working Pagination from Common Folder */}
+          <div className="ax-card__footer" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
+            <Pagination
+              currentPage={materialPage}
+              totalItems={totalMaterialItems}
+              pageSize={materialPageSize}
+              onPageChange={setMaterialPage}
+              onPageSizeChange={setMaterialPageSize}
+              pageSizeOptions={[5, 8, 15, 25]}
+            />
           </div>
         </section>
 

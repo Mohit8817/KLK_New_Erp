@@ -3,6 +3,7 @@ import authService, { type UserSession, type LoginResponse } from '../services/a
 
 interface AuthContextType {
   user: UserSession | null;
+  rawResponse: any;
   isAuthenticated: boolean;
   isLoading: boolean;
   loginUser: (email: string, pass: string, remember?: boolean) => Promise<LoginResponse>;
@@ -15,14 +16,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
+  const [rawResponse, setRawResponse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Initialize session from sessionStorage or localStorage
   useEffect(() => {
     try {
       const activeSession = authService.getSession();
+      const activeRaw = authService.getRawResponse();
       if (activeSession) {
         setUser(activeSession);
+      }
+      if (activeRaw) {
+        setRawResponse(activeRaw);
+      } else if (activeSession?.rawResponse) {
+        setRawResponse(activeSession.rawResponse);
       }
     } catch (err) {
       console.error('Session load error:', err);
@@ -37,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await authService.loginUser(email, pass);
       if (res.success && res.user) {
         setUser(res.user);
+        setRawResponse(res.data || res.user.rawResponse);
         authService.saveSession(res.user, remember);
       }
       return res;
@@ -51,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await authService.loginVendor(vendorId, pass);
       if (res.success && res.user) {
         setUser(res.user);
+        setRawResponse(res.data || res.user.rawResponse);
         authService.saveSession(res.user, remember);
       }
       return res;
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await authService.logout();
     } finally {
       setUser(null);
+      setRawResponse(null);
       setIsLoading(false);
     }
   };
@@ -80,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        rawResponse: rawResponse || user?.rawResponse || (user ? { ...user } : null),
         isAuthenticated: !!user,
         isLoading,
         loginUser,

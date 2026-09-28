@@ -1,26 +1,4 @@
-/*
- * Vireo React — shared header utility cluster.
- *
- * Faithful re-expression of partials/header-utils.html: items 4–11 of the
- * reference chrome — language menu, fullscreen, light/dark quick-toggle, app
- * grid, cart, notifications, profile, and the customizer trigger.
- *
- * WHY THIS IS ITS OWN COMPONENT --
- *   BOTH the dashboard <Header> and the full-screen <AppBar> render this exact
- *   cluster. Keeping it in one place is what stops the two chromes from
- *   drifting (the HTML edition does the same with a Handlebars partial). Never
- *   copy these controls into a chrome component — render <HeaderUtils/>.
- *
- * Dropdowns use the native <Dropdown> primitive (Alpine axDropdown
- * re-implementation). Same DOM classes and ARIA as the reference so pixels match.
- *
- * RESPONSIVE SHED (02-shell §4.12) -- the cluster is eleven controls wide and
- * does not fit a narrow bar, so shell.css §18 hides some of the bar controls per
- * band and reveals the matching `[data-ax-shed]` row inside the "More" overflow
- * menu at the end of the run. The CSS owns per-row visibility; the only thing
- * decided here is whether the More TRIGGER exists at all — exactly the split the
- * reference makes between shell.css §18 and `_bindBands()` in js/alpine/index.js.
- */
+
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Dropdown } from '../ui/Dropdown';
@@ -58,12 +36,7 @@ const ICON = {
   ),
 };
 
-/*
- * The quick-apps tiles — ONE list, rendered twice: in the wide .ax-apps menu and
- * in the overflow's `[data-ax-shed="apps"]` group. Two copies of this list is how
- * the two rendering sites drift apart, which is exactly what the reference
- * avoids by keeping both inside partials/header-utils.html.
- */
+
 const APP_TILES: Array<[string, string]> = [
   ['/apps/email', 'Email'],
   ['/apps/chat', 'Chat'],
@@ -76,12 +49,7 @@ const APP_TILES: Array<[string, string]> = [
   ['/pages/pricing', 'Pricing'],
 ];
 
-/*
- * Which controls each band sheds into the overflow menu. Keep in lockstep with
- * shell.css §18, which is what actually hides the bar copy and reveals the
- * matching `[data-ax-shed]` row — this table only decides whether the "More"
- * trigger is rendered (mirrors `$store.ax.overflow` in the reference).
- */
+
 const SHED_LG = ['lang', 'fullscreen', 'apps'];
 const SHED_MD = ['cart', 'customizer'];
 
@@ -291,7 +259,7 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
             <small>{user?.email || (user?.vendor_id ? `ID: ${user.vendor_id}` : 'erp@klksolar.com')}</small>
           </span>
         </div>
-        <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile">View Profile</Link>
+        <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile"> View Profile</Link>
         <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile-settings">Account Settings</Link>
         <Link className="ax-dropdown__item" role="menuitem" to="/pages/support">Support</Link>
         <div className="ax-dropdown__divider" role="separator"></div>

@@ -5,24 +5,14 @@ import { Layout } from './components/shell/Layout';
 import { AppLayout } from './components/shell/AppLayout';
 import { CustomizerProvider } from './context/CustomizerContext';
 import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute } from './pages/auth/ProtectedRoute';
 import { DocumentTitle } from './hooks/useDocumentTitle';
+import { DashboardSkeleton } from './common/skeletons';
 
 type PageComponent = ReturnType<typeof lazy>;
 
 const Sales = lazy(() => import('./pages/dashboards/Sales'));
-const AuthComingSoon = lazy(() => import('./pages/auth/ComingSoon'));
-const AuthCreatePasswordBasic = lazy(() => import('./pages/auth/CreatePasswordBasic'));
-const AuthCreatePasswordCover = lazy(() => import('./pages/auth/CreatePasswordCover'));
-const AuthLockScreenBasic = lazy(() => import('./pages/auth/LockScreenBasic'));
-const AuthLockScreenCover = lazy(() => import('./pages/auth/LockScreenCover'));
-const AuthMaintenance = lazy(() => import('./pages/auth/Maintenance'));
-const AuthResetPasswordBasic = lazy(() => import('./pages/auth/ResetPasswordBasic'));
-const AuthResetPasswordCover = lazy(() => import('./pages/auth/ResetPasswordCover'));
-const AuthSignUpBasic = lazy(() => import('./pages/auth/SignUpBasic'));
-const AuthSignUpCover = lazy(() => import('./pages/auth/SignUpCover'));
-const AuthTwoStepBasic = lazy(() => import('./pages/auth/TwoStepBasic'));
-const AuthTwoStepCover = lazy(() => import('./pages/auth/TwoStepCover'));
+const SolarLogin = lazy(() => import('./pages/auth/Login'));
 const Error401 = lazy(() => import('./pages/error/Error401'));
 const Error403 = lazy(() => import('./pages/error/Error403'));
 const Error404 = lazy(() => import('./pages/error/Error404'));
@@ -31,7 +21,6 @@ const Error503 = lazy(() => import('./pages/error/Error503'));
 const PagesComingSoon = lazy(() => import('./pages/pages/ComingSoon'));
 const PagesLanding = lazy(() => import('./pages/pages/Landing'));
 const PagesLogout = lazy(() => import('./pages/pages/Logout'));
-const SolarLogin = lazy(() => import('./pages/login/login'));
 const AppsCalendar = lazy(() => import('./pages/apps/Calendar'));
 const AppsChat = lazy(() => import('./pages/apps/Chat'));
 const AppsContacts = lazy(() => import('./pages/apps/Contacts'));
@@ -200,20 +189,24 @@ const Widgets = lazy(() => import('./pages/Widgets'));
 
 // Standalone pages — rendered OUTSIDE the app shell (own full-viewport chrome).
 const standalone: Record<string, PageComponent> = {
-  'auth/coming-soon': AuthComingSoon,
-  'auth/create-password-basic': AuthCreatePasswordBasic,
-  'auth/create-password-cover': AuthCreatePasswordCover,
-  'auth/lock-screen-basic': AuthLockScreenBasic,
-  'auth/lock-screen-cover': AuthLockScreenCover,
-  'auth/maintenance': AuthMaintenance,
-  'auth/reset-password-basic': AuthResetPasswordBasic,
-  'auth/reset-password-cover': AuthResetPasswordCover,
+  'login': SolarLogin,
+  'pages/login': SolarLogin,
+  'auth/login': SolarLogin,
+  'auth/solar-login': SolarLogin,
   'auth/sign-in-basic': SolarLogin,
   'auth/sign-in-cover': SolarLogin,
-  'auth/sign-up-basic': AuthSignUpBasic,
-  'auth/sign-up-cover': AuthSignUpCover,
-  'auth/two-step-basic': AuthTwoStepBasic,
-  'auth/two-step-cover': AuthTwoStepCover,
+  'auth/coming-soon': PagesComingSoon,
+  'auth/create-password-basic': SolarLogin,
+  'auth/create-password-cover': SolarLogin,
+  'auth/lock-screen-basic': SolarLogin,
+  'auth/lock-screen-cover': SolarLogin,
+  'auth/maintenance': PagesComingSoon,
+  'auth/reset-password-basic': SolarLogin,
+  'auth/reset-password-cover': SolarLogin,
+  'auth/sign-up-basic': SolarLogin,
+  'auth/sign-up-cover': SolarLogin,
+  'auth/two-step-basic': SolarLogin,
+  'auth/two-step-cover': SolarLogin,
   'error/401': Error401,
   'error/403': Error403,
   'error/404': Error404,
@@ -222,10 +215,6 @@ const standalone: Record<string, PageComponent> = {
   'pages/coming-soon': PagesComingSoon,
   'pages/landing': PagesLanding,
   'pages/logout': PagesLogout,
-  'login': SolarLogin,
-  'pages/login': SolarLogin,
-  'auth/solar-login': SolarLogin,
-  'auth/login': SolarLogin,
 };
 
 // The 13 app routes — rendered as children of <AppLayout> (full-screen app shell:
@@ -404,11 +393,10 @@ const shell: Record<string, PageComponent> = {
   'widgets': Widgets,
 };
 
-// Suspense boundary per route: for shell children this lands at the <Outlet>,
-// keeping the shell mounted while the page chunk loads. Fallback is intentionally
-// empty (the shell + anti-flash cover the brief fetch) — matches vue/next.
+// Suspense boundary per route: shows DashboardSkeleton loading placeholders
+// matching the theme shapes (cards, lists, tables, charts) instead of a spinner.
 const wrap = (C: PageComponent): ReactElement => (
-  <Suspense fallback={null}>
+  <Suspense fallback={<DashboardSkeleton />}>
     <C />
   </Suspense>
 );
