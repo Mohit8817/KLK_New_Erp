@@ -10,6 +10,7 @@ export interface InstallationRequestRecord {
   file: string;         // relative path from API
   remarks: string;
   status: string;       // "2" = Accepted
+  siteIds?: number[];
 }
 
 /* Files ka base URL (backend domain) yahan set karo, e.g. 'https://your-api.com/' */

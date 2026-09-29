@@ -1,10 +1,5 @@
 import { API_BASE_URL } from '../../../services/authService';
 
-/**
- * Assam Solar Water Pump (SWP) Vendor API Endpoints
- * All endpoints require Bearer <token> in Authorization header
- */
-
 // 1. Assigned Installation List
 // GET /assam/swp-view-assign-installation-sites
 export const ASSAM_SWP_VIEW_ASSIGN_INSTALLATION_SITES_URL = `${API_BASE_URL}/assam/swp-view-assign-installation-sites`;
