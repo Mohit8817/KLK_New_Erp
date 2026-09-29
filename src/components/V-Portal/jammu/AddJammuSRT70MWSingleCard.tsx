@@ -1,6 +1,6 @@
 import { useState, useRef, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHead } from '../../components/shell/PageHead';
+import { PageHead } from '../../shell/PageHead';
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers
 const SINGLE_CARD_FORM_CSS = `

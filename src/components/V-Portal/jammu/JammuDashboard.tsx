@@ -1,14 +1,14 @@
 import { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHead } from '../../components/shell/PageHead';
-import { ApexChart } from '../../components/charts/ApexChart';
+import { PageHead } from '../../shell/PageHead';
+import { ApexChart } from '../../charts/ApexChart';
 import {
   Pagination,
   usePagination,
   SearchInput,
   ExportButton,
   type ExportColumn,
-} from '../../common';
+} from '../../../common';
 import {
   JAMMU_SOLAR_OVERVIEW,
   PHASE_DETAILS_DATA,
@@ -22,7 +22,7 @@ import {
   RECENT_OPERATIONS_ACTIVITY,
   WORKFORCE_STATS,
   type ReportBifurcationRow,
-} from '../../data/demo/solarErpData';
+} from '../../../data/demo/solarErpData';
 
 const MATERIAL_EXPORT_COLUMNS: ExportColumn<(typeof SOLAR_MATERIALS_DATA)[0]>[] = [
   { header: 'Material Name', accessor: 'name' },

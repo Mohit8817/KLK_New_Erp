@@ -90,7 +90,9 @@ function Group({ node, level, activeSlug, filter }: GroupProps) {
     () => subtreeContainsSlug(node, activeSlug),
     [node, activeSlug],
   );
-  const [open, setOpen] = useState(containsActive || level === 1 && node.section === 'MAIN');
+  const [open, setOpen] = useState(
+    containsActive || (level === 1 && (node.section === 'MAIN' || node.section === 'ASSAM')),
+  );
   const isOpen = filter ? true : open || containsActive;
   const groupHidden = filter && !subtreeMatches(node, filter);
 
@@ -259,6 +261,7 @@ function sectionLabel(s: string): string {
   // Manifest sections are upper-case; reference renders them title-ish.
   const map: Record<string, string> = {
     MAIN: 'Main',
+    ASSAM: 'Assam Operations',
     APPLICATIONS: 'Applications',
     MODULES: 'Modules',
     PAGES: 'Pages',

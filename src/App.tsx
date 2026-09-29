@@ -9,7 +9,16 @@ import { ProtectedRoute } from './pages/auth/ProtectedRoute';
 import { DocumentTitle } from './hooks/useDocumentTitle';
 import { DashboardSkeleton } from './common/skeletons';
 
+
+
 type PageComponent = ReturnType<typeof lazy>;
+
+const AssamDashboard = lazy(() => import('./components/V-Portal/assam/installation/swp/AssamDashboard'));
+const AssamInstallation = lazy(() => import('./components/V-Portal/assam/installation/swp/Installation'));
+const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/installation/swp/InstallationRequest'));
+const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/installation/swp/InstallationSite'));
+const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/installation/swp/ViewInstallation'));
+const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/installation/swp/ViewPayment'));
 
 const Sales = lazy(() => import('./pages/dashboards/Sales'));
 const SolarLogin = lazy(() => import('./pages/auth/Login'));
@@ -55,9 +64,9 @@ const CryptoExchange = lazy(() => import('./pages/crypto/Exchange'));
 const CryptoMarketcap = lazy(() => import('./pages/crypto/Marketcap'));
 const CryptoTransactions = lazy(() => import('./pages/crypto/Transactions'));
 const CryptoWallet = lazy(() => import('./pages/crypto/Wallet'));
-const JammuDashboard = lazy(() => import('./pages/jammu/JammuDashboard'));
-const JammuAddSRT70MW = lazy(() => import('./pages/jammu/AddJammuSRT70MW'));
-const JammuAddSRT70MWSingleCard = lazy(() => import('./pages/jammu/AddJammuSRT70MWSingleCard'));
+const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/JammuDashboard'));
+const JammuAddSRT70MW = lazy(() => import('./components/V-Portal/jammu/AddJammuSRT70MW'));
+const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/AddJammuSRT70MWSingleCard'));
 const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
 const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
@@ -261,6 +270,24 @@ const shell: Record<string, PageComponent> = {
   'jammu/dashboard': JammuDashboard,
   'jammu/add-srt-70mw': JammuAddSRT70MW,
   'jammu/add-srt-new': JammuAddSRT70MWSingleCard,
+
+  
+
+  'assam': AssamDashboard,
+  'assam/dashboard': AssamDashboard,
+  'assam/installation': AssamInstallation,
+  'assam/swp': AssamDashboard,
+  'assam/swp/dashboard': AssamDashboard,
+  'assam/swp/installation-request': AssamInstallationRequest,
+  'assam/installation-request': AssamInstallationRequest,
+  'assam/swp/installation-site': AssamInstallationSite,
+  'assam/installation-site': AssamInstallationSite,
+  'assam/swp/add-installation': AssamInstallationSite,
+  'assam/add-installation': AssamInstallationSite,
+  'assam/swp/view-installation': AssamViewInstallation,
+  'assam/view-installation': AssamViewInstallation,
+  'assam/swp/view-payment': AssamViewPayment,
+  'assam/view-payment': AssamViewPayment,
 
   'dashboards/solar-erp': JammuDashboard,
   'dashboards/erp': JammuDashboard,

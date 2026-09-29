@@ -6,8 +6,9 @@
     "deliverableHtmlFiles": 204,
     "aliasNodes": 2,
     "comment": "Single ordered data source for sidebar, breadcrumbs, sidebar filter, and command palette. Node field contract per spec 02 §15: {id,title,slug,icon,parent,section,order,badge,keywords,inMenu,alias,external}. section is null for non-top-level nodes (inherited from L1 ancestor). 'parent' is null at top level. 'badge' is {type,value?} or null. 'alias' is the canonical node id this node points at (alias nodes share a slug with their canonical and are excluded from the registry count). icon = Tabler icon name (outline, 24x24, currentColor). Groups (L1 / sub-groups) carry their own node with a slug pointing at their landing leaf per spec §11 (module group click -> primary list or aliased dashboard).",
-    "sections": [
+      "sections": [
       "MAIN",
+      "ASSAM",
       "APPLICATIONS",
       "MODULES",
       "PAGES",
@@ -16,6 +17,248 @@
     ]
   },
   "nodes": [
+
+
+
+{
+  "id": "grp.assam.installation",
+  "title": "Installation",
+  "slug": "assam/installation",
+  "icon": "tools",
+  "parent": null,
+  "section": "ASSAM",
+  "order": 0,
+  "badge": null,
+  "keywords": [
+    "assam",
+    "installation"
+  ],
+  "inMenu": true,
+  "alias": null
+},
+{
+  "id": "grp.assam.swp",
+  "title": "SWP",
+  "slug": "assam/swp/dashboard",
+  "icon": "disc",
+  "parent": "grp.assam.installation",
+  "section": null,
+  "order": 0,
+  "badge": null,
+  "keywords": [
+    "assam",
+    "swp",
+    "dashboard"
+  ],
+  "inMenu": true,
+  "alias": null
+},
+
+    {
+      "id": "assam.swp.dashboard",
+      "title": "Dashboard",
+      "slug": "assam/swp/dashboard",
+      "icon": "layout-dashboard",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 0,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp",
+        "dashboard"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "assam.swp.installation-request",
+      "title": "Installation Request",
+      "slug": "assam/swp/installation-request",
+      "icon": "file-plus",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 1,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp",
+        "installation",
+        "request"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "assam.swp.installation-site",
+      "title": "Installation Site",
+      "slug": "assam/swp/installation-site",
+      "icon": "map-pin",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 2,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp",
+        "installation",
+        "site"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "assam.swp.view-installation",
+      "title": "View Installation",
+      "slug": "assam/swp/view-installation",
+      "icon": "eye",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 3,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp",
+        "view",
+        "installation"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "assam.swp.view-payment",
+      "title": "View Payment",
+      "slug": "assam/swp/view-payment",
+      "icon": "credit-card",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 4,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp",
+        "view",
+        "payment"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "assam.dashboard.alias",
+      "title": "Dashboard",
+      "slug": "assam/dashboard",
+      "icon": "layout-dashboard",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "dashboard"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.dashboard"
+    },
+    {
+      "id": "assam.alias",
+      "title": "Assam",
+      "slug": "assam",
+      "icon": "layout-dashboard",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.dashboard"
+    },
+    {
+      "id": "assam.swp.alias",
+      "title": "SWP",
+      "slug": "assam/swp",
+      "icon": "disc",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "swp"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.dashboard"
+    },
+    {
+      "id": "assam.installation-request.alias",
+      "title": "Installation Request",
+      "slug": "assam/installation-request",
+      "icon": "file-plus",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "installation",
+        "request"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.installation-request"
+    },
+    {
+      "id": "assam.installation-site.alias",
+      "title": "Installation Site",
+      "slug": "assam/installation-site",
+      "icon": "map-pin",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "installation",
+        "site"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.installation-site"
+    },
+    {
+      "id": "assam.view-installation.alias",
+      "title": "View Installation",
+      "slug": "assam/view-installation",
+      "icon": "eye",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "view",
+        "installation"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.view-installation"
+    },
+    {
+      "id": "assam.view-payment.alias",
+      "title": "View Payment",
+      "slug": "assam/view-payment",
+      "icon": "credit-card",
+      "parent": "grp.assam.swp",
+      "section": null,
+      "order": 99,
+      "badge": null,
+      "keywords": [
+        "assam",
+        "view",
+        "payment"
+      ],
+      "inMenu": false,
+      "alias": "assam.swp.view-payment"
+    },
+
     {
       "id": "grp.jammu",
       "title": "Jammu Operations",

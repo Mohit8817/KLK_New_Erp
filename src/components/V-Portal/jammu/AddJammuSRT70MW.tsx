@@ -1,6 +1,6 @@
 import { useState, useRef, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHead } from '../../components/shell/PageHead';
+import { PageHead } from '../../shell/PageHead';
 
 // CSS for Floating Labels matching the theme style and states
 const FLOATING_FORM_CSS = `
