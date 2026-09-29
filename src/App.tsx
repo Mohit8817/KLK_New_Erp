@@ -13,12 +13,12 @@ import { DashboardSkeleton } from './common/skeletons';
 
 type PageComponent = ReturnType<typeof lazy>;
 
-const AssamDashboard = lazy(() => import('./components/V-Portal/assam/installation/swp/AssamDashboard'));
-const AssamInstallation = lazy(() => import('./components/V-Portal/assam/installation/swp/Installation'));
-const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/installation/swp/InstallationRequest'));
-const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/installation/swp/InstallationSite'));
-const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/installation/swp/ViewInstallation'));
-const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/installation/swp/ViewPayment'));
+const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
+const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
+const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
+const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
+const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
+const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 
 const Sales = lazy(() => import('./pages/dashboards/Sales'));
 const SolarLogin = lazy(() => import('./pages/auth/Login'));

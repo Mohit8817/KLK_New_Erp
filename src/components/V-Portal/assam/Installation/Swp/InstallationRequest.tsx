@@ -2,7 +2,7 @@
  * Installation Request — Assam SWP assigned installations.
  * Built only from template components: Data Table, Pagination, Modal, Badges.
  */
-import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -14,6 +14,12 @@ import {
   SAMPLE_INSTALLATION_REQUESTS,
   type InstallationRequestRecord as Rec,
 } from '../../../../../data/demo/assamInstallationRequests';
+import {
+  ASSAM_SWP_VIEW_ASSIGN_INSTALLATION_SITES_URL,
+  ASSAM_SWP_VIEW_ASSIGN_INSTALLATION_DETAIL_URL,
+  ASSAM_SWP_ASSIGN_INSTALLATION_ACCEPT_URL,
+} from '../../../V_Portal_APIS/Assam_API';
+import { authService } from '../../../../../services/authService';
 
 const svg = (children: ReactElement | ReactElement[]) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -111,7 +117,15 @@ function FileThumb({ path }: { path: string }) {
   );
 }
 
-function RowActions({ item }: { item: Rec }) {
+function RowActions({
+  item,
+  onAccept,
+  isAccepting,
+}: {
+  item: Rec;
+  onAccept: () => void;
+  isAccepting: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useClickOutside(ref, open, () => setOpen(false));
@@ -122,7 +136,19 @@ function RowActions({ item }: { item: Rec }) {
         <span className="ax-btn__icon">{ICON.down}</span>
       </button>
       {open && (
-        <div className="ax-dropdown" role="menu" style={{ position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 6px)', zIndex: 30, minWidth: 160, padding: 'var(--ax-space-2)' }}>
+        <div className="ax-dropdown" role="menu" style={{ position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 6px)', zIndex: 30, minWidth: 170, padding: 'var(--ax-space-2)' }}>
+          {item.status !== '2' && (
+            <button
+              type="button"
+              className="ax-menu__item"
+              role="menuitem"
+              disabled={isAccepting}
+              onClick={() => { setOpen(false); onAccept(); }}
+              style={{ color: 'var(--ax-success)', fontWeight: 600 }}
+            >
+              {isAccepting ? 'Accepting…' : '✓ Accept Installation'}
+            </button>
+          )}
           <Link to="/assam/swp/installation-site" className="ax-menu__item" role="menuitem" onClick={() => setOpen(false)}>Add Installation Site</Link>
           <a className="ax-menu__item" role="menuitem" href={fileUrl(item.file)} target="_blank" rel="noopener noreferrer" download onClick={() => setOpen(false)}>Download File</a>
         </div>
@@ -132,6 +158,7 @@ function RowActions({ item }: { item: Rec }) {
 }
 
 export function InstallationRequest() {
+  const [requests, setRequests] = useState<Rec[]>(SAMPLE_INSTALLATION_REQUESTS);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
@@ -140,8 +167,126 @@ export function InstallationRequest() {
   const [sortKey, setSortKey] = useState<SortKey>('assignDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [detail, setDetail] = useState<Rec | null>(null);
+  const [detailRecord, setDetailRecord] = useState<any | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  const all = SAMPLE_INSTALLATION_REQUESTS;
+  // 1. Fetch assigned installations from API
+  const loadRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(ASSAM_SWP_VIEW_ASSIGN_INSTALLATION_SITES_URL, {
+        method: 'GET',
+        headers,
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const list = json?.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          const mapped: Rec[] = list.map((item: any) => {
+            const rawNames = Array.isArray(item.Names)
+              ? item.Names
+              : Array.isArray(item.names)
+              ? item.names
+              : [];
+            let siteCount = rawNames.length;
+            if (!siteCount && item.site_id) {
+              try {
+                const parsed = JSON.parse(item.site_id);
+                if (Array.isArray(parsed)) siteCount = parsed.length;
+              } catch {
+                siteCount = 1;
+              }
+            }
+            return {
+              id: item.id,
+              vendorName: item.vendors?.name || (typeof item.vendor === 'string' ? item.vendor : 'Vendor'),
+              assignDate: item.created_at || item.assign_date || item.assignDate || '',
+              deadlineDate: item.deadline_date || item.deadlineDate || '',
+              state: item.state || 'assam',
+              district: item.district || rawNames[0]?.district || '—',
+              siteCount: siteCount || 1,
+              names: rawNames,
+              file: item.file || '',
+              remarks: item.remarks || '',
+              status: String(item.status ?? '1'),
+            };
+          });
+          setRequests(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch assigned installation sites:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  // 2. Fetch assign site detail
+  const handleViewDetail = async (r: Rec) => {
+    setDetail(r);
+    setDetailRecord(null);
+    setLoadingDetail(true);
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${ASSAM_SWP_VIEW_ASSIGN_INSTALLATION_DETAIL_URL}?id=${r.id}`, {
+        method: 'GET',
+        headers,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data) {
+          setDetailRecord(json.data);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch site detail:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // 3. Accept installation
+  const handleAccept = async (id: number) => {
+    setActionLoadingId(id);
+    setAlertMsg(null);
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${ASSAM_SWP_ASSIGN_INSTALLATION_ACCEPT_URL}?id=${id}`, {
+        method: 'GET',
+        headers,
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && (json?.status === true || json?.success === true)) {
+        setAlertMsg({ type: 'success', text: json?.message || 'Installation Accept Successfully!!!' });
+        setRequests((prev) => prev.map((item) => (item.id === id ? { ...item, status: '2' } : item)));
+      } else {
+        setAlertMsg({ type: 'danger', text: json?.message || 'Error occurred while accepting installation' });
+      }
+    } catch (err: any) {
+      setAlertMsg({ type: 'danger', text: err?.message || 'Network error occurred' });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const all = requests;
   const visibleCols = columns.filter((c) => c.visible);
   const toggleColumn = (key: string) => setColumns((p) => p.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
 
@@ -210,7 +355,7 @@ export function InstallationRequest() {
   const handleCopy = () => {
     navigator.clipboard.writeText(filtered.map((r, i) => [i + 1, r.vendorName, fmtDate(r.assignDate), capital(r.state), r.district, r.siteCount, fmtDate(r.deadlineDate), statusOf(r.status).label].join('\t')).join('\n'));
   };
-  const triggerRefresh = () => { setLoading(true); setTimeout(() => setLoading(false), 500); };
+  const triggerRefresh = () => { loadRequests(); };
 
   const renderCell = (key: string, r: Rec, i: number) => {
     switch (key) {
@@ -233,7 +378,7 @@ export function InstallationRequest() {
       case 'view':
         return (
           <td key={key} className="ax-table__td">
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => setDetail(r)}>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleViewDetail(r)}>
               <span className="ax-btn__icon">{ICON.eye}</span>
               <span className="ax-btn__label">View</span>
             </button>
@@ -244,7 +389,11 @@ export function InstallationRequest() {
         const s = statusOf(r.status);
         return <td key={key} className="ax-table__td"><span className={`ax-badge ax-badge--soft ax-badge--pill ax-badge--${s.tone}`}><span className="ax-badge__dot" />{s.label}</span></td>;
       }
-      case 'action': return <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}><RowActions item={r} /></td>;
+      case 'action': return (
+        <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
+          <RowActions item={r} onAccept={() => handleAccept(r.id)} isAccepting={actionLoadingId === r.id} />
+        </td>
+      );
       default: return <td key={key} className="ax-table__td" />;
     }
   };
@@ -260,6 +409,17 @@ export function InstallationRequest() {
           </button>
         }
       />
+
+      {alertMsg && (
+        <div className={`ax-alert ax-alert--${alertMsg.type} ax-alert--inline`} style={{ margin: 'var(--ax-space-3) var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__content">
+            <p className="ax-alert__message">{alertMsg.text}</p>
+          </div>
+          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setAlertMsg(null)} aria-label="Dismiss">
+            {ICON.close}
+          </button>
+        </div>
+      )}
 
       <div className="ax-dash-grid">
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned SWP installation requests">
@@ -385,25 +545,49 @@ export function InstallationRequest() {
               </div>
 
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--compact">
-                  <caption className="ax-visually-hidden">Farmers in this assignment</caption>
-                  <thead className="ax-table__head">
-                    <tr>
-                      <th className="ax-table__th" scope="col">#</th>
-                      <th className="ax-table__th" scope="col">Farmer Name</th>
-                      <th className="ax-table__th" scope="col">Father Name</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.names.map((n, i) => (
-                      <tr key={i} className="ax-table__row">
-                        <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{i + 1}</td>
-                        <td className="ax-table__td">{n.farmer_name ?? '—'}</td>
-                        <td className="ax-table__td">{n.father_name ?? '—'}</td>
+                {loadingDetail ? (
+                  <div style={{ padding: 'var(--ax-space-4)', textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                    Loading assignment site details…
+                  </div>
+                ) : (
+                  <table className="ax-table ax-table--compact">
+                    <caption className="ax-visually-hidden">Farmers in this assignment</caption>
+                    <thead className="ax-table__head">
+                      <tr>
+                        <th className="ax-table__th" scope="col">#</th>
+                        <th className="ax-table__th" scope="col">Farmer Name</th>
+                        <th className="ax-table__th" scope="col">Father Name</th>
+                        {detailRecord?.Names?.[0]?.district && <th className="ax-table__th" scope="col">District / Block</th>}
+                        {detailRecord?.Names?.[0]?.pump_capacity && <th className="ax-table__th" scope="col">Pump</th>}
+                        {detailRecord?.Names?.[0]?.farmer_contact && <th className="ax-table__th" scope="col">Contact</th>}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {(detailRecord?.Names || detail.names).map((n: any, i: number) => (
+                        <tr key={i} className="ax-table__row">
+                          <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{i + 1}</td>
+                          <td className="ax-table__td" style={{ fontWeight: 600 }}>{n.farmer_name ?? '—'}</td>
+                          <td className="ax-table__td">{n.father_name ?? '—'}</td>
+                          {detailRecord?.Names?.[0]?.district && (
+                            <td className="ax-table__td" style={{ fontSize: 'var(--ax-text-xs)' }}>
+                              {n.district || '—'} {n.block ? `(${n.block})` : ''}
+                            </td>
+                          )}
+                          {detailRecord?.Names?.[0]?.pump_capacity && (
+                            <td className="ax-table__td" style={{ fontSize: 'var(--ax-text-xs)' }}>
+                              {n.pump_capacity || '—'} {n.pump_type || ''} {n.pump_sub_type ? `(${n.pump_sub_type})` : ''}
+                            </td>
+                          )}
+                          {detailRecord?.Names?.[0]?.farmer_contact && (
+                            <td className="ax-table__td ax-num" style={{ fontSize: 'var(--ax-text-xs)' }}>
+                              {n.farmer_contact || '—'}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactElement } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../shell/PageHead';
 import {
@@ -513,10 +513,8 @@ export function ViewData() {
     paged,
     curPage,
     pageSize,
-    totalPages,
     rangeStart,
     rangeEnd,
-    pageList,
     setPage,
     setPageSize,
   } = usePagination({

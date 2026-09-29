@@ -7,8 +7,7 @@ import {
   type DistrictWiseItem,
   type AssamDashboardData,
 } from '../../../../../data/demo/assamSwpData';
-// @ts-expect-error
-import { ASSAM_SWP_DASHBOARD_URL } from '../../../V_Portal_APIS/Assam_API.js';
+import { ASSAM_SWP_DASHBOARD_URL } from '../../../V_Portal_APIS/Assam_API';
 import { authService } from '../../../../../services/authService';
 
 const cv = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -63,18 +62,13 @@ const ICON_CREDIT = (
 
 export function AssamDashboard() {
   const [data, setData] = useState<AssamDashboardData>(ASSAM_DASHBOARD_DATA);
-  const [loading, setLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setIsRefreshing(true);
-    } else {
-      setLoading(true);
     }
     try {
-      setApiError(null);
       const token = authService.getToken();
       const headers: Record<string, string> = {
         'Accept': 'application/json',
@@ -148,9 +142,7 @@ export function AssamDashboard() {
       }
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err);
-      setApiError(err?.message || 'Failed to fetch dynamic dashboard data');
     } finally {
-      setLoading(false);
       if (isRefresh) {
         setTimeout(() => setIsRefreshing(false), 500);
       }
@@ -164,14 +156,12 @@ export function AssamDashboard() {
   // Safe destructuring with robust defaults
   const swp = data?.swp || ASSAM_DASHBOARD_DATA.swp;
   const districtwise = Array.isArray(data?.districtwise) ? data.districtwise : (ASSAM_DASHBOARD_DATA.districtwise || []);
-  const district_install = Array.isArray(data?.district_install) ? data.district_install : (ASSAM_DASHBOARD_DATA.district_install || []);
   const monthly_installations = Array.isArray(data?.monthly_installations) ? data.monthly_installations : (ASSAM_DASHBOARD_DATA.monthly_installations || []);
 
   // Filter & Search states
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'districtWise' | 'verification' | 'payment'>('districtWise');
 
   // Filtered district-wise records
   const filteredDistricts = useMemo(() => {

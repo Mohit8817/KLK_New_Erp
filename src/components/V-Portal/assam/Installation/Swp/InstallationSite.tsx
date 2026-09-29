@@ -3,10 +3,15 @@
  * Built only from template form components (ax-* classes, --ax-* tokens).
  * No custom colors or gradients.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { SAMPLE_FARMERS, type FarmerOption } from '../../../../../data/demo/assamSwpData';
+import { SAMPLE_FARMERS } from '../../../../../data/demo/assamSwpData';
+import {
+  ASSAM_SWP_INSTALL_SITE_LIST_URL,
+  ASSAM_SWP_INSTALL_SITE_STORE_URL,
+} from '../../../V_Portal_APIS/Assam_API';
+import { authService } from '../../../../../services/authService';
 
 type ImgState = { file: File | null; preview: string };
 const EMPTY_IMG: ImgState = { file: null, preview: '' };
@@ -44,14 +49,16 @@ function ImageField({ id, label, value, onPick }: { id: string; label: string; v
 
 export function InstallationSite() {
   const [loading, setLoading] = useState(false);
+  const [sites, setSites] = useState<any[]>([]);
   const [selectedFarmerId, setSelectedFarmerId] = useState('FARMER-001');
-  const [selectedFarmer, setSelectedFarmer] = useState<FarmerOption | null>(SAMPLE_FARMERS[0]);
+  const [selectedFarmer, setSelectedFarmer] = useState<any | null>(SAMPLE_FARMERS[0]);
 
-  const [vendor, setVendor] = useState('mohit');
+  const [vendor, setVendor] = useState('ABC Vendor');
   const [inverterNo, setInverterNo] = useState('');
   const [vfdSerialNo, setVfdSerialNo] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [moduleSerials, setModuleSerials] = useState<string[]>(['']);
 
   const [farmerModuleImg, setFarmerModuleImg] = useState<ImgState>(EMPTY_IMG);
@@ -59,16 +66,69 @@ export function InstallationSite() {
   const [runningWaterImg, setRunningWaterImg] = useState<ImgState>(EMPTY_IMG);
 
   const [submitting, setSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const timers = useRef<number[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // 4. Fetch installable sites list
+  const loadInstallableSites = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(ASSAM_SWP_INSTALL_SITE_LIST_URL, {
+        method: 'GET',
+        headers,
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const data = json?.data;
+        if (data?.ven?.name) {
+          setVendor(data.ven.name);
+        }
+        if (Array.isArray(data?.sites) && data.sites.length > 0) {
+          const mapped = data.sites.map((s: any) => ({
+            id: String(s.id),
+            farmerName: s.farmer_name,
+            fatherName: s.father_name,
+            farmerContact: s.farmer_contact,
+            customerNo: s.customer_no,
+            district: s.district,
+            tehsil: s.tehsil,
+            block: s.block,
+            village: s.village,
+            pumpCapacity: s.pump_capacity,
+            pumpType: s.pump_type,
+            pumpSubType: s.pump_sub_type,
+            state: s.state || 'Assam',
+            sanctionedPumpHp: s.pump_capacity || '3HP',
+          }));
+          setSites(mapped);
+          setSelectedFarmerId(mapped[0].id);
+          setSelectedFarmer(mapped[0]);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load installable sites:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInstallableSites();
+  }, [loadInstallableSites]);
 
   const handleFarmerChange = (farmerId: string) => {
     setSelectedFarmerId(farmerId);
     setLoading(true);
-    window.setTimeout(() => {
-      setSelectedFarmer(SAMPLE_FARMERS.find((f) => f.id === farmerId) || null);
-      setLoading(false);
-    }, 400);
+    const pool = sites.length > 0 ? sites : SAMPLE_FARMERS;
+    const found = pool.find((f: any) => String(f.id) === String(farmerId)) || null;
+    setSelectedFarmer(found);
+    setLoading(false);
   };
 
   const handleModuleChange = (index: number, val: string) =>
@@ -91,18 +151,86 @@ export function InstallationSite() {
     if (file) setter({ file, preview: URL.createObjectURL(file) });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 5. Store / Submit Installation Site
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!selectedFarmerId) {
+      setErrorMsg('Please select a farmer site.');
+      return;
+    }
+
+    if (!farmerModuleImg.file || !inverterVfdImg.file || !runningWaterImg.file) {
+      setErrorMsg('All three photos (Farmer with Module, Inverter/VFD, and Running Water) are required.');
+      return;
+    }
+
+    const filledSerials = moduleSerials.filter((s) => s.trim().length > 0);
+    if (filledSerials.length === 0) {
+      setErrorMsg('Please provide at least one solar module serial number.');
+      return;
+    }
+
+    // Check for duplicate serials in form
+    const uniqueSerials = new Set(filledSerials.map((s) => s.trim().toLowerCase()));
+    if (uniqueSerials.size !== filledSerials.length) {
+      setErrorMsg('Duplicate Module Serial Numbers found in your input. Each serial must be unique.');
+      return;
+    }
+
     setSubmitting(true);
-    timers.current.push(window.setTimeout(() => {
+    try {
+      const token = authService.getToken();
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const fd = new FormData();
+      fd.append('site_id', String(selectedFarmer?.id || selectedFarmerId));
+      fd.append('inverter_no', inverterNo.trim());
+      fd.append('vfd_no', vfdSerialNo.trim());
+      filledSerials.forEach((sn, idx) => {
+        fd.append(`module_serial_no[${idx}]`, sn.trim());
+      });
+      fd.append('module_image', farmerModuleImg.file);
+      fd.append('inverter_vfd_image', inverterVfdImg.file);
+      fd.append('running_water_image', runningWaterImg.file);
+      fd.append('inst_latitude', latitude.trim());
+      fd.append('inst_longitude', longitude.trim());
+      if (remarks.trim()) fd.append('inst_remarks', remarks.trim());
+
+      const res = await fetch(ASSAM_SWP_INSTALL_SITE_STORE_URL, {
+        method: 'POST',
+        headers,
+        body: fd,
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (res.ok && (json?.status === true || json?.success === true)) {
+        setSuccessMsg(json?.message || 'Site Install Successfully!!!');
+        handleCancel();
+        loadInstallableSites();
+      } else {
+        let msg = json?.message || 'Error occurred while installing site';
+        if (json?.errors) {
+          const firstErr = Object.values(json.errors)[0];
+          if (Array.isArray(firstErr) && firstErr[0]) {
+            msg = firstErr[0] as string;
+          }
+        }
+        setErrorMsg(msg);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error occurred while submitting installation site');
+    } finally {
       setSubmitting(false);
-      setSubmitSuccess(true);
-      timers.current.push(window.setTimeout(() => setSubmitSuccess(false), 4000));
-    }, 1000));
+    }
   };
 
   const handleCancel = () => {
-    setInverterNo(''); setVfdSerialNo(''); setLatitude(''); setLongitude('');
+    setInverterNo(''); setVfdSerialNo(''); setLatitude(''); setLongitude(''); setRemarks('');
     setModuleSerials(['']);
     setFarmerModuleImg(EMPTY_IMG); setInverterVfdImg(EMPTY_IMG); setRunningWaterImg(EMPTY_IMG);
   };
@@ -110,10 +238,13 @@ export function InstallationSite() {
   const infoRows: [string, string | undefined][] = selectedFarmer ? [
     ['State', selectedFarmer.state],
     ['District', selectedFarmer.district],
-    ['Block', selectedFarmer.block],
+    ['Tehsil / Block', `${selectedFarmer.tehsil || ''} ${selectedFarmer.block ? `/ ${selectedFarmer.block}` : ''}`.trim() || undefined],
     ['Village', selectedFarmer.village],
     ['Farmer Name', selectedFarmer.farmerName],
     ['Father Name', selectedFarmer.fatherName],
+    ['Pump Capacity', selectedFarmer.pumpCapacity || selectedFarmer.sanctionedPumpHp],
+    ['Pump Type', `${selectedFarmer.pumpType || ''} ${selectedFarmer.pumpSubType ? `(${selectedFarmer.pumpSubType})` : ''}`.trim() || undefined],
+    ['Farmer Contact', selectedFarmer.farmerContact],
   ] : [];
 
   return (
@@ -128,10 +259,17 @@ export function InstallationSite() {
         }
       />
 
-      {submitSuccess && (
-        <div className="ax-alert ax-alert--success ax-alert--inline" role="status">
+      {successMsg && (
+        <div className="ax-alert ax-alert--success ax-alert--inline" role="status" style={{ margin: 'var(--ax-space-3) var(--ax-space-4)' }}>
           <span className="ax-alert__icon">{ICON.check}</span>
-          <div className="ax-alert__content"><p className="ax-alert__message">SWP Installation site information saved successfully!</p></div>
+          <div className="ax-alert__content"><p className="ax-alert__message">{successMsg}</p></div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="ax-alert ax-alert--danger ax-alert--inline" role="alert" style={{ margin: 'var(--ax-space-3) var(--ax-space-4)' }}>
+          <span className="ax-alert__icon">{ICON.cross}</span>
+          <div className="ax-alert__content"><p className="ax-alert__message">{errorMsg}</p></div>
         </div>
       )}
 
@@ -146,12 +284,16 @@ export function InstallationSite() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-            <div className="ax-field" style={{ maxWidth: 400 }}>
-              <label className="ax-label" htmlFor="farmer-select">Select Farmer</label>
+            <div className="ax-field" style={{ maxWidth: 450 }}>
+              <label className="ax-label" htmlFor="farmer-select">
+                Select Assigned Site {sites.length > 0 ? `(${sites.length} Available)` : ''}
+              </label>
               <select id="farmer-select" className="ax-select" value={selectedFarmerId} onChange={(e) => handleFarmerChange(e.target.value)}>
-                <option value="">-- Choose Farmer --</option>
-                {SAMPLE_FARMERS.map((f) => (
-                  <option key={f.id} value={f.id}>{f.farmerName} — {f.district} ({f.sanctionedPumpHp})</option>
+                <option value="">-- Choose Assigned Site / Farmer --</option>
+                {(sites.length > 0 ? sites : SAMPLE_FARMERS).map((f: any) => (
+                  <option key={f.id} value={f.id}>
+                    #{f.id} · {f.farmerName} — {f.district || 'Assam'} {f.pumpCapacity ? `(${f.pumpCapacity})` : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -217,6 +359,10 @@ export function InstallationSite() {
             <div className="ax-field">
               <label className="ax-label" htmlFor="longitude">Longitude</label>
               <input id="longitude" type="text" inputMode="decimal" className="ax-input ax-mono" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="e.g. 91.7362" />
+            </div>
+            <div className="ax-field">
+              <label className="ax-label" htmlFor="remarks">Installation Remarks</label>
+              <input id="remarks" type="text" className="ax-input" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Installed OK, pump operational" />
             </div>
           </div>
         </section>

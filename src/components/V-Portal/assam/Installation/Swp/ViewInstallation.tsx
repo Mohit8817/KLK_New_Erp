@@ -1,5 +1,5 @@
 
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
@@ -9,6 +9,8 @@ import {
   SAMPLE_INSTALLATION_RECORDS,
   type InstallationRecord,
 } from '../../../../../data/demo/assamSwpData';
+import { ASSAM_SWP_VIEW_INSTALL_SITE_URL } from '../../../V_Portal_APIS/Assam_API';
+import { authService } from '../../../../../services/authService';
 
 const svg = (children: ReactElement | ReactElement[]) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -88,6 +90,29 @@ function RowActions({ item }: { item: InstallationRecord }) {
   );
 }
 
+/* Helper to resolve server-relative image paths */
+const resolveImg = (img?: string) => {
+  if (!img) return 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=150&auto=format&fit=crop&q=60';
+  if (img.startsWith('http') || img.startsWith('data:')) return img;
+  const baseUrl = ASSAM_SWP_VIEW_INSTALL_SITE_URL.replace(/\/api\/.*$/, '').replace(/\/+$/, '');
+  const cleanPath = img.replace(/^\/+/, '');
+  return `${baseUrl}/uploads/${cleanPath}`;
+};
+
+/* Helper to parse module serial numbers safely */
+const parseModuleSerials = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) return raw.map(String);
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      return raw.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
 export function ViewInstallation() {
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
@@ -97,19 +122,105 @@ export function ViewInstallation() {
   const [preview, setPreview] = useState<{ title: string; src: string } | null>(null);
 
   const swp = ASSAM_DASHBOARD_DATA.swp;
-  const all = SAMPLE_INSTALLATION_RECORDS;
+  const [sites, setSites] = useState<InstallationRecord[]>(SAMPLE_INSTALLATION_RECORDS);
+  const [installDetail, setInstallDetail] = useState<{
+    total?: number;
+    complete?: number;
+    pending?: number;
+    verify_approved?: number;
+    verify_pending?: number;
+    verify_reject?: number;
+    doc_approved?: number;
+    doc_pending?: number;
+    doc_reject?: number;
+    claim_approved?: number;
+    claim_pending?: number;
+    claim_reject?: number;
+    paid?: number;
+    partially?: number;
+  }>({
+    total: swp.site_count,
+    complete: swp.complete,
+    pending: swp.pending,
+    verify_approved: swp.verify_approved,
+    verify_pending: swp.verify_pending,
+    verify_reject: swp.verify_reject,
+    doc_approved: swp.doc_approved,
+    doc_pending: swp.doc_pending,
+    doc_reject: swp.doc_reject,
+    claim_approved: swp.inst_claim_approved,
+    claim_pending: swp.inst_claim_raised,
+    claim_reject: swp.inst_claim_reject,
+    paid: swp.inst_pay_complete,
+    partially: swp.inst_pay_partially,
+  });
 
-  const isVisible = (k: string) => columns.find((c) => c.key === k)?.visible ?? true;
+  const loadInstalledSites = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = authService.getToken();
+      const res = await fetch(ASSAM_SWP_VIEW_INSTALL_SITE_URL, {
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && (json.status || json.success) && json.data) {
+          if (json.data.install_detail) {
+            setInstallDetail(json.data.install_detail);
+          }
+          if (Array.isArray(json.data.sites) && json.data.sites.length > 0) {
+            const mapped: InstallationRecord[] = json.data.sites.map((s: any, idx: number) => ({
+              id: String(s.id || idx + 1),
+              srNo: idx + 1,
+              state: 'Assam',
+              district: s.district || 'Assam',
+              block: s.block || '—',
+              village: s.village || '—',
+              applicantName: s.farmer_name || `Farmer #${s.id}`,
+              vfdNo: s.vfd_no || '—',
+              inverterNo: s.inverter_no || '—',
+              moduleSerialNos: parseModuleSerials(s.module_serial_no),
+              latitude: s.latitude || '—',
+              longitude: s.longitude || '—',
+              farmerWithModuleImg: resolveImg(s.farmer_with_module_img),
+              inverterVfdFarmerImg: resolveImg(s.inverter_vfd_farmer_img),
+              runningWaterFarmerImg: resolveImg(s.running_water_farmer_img),
+              remarks: s.inst_remarks || '—',
+              verifyStatus: (s.inst_verify === 'Approved' ? 'Complete' : s.inst_verify === 'Reject' ? 'Reject' : 'Pending') as any,
+              verifyRemarks: s.inst_verify_remarks || '',
+              documentStatus: (s.doc_verify === 'Approved' ? 'Approved' : s.doc_verify === 'Reject' ? 'Reject' : 'Pending') as any,
+              docVerifyRemarks: s.doc_verify_remarks || '',
+              claimStatus: (s.inst_claim === 'Approved' ? 'Approved' : s.inst_claim === 'Reject' ? 'Reject' : s.inst_claim === 'Raised' ? 'Raised' : 'Pending') as any,
+              paymentStatus: (s.inst_pay === 'Complete' ? 'Complete' : s.inst_pay === 'Partially' ? 'Partially' : 'Pending') as any,
+            }));
+            setSites(mapped);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load Assam installed sites:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInstalledSites();
+  }, [loadInstalledSites]);
+
   const visibleCols = columns.filter((c) => c.visible);
   const toggleColumn = (key: string) => setColumns((p) => p.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return all;
-    return all.filter((r) =>
+    if (!t) return sites;
+    return sites.filter((r) =>
       [r.applicantName, r.district, r.village, r.block, r.vfdNo, r.inverterNo, r.remarks].some((v) => (v || '').toLowerCase().includes(t)),
     );
-  }, [q, all]);
+  }, [q, sites]);
 
   /* paging */
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -149,7 +260,9 @@ export function ViewInstallation() {
     navigator.clipboard.writeText(text);
   };
 
-  const triggerRefresh = () => { setLoading(true); setTimeout(() => setLoading(false), 500); };
+  const triggerRefresh = () => {
+    loadInstalledSites();
+  };
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 const DOT: Record<Tone, string> = {
@@ -162,31 +275,31 @@ const DOT: Record<Tone, string> = {
 
 const kpis: { cls: string; icon: ReactElement; label: string; parts: { label: string; value: number | string; tone: Tone }[] }[] = [
   { cls: 'c1', icon: ICON.layers, label: 'Total Sites', parts: [
-    { label: 'Total Assign', value: swp.site_count, tone: 'info' },
+    { label: 'Total Assign', value: installDetail.total ?? swp.site_count, tone: 'info' },
   ] },
   { cls: 'c2', icon: ICON.bookmark, label: 'Installation Status', parts: [
-    { label: 'Complete', value: swp.complete, tone: 'success' },
-    { label: 'Pending', value: swp.pending, tone: 'warning' },
+    { label: 'Complete', value: installDetail.complete ?? swp.complete, tone: 'success' },
+    { label: 'Pending', value: installDetail.pending ?? swp.pending, tone: 'warning' },
   ] },
   { cls: 'c3', icon: ICON.shield, label: 'Installation Verify', parts: [
-    { label: 'Complete', value: swp.verify_approved, tone: 'success' },
-    { label: 'Pending', value: swp.verify_pending, tone: 'warning' },
-    { label: 'Reject', value: swp.verify_reject, tone: 'danger' },
+    { label: 'Complete', value: installDetail.verify_approved ?? swp.verify_approved, tone: 'success' },
+    { label: 'Pending', value: installDetail.verify_pending ?? swp.verify_pending, tone: 'warning' },
+    { label: 'Reject', value: installDetail.verify_reject ?? swp.verify_reject, tone: 'danger' },
   ] },
   { cls: 'c4', icon: ICON.doc, label: 'Document Verify', parts: [
-    { label: 'Complete', value: swp.doc_approved, tone: 'success' },
-    { label: 'Pending', value: swp.doc_pending, tone: 'warning' },
-    { label: 'Reject', value: swp.doc_reject, tone: 'danger' },
+    { label: 'Complete', value: installDetail.doc_approved ?? swp.doc_approved, tone: 'success' },
+    { label: 'Pending', value: installDetail.doc_pending ?? swp.doc_pending, tone: 'warning' },
+    { label: 'Reject', value: installDetail.doc_reject ?? swp.doc_reject, tone: 'danger' },
   ] },
   { cls: 'c1', icon: ICON.claim, label: 'Claim Verify', parts: [
-    { label: 'Complete', value: swp.inst_claim_approved, tone: 'success' },
-    { label: 'Pending', value: swp.inst_claim_raised, tone: 'warning' },
-    { label: 'Reject', value: swp.inst_claim_reject, tone: 'danger' },
+    { label: 'Complete', value: installDetail.claim_approved ?? swp.inst_claim_approved, tone: 'success' },
+    { label: 'Pending', value: installDetail.claim_pending ?? swp.inst_claim_raised, tone: 'warning' },
+    { label: 'Reject', value: installDetail.claim_reject ?? swp.inst_claim_reject, tone: 'danger' },
   ] },
   { cls: 'c2', icon: ICON.pay, label: 'Payment Status', parts: [
-    { label: 'Complete', value: swp.inst_pay_complete, tone: 'success' },
-    { label: 'Partially', value: swp.inst_pay_partially, tone: 'info' },
-    { label: 'Pending', value: swp.inst_pay_pending, tone: 'warning' },
+    { label: 'Complete', value: installDetail.paid ?? swp.inst_pay_complete, tone: 'success' },
+    { label: 'Partially', value: installDetail.partially ?? swp.inst_pay_partially, tone: 'info' },
+    { label: 'Pending', value: Math.max(0, (installDetail.total ?? swp.site_count) - ((installDetail.paid ?? 0) + (installDetail.partially ?? 0))), tone: 'warning' },
   ] },
 ];
 
@@ -294,7 +407,7 @@ const kpis: { cls: string; icon: ReactElement; label: string; parts: { label: st
           <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
             <div className="ax-card__titles">
               <h2 className="ax-card__title">Assam SWP Installation</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>{filtered.length} of {all.length} records</p>
+              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>{filtered.length} of {sites.length} records</p>
             </div>
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
               <TableExportToolbar
@@ -363,7 +476,7 @@ const kpis: { cls: string; icon: ReactElement; label: string; parts: { label: st
                   </select>
                 </label>
               </div>
-              {/* <nav className="ax-pagination" aria-label="Pagination">
+              <nav className="ax-pagination" aria-label="Pagination">
                 <button type="button" className="ax-pagination__prev" disabled={curPage === 1} aria-disabled={curPage === 1} onClick={() => setPage(Math.max(1, curPage - 1))} aria-label="Previous page">{ICON.chevL}</button>
                 <ul className="ax-pagination__pages">
                   {pageList.map((p, i) => (
@@ -375,7 +488,7 @@ const kpis: { cls: string; icon: ReactElement; label: string; parts: { label: st
                   ))}
                 </ul>
                 <button type="button" className="ax-pagination__next" disabled={curPage === totalPages} aria-disabled={curPage === totalPages} onClick={() => setPage(Math.min(totalPages, curPage + 1))} aria-label="Next page">{ICON.chevR}</button>
-              </nav> */}
+              </nav>
             </div>
           )}
         </section>
