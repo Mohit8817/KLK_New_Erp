@@ -1,11 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { ApexChart } from '../../../../charts/ApexChart';
 import {
   ASSAM_DASHBOARD_DATA,
   type DistrictWiseItem,
+  type AssamDashboardData,
 } from '../../../../../data/demo/assamSwpData';
+// @ts-expect-error
+import { ASSAM_SWP_DASHBOARD_URL } from '../../../V_Portal_APIS/Assam_API.js';
+import { authService } from '../../../../../services/authService';
 
 const cv = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -58,8 +62,110 @@ const ICON_CREDIT = (
 );
 
 export function AssamDashboard() {
-  const data = ASSAM_DASHBOARD_DATA;
-  const { swp, districtwise, district_install, monthly_installations } = data;
+  const [data, setData] = useState<AssamDashboardData>(ASSAM_DASHBOARD_DATA);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const loadDashboardData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    try {
+      setApiError(null);
+      const token = authService.getToken();
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(ASSAM_SWP_DASHBOARD_URL, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch dashboard data (${response.status})`);
+      }
+
+      const json = await response.json();
+      const raw = json?.data || json;
+
+      if (raw) {
+        setData({
+          swp: {
+            site_count: Number(raw.swp?.site_count ?? ASSAM_DASHBOARD_DATA.swp.site_count),
+            complete: Number(raw.swp?.complete ?? ASSAM_DASHBOARD_DATA.swp.complete),
+            pending: Number(raw.swp?.pending ?? ASSAM_DASHBOARD_DATA.swp.pending),
+            verify_pending: Number(raw.swp?.verify_pending ?? ASSAM_DASHBOARD_DATA.swp.verify_pending),
+            verify_approved: Number(raw.swp?.verify_approved ?? ASSAM_DASHBOARD_DATA.swp.verify_approved),
+            verify_reject: Number(raw.swp?.verify_reject ?? ASSAM_DASHBOARD_DATA.swp.verify_reject),
+            doc_approved: Number(raw.swp?.doc_approved ?? ASSAM_DASHBOARD_DATA.swp.doc_approved),
+            doc_pending: Number(raw.swp?.doc_pending ?? ASSAM_DASHBOARD_DATA.swp.doc_pending),
+            doc_reject: Number(raw.swp?.doc_reject ?? ASSAM_DASHBOARD_DATA.swp.doc_reject),
+            inst_claim_raised: Number(raw.swp?.inst_claim_raised ?? ASSAM_DASHBOARD_DATA.swp.inst_claim_raised),
+            inst_claim_approved: Number(raw.swp?.inst_claim_approved ?? ASSAM_DASHBOARD_DATA.swp.inst_claim_approved),
+            inst_claim_reject: Number(raw.swp?.inst_claim_reject ?? ASSAM_DASHBOARD_DATA.swp.inst_claim_reject),
+            inst_pay_complete: Number(raw.swp?.inst_pay_complete ?? ASSAM_DASHBOARD_DATA.swp.inst_pay_complete),
+            inst_pay_partially: Number(raw.swp?.inst_pay_partially ?? ASSAM_DASHBOARD_DATA.swp.inst_pay_partially),
+            inst_pay_pending: Number(raw.swp?.inst_pay_pending ?? ASSAM_DASHBOARD_DATA.swp.inst_pay_pending),
+          },
+          district_install: Array.isArray(raw.district_install)
+            ? raw.district_install
+            : (ASSAM_DASHBOARD_DATA.district_install || []),
+          districtwise: Array.isArray(raw.districtwise)
+            ? raw.districtwise.map((d: any) => ({
+                district: d.district || 'Unknown',
+                site_count: Number(d.site_count || 0),
+                complete: Number(d.complete || 0),
+                pending: Number(d.pending || 0),
+                verify_pending: Number(d.verify_pending || 0),
+                verify_approved: Number(d.verify_approved || 0),
+                verify_reject: Number(d.verify_reject || 0),
+                doc_approved: Number(d.doc_approved || 0),
+                doc_pending: Number(d.doc_pending || 0),
+                doc_reject: Number(d.doc_reject || 0),
+                inst_claim_raised: Number(d.inst_claim_raised || 0),
+                inst_claim_approved: Number(d.inst_claim_approved || 0),
+                inst_claim_reject: Number(d.inst_claim_reject || 0),
+                inst_pay_complete: Number(d.inst_pay_complete || 0),
+                inst_pay_partially: Number(d.inst_pay_partially || 0),
+                inst_pay_pending: Number(d.inst_pay_pending || 0),
+              }))
+            : (ASSAM_DASHBOARD_DATA.districtwise || []),
+          monthly_installations: Array.isArray(raw.monthly_installations)
+            ? raw.monthly_installations.map((m: any) => ({
+                month_year: String(m.month_year || ''),
+                monthly_installations: Number(m.monthly_installations || 0),
+              }))
+            : (ASSAM_DASHBOARD_DATA.monthly_installations || []),
+        });
+      }
+    } catch (err: any) {
+      console.warn('Dashboard fetch error:', err);
+      setApiError(err?.message || 'Failed to fetch dynamic dashboard data');
+    } finally {
+      setLoading(false);
+      if (isRefresh) {
+        setTimeout(() => setIsRefreshing(false), 500);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Safe destructuring with robust defaults
+  const swp = data?.swp || ASSAM_DASHBOARD_DATA.swp;
+  const districtwise = Array.isArray(data?.districtwise) ? data.districtwise : (ASSAM_DASHBOARD_DATA.districtwise || []);
+  const district_install = Array.isArray(data?.district_install) ? data.district_install : (ASSAM_DASHBOARD_DATA.district_install || []);
+  const monthly_installations = Array.isArray(data?.monthly_installations) ? data.monthly_installations : (ASSAM_DASHBOARD_DATA.monthly_installations || []);
 
   // Filter & Search states
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
@@ -69,14 +175,16 @@ export function AssamDashboard() {
 
   // Filtered district-wise records
   const filteredDistricts = useMemo(() => {
-    return districtwise.filter((d) => {
-      const matchDistrict = selectedDistrict === 'All' || d.district.toLowerCase() === selectedDistrict.toLowerCase();
-      const matchQuery = !searchQuery || d.district.toLowerCase().includes(searchQuery.toLowerCase());
+    return (districtwise || []).filter((d) => {
+      if (!d) return false;
+      const districtName = d.district || '';
+      const matchDistrict = selectedDistrict === 'All' || districtName.toLowerCase() === selectedDistrict.toLowerCase();
+      const matchQuery = !searchQuery || districtName.toLowerCase().includes(searchQuery.toLowerCase());
       let matchStatus = true;
-      if (selectedStatus === 'Complete') matchStatus = d.complete > 0;
-      else if (selectedStatus === 'Pending') matchStatus = d.pending > 0;
-      else if (selectedStatus === 'VerifyPending') matchStatus = d.verify_pending > 0;
-      else if (selectedStatus === 'DocPending') matchStatus = d.doc_pending > 0;
+      if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
+      else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
+      else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
+      else if (selectedStatus === 'DocPending') matchStatus = (d.doc_pending || 0) > 0;
       return matchDistrict && matchQuery && matchStatus;
     });
   }, [districtwise, selectedDistrict, searchQuery, selectedStatus]);
@@ -85,15 +193,17 @@ export function AssamDashboard() {
   const totalStats = useMemo(() => {
     return filteredDistricts.reduce(
       (acc, d) => ({
-        site_count: acc.site_count + d.site_count,
-        complete: acc.complete + d.complete,
-        pending: acc.pending + d.pending,
-        verify_pending: acc.verify_pending + d.verify_pending,
-        verify_approved: acc.verify_approved + d.verify_approved,
-        verify_reject: acc.verify_reject + d.verify_reject,
-        doc_approved: acc.doc_approved + d.doc_approved,
-        doc_pending: acc.doc_pending + d.doc_pending,
-        doc_reject: acc.doc_reject + d.doc_reject,
+        site_count: acc.site_count + (d.site_count || 0),
+        complete: acc.complete + (d.complete || 0),
+        pending: acc.pending + (d.pending || 0),
+        verify_pending: acc.verify_pending + (d.verify_pending || 0),
+        verify_approved: acc.verify_approved + (d.verify_approved || 0),
+        verify_reject: acc.verify_reject + (d.verify_reject || 0),
+        doc_approved: acc.doc_approved + (d.doc_approved || 0),
+        doc_pending: acc.doc_pending + (d.doc_pending || 0),
+        doc_reject: acc.doc_reject + (d.doc_reject || 0),
+        inst_claim_raised: acc.inst_claim_raised + (d.inst_claim_raised || 0),
+        inst_pay_complete: acc.inst_pay_complete + (d.inst_pay_complete || 0),
       }),
       {
         site_count: 0,
@@ -105,6 +215,8 @@ export function AssamDashboard() {
         doc_approved: 0,
         doc_pending: 0,
         doc_reject: 0,
+        inst_claim_raised: 0,
+        inst_pay_complete: 0,
       }
     );
   }, [filteredDistricts]);
@@ -155,8 +267,11 @@ export function AssamDashboard() {
     document.body.removeChild(link);
   };
 
-  const completionPct = swp.site_count > 0 ? ((swp.complete / swp.site_count) * 100).toFixed(1) : '0';
-  const pendingPct = swp.site_count > 0 ? ((swp.pending / swp.site_count) * 100).toFixed(1) : '0';
+  const totalSites = Number(swp?.site_count || 0);
+  const completeSites = Number(swp?.complete || 0);
+  const pendingSites = Number(swp?.pending || 0);
+  const completionPct = totalSites > 0 ? ((completeSites / totalSites) * 100).toFixed(1) : '0';
+  const pendingPct = totalSites > 0 ? ((pendingSites / totalSites) * 100).toFixed(1) : '0';
 
   return (
     <div className="ax-page solar-erp-page">
@@ -181,12 +296,15 @@ export function AssamDashboard() {
             </button>
             <button
               type="button"
-              className="ax-btn ax-btn--ghost ax-btn--icon"
+              className={`ax-btn ax-btn--ghost ax-btn--icon ${isRefreshing ? 'is-loading' : ''}`}
               aria-label="Refresh telemetry"
-              onClick={() => {}}
-              title="Refresh Data"
+              onClick={() => loadDashboardData(true)}
+              title="Refresh Data from API"
+              disabled={isRefreshing}
             >
-              {ICON_REFRESH}
+              <span style={{ display: 'inline-flex', animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }}>
+                {ICON_REFRESH}
+              </span>
             </button>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={exportToCSV}>
               {ICON_DOWNLOAD}
@@ -255,7 +373,7 @@ export function AssamDashboard() {
                   onChange={(e) => setSelectedDistrict(e.target.value)}
                 >
                   <option value="All">All Districts ({districtwise.length})</option>
-                  {districtwise.map((d) => (
+                  {(districtwise || []).map((d) => (
                     <option key={d.district} value={d.district}>{d.district}</option>
                   ))}
                 </select>
@@ -515,7 +633,7 @@ export function AssamDashboard() {
                 </span>
               </div>
               <span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-                4 Sites
+                {swp.doc_pending} Sites
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
@@ -625,7 +743,7 @@ export function AssamDashboard() {
               series={[
                 {
                   name: 'Installations (Nos.)',
-                  data: monthly_installations.map((m) => m.monthly_installations),
+                  data: (monthly_installations || []).map((m) => Number(m?.monthly_installations || 0)),
                 },
               ]}
               apex={{
@@ -638,10 +756,18 @@ export function AssamDashboard() {
                   },
                 },
                 xaxis: {
-                  categories: monthly_installations.map((m) => {
-                    const parts = m.month_year.split('-');
-                    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                  categories: (monthly_installations || []).map((m) => {
+                    if (!m?.month_year) return '-';
+                    const parts = String(m.month_year).split('-');
+                    if (parts.length >= 2) {
+                      const year = parseInt(parts[0], 10);
+                      const month = parseInt(parts[1], 10);
+                      if (!isNaN(year) && !isNaN(month)) {
+                        const date = new Date(year, month - 1, 1);
+                        return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                      }
+                    }
+                    return String(m.month_year);
                   }),
                 },
                 yaxis: {
@@ -658,7 +784,7 @@ export function AssamDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Project Distribution</span>
               <h2 className="ax-card__title">Site Feasibility Status</h2>
-              <p className="ax-card__subtitle">Total {swp.site_count} Allocated SWP Sites</p>
+              <p className="ax-card__subtitle">Total {swp?.site_count || 0} Allocated SWP Sites</p>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
@@ -667,7 +793,7 @@ export function AssamDashboard() {
               height={220}
               legend="none"
               ariaLabel="Donut chart of SWP Site Status"
-              series={[swp.complete, swp.pending]}
+              series={[Number(swp?.complete || 0), Number(swp?.pending || 0)]}
               apex={{
                 labels: ['Completed Sites', 'Pending Sites'],
                 colors: [cv('--ax-viz-emerald'), cv('--ax-viz-amber')],
@@ -680,7 +806,7 @@ export function AssamDashboard() {
                         show: true,
                         name: { fontFamily: cv('--ax-font-sans') },
                         value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 },
-                        total: { show: true, label: 'Total Sites', formatter: () => `${swp.site_count}` },
+                        total: { show: true, label: 'Total Sites', formatter: () => `${swp?.site_count || 0}` },
                       },
                     },
                   },
@@ -728,8 +854,8 @@ export function AssamDashboard() {
               legend="top"
               ariaLabel="Bar chart of installations by district"
               series={[
-                { name: 'Allocated Sites', data: districtwise.map((d) => d.site_count) },
-                { name: 'Installed Complete', data: districtwise.map((d) => d.complete) },
+                { name: 'Allocated Sites', data: (districtwise || []).map((d) => Number(d?.site_count || 0)) },
+                { name: 'Installed Complete', data: (districtwise || []).map((d) => Number(d?.complete || 0)) },
               ]}
               apex={{
                 colors: [cv('--ax-accent'), cv('--ax-viz-emerald')],
@@ -741,7 +867,7 @@ export function AssamDashboard() {
                   },
                 },
                 xaxis: {
-                  categories: districtwise.map((d) => d.district),
+                  categories: (districtwise || []).map((d) => d?.district || 'Unknown'),
                   labels: { style: { fontSize: '12px', fontWeight: 500 } },
                 },
                 yaxis: {
@@ -766,7 +892,7 @@ export function AssamDashboard() {
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>1. Total Sites Allocated</span>
-                <b className="ax-num" style={{ color: 'var(--ax-viz-emerald)', fontSize: 'var(--ax-text-xs)' }}>18 / 18 (100%)</b>
+                <b className="ax-num" style={{ color: 'var(--ax-viz-emerald)', fontSize: 'var(--ax-text-xs)' }}>{totalSites} / {totalSites} (100%)</b>
               </div>
               <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: '100%', background: 'var(--ax-viz-emerald)' }} /></div></div>
             </div>
@@ -775,7 +901,7 @@ export function AssamDashboard() {
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>2. Installation Completed</span>
-                <b className="ax-num" style={{ color: 'var(--ax-viz-cyan)', fontSize: 'var(--ax-text-xs)' }}>12 Sites ({completionPct}%)</b>
+                <b className="ax-num" style={{ color: 'var(--ax-viz-cyan)', fontSize: 'var(--ax-text-xs)' }}>{completeSites} Sites ({completionPct}%)</b>
               </div>
               <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${completionPct}%`, background: 'var(--ax-viz-cyan)' }} /></div></div>
             </div>
@@ -784,27 +910,27 @@ export function AssamDashboard() {
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>3. Physical Inspection &amp; Verification</span>
-                <b className="ax-num" style={{ color: 'var(--ax-viz-amber)', fontSize: 'var(--ax-text-xs)' }}>12 Sites Pending (66.7%)</b>
+                <b className="ax-num" style={{ color: 'var(--ax-viz-amber)', fontSize: 'var(--ax-text-xs)' }}>{swp?.verify_pending ?? 0} Sites Pending ({totalSites > 0 ? (((swp?.verify_pending || 0) / totalSites) * 100).toFixed(1) : 0}%)</b>
               </div>
-              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: '66.7%', background: 'var(--ax-viz-amber)' }} /></div></div>
+              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${totalSites > 0 ? (((swp?.verify_pending || 0) / totalSites) * 100).toFixed(1) : 0}%`, background: 'var(--ax-viz-amber)' }} /></div></div>
             </div>
 
             {/* Document Submission */}
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>4. Documentation &amp; Uploads</span>
-                <b className="ax-num" style={{ color: 'var(--ax-viz-violet)', fontSize: 'var(--ax-text-xs)' }}>4 Sites Pending (22.2%)</b>
+                <b className="ax-num" style={{ color: 'var(--ax-viz-violet)', fontSize: 'var(--ax-text-xs)' }}>{swp?.doc_pending ?? 0} Sites Pending ({totalSites > 0 ? (((swp?.doc_pending || 0) / totalSites) * 100).toFixed(1) : 0}%)</b>
               </div>
-              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: '22.2%', background: 'var(--ax-viz-violet)' }} /></div></div>
+              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${totalSites > 0 ? (((swp?.doc_pending || 0) / totalSites) * 100).toFixed(1) : 0}%`, background: 'var(--ax-viz-violet)' }} /></div></div>
             </div>
 
             {/* Claims & Disbursal */}
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>5. Claims &amp; Payment Disbursal</span>
-                <b className="ax-num" style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>0 Claims Raised (0%)</b>
+                <b className="ax-num" style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{swp?.inst_claim_raised ?? 0} Claims Raised ({totalSites > 0 ? (((swp?.inst_claim_raised || 0) / totalSites) * 100).toFixed(1) : 0}%)</b>
               </div>
-              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: '0%', background: 'var(--ax-accent)' }} /></div></div>
+              <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${totalSites > 0 ? (((swp?.inst_claim_raised || 0) / totalSites) * 100).toFixed(1) : 0}%`, background: 'var(--ax-accent)' }} /></div></div>
             </div>
           </div>
         </section>
@@ -938,8 +1064,8 @@ export function AssamDashboard() {
                   <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-strong)' }}>{totalStats.verify_reject}</td>
                   <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet)' }}>{totalStats.doc_pending}</td>
                   <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald)' }}>{totalStats.doc_approved}</td>
-                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-accent)' }}>0</td>
-                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-pink)' }}>₹0</td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-accent)' }}>{totalStats.inst_claim_raised}</td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-pink)' }}>₹{totalStats.inst_pay_complete}</td>
                   <td className="ax-table__td">
                     <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">
                       {completionPct}% Complete
