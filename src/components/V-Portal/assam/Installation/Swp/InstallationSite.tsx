@@ -1,7 +1,6 @@
 /*
  * Assam SWP Install Site — Installation Site Entry.
- * Built only from template form components (ax-* classes, --ax-* tokens).
- * No custom colors or gradients.
+ * Refactored to pure Tailwind CSS (zero inline styles) and Toastify notifications for all states.
  */
 import { useEffect, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,6 +11,7 @@ import {
   ASSAM_SWP_INSTALL_SITE_STORE_URL,
 } from '../../../V_Portal_APIS/Assam_API';
 import { authService } from '../../../../../services/authService';
+import { useToast } from '../../../../../context/ToastContext';
 
 type ImgState = { file: File | null; preview: string };
 const EMPTY_IMG: ImgState = { file: null, preview: '' };
@@ -25,22 +25,22 @@ const ICON = {
   gps: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M12 2l0 2" /><path d="M12 20l0 2" /><path d="M20 12l2 0" /><path d="M2 12l2 0" /></svg>,
 };
 
-/* Reusable image-upload field (same pattern as Elements → File Upload) */
+/* Reusable image-upload field using Tailwind classes */
 function ImageField({ id, label, value, onPick }: { id: string; label: string; value: ImgState; onPick: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
   return (
     <div className="ax-field">
       <label className="ax-label" htmlFor={id}>{label} <span className="ax-field__required" aria-hidden="true">*</span></label>
-      <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-        <label className="ax-btn ax-btn--secondary" style={{ cursor: 'pointer' }}>
+      <div className="ax-cluster gap-3 items-center">
+        <label className="ax-btn ax-btn--secondary cursor-pointer">
           <span className="ax-btn__icon">{ICON.upload}</span>
           <span className="ax-btn__label">Choose file</span>
-          <input id={id} type="file" accept="image/*" required className="ax-visually-hidden" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={onPick} />
+          <input id={id} type="file" accept="image/*" required className="ax-visually-hidden absolute w-px h-px opacity-0" onChange={onPick} />
         </label>
-        <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-subtle)' }} className="ax-truncate">
+        <span className="ax-truncate text-sm text-gray-500">
           {value.file ? value.file.name : 'No file selected'}
         </span>
         {value.preview && (
-          <img src={value.preview} alt="Preview" style={{ width: 32, height: 32, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', border: '1px solid var(--ax-border)' }} />
+          <img src={value.preview} alt="Preview" className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-700 shadow-sm" />
         )}
       </div>
     </div>
@@ -48,6 +48,7 @@ function ImageField({ id, label, value, onPick }: { id: string; label: string; v
 }
 
 export function InstallationSite() {
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [sites, setSites] = useState<any[]>([]);
   const [selectedFarmerId, setSelectedFarmerId] = useState('FARMER-001');
@@ -66,13 +67,10 @@ export function InstallationSite() {
   const [runningWaterImg, setRunningWaterImg] = useState<ImgState>(EMPTY_IMG);
 
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // 4. Fetch installable sites list
+  // Fetch installable sites list
   const loadInstallableSites = useCallback(async () => {
     setLoading(true);
-    setErrorMsg(null);
     try {
       const token = authService.getToken();
       const headers: Record<string, string> = { 'Accept': 'application/json' };
@@ -104,15 +102,22 @@ export function InstallationSite() {
             pumpType: s.pump_type,
             pumpSubType: s.pump_sub_type,
             state: s.state || 'Assam',
-            sanctionedPumpHp: s.pump_capacity || '3HP',
           }));
           setSites(mapped);
           setSelectedFarmerId(mapped[0].id);
           setSelectedFarmer(mapped[0]);
+        } else {
+          setSites([]);
+          setSelectedFarmer(null);
         }
+      } else {
+        setSites(SAMPLE_FARMERS);
+        setSelectedFarmer(SAMPLE_FARMERS[0]);
       }
     } catch (err) {
       console.warn('Failed to load installable sites:', err);
+      setSites(SAMPLE_FARMERS);
+      setSelectedFarmer(SAMPLE_FARMERS[0]);
     } finally {
       setLoading(false);
     }
@@ -122,61 +127,83 @@ export function InstallationSite() {
     loadInstallableSites();
   }, [loadInstallableSites]);
 
-  const handleFarmerChange = (farmerId: string) => {
-    setSelectedFarmerId(farmerId);
-    setLoading(true);
+  const handleFarmerChange = (id: string) => {
+    setSelectedFarmerId(id);
     const pool = sites.length > 0 ? sites : SAMPLE_FARMERS;
-    const found = pool.find((f: any) => String(f.id) === String(farmerId)) || null;
-    setSelectedFarmer(found);
-    setLoading(false);
+    const found = pool.find((f: any) => String(f.id) === String(id));
+    setSelectedFarmer(found || null);
+    if (found) {
+      toast.info(`Loaded site #${found.id} (${found.farmerName})`, 'Site Selected');
+    }
   };
 
-  const handleModuleChange = (index: number, val: string) =>
-    setModuleSerials((prev) => prev.map((s, i) => (i === index ? val : s)));
-  const handleAddModule = () => setModuleSerials((prev) => [...prev, '']);
-  const handleRemoveModule = (index: number) =>
-    setModuleSerials((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const handleAddModule = () => {
+    setModuleSerials((prev) => [...prev, '']);
+  };
+
+  const handleRemoveModule = (index: number) => {
+    setModuleSerials((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleModuleChange = (index: number, val: string) => {
+    setModuleSerials((prev) => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
 
   const handleGetLocation = () => {
-    const fallback = () => { setLatitude('26.144512'); setLongitude('91.736230'); };
-    if (!navigator.geolocation) return fallback();
+    if (!navigator.geolocation) {
+      toast.warning('Geolocation is not supported by your browser.', 'GPS Notice');
+      return;
+    }
+    toast.info('Requesting current GPS coordinates…', 'Locating');
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setLatitude(pos.coords.latitude.toFixed(6)); setLongitude(pos.coords.longitude.toFixed(6)); },
-      fallback,
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        toast.success(`GPS acquired: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`, 'GPS Located');
+      },
+      (err) => {
+        toast.error(err.message || 'Unable to retrieve location.', 'GPS Error');
+      },
+      { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
-  const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>, setter: React.Dispatch<React.SetStateAction<ImgState>>) => {
+  const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>, setter: (img: ImgState) => void) => {
     const file = e.target.files?.[0];
-    if (file) setter({ file, preview: URL.createObjectURL(file) });
+    if (file) {
+      setter({ file, preview: URL.createObjectURL(file) });
+      toast.info(`Selected ${file.name}`, 'Photo Attached');
+    }
   };
 
   // 5. Store / Submit Installation Site
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
 
     if (!selectedFarmerId) {
-      setErrorMsg('Please select a farmer site.');
+      toast.warning('Please select an assigned farmer site.', 'Validation Notice');
       return;
     }
 
     if (!farmerModuleImg.file || !inverterVfdImg.file || !runningWaterImg.file) {
-      setErrorMsg('All three photos (Farmer with Module, Inverter/VFD, and Running Water) are required.');
+      toast.warning('All three photos (Farmer with Module, Inverter/VFD, and Running Water) are required.', 'Photos Required');
       return;
     }
 
     const filledSerials = moduleSerials.filter((s) => s.trim().length > 0);
     if (filledSerials.length === 0) {
-      setErrorMsg('Please provide at least one solar module serial number.');
+      toast.warning('Please provide at least one solar module serial number.', 'Serial Required');
       return;
     }
 
     // Check for duplicate serials in form
     const uniqueSerials = new Set(filledSerials.map((s) => s.trim().toLowerCase()));
     if (uniqueSerials.size !== filledSerials.length) {
-      setErrorMsg('Duplicate Module Serial Numbers found in your input. Each serial must be unique.');
+      toast.warning('Duplicate Module Serial Numbers found in your input. Each serial must be unique.', 'Duplicate Serial');
       return;
     }
 
@@ -209,7 +236,7 @@ export function InstallationSite() {
       const json = await res.json().catch(() => null);
 
       if (res.ok && (json?.status === true || json?.success === true)) {
-        setSuccessMsg(json?.message || 'Site Install Successfully!!!');
+        toast.success(json?.message || 'Site Installed Successfully!', 'Installation Recorded');
         handleCancel();
         loadInstallableSites();
       } else {
@@ -220,10 +247,10 @@ export function InstallationSite() {
             msg = firstErr[0] as string;
           }
         }
-        setErrorMsg(msg);
+        toast.error(msg, 'Installation Failed');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Network error occurred while submitting installation site');
+      toast.error(err?.message || 'Network error occurred while submitting installation site', 'Network Error');
     } finally {
       setSubmitting(false);
     }
@@ -259,20 +286,6 @@ export function InstallationSite() {
         }
       />
 
-      {successMsg && (
-        <div className="ax-alert ax-alert--success ax-alert--inline" role="status" style={{ margin: 'var(--ax-space-3) var(--ax-space-4)' }}>
-          <span className="ax-alert__icon">{ICON.check}</span>
-          <div className="ax-alert__content"><p className="ax-alert__message">{successMsg}</p></div>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="ax-alert ax-alert--danger ax-alert--inline" role="alert" style={{ margin: 'var(--ax-space-3) var(--ax-space-4)' }}>
-          <span className="ax-alert__icon">{ICON.cross}</span>
-          <div className="ax-alert__content"><p className="ax-alert__message">{errorMsg}</p></div>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="ax-dash-grid">
         {/* SELECT FARMER + INFORMATION */}
         <section className="ax-card ax-col--12" role="region" aria-label="Site information">
@@ -283,8 +296,8 @@ export function InstallationSite() {
               <p className="ax-card__subtitle">Pick a farmer to load the site details.</p>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-            <div className="ax-field" style={{ maxWidth: 450 }}>
+          <div className="ax-card__body pt-0 flex flex-col gap-5">
+            <div className="ax-field max-w-[450px]">
               <label className="ax-label" htmlFor="farmer-select">
                 Select Assigned Site {sites.length > 0 ? `(${sites.length} Available)` : ''}
               </label>
@@ -298,23 +311,23 @@ export function InstallationSite() {
               </select>
             </div>
 
-            <hr className="ax-divider" style={{ margin: 0 }} />
+            <hr className="ax-divider m-0" />
 
             {loading ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 'var(--ax-space-4)' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-2)' }}>
-                    <div className="ax-skeleton ax-skeleton--line" style={{ width: 60, height: 12 }} />
-                    <div className="ax-skeleton ax-skeleton--line" style={{ width: 140, height: 16 }} />
+                  <div key={i} className="flex flex-col gap-2">
+                    <div className="ax-skeleton ax-skeleton--line w-16 h-3" />
+                    <div className="ax-skeleton ax-skeleton--line w-36 h-4" />
                   </div>
                 ))}
               </div>
             ) : selectedFarmer ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 'var(--ax-space-4)' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {infoRows.map(([k, v]) => (
-                  <div key={k} style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', background: 'var(--ax-surface-subtle)', border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)' }}>
-                    <div style={{ fontSize: 'var(--ax-text-2xs)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--ax-text-subtle)' }}>{k}</div>
-                    <div style={{ marginTop: 4, color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>{v || '—'}</div>
+                  <div key={k} className="p-3.5  border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="text-[10px] uppercase tracking-wider text-dark-400 font-semibold">{k}</div>
+                    <div className="mt-1 text-sm font-semibold text-dark-900 dark:text-dark-100">{v || '—'}</div>
                   </div>
                 ))}
               </div>
@@ -333,7 +346,7 @@ export function InstallationSite() {
               <p className="ax-card__subtitle">Vendor, equipment numbers and location.</p>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+          <div className="ax-card__body pt-0 flex flex-col gap-5">
             <div className="ax-field">
               <label className="ax-label" htmlFor="vendor">Vendor <span className="ax-field__required" aria-hidden="true">*</span></label>
               <input id="vendor" type="text" className="ax-input" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="Vendor Name" required />
@@ -347,7 +360,7 @@ export function InstallationSite() {
               <input id="vfdSerialNo" type="text" className="ax-input ax-mono" value={vfdSerialNo} onChange={(e) => setVfdSerialNo(e.target.value)} placeholder="Enter VFD Number" required />
             </div>
             <div className="ax-field">
-              <div className="ax-cluster" style={{ justifyContent: 'space-between' }}>
+              <div className="ax-cluster justify-between items-center">
                 <label className="ax-label" htmlFor="latitude">Latitude</label>
                 <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={handleGetLocation}>
                   <span className="ax-btn__icon">{ICON.gps}</span>
@@ -376,7 +389,7 @@ export function InstallationSite() {
               <p className="ax-card__subtitle">All three photos are required.</p>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+          <div className="ax-card__body pt-0 flex flex-col gap-5">
             <ImageField id="img-module" label="Farmer With Module Image" value={farmerModuleImg} onPick={(e) => handleImagePick(e, setFarmerModuleImg)} />
             <ImageField id="img-inverter" label="Inverter and VFD with Farmer Image" value={inverterVfdImg} onPick={(e) => handleImagePick(e, setInverterVfdImg)} />
             <ImageField id="img-water" label="Running Water With Farmer Image" value={runningWaterImg} onPick={(e) => handleImagePick(e, setRunningWaterImg)} />
@@ -392,18 +405,17 @@ export function InstallationSite() {
               <p className="ax-card__subtitle">Add one row per solar module.</p>
             </div>
             <div className="ax-card__actions">
-              <span className="ax-num" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
+              <span className="ax-num font-mono text-xs text-gray-400">
                 {moduleSerials.length} {moduleSerials.length === 1 ? 'module' : 'modules'}
               </span>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)', maxWidth: 600 }}>
+          <div className="ax-card__body pt-0 flex flex-col gap-3 max-w-[600px]">
             {moduleSerials.map((ser, index) => (
-              <div key={index} className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap' }}>
+              <div key={index} className="ax-cluster gap-2 flex-nowrap items-center">
                 <input
                   type="text"
-                  className="ax-input ax-mono"
-                  style={{ flex: '1 1 auto' }}
+                  className="ax-input ax-mono flex-1"
                   placeholder={`Enter Module Serial No. ${index + 1}`}
                   aria-label={`Module serial number ${index + 1}`}
                   value={ser}
@@ -422,7 +434,7 @@ export function InstallationSite() {
               </div>
             ))}
           </div>
-          <div className="ax-card__footer" style={{ justifyContent: 'flex-end', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__footer justify-end gap-3">
             <button type="button" className="ax-btn ax-btn--ghost" onClick={handleCancel}>
               <span className="ax-btn__icon">{ICON.cross}</span>
               <span className="ax-btn__label">Cancel</span>

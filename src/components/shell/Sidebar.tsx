@@ -1,14 +1,9 @@
 /*
  * Vireo React — Sidebar (manifest-driven nav tree).
- *
- * Renders the reference .ax-sidebar DOM contract from nav-manifest.json:
- * brand → menu filter → role="tree" nav with section headers, L1 parent groups
- * (collapsible) and child leaves. The active leaf (matched against the router
- * path) gets `ax-nav__item--active is-active aria-current="page"`, its ancestor
- * group opens (`is-open`, panel un-hidden), and the parent button gets
- * `ax-nav__item--trail` — exactly as core/nav.js does in the HTML edition.
+ * Accordion groups (one open per level) + compact indent so deep menus
+ * (e.g. Jammu & Kashmir) stay short and narrow.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   manifest,
@@ -39,13 +34,16 @@ const CARET = (
     strokeWidth={1.75}
     strokeLinecap="round"
     strokeLinejoin="round"
-    width={24}
-    height={24}
+    width={29}
+    height={22}
     aria-hidden="true"
   >
     <path d="M9 6l6 6l-6 6" />
   </svg>
 );
+
+// Left gap per level (level 1 untouched). Reduce these numbers for a tighter menu.
+const indent = (level: number) => 20 + (level - 2) * 12;
 
 interface LeafProps {
   node: NavNode;
@@ -58,7 +56,8 @@ function Leaf({ node, level, activeSlug, filter }: LeafProps) {
   const resolved = manifest.resolve(node)!;
   const isActive = resolved.slug === activeSlug;
   const hidden = filter && !matches(node, filter);
-  const cls = ['ax-nav__item', 'ax-nav__item--child'];
+  const cls = ['ax-nav__item'];
+  if (level > 1) cls.push('ax-nav__item--child');
   if (isActive) cls.push('ax-nav__item--active', 'is-active');
   if (hidden) cls.push('is-hidden');
   return (
@@ -69,8 +68,10 @@ function Leaf({ node, level, activeSlug, filter }: LeafProps) {
       aria-current={isActive ? 'page' : undefined}
       to={hrefForSlug(resolved.slug)}
       tabIndex={isActive ? 0 : -1}
+      style={level > 1 ? { paddingInlineStart: indent(level) } : undefined}
     >
       <span className="ax-nav__bar" aria-hidden="true"></span>
+      {level === 1 && <Icon name={node.icon} className="ax-nav__icon" />}
       <span className="ax-nav__label">{node.title}</span>
       <Badge badge={node.badge} />
     </Link>
@@ -82,18 +83,17 @@ interface GroupProps {
   level: number;
   activeSlug: string;
   filter: string;
+  open: boolean;
+  onToggle: () => void;
 }
 
-function Group({ node, level, activeSlug, filter }: GroupProps) {
+function Group({ node, level, activeSlug, filter, open, onToggle }: GroupProps) {
   const children = manifest.childrenOf(node.id).filter((c) => c.inMenu);
   const containsActive = useMemo(
     () => subtreeContainsSlug(node, activeSlug),
     [node, activeSlug],
   );
-  const [open, setOpen] = useState(
-    containsActive || (level === 1 && (node.section === 'MAIN' || node.section === 'ASSAM')),
-  );
-  const isOpen = filter ? true : open || containsActive;
+  const isOpen = filter ? true : open;
   const groupHidden = filter && !subtreeMatches(node, filter);
 
   const parentCls = ['ax-nav__item', 'ax-nav__item--parent'];
@@ -112,41 +112,76 @@ function Group({ node, level, activeSlug, filter }: GroupProps) {
         aria-level={level}
         aria-expanded={isOpen}
         data-ax-group={node.id}
-        onClick={() => setOpen((o) => !o)}
+        onClick={onToggle}
         tabIndex={containsActive ? 0 : -1}
+        style={level > 1 ? { paddingInlineStart: indent(level) } : undefined}
       >
         {level === 1 && <Icon name={node.icon} className="ax-nav__icon" />}
         <span className="ax-nav__label">{node.title}</span>
         <Badge badge={node.badge} />
         {CARET}
       </button>
+      {/* smooth slide open/close — inline only, theme styles untouched */}
       <div
-        className="ax-nav__children"
-        role="group"
-        data-ax-collapse-panel
-        hidden={!isOpen}
+        aria-hidden={!isOpen}
+        style={{
+          display: 'grid',
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          visibility: isOpen ? 'visible' : 'hidden',
+          transition: `grid-template-rows .25s ease, visibility 0s linear ${isOpen ? '0s' : '.25s'}`,
+        }}
       >
-        {children.map((child) =>
-          manifest.childrenOf(child.id).filter((c) => c.inMenu).length > 0 ? (
-            <Group
-              key={child.id}
-              node={child}
-              level={level + 1}
-              activeSlug={activeSlug}
-              filter={filter}
-            />
-          ) : (
-            <Leaf
-              key={child.id}
-              node={child}
-              level={level + 1}
-              activeSlug={activeSlug}
-              filter={filter}
-            />
-          ),
-        )}
+        <div style={{ minHeight: 0, overflow: 'hidden' }}>
+          <div className="ax-nav__children" role="group" style={{ marginInlineStart: 0, paddingInlineStart: 0 }}>
+            <NodeList nodes={children} level={level + 1} activeSlug={activeSlug} filter={filter} />
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Sibling list with accordion behaviour: only one group open at a time. */
+function NodeList({
+  nodes,
+  level,
+  activeSlug,
+  filter,
+  openFirst = false,
+}: {
+  nodes: NavNode[];
+  level: number;
+  activeSlug: string;
+  filter: string;
+  openFirst?: boolean;
+}) {
+  const activeId = nodes.find((n) => subtreeContainsSlug(n, activeSlug))?.id ?? null;
+  const [openId, setOpenId] = useState<string | null>(
+    activeId ?? (openFirst && nodes[0] ? nodes[0].id : null),
+  );
+  // When the route changes, open the branch that holds the active page.
+  useEffect(() => {
+    if (activeId) setOpenId(activeId);
+  }, [activeId]);
+
+  return (
+    <>
+      {nodes.map((child) =>
+        manifest.childrenOf(child.id).some((c) => c.inMenu) ? (
+          <Group
+            key={child.id}
+            node={child}
+            level={level}
+            activeSlug={activeSlug}
+            filter={filter}
+            open={openId === child.id}
+            onToggle={() => setOpenId((o) => (o === child.id ? null : child.id))}
+          />
+        ) : (
+          <Leaf key={child.id} node={child} level={level} activeSlug={activeSlug} filter={filter} />
+        ),
+      )}
+    </>
   );
 }
 
@@ -155,8 +190,6 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
   const activeSlug = slugFromPath(location.pathname);
   const [filter, setFilter] = useState('');
   const rootRef = useRef<HTMLElement>(null);
-  // While the rail is an open off-canvas drawer it is a modal surface: trap Tab
-  // inside it and open on the menu filter (core/sidebar.js openDrawer()).
   useFocusTrap(rootRef, drawerOpen, '.ax-sidebar__filter');
 
   return (
@@ -238,17 +271,13 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
             <p className="ax-sidebar__section" role="presentation">
               {sectionLabel(section)}
             </p>
-            {groupsInSection(section)
-              .filter((g) => g.inMenu)
-              .map((g) => (
-                <Group
-                  key={g.id}
-                  node={g}
-                  level={1}
-                  activeSlug={activeSlug}
-                  filter={filter.trim().toLowerCase()}
-                />
-              ))}
+            <NodeList
+              nodes={groupsInSection(section).filter((g) => g.inMenu)}
+              level={1}
+              activeSlug={activeSlug}
+              filter={filter.trim().toLowerCase()}
+              openFirst={section !== 'JAMMU'}
+            />
           </div>
         ))}
       </nav>
@@ -258,10 +287,15 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
 
 /* ── helpers ── */
 function sectionLabel(s: string): string {
-  // Manifest sections are upper-case; reference renders them title-ish.
   const map: Record<string, string> = {
     MAIN: 'Main',
     ASSAM: 'Assam Operations',
+    UP: 'Uttar Pradesh',
+    JAMMU: 'Jammu & Kashmir',
+    DLE_DASH: 'DLE Dashboard',
+    DLE_BIHAR: 'DLE · Bihar',
+    DLE_UP: 'DLE · Uttar Pradesh',
+    DLE_MGMT: 'DLE Management',
     APPLICATIONS: 'Applications',
     MODULES: 'Modules',
     PAGES: 'Pages',

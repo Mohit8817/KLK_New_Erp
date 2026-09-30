@@ -1,18 +1,11 @@
-
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dropdown } from '../ui/Dropdown';
 import { useCustomizer } from '../../context/CustomizerContext';
 import { useAuth } from '../../context/AuthContext';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const ICON = {
-  apps: (
-    <svg className="ax-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /><path d="M14 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /><path d="M4 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /><path d="M14 15a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" /></svg>
-  ),
-  cart: (
-    <svg className="ax-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304" /><path d="M9 11v-5a3 3 0 0 1 6 0v5" /></svg>
-  ),
   bell: (
     <svg className="ax-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /><path d="M9 17v1a3 3 0 0 0 6 0v-1" /></svg>
   ),
@@ -28,47 +21,19 @@ const ICON = {
   expandLead: (
     <svg className="ax-icon ax-dropdown__lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M4 8v-2a2 2 0 0 1 2 -2h2" /><path d="M4 16v2a2 2 0 0 0 2 2h2" /><path d="M16 4h2a2 2 0 0 1 2 2v2" /><path d="M16 20h2a2 2 0 0 0 2 -2v-2" /></svg>
   ),
-  cartLead: (
-    <svg className="ax-icon ax-dropdown__lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M6.331 8h11.339a2 2 0 0 1 1.977 2.304l-1.255 8.152a3 3 0 0 1 -2.966 2.544h-6.852a3 3 0 0 1 -2.965 -2.544l-1.255 -8.152a2 2 0 0 1 1.977 -2.304" /><path d="M9 11v-5a3 3 0 0 1 6 0v5" /></svg>
-  ),
   cogLead: (
     <svg className="ax-icon ax-dropdown__lead" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M4 10a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M6 4v4" /><path d="M6 12v8" /><path d="M10 16a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M12 4v10" /><path d="M12 18v2" /><path d="M16 7a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M18 4v1" /><path d="M18 9v11" /></svg>
   ),
 };
 
-
-const APP_TILES: Array<[string, string]> = [
-  ['/apps/email', 'Email'],
-  ['/apps/chat', 'Chat'],
-  ['/apps/calendar', 'Calendar'],
-  ['/apps/kanban', 'Kanban'],
-  ['/apps/file-manager', 'Files'],
-  ['/apps/contacts', 'Contacts'],
-  ['/ecommerce/invoices', 'Invoices'],
-  ['/apps/notes', 'Notes'],
-  ['/pages/pricing', 'Pricing'],
-];
-
-
-const SHED_LG = ['lang', 'fullscreen', 'apps'];
-const SHED_MD = ['cart', 'customizer'];
+const SHED_LG = ['lang', 'fullscreen'];
+const SHED_MD = ['customizer'];
 
 function useShed(): string[] {
   const belowLg = useMediaQuery('(max-width: 991.98px)');
   const belowMd = useMediaQuery('(max-width: 767.98px)');
   return [...(belowLg ? SHED_LG : []), ...(belowMd ? SHED_MD : [])];
 }
-
-const LANGS: Array<[string, string]> = [
-  ['EN', 'English'],
-  ['ES', 'Español'],
-  ['FR', 'Français'],
-  ['AR', 'العربية'],
-  ['DE', 'Deutsch'],
-  ['ZH', '中文'],
-  ['IT', 'Italiano'],
-  ['RU', 'Русский'],
-];
 
 export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
   const c = useCustomizer();
@@ -77,28 +42,22 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
   const [full, setFull] = useState(false);
   const shed = useShed();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate('/login');
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setFull(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setFull(false)).catch(() => {});
     }
   };
 
-  useEffect(() => {
-    const onFs = () => setFull(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFs);
-    return () => document.removeEventListener('fullscreenchange', onFs);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   return (
     <>
-      {/* 4 · LANGUAGE */}
+      {/* 1 · LANGUAGE */}
       <Dropdown
         className="ax-lang"
         panelClassName="ax-dropdown ax-lang__menu"
@@ -106,15 +65,19 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
           <button
             type="button"
             className="ax-icon-btn ax-lang__trigger"
-            aria-label="Change language"
+            aria-label={`Change language, current ${c.lang.toUpperCase()}`}
             {...triggerProps}
             aria-expanded={open}
           >
-            <span className="ax-lang__code">{c.lang}</span>
+            <span className="ax-lang__code">{c.lang.toUpperCase()}</span>
           </button>
         )}
       >
-        {LANGS.map(([code, name]) => (
+        <p className="ax-dropdown__head">Language</p>
+        {[
+          ['en', 'English'],
+          ['hi', 'Hindi'],
+        ].map(([code, name]) => (
           <button
             key={code}
             type="button"
@@ -130,7 +93,7 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         ))}
       </Dropdown>
 
-      {/* 5 · FULLSCREEN */}
+      {/* 2 · FULLSCREEN */}
       <button
         type="button"
         className="ax-fullscreen ax-icon-btn"
@@ -145,7 +108,7 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         )}
       </button>
 
-      {/* 6 · LIGHT/DARK QUICK-TOGGLE */}
+      {/* 3 · LIGHT/DARK QUICK-TOGGLE */}
       <button
         type="button"
         className="ax-theme-toggle ax-icon-btn"
@@ -161,92 +124,35 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         )}
       </button>
 
-      {/* 7 · APP-GRID */}
-      <Dropdown
-        className="ax-apps"
-        panelClassName="ax-dropdown ax-apps__menu"
-        trigger={({ open, triggerProps }) => (
-          <button type="button" className="ax-icon-btn ax-apps__trigger" aria-label="Open apps" {...triggerProps} aria-expanded={open}>
-            {ICON.apps}
-          </button>
-        )}
-      >
-        <p className="ax-dropdown__head">Quick apps</p>
-        <div className="ax-apps__grid">
-          {APP_TILES.map(([to, label]) => (
-            <AppTile key={to} to={to} label={label} />
-          ))}
-        </div>
-        <Link className="ax-dropdown__foot" to="/widgets">View all apps</Link>
-      </Dropdown>
-
-      {/* 8 · CART */}
-      <Dropdown
-        className="ax-cart"
-        panelClassName="ax-dropdown ax-cart__menu"
-        trigger={({ open, triggerProps }) => (
-          <button type="button" className="ax-icon-btn ax-cart__trigger" aria-label="Shopping cart, 3 items" {...triggerProps} aria-expanded={open}>
-            {ICON.cart}
-            <span className="ax-badge-count" aria-hidden="true">3</span>
-          </button>
-        )}
-      >
-        <div className="ax-dropdown__head ax-cart__head"><span>Cart</span><span className="ax-cart__count">3 items</span></div>
-        <ul className="ax-cart__list" role="presentation">
-          <CartRow seed="ax-prod-1" name="Aurora Wireless Buds" qty="1 × $129.00" />
-          <CartRow seed="ax-prod-2" name="Verdigris Mechanical Keyboard" qty="1 × $189.00" />
-          <CartRow seed="ax-prod-3" name="Glass Desk Mat — XL" qty="2 × $34.00" />
-        </ul>
-        <div className="ax-cart__subtotal"><span>Subtotal</span><span className="ax-mono">$386.00</span></div>
-        <div className="ax-cart__actions">
-          <Link className="ax-btn ax-btn--ghost ax-btn--sm" to="/ecommerce/cart">View cart</Link>
-          <Link className="ax-btn ax-btn--accent ax-btn--sm" to="/ecommerce/checkout">Checkout</Link>
-        </div>
-      </Dropdown>
-
-      {/* 9 · NOTIFICATIONS */}
+      {/* 4 · NOTIFICATIONS */}
       <Dropdown
         className="ax-notif"
         panelClassName="ax-dropdown ax-notif__menu"
         panelRole="dialog"
         panelAriaLabel="Notifications"
         trigger={({ open, triggerProps }) => (
-          <button type="button" className="ax-icon-btn ax-notif__trigger" aria-label="Notifications, 2 unread" {...triggerProps} aria-haspopup="dialog" aria-expanded={open}>
+          <button type="button" className="ax-icon-btn ax-notif__trigger" aria-label="Notifications" {...triggerProps} aria-haspopup="dialog" aria-expanded={open}>
             {ICON.bell}
-            <span className="ax-badge-count ax-badge-count--dot" aria-hidden="true">2</span>
           </button>
         )}
       >
         <div className="ax-dropdown__head ax-notif__head">
           <span>Notifications</span>
-          <button type="button" className="ax-notif__mark-all">Mark all read</button>
         </div>
-        <ul className="ax-notif__list" role="presentation">
-          <li className="ax-notif__row is-unread">
-            <span className="ax-notif__chip"><img className="ax-avatar" src="https://i.pravatar.cc/64?img=32" alt="" width={34} height={34} /></span>
-            <span className="ax-notif__body"><b className="ax-notif__title">Mara Chen mentioned you</b><span className="ax-notif__text">“Can you review the Q3 revenue figures before the sync?”</span><time className="ax-notif__time ax-mono">2m ago</time></span>
-            <span className="ax-notif__dot" aria-label="Unread"></span>
-          </li>
-          <li className="ax-notif__row is-unread">
-            <span className="ax-notif__chip ax-notif__chip--success">{ICON.check}</span>
-            <span className="ax-notif__body"><b className="ax-notif__title">Payment received</b><span className="ax-notif__text">Invoice #INV-2049 was paid — $1,280.00.</span><time className="ax-notif__time ax-mono">1h ago</time></span>
-            <span className="ax-notif__dot" aria-label="Unread"></span>
-          </li>
-          <li className="ax-notif__row">
-            <span className="ax-notif__chip"><img className="ax-avatar" src="https://i.pravatar.cc/64?img=15" alt="" width={34} height={34} /></span>
-            <span className="ax-notif__body"><b className="ax-notif__title">New follower</b><span className="ax-notif__text">Devin Park started following your store.</span><time className="ax-notif__time ax-mono">5h ago</time></span>
-          </li>
-        </ul>
-        <Link className="ax-dropdown__foot" to="/pages/notifications">View all notifications</Link>
+        <div className="p-4 text-center text-xs text-gray-400">
+          No new notifications.
+        </div>
       </Dropdown>
 
-      {/* 10 · PROFILE */}
+      {/* 5 · PROFILE */}
       <Dropdown
         className="ax-profile"
         panelClassName="ax-dropdown ax-profile__menu"
         trigger={({ open, triggerProps }) => (
           <button type="button" className="ax-profile__trigger" aria-label="Account menu" {...triggerProps} aria-expanded={open}>
-            <img className="ax-avatar ax-profile__avatar" src="https://i.pravatar.cc/64?img=12" alt="Jacob Gerrald" width={32} height={32} />
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-sm shrink-0">
+              {user?.name ? user.name.slice(0, 2).toUpperCase() : (user?.role === 'vendor' ? 'VN' : 'KL')}
+            </div>
           </button>
         )}
       >
@@ -259,22 +165,24 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
             <small>{user?.email || (user?.vendor_id ? `ID: ${user.vendor_id}` : 'erp@klksolar.com')}</small>
           </span>
         </div>
-        <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile"> View Profile</Link>
-        <Link className="ax-dropdown__item" role="menuitem" to="/pages/profile-settings">Account Settings</Link>
-        <Link className="ax-dropdown__item" role="menuitem" to="/pages/support">Support</Link>
         <div className="ax-dropdown__divider" role="separator"></div>
         <button
           type="button"
-          className="ax-dropdown__item ax-dropdown__item--danger w-full text-left cursor-pointer"
+          className="ax-dropdown__item ax-dropdown__item--danger w-full text-left cursor-pointer flex items-center gap-2"
           role="menuitem"
           onClick={handleLogout}
         >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
           Log Out
         </button>
       </Dropdown>
 
-      {/* 11 · CUSTOMIZER TRIGGER */}
-      <button
+      {/* 6 · CUSTOMIZER TRIGGER */}
+      {/* <button
         type="button"
         className="ax-cog ax-icon-btn"
         data-ax-toggle="customizer"
@@ -284,89 +192,45 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         aria-label="Open theme customizer"
       >
         {ICON.cog}
-      </button>
+      </button> */}
 
-      {/* OVERFLOW (mobile / tablet shed) — always LAST in the utility run.
-          Rendered only when a band is actually shedding something, so the wide
-          bar keeps its ten controls and gains no dead trigger. The five rows are
-          STATIC: shell.css §18 reveals exactly the ones whose bar copy it hid,
-          so every control keeps exactly ONE reachable copy — and because they
-          live in this same component they reuse the identical setLang /
-          toggleFullscreen / onCustomizer handlers as the bar controls. */}
+      {/* OVERFLOW (mobile / tablet shed) */}
       {shed.length > 0 && (
         <Dropdown
           className="ax-overflow"
           panelId="ax-overflow-menu"
           panelClassName="ax-dropdown ax-overflow__menu"
           trigger={({ open, triggerProps }) => (
-            <button type="button" className="ax-icon-btn ax-overflow__trigger" aria-label="More" {...triggerProps} aria-expanded={open}>
+            <button
+              type="button"
+              className="ax-icon-btn ax-overflow__trigger"
+              aria-label="More options"
+              {...triggerProps}
+              aria-haspopup="menu"
+              aria-expanded={open}
+            >
               {ICON.dots}
             </button>
           )}
         >
           {({ close }) => (
             <>
-              {/* LANGUAGE (shed < lg) — the 8 codes as chips; the full names stay
-                  in the wide-viewport menu where there is room for them. */}
-              <div className="ax-overflow__group" data-ax-shed="lang" role="presentation">
-                <p className="ax-dropdown__head">Language</p>
-                <div className="ax-overflow__langs" role="group" aria-label="Change language">
-                  {LANGS.map(([code]) => (
-                    <button
-                      key={code}
-                      type="button"
-                      className={`ax-overflow__lang ax-lang__code${c.lang === code ? ' is-active' : ''}`}
-                      onClick={() => {
-                        c.setLang(code);
-                        close();
-                      }}
-                    >
-                      {code}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* FULLSCREEN (shed < lg) */}
+              {/* FULLSCREEN */}
               <button
                 type="button"
                 className="ax-dropdown__item"
                 role="menuitem"
                 data-ax-shed="fullscreen"
                 onClick={() => {
-                  toggleFullscreen();
                   close();
+                  toggleFullscreen();
                 }}
               >
                 {ICON.expandLead}
                 <span>{full ? 'Exit fullscreen' : 'Fullscreen'}</span>
               </button>
 
-              {/* APP-GRID (shed < lg) — the same tiles as the wide app-grid menu */}
-              <div className="ax-overflow__group" data-ax-shed="apps" role="presentation">
-                <p className="ax-dropdown__head">Quick apps</p>
-                <div className="ax-apps__grid">
-                  {APP_TILES.map(([to, label]) => (
-                    <AppTile key={to} to={to} label={label} onClick={close} />
-                  ))}
-                </div>
-              </div>
-
-              {/* CART (shed < md) — the full basket panel needs width it does not
-                  have on a phone, so the row links straight to the cart page. */}
-              <Link
-                className="ax-dropdown__item"
-                role="menuitem"
-                data-ax-shed="cart"
-                to="/ecommerce/cart"
-                onClick={close}
-              >
-                {ICON.cartLead}
-                <span>Cart</span>
-                <span className="ax-overflow__count ax-mono" aria-hidden="true">3</span>
-              </Link>
-
-              {/* CUSTOMIZER (shed < md) */}
+              {/* CUSTOMIZER */}
               <button
                 type="button"
                 className="ax-dropdown__item"
@@ -385,29 +249,6 @@ export function HeaderUtils({ onCustomizer }: { onCustomizer: () => void }) {
         </Dropdown>
       )}
     </>
-  );
-}
-
-function AppTile({ to, label, onClick }: { to: string; label: string; onClick?: () => void }) {
-  return (
-    <Link className="ax-apps__tile" role="menuitem" to={to} onClick={onClick}>
-      <span className="ax-apps__tile-icon">
-        <svg className="ax-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M4 4h6v6h-6z" /><path d="M14 4h6v6h-6z" /><path d="M4 14h6v6h-6z" /><path d="M14 14h6v6h-6z" /></svg>
-      </span>
-      <span className="ax-apps__tile-label">{label}</span>
-    </Link>
-  );
-}
-
-function CartRow({ seed, name, qty }: { seed: string; name: string; qty: string }) {
-  return (
-    <li className="ax-cart__row">
-      <img className="ax-cart__thumb" src={`https://picsum.photos/seed/${seed}/80`} alt="" width={40} height={40} />
-      <span className="ax-cart__meta"><b className="ax-cart__name">{name}</b><span className="ax-cart__qty ax-mono">{qty}</span></span>
-      <button type="button" className="ax-cart__remove" aria-label="Remove item">
-        <svg className="ax-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" width={24} height={24} aria-hidden="true"><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
-      </button>
-    </li>
   );
 }
 

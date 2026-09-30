@@ -41,27 +41,26 @@ const ICON = {
 /* Toastify Icons */
 const TOAST_ICONS = {
   success: (
-    <svg className="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
+    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
   error: (
-    <svg className="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <line x1="15" y1="9" x2="9" y2="15" />
       <line x1="9" y1="9" x2="15" y2="15" />
     </svg>
   ),
   warning: (
-    <svg className="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
   info: (
-    <svg className="w-5 h-5 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="16" x2="12" y2="12" />
       <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -76,7 +75,7 @@ export interface ToastItem {
   message: string;
 }
 
-/* Toastify Container Component using pure Tailwind CSS */
+/* Toastify Container Component using pure Tailwind CSS with vibrant status-colored cards */
 function ToastContainer({
   toasts,
   onClose,
@@ -87,50 +86,63 @@ function ToastContainer({
   if (!toasts.length) return null;
 
   return createPortal(
-    <div className="fixed top-5 right-5 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+    <div className="fixed top-5 right-5 z-[99999] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0">
       {toasts.map((t) => {
         const config = {
           success: {
-            border: 'border-l-4 border-l-emerald-500 border-dark-200 dark:border-dark-800',
-            title: 'text-emerald-700 dark:text-emerald-400',
-            bg: 'bg-white dark:bg-slate-900',
+            bg: 'bg-emerald-600 dark:bg-emerald-700',
+            border: 'border border-emerald-500/80',
+            shadow: 'shadow-lg shadow-emerald-950/25',
+            badgeBg: 'bg-emerald-700/70 dark:bg-emerald-800/80',
+            msgColor: 'text-emerald-50',
           },
           error: {
-            border: 'border-l-4 border-l-rose-500 border-dark-200 dark:border-dark-800',
-            title: 'text-rose-700 dark:text-rose-400',
-            bg: 'bg-white dark:bg-slate-900',
+            bg: 'bg-rose-600 dark:bg-rose-700',
+            border: 'border border-rose-500/80',
+            shadow: 'shadow-lg shadow-rose-950/25',
+            badgeBg: 'bg-rose-700/70 dark:bg-rose-800/80',
+            msgColor: 'text-rose-50',
           },
           warning: {
-            border: 'border-l-4 border-l-amber-500 border-dark-200 dark:border-dark-800',
-            title: 'text-amber-700 dark:text-amber-400',
-            bg: 'bg-white dark:bg-slate-900',
+            bg: 'bg-amber-500 dark:bg-amber-600',
+            border: 'border border-amber-400/80',
+            shadow: 'shadow-lg shadow-amber-950/25',
+            badgeBg: 'bg-amber-600/70 dark:bg-amber-700/80',
+            msgColor: 'text-amber-50',
           },
           info: {
-            border: 'border-l-4 border-l-sky-500 border-dark-200 dark:border-dark-800',
-            title: 'text-sky-700 dark:text-sky-400',
-            bg: 'bg-white dark:bg-slate-900',
+            bg: 'bg-sky-600 dark:bg-sky-700',
+            border: 'border border-sky-500/80',
+            shadow: 'shadow-lg shadow-sky-950/25',
+            badgeBg: 'bg-sky-700/70 dark:bg-sky-800/80',
+            msgColor: 'text-sky-50',
           },
         }[t.type];
 
         return (
           <div
             key={t.id}
-            className={`pointer-events-auto relative overflow-hidden rounded-lg border shadow-xl transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 p-3.5 ${config.bg} ${config.border}`}
+            className={`pointer-events-auto relative overflow-hidden rounded-xl ${config.bg} ${config.border} ${config.shadow} transition-all duration-300 transform translate-y-0 opacity-100 flex items-start gap-3 p-4 text-white`}
             role="alert"
           >
-            <div className="flex-shrink-0 mt-0.5">{TOAST_ICONS[t.type]}</div>
+            <div className={`flex-shrink-0 w-8 h-8 rounded-full ${config.badgeBg} flex items-center justify-center mt-0.5 shadow-inner`}>
+              {TOAST_ICONS[t.type]}
+            </div>
             <div className="flex-1 min-w-0 pr-1">
-              <h5 className={`text-xs font-bold uppercase tracking-wider ${config.title}`}>{t.title}</h5>
-              <p className="mt-0.5 text-xs text-dark-600 dark:text-dark-300 leading-relaxed break-words">{t.message}</p>
+              <h5 className="text-xs font-bold uppercase tracking-wider text-white drop-shadow-sm">{t.title}</h5>
+              <p className={`mt-0.5 text-xs ${config.msgColor} leading-relaxed break-words font-medium`}>{t.message}</p>
             </div>
             <button
               type="button"
               onClick={() => onClose(t.id)}
-              className="flex-shrink-0 text-dark-400 hover:text-dark-600 dark:hover:text-dark-200 p-0.5 rounded transition-colors"
+              className="flex-shrink-0 text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-lg transition-colors"
               aria-label="Close notification"
             >
               <span className="w-4 h-4 block">{ICON.close}</span>
             </button>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/20 overflow-hidden">
+              <div className="h-full bg-white/40 animate-pulse w-full" />
+            </div>
           </div>
         );
       })}
