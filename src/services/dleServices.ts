@@ -75,15 +75,13 @@ export const extractList = (res: any): any[] => {
 
 /* ─────────────────────────────────────────────────────────────
    Company filter
-   Login user ki company_id (klkerp.com login se) ko
-   admin/users ki company_id se match karta hai.
+   Matches the logged-in user's company_id with admin/users company_id.
    ───────────────────────────────────────────────────────────── */
 
 const normId = (v: any): string => String(v ?? '').trim().toLowerCase();
 
 /**
- * admin/users record se company id nikalta hai.
- * Backend ke field name alag ho to yahin add kar do.
+ * Extracts company id from an admin/user record.
  */
 export const getRecordCompanyId = (u: any): string =>
   normId(
@@ -95,8 +93,7 @@ export const getRecordCompanyId = (u: any): string =>
   );
 
 /**
- * Sirf wahi records jinki company_id login user ki company_id se match kare.
- * Login user ki company_id nahi hai (vendor / missing) → empty list.
+ * Filter records matching current user's company_id.
  */
 export const filterByCompany = <T = any>(list: T[]): T[] => {
   const mine = normId(authService.getCompanyId());
@@ -104,10 +101,10 @@ export const filterByCompany = <T = any>(list: T[]): T[] => {
   return list.filter((u) => {
     const rec = getRecordCompanyId(u);
 
-    // company_id null / "" / "null" → hamesha show
+    // If company_id is null / empty / undefined -> show by default
     if (!rec || rec === 'null' || rec === 'undefined') return true;
 
-    // same company → show
+    // Same company -> show
     return !!mine && rec === mine;
   });
 };
@@ -308,8 +305,8 @@ export class DleService {
   }
 
   /**
-   * Get DLE admin users sirf login user ki company_id ke hisaab se.
-   * Returns: filtered ARRAY (response object nahi).
+   * Get DLE admin users filtered by logged-in user's company_id.
+   * Returns: filtered array of users.
    */
   async getCompanyAdminUsers(signal?: AbortSignal): Promise<any[]> {
     const res = await this.getAdminUsers(signal);

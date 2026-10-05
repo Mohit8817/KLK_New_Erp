@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
+import SearchInput from '../../../../../common/search/SearchInput';
+import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-// Bihar AMC light API: GET /api/bihar/amc/light/get (dleService.getBiharAmcLight)
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
 import { authService } from '../../../../../services/authService';
+import { exportDataToCSV, exportDataToExcel, printTableData, copyTableDataToClipboard } from '../../../../../common/export/exportUtils';
 
 /* ---------- Types ---------- */
 interface ImageItem { label: string; url: string; raw: string; }
@@ -213,7 +215,7 @@ function ImageTile({ im }: { im: ImageItem }) {
         </a>
       ) : (
         <div style={{ width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'var(--ax-space-3)', background: 'var(--ax-surface-subtle)', border: '1px dashed var(--ax-border)', borderRadius: 'var(--ax-radius-md)', color: 'var(--ax-danger-500)', fontSize: 'var(--ax-text-xs)' }}>
-          {im.url ? 'Image load nahi hui' : 'Image URL set nahi hai (.env: VITE_R2_PUBLIC_URL)'}
+          {im.url ? 'Image failed to load' : 'Image URL is not configured'}
         </div>
       )}
       <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: 5 }}>{im.label}</div>
@@ -331,7 +333,7 @@ export function BiharAMCSSLViewSurveyLight() {
   const [sortKey, setSortKey] = useState<SortKey>('amcDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(100);
   const [preview, setPreview] = useState<LightRow | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
   const visibleCols = columns.filter((c) => c.visible);
@@ -345,33 +347,30 @@ export function BiharAMCSSLViewSurveyLight() {
       setUsingDemo(true);
       setDemoReason(reason);
     };
-  try {
-  const json: any = await dleService.getBiharAmcLight(undefined, signal);
-  let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-  if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
-  const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+    try {
+      const json: any = await dleService.getBiharAmcLight(undefined, signal);
+      let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
+      if (raw?.data && Array.isArray(raw.data)) raw = raw.data;
+      const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
 
-  console.info('[Bihar AMC light] rows:', list.length, 'first record:', list[0]);
-  console.info('[Bihar AMC light] my company_id:', authService.getCompanyId());
+      console.info('[Bihar AMC light] rows:', list.length, 'first record:', list[0]);
+      console.info('[Bihar AMC light] my company_id:', authService.getCompanyId());
 
-  if (!list.length) {
-    // API se sach mein kuch nahi aaya → demo
-    useDemo('API se koi record nahi aaya');
-  } else {
-    // 1) company_id same ho (null wale hide)
-    // 2) approval_status approved ho
-    const allowed = filterByCompanyStrict(list).filter(
-      (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
-    );
+      if (!list.length) {
+        useDemo('No records returned from API');
+      } else {
+        const allowed = filterByCompanyStrict(list).filter(
+          (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
+        );
 
-    console.info('[Bihar AMC light] after filter:', allowed.length);
+        console.info('[Bihar AMC light] after filter:', allowed.length);
 
-    setRows(allowed.map(normalize));
-    setUsingDemo(false);
-  }
-} catch (e) {
+        setRows(allowed.map(normalize));
+        setUsingDemo(false);
+      }
+    } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'API se data load nahi hua');
+      useDemo((e as Error).message || 'Failed to load data from API');
     } finally {
       setLoading(false);
     }
@@ -401,19 +400,6 @@ export function BiharAMCSSLViewSurveyLight() {
   const curPage = Math.min(page, totalPages);
   const start = (curPage - 1) * perPage;
   const paged = filtered.slice(start, start + perPage);
-  const rangeStart = filtered.length ? start + 1 : 0;
-  const rangeEnd = Math.min(curPage * perPage, filtered.length);
-
-  const pageList: (number | '…')[] = useMemo(() => {
-    const out: (number | '…')[] = [];
-    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) out.push(i); return out; }
-    out.push(1);
-    if (curPage > 3) out.push('…');
-    for (let i = Math.max(2, curPage - 1); i <= Math.min(totalPages - 1, curPage + 1); i++) out.push(i);
-    if (curPage < totalPages - 2) out.push('…');
-    out.push(totalPages);
-    return out;
-  }, [totalPages, curPage]);
 
   const sortBy = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -435,9 +421,51 @@ export function BiharAMCSSLViewSurveyLight() {
   };
   const handleCopy = async () => {
     const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    await navigator.clipboard.writeText(filtered.map((r) => cols.map((c) => cellText(r, c.key)).join('\t')).join('\n'));
+    await copyTableDataToClipboard(
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: LightRow) => cellText(r, c.key),
+      }))
+    );
   };
-  const handleExport = () => exportCsv(filtered, 'bihar-amc-light');
+
+  const handleExportCSV = () => {
+    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
+    exportDataToCSV(
+      'bihar-amc-light',
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: LightRow) => cellText(r, c.key),
+      }))
+    );
+  };
+
+  const handleExportExcel = () => {
+    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
+    exportDataToExcel(
+      'bihar-amc-light',
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: LightRow) => cellText(r, c.key),
+      })),
+      'Bihar AMC Light'
+    );
+  };
+
+  const handleExportPDF = () => {
+    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
+    printTableData(
+      'Bihar AMC Light Records',
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: LightRow) => cellText(r, c.key),
+      }))
+    );
+  };
 
   const renderCell = (key: string, r: LightRow) => {
     switch (key) {
@@ -515,7 +543,7 @@ export function BiharAMCSSLViewSurveyLight() {
         {usingDemo && !loading && (
           <div className="ax-col--12">
             <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Demo data dikh raha hai ({demoReason}).</span>
+              <span>Showing demo data: {demoReason}.</span>
               <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
             </div>
           </div>
@@ -528,15 +556,28 @@ export function BiharAMCSSLViewSurveyLight() {
               <p className="ax-card__subtitle ax-num" style={mono}>{filtered.length} results · {pendingCount}/{rows.length} pending approval</p>
             </div>
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <div style={{ position: 'relative', width: 250 }}>
-                <span style={{ position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)', width: 17, height: 17, color: 'var(--ax-text-subtle)', display: 'inline-flex' }}>{ICON.search}</span>
-                <input type="search" className="ax-input ax-input--sm" placeholder="Search records…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ paddingInlineStart: 34 }} aria-label="Search records" />
-              </div>
+              <SearchInput
+                value={q}
+                onChange={(val) => {
+                  setQ(val);
+                  setPage(1);
+                }}
+                placeholder="Search records…"
+                size="sm"
+                ariaLabel="Search records"
+                showClear
+                style={{
+                  width: 250,
+                  maxWidth: 350,
+                  flex: '0 0 auto',
+                  marginLeft: 'auto',
+                }}
+              />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExport}
-                onExportExcel={handleExport}
-                onExportPDF={handleExport}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
                 columns={columns}
                 onToggleColumn={toggleColumn}
               />
@@ -583,30 +624,18 @@ export function BiharAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>Showing {rangeStart}–{rangeEnd} of {filtered.length}</span>
-                <label className="ax-cluster" style={{ gap: 'var(--ax-space-2)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Rows
-                  <select className="ax-select ax-select--sm" value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} aria-label="Rows per page" style={{ minWidth: 72 }}>
-                    {[5, 10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </label>
-              </div>
-
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button type="button" className="ax-pagination__prev" disabled={curPage === 1} aria-disabled={curPage === 1} onClick={() => setPage(Math.max(1, curPage - 1))} aria-label="Previous page">{ICON.chevL}</button>
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p, i) => (
-                    <li key={`${p}-${i}`}>
-                      {p === '…' ? <span className="ax-pagination__ellipsis">…</span> : (
-                        <button type="button" className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`} aria-current={curPage === p ? 'page' : undefined} aria-label={`Page ${p}`} onClick={() => setPage(p)}>{p}</button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <button type="button" className="ax-pagination__next" disabled={curPage === totalPages} aria-disabled={curPage === totalPages} onClick={() => setPage(Math.min(totalPages, curPage + 1))} aria-label="Next page">{ICON.chevR}</button>
-              </nav>
+            <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
+              <Pagination
+                currentPage={curPage}
+                totalItems={filtered.length}
+                pageSize={perPage}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
+              />
             </div>
           )}
         </section>

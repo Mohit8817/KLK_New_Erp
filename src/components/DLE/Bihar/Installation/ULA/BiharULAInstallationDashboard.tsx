@@ -281,7 +281,7 @@ setUpdatedAt(new Date());
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
         const msg = e?.message || 'Failed to load data';
-        setError(e?.status === 401 ? `${msg} (Vite proxy / DLE API key check karo)` : msg);
+        setError(e?.status === 401 ? `${msg} (Unauthorized / check DLE API key)` : msg);
       }
     } finally {
       setLoading(false);
@@ -690,7 +690,7 @@ setUpdatedAt(new Date());
 
         {!error && !loading && records.length === 0 && (
           <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', color: 'var(--ax-text-strong)', borderRadius: 'var(--ax-radius-md)', fontSize: 'var(--ax-text-sm)' }}>
-            API se koi record nahi mila. Browser console mein <b>[ULA]</b> log dekho ya Network tab mein <code>ula/list</code> ka response check karo.
+            No records found from API. Please verify company assignment or network response.
           </div>
         )}
 

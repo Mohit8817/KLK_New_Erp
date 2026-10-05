@@ -72,12 +72,12 @@ const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/U
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 
-// const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
-// const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
-// const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
-// const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
-// const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
-// const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
+const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
+const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
+const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
+const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
+const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
+const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 
 const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 // const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
@@ -416,21 +416,21 @@ const shell: Record<string, PageComponent> = {
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
   'dle/users': DLEManagementViewData,
 
-  // 'assam': AssamDashboard,
-  // 'assam/dashboard': AssamDashboard,
-  // 'assam/installation': AssamInstallation,
-  // 'assam/swp': AssamDashboard,
-  // 'assam/swp/dashboard': AssamDashboard,
-  // 'assam/swp/installation-request': AssamInstallationRequest,
-  // 'assam/installation-request': AssamInstallationRequest,
-  // 'assam/swp/installation-site': AssamInstallationSite,
-  // 'assam/installation-site': AssamInstallationSite,
-  // 'assam/swp/add-installation': AssamInstallationSite,
-  // 'assam/add-installation': AssamInstallationSite,
-  // 'assam/swp/view-installation': AssamViewInstallation,
-  // 'assam/view-installation': AssamViewInstallation,
-  // 'assam/swp/view-payment': AssamViewPayment,
-  // 'assam/view-payment': AssamViewPayment,
+  'assam': AssamDashboard,
+  'assam/dashboard': AssamDashboard,
+  'assam/installation': AssamInstallation,
+  'assam/swp': AssamDashboard,
+  'assam/swp/dashboard': AssamDashboard,
+  'assam/swp/installation-request': AssamInstallationRequest,
+  'assam/installation-request': AssamInstallationRequest,
+  'assam/swp/installation-site': AssamInstallationSite,
+  'assam/installation-site': AssamInstallationSite,
+  'assam/swp/add-installation': AssamInstallationSite,
+  'assam/add-installation': AssamInstallationSite,
+  'assam/swp/view-installation': AssamViewInstallation,
+  'assam/view-installation': AssamViewInstallation,
+  'assam/swp/view-payment': AssamViewPayment,
+  'assam/view-payment': AssamViewPayment,
 
   // ── Uttar Pradesh: Survey ──
   // 'up/survey/resco/assigned-survey': UPSurveyRescoAssignedSurvey,

@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../common/TableExportToolbar';
+import SearchInput from '../../../common/search/SearchInput';
+import { Pagination } from '../../../common/pagination/Pagination';
 import { dleService, extractList, filterByCompany } from '../../../services/dleServices';
 
 /* ---------- Types ---------- */
@@ -145,7 +147,6 @@ const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
 
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 const APPROVALS = ['All', 'Pending', 'Approved', 'Rejected'];
-const PAGE_SIZE = 10;
 
 /* ---------- Page ---------- */
 export function DleUsers() {
@@ -158,6 +159,7 @@ export function DleUsers() {
   const [sortKey, setSortKey] = useState<SortKey>('createdTs');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
   const [selected, setSelected] = useState<UserRow | null>(null);
   const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -171,7 +173,7 @@ export function DleUsers() {
     const state = searchParams.get('state');
     const district = searchParams.get('district');
     const approvalParam = searchParams.get('approval');
-    if (state) setQ(''); // state/district filters are handled by dedicated params below
+    if (state || district) setQ('');
     if (approvalParam && APPROVALS.includes(approvalParam)) setApproval(approvalParam);
   }, [searchParams]);
 
@@ -248,15 +250,10 @@ export function DleUsers() {
     setPage(1);
   }, [urlState, urlDistrict, urlActivity, urlCreated, approval]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const curPage = Math.min(page, totalPages);
-  const start = (curPage - 1) * PAGE_SIZE;
-  const paged = filtered.slice(start, start + PAGE_SIZE);
-  const pageList = useMemo(() => {
-    const from = Math.max(1, Math.min(curPage - 3, totalPages - 6));
-    const to = Math.min(totalPages, from + 6);
-    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
-  }, [curPage, totalPages]);
+  const start = (curPage - 1) * perPage;
+  const paged = filtered.slice(start, start + perPage);
 
   const counts = useMemo(() => ({
     Pending: rows.filter((r) => r.approval === 'Pending').length,
@@ -396,16 +393,6 @@ export function DleUsers() {
       <PageHead
         title="DLE Users"
         subtitle="Registered field users with contact details, verification and approval status."
-        actions={
-          <TableExportToolbar
-            onCopy={handleCopy}
-            onExportCSV={handleExportCSV}
-            onExportExcel={handleExportExcel}
-            onExportPDF={handleExportPDF}
-            columns={columns}
-            onToggleColumn={toggleColumn}
-          />
-        }
       />
 
       <div className="ax-dash-grid">
@@ -427,7 +414,7 @@ export function DleUsers() {
                 {(urlState !== 'All' || urlDistrict !== 'All' || urlActivity !== 'All' || urlCreated !== 'All') ? ' · Dashboard filter applied' : ''}
               </p>
             </div>
-            <div className="ax-card__actions" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+            <div className="ax-card__actions" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
               <select
                 className="ax-select ax-select--sm"
                 value={approval}
@@ -441,6 +428,7 @@ export function DleUsers() {
                   setSearchParams(next);
                 }}
                 aria-label="Filter by approval status"
+                style={{ flex: '0 0 auto' }}
               >
                 {APPROVALS.map((a) => <option key={a} value={a}>{a === 'All' ? 'All approvals' : a}</option>)}
               </select>
@@ -463,10 +451,31 @@ export function DleUsers() {
                   </button>
                 </div>
               )}
-              <div style={{ position: 'relative', flex: '1 1 220px', maxWidth: 300 }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: 'absolute', insetInlineStart: 11, top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: 'var(--ax-text-subtle)' }}><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
-                <input type="search" className="ax-input ax-input--sm" placeholder="Search…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ paddingInlineStart: 34 }} aria-label="Search users" />
-              </div>
+              <SearchInput
+                value={q}
+                onChange={(val) => {
+                  setQ(val);
+                  setPage(1);
+                }}
+                placeholder="Search users…"
+                size="sm"
+                ariaLabel="Search users"
+                showClear
+                style={{
+                  width: 250,
+                  maxWidth: 350,
+                  flex: '0 0 auto',
+                  marginLeft: 'auto',
+                }}
+              />
+              <TableExportToolbar
+                onCopy={handleCopy}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
+                columns={columns}
+                onToggleColumn={toggleColumn}
+              />
             </div>
           </div>
 
@@ -565,19 +574,18 @@ export function DleUsers() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer ax-flex" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>
-                Showing {start + 1} to {Math.min(curPage * PAGE_SIZE, filtered.length)} of {filtered.length}
-              </span>
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button type="button" className="ax-pagination__prev" disabled={curPage === 1} aria-disabled={curPage === 1} onClick={() => setPage(curPage - 1)} aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6l6 6" /></svg></button>
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p) => (
-                    <li key={p}><button type="button" className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`} aria-current={curPage === p ? 'page' : undefined} onClick={() => setPage(p)}>{p}</button></li>
-                  ))}
-                </ul>
-                <button type="button" className="ax-pagination__next" disabled={curPage === totalPages} aria-disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)} aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6" /></svg></button>
-              </nav>
+            <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
+              <Pagination
+                currentPage={curPage}
+                totalItems={filtered.length}
+                pageSize={perPage}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
+              />
             </div>
           )}
         </section>

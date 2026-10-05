@@ -108,36 +108,45 @@ export function UPAMCSSLAssignLights() {
   useEffect(() => {
     const ac = new AbortController();
 
- dleService
-  .getAdminUsers(ac.signal)
-  .then((j: any) => {
-    const approvedUsers = filterApproved(
-      filterByCompany(extractList(j))
-    );
+    dleService
+      .getAdminUsers(ac.signal)
+      .then((j: any) => {
+        const approvedUsers = filterApproved(
+          filterByCompany(extractList(j))
+        );
 
-    const upUsers = approvedUsers.filter((u: any) => {
-      const state = String(u?.state ?? '').trim().toLowerCase();
-      return state === 'uttar pradesh' || state === 'up';
-    });
+        const upUsers = approvedUsers.filter((u: any) => {
+          const state = String(u?.state ?? '').trim().toLowerCase();
+          return state === 'uttar pradesh' || state === 'up';
+        });
 
-    setUsers(toOptions(upUsers));
+        setUsers(toOptions(upUsers));
 
-    if (!upUsers.length) {
-      setAlert({
-        type: 'danger',
-        msg: 'No approved DLE users found for your company.',
+        if (!upUsers.length) {
+          setAlert({
+            type: 'danger',
+            msg: 'No approved DLE users found for your company.',
+          });
+        }
+      })
+      .catch((err: any) => {
+        if (err?.name !== 'AbortError') {
+          console.error('Failed to load UP DLE users:', err);
+          setAlert({
+            type: 'danger',
+            msg: err?.message || 'Unable to load DLE users.',
+          });
+        }
       });
-    }
-  })
-  .catch((err: any) => {
-    if (err?.name !== 'AbortError') {
-      console.error('Failed to load UP DLE users:', err);
-      setAlert({
-        type: 'danger',
-        msg: err?.message || 'Unable to load DLE users.',
+
+    upSslAmc
+      .getDistricts(ac.signal)
+      .then((j) => setDistricts(toOptions(j)))
+      .catch((err: any) => {
+        if (err?.name !== 'AbortError') {
+          console.error('Failed to load UP districts:', err);
+        }
       });
-    }
-  });
 
     return () => ac.abort();
   }, []);

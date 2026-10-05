@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import { upSslAmc, toArray } from '../../../../../services/Sslamcservice';
-
 import { dleService } from '../../../../../services/dleServices';
-
-const PAGE_SIZE = 10;
+import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
+import SearchInput from '../../../../../common/search/SearchInput';
+import { Pagination } from '../../../../../common/pagination/Pagination';
+import { exportDataToCSV, exportDataToExcel, printTableData, copyTableDataToClipboard } from '../../../../../common/export/exportUtils';
 
 const pick = (o: any, ...keys: string[]) => {
   for (const k of keys) if (o?.[k] !== undefined && o?.[k] !== null && o?.[k] !== '') return o[k];
   return '';
 };
-// 2026-09-17 / 2026-09-17T07:54:07.000000Z -> 17-09-2026
+
 const fmtDate = (v: unknown) => {
   const m = String(v ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : String(v ?? '') || '—';
 };
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '—');
-// panchayat: array ya JSON string '["A","B"]' ya "A, B"
+
 const panList = (v: any): string[] => {
   if (Array.isArray(v)) return v.map((x) => (typeof x === 'string' ? x : x?.name ?? x?.panchayat_name ?? '')).filter(Boolean);
   const s = String(v ?? '').trim();
@@ -27,7 +28,6 @@ const panList = (v: any): string[] => {
   return s.split(',').map((x) => x.trim()).filter(Boolean);
 };
 
-/** users response (array / {data:[]} / {data:{users:[]}}) -> { "106": "Pravesh" } */
 const buildUserMap = (json: any): Record<string, string> => {
   const map: Record<string, string> = {};
   toArray(json).forEach((u: any) => {
@@ -38,6 +38,18 @@ const buildUserMap = (json: any): Record<string, string> => {
   return map;
 };
 
+const INITIAL_COLUMNS: ColumnDef[] = [
+  { key: 'srNo', label: 'Sr. No.', visible: true },
+  { key: 'user', label: 'Assign User', visible: true },
+  { key: 'state', label: 'State', visible: true },
+  { key: 'lights', label: 'Lights', visible: true },
+  { key: 'district', label: 'District', visible: true },
+  { key: 'block', label: 'Block', visible: true },
+  { key: 'panchayat', label: 'Panchayat', visible: true },
+  { key: 'date', label: 'Assign Date', visible: true },
+  { key: 'remarks', label: 'Remarks', visible: true },
+];
+
 export function UPAMCSSLViewAssignLight() {
   const [rows, setRows] = useState<any[]>([]);
   const [users, setUsers] = useState<Record<string, string>>({});
@@ -45,6 +57,13 @@ export function UPAMCSSLViewAssignLight() {
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(100);
+  const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
+
+  const visibleCols = useMemo(() => columns.filter((c) => c.visible), [columns]);
+
+  const toggleColumn = (key: string) =>
+    setColumns((prev) => prev.map((c) => (c.key === key ? { ...c, visible: !c.visible } : c)));
 
   useEffect(() => {
     const ac = new AbortController();
@@ -52,14 +71,14 @@ export function UPAMCSSLViewAssignLight() {
       try {
         const [assign, usersRes] = await Promise.all([
           upSslAmc.viewAssignLight(ac.signal),
-          dleService.getAdminUsers(ac.signal).catch(() => null), // naam na mile to bhi page chale
+          dleService.getAdminUsers(ac.signal).catch(() => null),
         ]);
         const list = toArray(assign);
         console.info('[UP assign] rows:', list.length, 'first:', list[0]);
         setRows(list);
         if (usersRes) setUsers(buildUserMap(usersRes));
       } catch (e: any) {
-        if (e?.name !== 'AbortError') setError(e?.message || 'Data load nahi hua');
+        if (e?.name !== 'AbortError') setError(e?.message || 'Failed to load data');
       } finally {
         setLoading(false);
       }
@@ -71,6 +90,7 @@ export function UPAMCSSLViewAssignLight() {
     const uid = String(pick(r, 'user_id', 'assign_user_id'));
     return {
       id: r.id ?? i,
+      srNo: i + 1,
       user: String(pick(r, 'user_name', 'assign_user', 'name') || users[uid] || (uid ? `User #${uid}` : '—')),
       state: cap(String(pick(r, 'state', 'state_name'))),
       lights: String(pick(r, 'light_count', 'site_count') || '—'),
@@ -87,10 +107,68 @@ export function UPAMCSSLViewAssignLight() {
     return s ? data.filter((r) => JSON.stringify(Object.values(r)).toLowerCase().includes(s)) : data;
   }, [data, q]);
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(filtered.length / perPage));
   const cur = Math.min(page, pages);
-  const slice = filtered.slice((cur - 1) * PAGE_SIZE, cur * PAGE_SIZE);
-  const COLS = 9;
+  const slice = filtered.slice((cur - 1) * perPage, cur * perPage);
+
+  const exportCols = useMemo(
+    () =>
+      visibleCols.map((c) => ({
+        header: c.label,
+        accessor: (r: any) => {
+          if (c.key === 'panchayat') return Array.isArray(r.panchayat) ? r.panchayat.join(', ') : r.panchayat;
+          return r[c.key] ?? '';
+        },
+      })),
+    [visibleCols]
+  );
+
+  const handleCopy = async () => {
+    await copyTableDataToClipboard(filtered, exportCols);
+  };
+
+  const handleExportCSV = () => {
+    exportDataToCSV('up-ssl-amc-assignments', filtered, exportCols);
+  };
+
+  const handleExportExcel = () => {
+    exportDataToExcel('up-ssl-amc-assignments', filtered, exportCols, 'Assignments');
+  };
+
+  const handleExportPDF = () => {
+    printTableData('Uttar Pradesh SSL AMC Assignments', filtered, exportCols);
+  };
+
+  const renderCell = (key: string, r: any, index: number) => {
+    switch (key) {
+      case 'srNo':
+        return <td key={key} className="ax-table__td ax-num">{(cur - 1) * perPage + index + 1}</td>;
+      case 'user':
+        return <td key={key} className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.user}</td>;
+      case 'state':
+        return <td key={key} className="ax-table__td">{r.state}</td>;
+      case 'lights':
+        return <td key={key} className="ax-table__td ax-table__td--num ax-num">{r.lights}</td>;
+      case 'district':
+        return <td key={key} className="ax-table__td">{r.district}</td>;
+      case 'block':
+        return <td key={key} className="ax-table__td">{r.block}</td>;
+      case 'panchayat':
+        return (
+          <td key={key} className="ax-table__td">
+            <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)', flexWrap: 'wrap' }}>
+              {r.panchayat.length ? r.panchayat.map((p: string) => <span key={p} className="ax-badge ax-badge--soft ax-badge--neutral">{p}</span>) : '—'}
+            </span>
+          </td>
+        );
+      case 'date':
+        return <td key={key} className="ax-table__td ax-num">{r.date}</td>;
+      case 'remarks':
+        return <td key={key} className="ax-table__td">{r.remarks}</td>;
+      default:
+        return <td key={key} className="ax-table__td">{r[key] || '—'}</td>;
+    }
+  };
 
   return (
     <>
@@ -98,9 +176,28 @@ export function UPAMCSSLViewAssignLight() {
       <div className="ax-dash-grid">
         <section className="ax-card ax-col--12" role="region" aria-label="View UP SSL AMC Assign">
           <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-            <div className="ax-card__titles"><h2 className="ax-card__title">View Assign SSL Site</h2><p className="ax-card__subtitle"><span className="ax-num">{filtered.length}</span> assignments.</p></div>
-            <div className="ax-card__actions">
-              <input type="search" className="ax-input ax-input--sm" placeholder="Search…" aria-label="Search assignments" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">View Assign SSL Site</h2>
+              <p className="ax-card__subtitle"><span className="ax-num">{filtered.length}</span> assignments.</p>
+            </div>
+            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+              <SearchInput
+                value={q}
+                onChange={(val) => { setQ(val); setPage(1); }}
+                placeholder="Search assignments…"
+                size="sm"
+                ariaLabel="Search assignments"
+                showClear
+                style={{ width: 250, maxWidth: 350, flex: '0 0 auto', marginLeft: 'auto' }}
+              />
+              <TableExportToolbar
+                onCopy={handleCopy}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
+                columns={columns}
+                onToggleColumn={toggleColumn}
+              />
             </div>
           </div>
 
@@ -109,51 +206,42 @@ export function UPAMCSSLViewAssignLight() {
               <caption className="ax-visually-hidden">View UP SSL AMC Assign</caption>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Assign User</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Lights</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col">Block</th>
-                  <th className="ax-table__th" scope="col">Panchayat</th>
-                  <th className="ax-table__th" scope="col">Assign Date</th>
-                  <th className="ax-table__th" scope="col">Remarks</th>
+                  {visibleCols.map((c) => (
+                    <th
+                      key={c.key}
+                      className={`ax-table__th ${c.key === 'lights' ? 'ax-table__th--num' : ''}`}
+                      scope="col"
+                    >
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody aria-busy={loading}>
-                {loading && <tr><td className="ax-table__td" colSpan={COLS} style={{ textAlign: 'center' }}>Loading…</td></tr>}
-                {!loading && error && <tr><td className="ax-table__td" colSpan={COLS} style={{ textAlign: 'center', color: 'var(--ax-danger-500)' }}>{error}</td></tr>}
-                {!loading && !error && !slice.length && <tr><td className="ax-table__td" colSpan={COLS} style={{ textAlign: 'center' }}>No Assignment Found</td></tr>}
+                {loading && <tr><td className="ax-table__td" colSpan={visibleCols.length} style={{ textAlign: 'center' }}>Loading…</td></tr>}
+                {!loading && error && <tr><td className="ax-table__td" colSpan={visibleCols.length} style={{ textAlign: 'center', color: 'var(--ax-danger-500)' }}>{error}</td></tr>}
+                {!loading && !error && !slice.length && <tr><td className="ax-table__td" colSpan={visibleCols.length} style={{ textAlign: 'center' }}>No assignments found</td></tr>}
                 {slice.map((r, i) => (
                   <tr key={r.id} className="ax-table__row">
-                    <td className="ax-table__td ax-num">{(cur - 1) * PAGE_SIZE + i + 1}</td>
-                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.user}</td>
-                    <td className="ax-table__td">{r.state}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{r.lights}</td>
-                    <td className="ax-table__td">{r.district}</td>
-                    <td className="ax-table__td">{r.block}</td>
-                    <td className="ax-table__td">
-                      <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)', flexWrap: 'wrap' }}>
-                        {r.panchayat.length ? r.panchayat.map((p: string) => <span key={p} className="ax-badge ax-badge--soft ax-badge--neutral">{p}</span>) : '—'}
-                      </span>
-                    </td>
-                    <td className="ax-table__td ax-num">{r.date}</td>
-                    <td className="ax-table__td">{r.remarks}</td>
+                    {visibleCols.map((c) => renderCell(c.key, r, i))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="ax-card__footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-            <span className="ax-pagination__summary ax-num" style={{ fontSize: 'var(--ax-text-xs)' }}>
-              Showing {filtered.length ? (cur - 1) * PAGE_SIZE + 1 : 0} to {Math.min(cur * PAGE_SIZE, filtered.length)} of {filtered.length} entries
-            </span>
-            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" disabled={cur <= 1} onClick={() => setPage(cur - 1)}><span className="ax-btn__label">Previous</span></button>
-              <span className="ax-num" style={{ fontSize: 'var(--ax-text-sm)' }}>{cur} / {pages}</span>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" disabled={cur >= pages} onClick={() => setPage(cur + 1)}><span className="ax-btn__label">Next</span></button>
-            </div>
+          <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
+            <Pagination
+              currentPage={cur}
+              totalItems={filtered.length}
+              pageSize={perPage}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPerPage(size);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
           </div>
         </section>
       </div>

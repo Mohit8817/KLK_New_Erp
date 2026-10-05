@@ -3,11 +3,11 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
 import SearchInput from '../../../../../common/search/SearchInput';
+import { Pagination } from '../../../../../common/pagination/Pagination';
 import { createPortal } from 'react-dom';
-import { useClickOutside } from '../../../../../hooks/useClickOutside';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-// DLE service: relative URL use karta hai -> Vite proxy API key/secret lagata hai
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
+import { exportDataToExcel, printTableData } from '../../../../../common/export/exportUtils';
 
 /* ---------- Types ---------- */
 interface Visit { status: string; at: string; }
@@ -576,7 +576,7 @@ function UlaModal({
 
 export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const params = useParams<{ id: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const id = idProp ?? params.id ?? '';
 
   const [rows, setRows] = useState<UlaRow[]>([]);
@@ -589,24 +589,22 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const [page, setPage] = useState(1);
   const [preview, setPreview] = useState<UlaRow | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(100);
   const visibleCols = columns.filter((c) => c.visible);
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-const [dlError, setDlError] = useState<string | null>(null);
 
-const downloadImages = async (r: UlaRow) => {
-  if (downloadingId) return;
-  setDownloadingId(r.id);
-  setDlError(null);
-  try {
-    await dleService.downloadUlaImagesZip(r.id); // /api/bihar/ula/:id/download-images
-  } catch (e) {
-    setDlError((e as Error).message || 'Images download nahi ho paayi');
-  } finally {
-    setDownloadingId(null);
-  }
-};
+  const downloadImages = async (r: UlaRow) => {
+    if (downloadingId) return;
+    setDownloadingId(r.id);
+    try {
+      await dleService.downloadUlaImagesZip(r.id);
+    } catch (e) {
+      console.error((e as Error).message || 'Failed to download images');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const toggleColumn = (key: string) =>
     setColumns((prev) => prev.map((c) => c.key === key ? { ...c, visible: !c.visible } : c));
@@ -619,32 +617,26 @@ const downloadImages = async (r: UlaRow) => {
       setDemoReason(reason);
     };
     try {
-      // id hai to detail API (/api/bihar/ula/:id), nahi to poori list
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = id
         ? await dleService.getBiharUlaDetail(id, signal)
         : await dleService.getBiharUlaList(signal);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-      if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
-      // detail API aksar single object deti hai -> array bana do
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
-const mine = filterByCompanyStrict(list);
+      if (raw?.data && Array.isArray(raw.data)) raw = raw.data;
+      const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+      const mine = filterByCompanyStrict(list);
 
-console.info('[ULA view] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
+      console.info('[ULA view] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
 
-if (!list.length) {
-  // API se sach mein kuch nahi aaya → demo
-  useDemo('API  record not  loaded');
-} else {
-  setRows(mine.map(normalize));
-  setUsingDemo(false);
-}
+      if (!list.length) {
+        useDemo('No records returned from API');
+      } else {
+        setRows(mine.map(normalize));
+        setUsingDemo(false);
+      }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'API se data load nahi hua');
+      useDemo((e as Error).message || 'Failed to load data from API');
     } finally {
       setLoading(false);
     }
@@ -730,34 +722,12 @@ if (!list.length) {
   const curPage = Math.min(page, totalPages);
   const start = (curPage - 1) * perPage;
   const paged = filtered.slice(start, start + perPage);
-  const rangeStart = filtered.length ? start + 1 : 0;
-  const rangeEnd = Math.min(curPage * perPage, filtered.length);
-
-  const pageList: (number | '…')[] = useMemo(() => {
-    const out: (number | '…')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) out.push(i);
-      return out;
-    }
-    out.push(1);
-    if (curPage > 3) out.push('…');
-    for (let i = Math.max(2, curPage - 1); i <= Math.min(totalPages - 1, curPage + 1); i++) out.push(i);
-    if (curPage < totalPages - 2) out.push('…');
-    out.push(totalPages);
-    return out;
-  }, [totalPages, curPage]);
 
   const sortBy = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir('asc'); }
     setPage(1);
   };
-  const sortable = (k: SortKey, label: string) => (
-    <th className="ax-table__th ax-table__th--sortable" scope="col" onClick={() => sortBy(k)}
-        aria-sort={sortKey === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      {label} <SortIcon dir={sortKey === k ? sortDir : null} />
-    </th>
-  );
 
   const fullyVisited = useMemo(
     () => rows.filter((r) => r.visit1.status === 'Completed' && r.visit2.status === 'Completed').length,
@@ -783,8 +753,32 @@ if (!list.length) {
     );
   };
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     exportCsv(filtered, `ula-installations-${id || 'all'}`);
+  };
+
+  const handleExportExcel = () => {
+    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
+    exportDataToExcel(
+      `ula-installations-${id || 'all'}`,
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: UlaRow) => cellText(r, 0, c.key),
+      }))
+    );
+  };
+
+  const handleExportPDF = () => {
+    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
+    printTableData(
+      'ULA Installation Records',
+      filtered,
+      cols.map((c) => ({
+        header: c.label,
+        accessor: (r: UlaRow) => cellText(r, 0, c.key),
+      }))
+    );
   };
 
   const triggerRefresh = () => {
@@ -877,7 +871,7 @@ if (!list.length) {
         className="ax-btn ax-btn--secondary ax-btn--sm"
         onClick={() => downloadImages(r)}
         disabled={busy || !r.images.length}
-        title={r.images.length ? 'Saari images ZIP mein download karo' : 'Is record mein images nahi hain'}
+        title={r.images.length ? 'Download all images in ZIP' : 'No images available for this record'}
       >
         <span className="ax-btn__icon">{ICON.download}</span>
         <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
@@ -906,7 +900,7 @@ if (!list.length) {
         {usingDemo && !loading && (
           <div className="ax-col--12">
             <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Demo data dikh raha hai ({demoReason}).</span>
+              <span>Showing demo data: {demoReason}.</span>
               <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
             </div>
           </div>
@@ -921,19 +915,6 @@ if (!list.length) {
               </p>
             </div>
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              {/* {(dashboardDistrict !== 'All' || dashboardSurveyor !== 'All' || dashboardVisitStatus !== 'All' || dashboardToday || dashboardActive || dashboardDate) && (
-                <div className="ax-cluster" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {dashboardDistrict !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">District: {dashboardDistrict}</span>}
-                  {dashboardSurveyor !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">Surveyor: {dashboardSurveyor}</span>}
-                  {dashboardVisitStatus !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">Status: {dashboardVisitStatus}</span>}
-                  {dashboardToday && <span className="ax-badge ax-badge--soft ax-badge--success">Today</span>}
-                  {dashboardActive && <span className="ax-badge ax-badge--soft ax-badge--success">Active</span>}
-                  {dashboardDate && <span className="ax-badge ax-badge--soft ax-badge--neutral">Date: {dashboardDate}</span> }
-                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => { setSearchParams({}); setPage(1); }}>
-                    Clear dashboard filter
-                  </button>
-                </div>
-              )} */}
               <SearchInput
                 value={q}
                 onChange={(value) => {
@@ -953,9 +934,9 @@ if (!list.length) {
               />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExport}
-                onExportExcel={handleExport}
-                onExportPDF={handleExport}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
                 columns={columns}
                 onToggleColumn={toggleColumn}
               />
@@ -1020,77 +1001,18 @@ if (!list.length) {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>
-                  Showing {rangeStart}–{rangeEnd} of {filtered.length}
-                </span>
-
-                <label className="ax-cluster" style={{
-                  gap: 'var(--ax-space-2)',
-                  fontSize: 'var(--ax-text-xs)',
-                  color: 'var(--ax-text-muted)'
-                }}>
-                  Rows
-                  <select
-                    className="ax-select ax-select--sm"
-                    value={perPage}
-                    onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-                    aria-label="Rows per page"
-                    style={{ minWidth: 72 }}
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </label>
-              </div>
-
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button
-                  type="button"
-                  className="ax-pagination__prev"
-                  disabled={curPage === 1}
-                  aria-disabled={curPage === 1}
-                  onClick={() => setPage(Math.max(1, curPage - 1))}
-                  aria-label="Previous page"
-                >
-                  {ICON.chevL}
-                </button>
-
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p, i) => (
-                    <li key={`${p}-${i}`}>
-                      {p === '…'
-                        ? <span className="ax-pagination__ellipsis">…</span>
-                        : (
-                          <button
-                            type="button"
-                            className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`}
-                            aria-current={curPage === p ? 'page' : undefined}
-                            aria-label={`Page ${p}`}
-                            onClick={() => setPage(p)}
-                          >
-                            {p}
-                          </button>
-                        )}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  className="ax-pagination__next"
-                  disabled={curPage === totalPages}
-                  aria-disabled={curPage === totalPages}
-                  onClick={() => setPage(Math.min(totalPages, curPage + 1))}
-                  aria-label="Next page"
-                >
-                  {ICON.chevR}
-                </button>
-              </nav>
+            <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
+              <Pagination
+                currentPage={curPage}
+                totalItems={filtered.length}
+                pageSize={perPage}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
+              />
             </div>
           )}
         </section>

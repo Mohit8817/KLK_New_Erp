@@ -11,7 +11,7 @@ export const BIHAR_SSL_AMC_BASE = `${ROOT}/api/user/dle/bihar/ssl/amc`;
 
 export interface Option { value: string; label: string }
 
-/** Backend response kuch bhi ho (array / {data: []}) -> hamesha array */
+/** Normalize backend responses into an array */
 export const toArray = (json: any): any[] => {
   if (Array.isArray(json)) return json;
   const KEYS = ['assign', 'assigns', 'users', 'volumes', 'districts', 'blocks', 'panchayats', 'list', 'rows', 'records', 'items', 'data'];
@@ -24,14 +24,14 @@ export const toArray = (json: any): any[] => {
         if (r.length || Array.isArray(d[k])) return r;
       }
     }
-    // koi bhi pehli array-valued key (naya key name aaye tab bhi chale)
+    // Check for any array-valued property
     for (const k of Object.keys(d)) if (Array.isArray(d[k])) return d[k];
     return [];
   };
   return walk(json, 0);
 };
 
-/** {volume:"2"} / {district:"Patna"} / {id,name} / "text" -> {value,label}. null/khali values hata deta hai, duplicates bhi. */
+/** Convert objects/primitives into {value, label} option pairs, removing empty values & duplicates */
 export const toOptions = (json: any): Option[] => {
   const seen = new Set<string>();
   const out: Option[] = [];
