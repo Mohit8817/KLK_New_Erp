@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
+import { SearchInput } from '../../../../../common/search/SearchInput';
+import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
 import { authService } from '../../../../../services/authService';
@@ -170,9 +172,6 @@ const svg = (children: ReactElement | ReactElement[]) => (
 );
 const ICON = {
   refresh: svg([<path key="a" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />, <path key="b" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />]),
-  search: svg([<path key="a" d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />, <path key="b" d="M21 21l-6 -6" />]),
-  chevL: svg(<path d="M15 6l-6 6l6 6" />),
-  chevR: svg(<path d="M9 6l6 6l-6 6" />),
   down: svg(<path d="M6 9l6 6l6 -6" />),
   close: svg([<path key="a" d="M18 6l-12 12" />, <path key="b" d="M6 6l12 12" />]),
   eye: svg([<path key="a" d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />, <path key="b" d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />]),
@@ -344,33 +343,37 @@ export function UPAMCSSLViewSurveyLight() {
       setUsingDemo(true);
       setDemoReason(reason);
     };
- try {
-  const json: any = await dleService.getUpAmcLight(undefined, signal);
-  let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-  if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
-  const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json: any = await dleService.getUpAmcLight(undefined, signal);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
+      if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
 
-  console.info('[UP AMC light] rows:', list.length, 'first record:', list[0]);
-  console.info('[UP AMC light] my company_id:', authService.getCompanyId());
+      console.info('[UP AMC light] rows:', list.length, 'first record:', list[0]);
+      console.info('[UP AMC light] my company_id:', authService.getCompanyId());
 
-  if (!list.length) {
-    // API se sach mein kuch nahi aaya → demo
-    useDemo('API se koi record nahi aaya');
-  } else {
-    // 1) company_id same ho (null wale hide)
-    // 2) approval_status approved ho
-    const allowed = filterByCompanyStrict(list).filter(
-      (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
-    );
+      if (!list.length) {
+        // API se sach mein kuch nahi aaya → demo
+        useDemo('API se koi record nahi aaya');
+      } else {
+        // 1) company_id same ho (null wale hide)
+        // 2) approval_status approved ho
+        const allowed = filterByCompanyStrict(list).filter(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
+        );
 
-    console.info('[UP AMC light] after filter:', allowed.length);
+        console.info('[UP AMC light] after filter:', allowed.length);
 
-    setRows(allowed.map(normalize));
-    setUsingDemo(false);
-  }
-} catch (e) {
+        setRows(allowed.map(normalize));
+        setUsingDemo(false);
+      }
+    } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'data not laoded from API ');
+      useDemo((e as Error).message || 'data not loaded from API');
     } finally {
       setLoading(false);
     }
@@ -400,19 +403,6 @@ export function UPAMCSSLViewSurveyLight() {
   const curPage = Math.min(page, totalPages);
   const start = (curPage - 1) * perPage;
   const paged = filtered.slice(start, start + perPage);
-  const rangeStart = filtered.length ? start + 1 : 0;
-  const rangeEnd = Math.min(curPage * perPage, filtered.length);
-
-  const pageList: (number | '…')[] = useMemo(() => {
-    const out: (number | '…')[] = [];
-    if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) out.push(i); return out; }
-    out.push(1);
-    if (curPage > 3) out.push('…');
-    for (let i = Math.max(2, curPage - 1); i <= Math.min(totalPages - 1, curPage + 1); i++) out.push(i);
-    if (curPage < totalPages - 2) out.push('…');
-    out.push(totalPages);
-    return out;
-  }, [totalPages, curPage]);
 
   const sortBy = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -527,10 +517,13 @@ export function UPAMCSSLViewSurveyLight() {
               <p className="ax-card__subtitle ax-num" style={mono}>{filtered.length} results · {pendingCount}/{rows.length} pending approval</p>
             </div>
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <div style={{ position: 'relative', width: 250 }}>
-                <span style={{ position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)', width: 17, height: 17, color: 'var(--ax-text-subtle)', display: 'inline-flex' }}>{ICON.search}</span>
-                <input type="search" className="ax-input ax-input--sm" placeholder="Search records…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} style={{ paddingInlineStart: 34 }} aria-label="Search records" />
-              </div>
+              <SearchInput
+                value={q}
+                onChange={(v) => { setQ(v); setPage(1); }}
+                placeholder="Search records…"
+                ariaLabel="Search records"
+                
+              />
               <TableExportToolbar
                 onCopy={handleCopy}
                 onExportCSV={handleExport}
@@ -582,31 +575,15 @@ export function UPAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>Showing {rangeStart}–{rangeEnd} of {filtered.length}</span>
-                <label className="ax-cluster" style={{ gap: 'var(--ax-space-2)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Rows
-                  <select className="ax-select ax-select--sm" value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }} aria-label="Rows per page" style={{ minWidth: 72 }}>
-                    {[5, 10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </label>
-              </div>
-
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button type="button" className="ax-pagination__prev" disabled={curPage === 1} aria-disabled={curPage === 1} onClick={() => setPage(Math.max(1, curPage - 1))} aria-label="Previous page">{ICON.chevL}</button>
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p, i) => (
-                    <li key={`${p}-${i}`}>
-                      {p === '…' ? <span className="ax-pagination__ellipsis">…</span> : (
-                        <button type="button" className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`} aria-current={curPage === p ? 'page' : undefined} aria-label={`Page ${p}`} onClick={() => setPage(p)}>{p}</button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                <button type="button" className="ax-pagination__next" disabled={curPage === totalPages} aria-disabled={curPage === totalPages} onClick={() => setPage(Math.min(totalPages, curPage + 1))} aria-label="Next page">{ICON.chevR}</button>
-              </nav>
-            </div>
+            <Pagination
+              curPage={curPage}
+              total={filtered.length}
+              pageSize={perPage}
+              setPage={setPage}
+              onPageSizeChange={setPerPage}
+              pageSizeOptions={[5, 10, 25, 50, 100]}
+              style={{ padding: 'var(--ax-space-3) var(--ax-space-5)', borderTop: '1px solid var(--ax-border)' }}
+            />
           )}
         </section>
       </div>

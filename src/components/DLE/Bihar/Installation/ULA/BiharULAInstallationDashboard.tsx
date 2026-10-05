@@ -134,10 +134,10 @@ const PAGE_CSS = `
 
   /* Card header: title left, actions (search / export) right */
   .solar-erp-page .ax-card__header {
-    display: flex; flex-wrap: wrap; align-items: flex-start;
+    display: flex;  align-items: flex-start;
     justify-content: space-between; gap: 12px;
   }
-  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 0; }
+  .solar-erp-page .ax-card__titles { flex: 1 1 auto; min-width: 0; }
   .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
   .solar-erp-page .ax-card__actions {
     margin-left: auto; display: flex; align-items: center;
@@ -161,10 +161,26 @@ const PAGE_CSS = `
   }
 
   /* Tablet */
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-col--8,
-    .solar-erp-page .ax-col--4 { grid-column: span 12; }
-    .solar-erp-page .ax-col--3 { grid-column: span 6; }
+@media (max-width: 1100px) {
+  .solar-erp-page .ax-col--8,
+  .solar-erp-page .ax-col--4 {
+    grid-column: span 12;
+  }
+
+  .solar-erp-page .ax-col--3 {
+    grid-column: span 6;
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
+
+  
   }
 
   /* Mobile */
@@ -186,10 +202,25 @@ const PAGE_CSS = `
       background: var(--ax-bg-surface);
       box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
     }
+
+.ax-card__title {
+     max-width:280px;
+}
+
   }
 
+
+
   /* Small phones: KPI cards 1 column */
-  @media (max-width: 420px) {
+  @media (max-width: 490px) {
+
+       .ax-card__title {
+     max-width:200px;
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
+
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
   }
 `;
@@ -286,7 +317,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
 
 function Bar({ pct }: { pct: number }) {
   return (
-    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap' }}>
+    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap' }}>
       <div className="ax-progress ax-progress--sm" style={{ minWidth: 80, width: 80 }}>
         <div className="ax-progress__track">
           <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald)' : 'var(--ax-accent)' }} />
@@ -721,7 +752,7 @@ export function BiharULAInstallationDashboard() {
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
               <p className="ax-welcome__eyebrow">ULA Installation Management System · State Hub</p>
-              <h2 className="ax-welcome__title">Welcome to Bihar ULA Installation Dashboard</h2>
+              <h2 className="ax-card__title">Welcome to Bihar ULA Installation Dashboard</h2>
               <p className="ax-welcome__lede">
                 Bihar state survey overview: <b>{dash(stats.total)} installations</b> tracked across <b>{dash(stats.districtCount)} districts</b> by <b>{dash(stats.surveyorCount)} surveyors</b>.
                 <b> {dash(stats.second)} ({stats.pct2}%)</b> completed both visits, with <b>{dash(stats.pending2)}</b> awaiting the 2nd visit.
@@ -940,7 +971,7 @@ export function BiharULAInstallationDashboard() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" style={{ minWidth: 150 }} />
+                <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                   onExportCSV={() => exportToCSV(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `ULA_District_Wise_${stamp}`)}
@@ -1101,7 +1132,7 @@ export function BiharULAInstallationDashboard() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput value={qVisits} onChange={setQVisits} placeholder="Search CA no., beneficiary..." size="sm" style={{ minWidth: 190 }} />
+                <SearchInput value={qVisits} onChange={setQVisits} placeholder="Search CA no., beneficiary..." size="sm" />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(fVisits, visibleColumns(visitCols, hiddenVisitColumns))}
                   onExportCSV={() => exportToCSV(fVisits, visibleColumns(visitCols, hiddenVisitColumns), `ULA_Todays_Visits_${stamp}`)}

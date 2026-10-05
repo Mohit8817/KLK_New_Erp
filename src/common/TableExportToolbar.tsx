@@ -132,7 +132,7 @@ const TOOLBAR_CSS = `
     max-width: 100%;
     min-width: 0;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
 import { ApexChart } from '../charts/ApexChart';
-import { Pagination, usePagination, TableExportToolbar, type ExportColumn } from '../../common';
+import { Pagination, usePagination,  TableExportToolbar, type ExportColumn } from '../../common';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
 import { dleService, extractList, filterByCompany } from '../../services/dleServices';
 
@@ -118,6 +118,12 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__header { gap: 10px; }
     .solar-erp-page .ax-card__actions { width: 100%; justify-content: flex-end; }
     .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; justify-content: flex-end; }
+
+         .ax-card__title {
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
   }
 
   /* Small phones: KPI cards 1 column */
@@ -215,7 +221,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
 }
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-const searchBoxStyle = { flex: '0 1 200px', minWidth: 150, height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
+
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' } as const;
 
@@ -630,7 +636,7 @@ export function DleDashboard() {
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
               <p className="ax-welcome__eyebrow">DLE Management System</p>
-              <h2 className="ax-welcome__title">Welcome to DLE Dashboard</h2>
+              <h2 className="ax-card__title">Welcome to DLE Dashboard</h2>
               <p className="ax-welcome__lede">
                 DLE overview: <b>{dash(kpis.dles)} DLEs</b> across <b>{dash(kpis.states)} states</b> and <b>{dash(kpis.districts)} districts</b>.
                 <b> {dash(kpis.activeDles)} ({pctActive}%)</b> active in the last {ACTIVE_WINDOW_DAYS} days, with <b>{dash(kpis.approved)}</b> of <b>{dash(kpis.dles)}</b> DLEs approved.
@@ -924,15 +930,7 @@ export function DleDashboard() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                <input
-                  type="search"
-                  className="ax-input ax-input--sm"
-                  style={searchBoxStyle}
-                  placeholder="Search district / state"
-                  aria-label="Search districts"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
+          
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                   onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `DLE_District_Wise_${stamp}`)}
