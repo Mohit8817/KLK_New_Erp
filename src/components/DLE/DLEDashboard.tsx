@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
 import { ApexChart } from '../charts/ApexChart';
 import { Pagination, usePagination,  TableExportToolbar, type ExportColumn } from '../../common';
+import { SearchInput } from '../../common/search/SearchInput';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
 import { dleService, extractList, filterByCompany } from '../../services/dleServices';
 
@@ -857,6 +858,12 @@ export function DleDashboard() {
               <p className="ax-card__subtitle">DLE and approval status per state</p>
             </div>
             <div className="ax-card__actions">
+                  <SearchInput
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search district or state…"
+                  ariaLabel="Search districts"
+                />
               <TableExportToolbar
                 onCopy={() => copyToClipboard(stateStats, visibleColumns(stateCols, hiddenStateColumns))}
                 onExportCSV={() => exportToCSV(stateStats, visibleColumns(stateCols, hiddenStateColumns), `DLE_State_Wise_${stamp}`)}
@@ -930,7 +937,12 @@ export function DleDashboard() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-          
+                <SearchInput
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search district or state…"
+                  ariaLabel="Search districts"
+                />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                   onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `DLE_District_Wise_${stamp}`)}
