@@ -1,0 +1,119 @@
+{
+  "$schema": "klk-nav-manifest/v1",
+  "meta": {
+    "spec": "specs/02-INFORMATION-ARCHITECTURE.md",
+    "registryRoutes": 189,
+    "deliverableHtmlFiles": 204,
+    "aliasNodes": 2,
+    "comment": "Single ordered data source for sidebar, breadcrumbs, sidebar filter, and command palette. Node field contract per spec 02 §15: {id,title,slug,icon,parent,section,order,badge,keywords,inMenu,alias,external}. section is null for non-top-level nodes (inherited from L1 ancestor). 'parent' is null at top level. 'badge' is {type,value?} or null. 'alias' is the canonical node id this node points at (alias nodes share a slug with their canonical and are excluded from the registry count). icon = Tabler icon name (outline, 24x24, currentColor). Groups (L1 / sub-groups) carry their own node with a slug pointing at their landing leaf per spec §11 (module group click -> primary list or aliased dashboard).",
+      "sections": [
+      "MAIN",
+      "ASSAM",
+      "UP",
+      "APPLICATIONS",
+      "MODULES",
+      "PAGES",
+      "UI & FORMS",
+      "DOCS"
+    ]
+  },
+  "nodes": [
+
+
+
+    {"id":"dle.dashboard","title":"Dashboard","slug":"dle/dashboard","icon":"gauge","parent":null,"section":"DLE_DASH","order":-6,"badge":null,"keywords":["dle","dashboard","dle"],"inMenu":true,"alias":null},
+{"id":"grp.dle.bihar.amc","title":"AMC","slug":"dle/bihar/ssl/amc/create-assign-light","icon":"tool","parent":null,"section":"DLE_BIHAR","order":-5,"badge":null,"keywords":["dle","amc","dle","bihar","ssl","create","assign","light"],"inMenu":true,"alias":null},
+{"id":"grp.dle.bihar.amc.ssl","title":"SSL","slug":"dle/bihar/ssl/amc/create-assign-light","icon":"disc","parent":"grp.dle.bihar.amc","section":null,"order":0,"badge":null,"keywords":["dle","ssl","dle","bihar","amc","create","assign","light"],"inMenu":true,"alias":null},
+{"id":"dle.dle.bihar.ssl.amc.create-assign-light","title":"Assign Light","slug":"dle/bihar/ssl/amc/create-assign-light","icon":"list-check","parent":"grp.dle.bihar.amc.ssl","section":null,"order":0,"badge":null,"keywords":["dle","assign","light","dle","bihar","ssl","amc","create"],"inMenu":true,"alias":null},
+{"id":"dle.dle.bihar.ssl.amc.view-assign-light","title":"View Assign Light","slug":"dle/bihar/ssl/amc/view-assign-light","icon":"eye","parent":"grp.dle.bihar.amc.ssl","section":null,"order":1,"badge":null,"keywords":["dle","view","assign","light","dle","bihar","ssl","amc"],"inMenu":true,"alias":null},
+{"id":"dle.dle.bihar.ssl.amc.view-verify-light","title":"View Survey Light","slug":"dle/bihar/ssl/amc/view-verify-light","icon":"clipboard-check","parent":"grp.dle.bihar.amc.ssl","section":null,"order":2,"badge":null,"keywords":["dle","view","survey","light","dle","bihar","ssl","amc","verify"],"inMenu":true,"alias":null},
+{"id":"grp.dle.bihar.inst","title":"Installation","slug":"dle/bihar/ula/installation/dashboard","icon":"tools","parent":null,"section":"DLE_BIHAR","order":-4,"badge":null,"keywords":["dle","installation","dle","bihar","ula","dashboard"],"inMenu":true,"alias":null},
+{"id":"grp.dle.bihar.inst.ula","title":"ULA","slug":"dle/bihar/ula/installation/dashboard","icon":"disc","parent":"grp.dle.bihar.inst","section":null,"order":0,"badge":null,"keywords":["dle","ula","dle","bihar","installation","dashboard"],"inMenu":true,"alias":null},
+{"id":"dle.dle.bihar.ula.installation.dashboard","title":"Dashboard","slug":"dle/bihar/ula/installation/dashboard","icon":"layout-dashboard","parent":"grp.dle.bihar.inst.ula","section":null,"order":0,"badge":null,"keywords":["dle","dashboard","dle","bihar","ula","installation"],"inMenu":true,"alias":null},
+{"id":"dle.dle.bihar.ula.installation.view","title":"View Data","slug":"dle/bihar/ula/installation/view","icon":"table","parent":"grp.dle.bihar.inst.ula","section":null,"order":1,"badge":null,"keywords":["dle","view","data","dle","bihar","ula","installation"],"inMenu":true,"alias":null},
+{"id":"grp.dle.up.amc","title":"AMC","slug":"dle/up/ssl/amc/create-assign-light","icon":"tool","parent":null,"section":"DLE_UP","order":-3,"badge":null,"keywords":["dle","amc","dle","up","ssl","create","assign","light"],"inMenu":true,"alias":null},
+{"id":"grp.dle.up.amc.ssl","title":"SSL","slug":"dle/up/ssl/amc/create-assign-light","icon":"disc","parent":"grp.dle.up.amc","section":null,"order":0,"badge":null,"keywords":["dle","ssl","dle","up","amc","create","assign","light"],"inMenu":true,"alias":null},
+{"id":"dle.dle.up.ssl.amc.create-assign-light","title":"Assign Lights","slug":"dle/up/ssl/amc/create-assign-light","icon":"list-check","parent":"grp.dle.up.amc.ssl","section":null,"order":0,"badge":null,"keywords":["dle","assign","lights","dle","up","ssl","amc","create","light"],"inMenu":true,"alias":null},
+{"id":"dle.dle.up.ssl.amc.view-assign-light","title":"View Assign Light","slug":"dle/up/ssl/amc/view-assign-light","icon":"eye","parent":"grp.dle.up.amc.ssl","section":null,"order":1,"badge":null,"keywords":["dle","view","assign","light","dle","up","ssl","amc"],"inMenu":true,"alias":null},
+{"id":"dle.dle.up.ssl.amc.view-verify-light","title":"View Survey Light","slug":"dle/up/ssl/amc/view-verify-light","icon":"clipboard-check","parent":"grp.dle.up.amc.ssl","section":null,"order":2,"badge":null,"keywords":["dle","view","survey","light","dle","up","ssl","amc","verify"],"inMenu":true,"alias":null},
+{"id":"grp.dle.mgmt","title":"DLE","slug":"dle/users","icon":"users","parent":null,"section":"DLE_MGMT","order":-2,"badge":null,"keywords":["dle","dle","users"],"inMenu":true,"alias":null},
+{"id":"dle.dle.users","title":"View Data","slug":"dle/users","icon":"table","parent":"grp.dle.mgmt","section":null,"order":0,"badge":null,"keywords":["dle","view","data","dle","users"],"inMenu":true,"alias":null},
+
+    {
+      "id": "maps.leaflet",
+      "title": "Leaflet Maps",
+      "slug": "maps/leaflet",
+      "icon": "map-pin",
+      "parent": "grp.maps",
+      "section": null,
+      "order": 2,
+      "badge": null,
+      "keywords": [
+        "leaflet",
+        "tiles",
+        "markers",
+        "geojson",
+        "clusters"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+  
+
+    {
+      "id": "icons.line",
+      "title": "Line / Feather Icons",
+      "slug": "icons/line",
+      "icon": "feather",
+      "parent": "grp.icons",
+      "section": null,
+      "order": 2,
+      "badge": null,
+      "keywords": [
+        "line icons",
+        "feather",
+        "secondary",
+        "stroke"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "icons.solid",
+      "title": "Solid Icons",
+      "slug": "icons/solid",
+      "icon": "square",
+      "parent": "grp.icons",
+      "section": null,
+      "order": 3,
+      "badge": null,
+      "keywords": [
+        "solid icons",
+        "filled",
+        "glyphs"
+      ],
+      "inMenu": true,
+      "alias": null
+    },
+    {
+      "id": "icons.brands",
+      "title": "Brand / Social Icons",
+      "slug": "icons/brands",
+      "icon": "brand-x",
+      "parent": "grp.icons",
+      "section": null,
+      "order": 4,
+      "badge": null,
+      "keywords": [
+        "brand icons",
+        "social",
+        "logos",
+        "glyphs"
+      ],
+      "inMenu": true,
+      "alias": null
+    }
+
+
+  ]
+}
