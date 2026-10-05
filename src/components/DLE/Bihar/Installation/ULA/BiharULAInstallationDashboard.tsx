@@ -690,7 +690,7 @@ setUpdatedAt(new Date());
 
         {!error && !loading && records.length === 0 && (
           <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', color: 'var(--ax-text-strong)', borderRadius: 'var(--ax-radius-md)', fontSize: 'var(--ax-text-sm)' }}>
-            API se koi record nahi mila. Browser console mein <b>[ULA]</b> log dekho ya Network tab mein <code>ula/list</code> ka response check karo.
+           No records found from the API. Please check the **[ULA]** logs in the browser console or review the `ula/list` response in the Network tab.
           </div>
         )}
 
