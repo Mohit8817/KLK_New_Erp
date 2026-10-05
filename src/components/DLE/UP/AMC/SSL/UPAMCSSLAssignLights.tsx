@@ -9,6 +9,7 @@ import {
 } from '../../../../../services/dleServices';
 import {
   upSslAmc,
+  toArray,
   toOptions,
   type Option,
 } from '../../../../../services/Sslamcservice';
@@ -64,6 +65,25 @@ const FLOAT_CSS = `
 }
 `;
 
+/** Sirf Uttar Pradesh ke districts rakhta hai (agar API me state info ho). */
+const isUpState = (v: any): boolean => {
+  const s = String(v ?? '').trim().toLowerCase();
+  return s === 'uttar pradesh' || s === 'up';
+};
+
+const filterUpDistricts = (list: any[]): any[] => {
+  const hasStateInfo = list.some(
+    (d: any) => d?.state ?? d?.state_name
+  );
+
+  // API me state field nahi hai -> API already UP ke hi districts de rahi hai
+  if (!hasStateInfo) return list;
+
+  return list.filter((d: any) =>
+    isUpState(d?.state ?? d?.state_name)
+  );
+};
+
 export function UPAMCSSLAssignLights() {
   const navigate = useNavigate();
 
@@ -108,36 +128,70 @@ export function UPAMCSSLAssignLights() {
   useEffect(() => {
     const ac = new AbortController();
 
- dleService
-  .getAdminUsers(ac.signal)
-  .then((j: any) => {
-    const approvedUsers = filterApproved(
-      filterByCompany(extractList(j))
-    );
+    dleService
+      .getAdminUsers(ac.signal)
+      .then((j: any) => {
+        const approvedUsers = filterApproved(
+          filterByCompany(extractList(j))
+        );
 
-    const upUsers = approvedUsers.filter((u: any) => {
-      const state = String(u?.state ?? '').trim().toLowerCase();
-      return state === 'uttar pradesh' || state === 'up';
-    });
+        const upUsers = approvedUsers.filter((u: any) =>
+          isUpState(u?.state)
+        );
 
-    setUsers(toOptions(upUsers));
+        setUsers(toOptions(upUsers));
 
-    if (!upUsers.length) {
-      setAlert({
-        type: 'danger',
-        msg: 'No approved DLE users found for your company.',
+        if (!upUsers.length) {
+          setAlert({
+            type: 'danger',
+            msg: 'No approved DLE users found for your company.',
+          });
+        }
+      })
+      .catch((err: any) => {
+        if (err?.name !== 'AbortError') {
+          console.error('Failed to load UP DLE users:', err);
+          setAlert({
+            type: 'danger',
+            msg: err?.message || 'Unable to load DLE users.',
+          });
+        }
       });
-    }
-  })
-  .catch((err: any) => {
-    if (err?.name !== 'AbortError') {
-      console.error('Failed to load UP DLE users:', err);
-      setAlert({
-        type: 'danger',
-        msg: err?.message || 'Unable to load DLE users.',
+
+    return () => ac.abort();
+  }, []);
+
+  /* ─────────────────────────────────────────────
+     Load Districts (klkerp.com /district API)
+     ───────────────────────────────────────────── */
+
+  useEffect(() => {
+    const ac = new AbortController();
+
+    upSslAmc
+      .getDistricts(ac.signal)
+      .then((j: any) => {
+        const list = filterUpDistricts(toArray(j));
+
+        setDistricts(toOptions(list));
+
+        if (!list.length) {
+          setAlert({
+            type: 'danger',
+            msg: 'No districts found.',
+          });
+        }
+      })
+      .catch((e: any) => {
+        if (e?.name === 'AbortError') return;
+
+        console.error('Failed to load districts:', e);
+
+        setAlert({
+          type: 'danger',
+          msg: e?.message || 'Unable to load districts.',
+        });
       });
-    }
-  });
 
     return () => ac.abort();
   }, []);

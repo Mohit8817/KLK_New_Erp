@@ -79,7 +79,7 @@ const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLE
 // const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
 // const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 
-const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
+// const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 // const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
 
 // ── Uttar Pradesh: Survey ──

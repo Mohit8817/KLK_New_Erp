@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
 import { ApexChart } from '../charts/ApexChart';
-import { Pagination, usePagination, SearchInput, TableExportToolbar, type ExportColumn } from '../../common';
+import { Pagination, usePagination, TableExportToolbar, type ExportColumn } from '../../common';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
 import { dleService, extractList, filterByCompany } from '../../services/dleServices';
 
@@ -12,6 +12,10 @@ const ACTIVE_WINDOW_DAYS = 30;
 // approval_status: 0 = pending, 1 = approved, 2 = rejected
 const STATUS_APPROVED = 1;
 const STATUS_REJECTED = 2;
+
+// Light shades for bar charts
+const LIGHT_BLUE = '#2f7df2';
+const LIGHT_GREEN = '#86DDB2';
 
 // A registered DLE from /api/admin/users
 interface UserRow {
@@ -49,6 +53,7 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 const fmtDate = (d: Date) => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // Responsive chart height (smaller on phones)
 const useChartHeight = (desktop: number, mobile: number) => {
@@ -63,7 +68,7 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-// Scoped styling: spacing (same as Jammu) + responsive layout + right-aligned card actions
+// Scoped styling: spacing + responsive layout + right-aligned card actions
 const PAGE_CSS = `
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -121,21 +126,12 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── Icons (Tabler style, same as Jammu) ───────── */
-const ICON_CAL = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" /></svg>
-);
-const ICON_CHEV = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>
-);
+/* ───────── Icons (Tabler style) ───────── */
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
 );
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
-);
-const ARROW_UP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>
 );
 const svg = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -148,7 +144,7 @@ const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 10l4 4m0 -4l-4 4" /></>);
 
-/* ───────── KPI card (identical markup to Jammu KPI cards) ───────── */
+/* ───────── KPI card ───────── */
 interface KpiProps {
   icon: React.ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -218,14 +214,12 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
   );
 }
 
-// Search + export buttons: ek hi row, right corner (chhoti screen par wrap)
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-const searchBoxStyle = { flex: '0 1 200px', minWidth: 150 } as const;
+const searchBoxStyle = { flex: '0 1 200px', minWidth: 150, height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' } as const;
 
 // Dashboard click-through target: make sure your router registers this component at /dle/users.
-// If your existing route is different, change DLE_USERS_ROUTE in DleDashboard only.
 const DLE_USERS_ROUTE = '/dle/users';
 
 export function DleDashboard() {
@@ -242,7 +236,7 @@ export function DleDashboard() {
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // ✅ Login user ki company_id se match hone wale DLE users hi load hote hain
+  // Login user ki company_id se match hone wale DLE users hi load hote hain
   const load = useCallback(async () => {
     setLoading(true);
     setErrors([]);
@@ -282,16 +276,19 @@ export function DleDashboard() {
   const filtersActive = selectedState !== 'All' || selectedDistrict !== 'All';
 
   /* Dashboard -> View Data navigation.
-     Query params are intentionally used so refresh/back/share preserve the filter. */
+     Currently selected State/District filters are carried over automatically,
+     explicit params override them. Query params keep refresh/back/share working. */
   const openUsers = (params: Record<string, string> = {}) => {
+    const merged: Record<string, string> = { state: selectedState, district: selectedDistrict, ...params };
     const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
+    Object.entries(merged).forEach(([key, value]) => {
       if (value && value !== 'All') search.set(key, value);
     });
-    navigate(`${DLE_USERS_ROUTE}${search.toString() ? `?${search.toString()}` : ''}`);
+    const qs = search.toString();
+    navigate(`${DLE_USERS_ROUTE}${qs ? `?${qs}` : ''}`);
   };
 
-  const openState = (state: string) => openUsers({ state });
+  const openState = (state: string) => openUsers({ state, district: 'All' });
   const openDistrict = (state: string, district: string) => openUsers({ state, district });
   const openApproval = (approval: string) => openUsers({ approval });
 
@@ -344,7 +341,7 @@ export function DleDashboard() {
       (a, b) => b.activeDles - a.activeDles || b.totalDles - a.totalDles
     );
 
-    // Last 14 days daily series (sparklines) — registrations by created_at
+    // Last 14 days daily series (sparklines)
     const daily = Array.from({ length: 14 }, (_, i) => {
       const d = new Date(now);
       d.setDate(d.getDate() - (13 - i));
@@ -352,8 +349,14 @@ export function DleDashboard() {
         const t = createdTs(u);
         return t !== null && sameDay(new Date(t), d);
       });
+      // Users whose last activity (updated_at) fell on this day
+      const activeCount = filteredUsers.filter((u) => {
+        const t = Date.parse(u.updated_at || u.created_at);
+        return !Number.isNaN(t) && sameDay(new Date(t), d);
+      }).length;
       return {
         dles: dr.length,
+        active: activeCount,
         approved: dr.filter(isApproved).length,
         rejected: dr.filter(isRejected).length,
         pending: dr.filter(isPending).length,
@@ -388,10 +391,12 @@ export function DleDashboard() {
   }, [filteredUsers]);
 
   /* ───────── District table (search + pagination) ───────── */
-  const tableDistricts = useMemo(
-    () => districtStats.filter((d) => !query || d.district.toLowerCase().includes(query.toLowerCase())),
-    [districtStats, query]
-  );
+  const tableDistricts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return districtStats.filter(
+      (d) => !q || d.district.toLowerCase().includes(q) || d.state.toLowerCase().includes(q)
+    );
+  }, [districtStats, query]);
   const {
     paginatedData: pagedDistricts,
     currentPage,
@@ -400,6 +405,12 @@ export function DleDashboard() {
     setPage,
     setPageSize,
   } = usePagination({ data: tableDistricts, initialPageSize: 15 });
+
+  // Filter / search badalne par page 1 par wapas jao
+  useEffect(() => {
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, selectedState, selectedDistrict]);
 
   const chartDistricts = districtStats.slice(0, 15);
 
@@ -479,21 +490,21 @@ export function DleDashboard() {
 
   const exportToExcel = <T,>(data: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!data.length || !columns.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeExportValue(c.header)}</th>`).join('')}</tr></thead><tbody>${data.map((row) => `<tr>${columns.map((c) => `<td>${escapeExportValue(getExportValue(row, c))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${data.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
     downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
   };
 
   const exportToPDF = <T,>(data: T[], columns: ExportColumn<T>[], title: string) => {
     if (!data.length || !columns.length) return;
-    const pdfRows = data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))));
+    const pdfRows = data.map((row) => columns.map((column) => escapeHtml(escapeExportValue(getExportValue(row, column)))));
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) return;
-    printWindow.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${title}</title><style>
+    printWindow.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
       table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
       th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
-    </style></head><body><h1>${title}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeExportValue(c.header)}</th>`).join('')}</tr></thead><tbody>${pdfRows.map((row) => `<tr>${row.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${pdfRows.map((row) => `<tr>${row.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
     printWindow.document.close();
     printWindow.focus();
   };
@@ -535,15 +546,9 @@ export function DleDashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> States: {dash(kpis.states)}
             </span>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--pill" aria-label="Fiscal Year filter">
-              {ICON_CAL}
-              <span className="ax-btn__label">FY 2026–27</span>
-              {ICON_CHEV}
-            </button>
             <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh dashboard" onClick={load} disabled={loading}>
               {ICON_REFRESH}
             </button>
-
           </div>
         }
       />
@@ -660,7 +665,7 @@ export function DleDashboard() {
         {/* 4. KPI Cards */}
         <KpiCard icon={I_PIN} tone="accent" label="Total States" value={dash(kpis.states)} sub={stateNames} onClick={() => openUsers()} />
         <KpiCard icon={I_USERS} tone="cyan" label="Total DLE" value={dash(kpis.dles)} unit="Nos." sub="Registered DLEs" spark={daily.map((d) => d.dles)} onClick={() => openUsers()} />
-        <KpiCard icon={I_BOLT} tone="cyan" label="Active DLE" value={dash(kpis.activeDles)} unit="Nos." sub={`Active in last ${ACTIVE_WINDOW_DAYS} days`} badge={`${pctActive}%`} spark={daily.map((d) => d.dles)} onClick={() => openUsers({ activity: 'active' })} />
+        <KpiCard icon={I_BOLT} tone="cyan" label="Active DLE" value={dash(kpis.activeDles)} unit="Nos." sub={`Active in last ${ACTIVE_WINDOW_DAYS} days`} badge={`${pctActive}%`} spark={daily.map((d) => d.active)} onClick={() => openUsers({ activity: 'active' })} />
         <KpiCard icon={I_LIST} tone="accent" label="Registered Today" value={dash(kpis.todayDles)} unit="Nos." sub="New DLEs today" spark={daily.map((d) => d.dles)} onClick={() => openUsers({ created: 'today' })} />
         <KpiCard icon={I_CLOCK} tone="amber" label="Pending" value={dash(kpis.pending)} unit="Nos." sub="Awaiting approval" badge={`${pctPending}%`} spark={daily.map((d) => d.pending)} onClick={() => openApproval('Pending')} />
         <KpiCard icon={I_DONE} tone="emerald" label="Approved" value={dash(kpis.approved)} unit="Nos." sub="Approved DLEs" badge={`${pctApproved}%`} spark={daily.map((d) => d.approved)} onClick={() => openApproval('Approved')} />
@@ -678,8 +683,8 @@ export function DleDashboard() {
             <div className="ax-card__actions">
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
                 {[
-                  { l: 'DLE', c: 'var(--ax-accent)' },
-                  { l: 'Active DLE', c: 'var(--ax-viz-emerald)' },
+                  { l: 'DLE', c: LIGHT_BLUE },
+                  { l: 'Active DLE', c: LIGHT_GREEN },
                 ].map((i) => (
                   <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
                     <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c }} />
@@ -701,7 +706,7 @@ export function DleDashboard() {
                 { name: 'Active DLE', data: stateStats.map((s) => s.activeDles) },
               ]}
               apex={{
-                colors: [cv('--ax-accent'), cv('--ax-viz-emerald')],
+                colors: [LIGHT_BLUE, LIGHT_GREEN],
                 plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
                 xaxis: { categories: stateStats.map((s) => s.state) },
                 yaxis: { title: { text: 'Count', style: { color: 'var(--ax-text-muted)' } } },
@@ -796,7 +801,7 @@ export function DleDashboard() {
                 { name: 'Total DLE', data: chartDistricts.map((d) => d.totalDles) },
               ]}
               apex={{
-                colors: [cv('--ax-viz-emerald'), cv('--ax-accent')],
+                colors: [LIGHT_GREEN, LIGHT_BLUE],
                 plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '60%' } },
                 xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
                 yaxis: { title: { text: 'DLE (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
@@ -880,7 +885,7 @@ export function DleDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => openState(s.state)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openState(s.state); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s.state); } }}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{s.state}</td>
@@ -919,7 +924,15 @@ export function DleDashboard() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-
+                <input
+                  type="search"
+                  className="ax-input ax-input--sm"
+                  style={searchBoxStyle}
+                  placeholder="Search district / state"
+                  aria-label="Search districts"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                   onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `DLE_District_Wise_${stamp}`)}
@@ -953,7 +966,7 @@ export function DleDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => openDistrict(d.state, d.district)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDistrict(d.state, d.district); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDistrict(d.state, d.district); } }}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{d.district}</td>
