@@ -132,18 +132,74 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* Card header: title left, actions (search / export) right */
+  /* ───── Card header: title fixed, actions squeeze ───── */
   .solar-erp-page .ax-card__header {
-    display: flex;  align-items: flex-start;
-    justify-content: space-between; gap: 12px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .solar-erp-page .ax-card__titles { flex: 1 1 auto; min-width: 0; }
-  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  /* Title: kabhi nahi sikudega */
+  .solar-erp-page .ax-card__titles {
+    flex: 0 0 auto;
+    min-width: max-content;
+    max-width: 55%;
+  }
+  .solar-erp-page .ax-card__title {
+    max-width: none;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    word-break: normal;
+    overflow-wrap: normal;
+    line-height: 1.45;
+  }
+
+  /* Actions: bachi hui jagah mein sikudenge */
   .solar-erp-page .ax-card__actions {
-    margin-left: auto; display: flex; align-items: center;
-    justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-end; }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: wrap !important;
+    min-width: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Search: jagah kam ho to chhota ho jaye */
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 120px;
+    min-width: 90px;
+    max-width: 260px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+
+  /* Export toolbar: sikude */
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn,
+  .solar-erp-page .ax-card__actions [class*="export"] .ax-btn {
+    padding-inline: 8px;
+    min-width: 0;
+  }
 
   /* Tables: sideways scroll on small screens */
   .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -155,32 +211,26 @@ const PAGE_CSS = `
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
-  /* Desktop: search + export toolbar ek hi row mein */
+  /* Desktop */
   @media (min-width: 641px) {
     .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
   }
 
   /* Tablet */
-@media (max-width: 1100px) {
-  .solar-erp-page .ax-col--8,
-  .solar-erp-page .ax-col--4 {
-    grid-column: span 12;
-  }
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-col--8,
+    .solar-erp-page .ax-col--4 { grid-column: span 12; }
+    .solar-erp-page .ax-col--3 { grid-column: span 6; }
 
-  .solar-erp-page .ax-col--3 {
-    grid-column: span 6;
-  }
-
-  .solar-erp-page .ax-card__header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-}
-
-  
+    /* Export buttons ka text hide, sirf icon */
+    .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn span:not([class*="icon"]),
+    .solar-erp-page .ax-card__actions [class*="export"] .ax-btn span:not([class*="icon"]) {
+      display: none;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      max-width: 180px;
+    }
   }
 
   /* Mobile */
@@ -192,8 +242,11 @@ const PAGE_CSS = `
     .solar-erp-page .ula-filter-item select { flex: 1; width: auto; max-width: 100%; }
     .solar-erp-page .ula-filter-scope { width: 100%; }
     .solar-erp-page .ax-card__header { gap: 10px; }
-    .solar-erp-page .ax-card__actions { width: 100%; justify-content: flex-end; }
-    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; justify-content: flex-end; }
+
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      max-width: 130px;
+    }
 
     /* First column fixed rahe jab table sideways scroll ho */
     .solar-erp-page .ula-sticky-first th:first-child,
@@ -203,24 +256,19 @@ const PAGE_CSS = `
       box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
     }
 
-.ax-card__title {
-     max-width:280px;
-}
-
   }
 
-
-
-  /* Small phones: KPI cards 1 column */
-  @media (max-width: 490px) {
-
-       .ax-card__title {
-     max-width:200px;
-    font-family: var(--ax-font-display);
-    font-size: var(--ax-text-md);
-    line-height: var(--ax-leading-md);
-  }
-
+  /* Phones: yahan sach mein jagah nahi hoti, to wrap allow */
+  @media (max-width: 480px) {
+    .solar-erp-page .ax-card__header { flex-wrap: wrap; }
+    .solar-erp-page .ax-card__titles { min-width: 0; max-width: 100%; flex: 1 1 100%; }
+    .solar-erp-page .ax-card__actions { flex: 1 1 100%; }
+    .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-start; }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
   }
 `;
@@ -331,7 +379,7 @@ function Bar({ pct }: { pct: number }) {
 const AVATAR_COLORS = ['var(--ax-accent)', 'var(--ax-viz-cyan)', 'var(--ax-viz-violet)', 'var(--ax-viz-amber)', 'var(--ax-viz-pink)'];
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const selectStyle = { height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
