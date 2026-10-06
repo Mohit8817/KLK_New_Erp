@@ -29,6 +29,11 @@ const FIELD_KEYS = {
 } as const;
 /* ──────────────────────────────────────────────────────────── */
 
+// Light shades for bar charts / donut
+const LIGHT_BLUE = '#8DB8F8';
+const LIGHT_GREEN = '#86DDB2';
+const LIGHT_AMBER = '#F6D68A';
+
 interface Rec { ca: string; name: string; district: string; surveyor: string; surveyor2: string; first: Date | null; second: Date | null; v1: boolean; v2: boolean }
 interface Visit { key: string; ts: Date; type: '1st Visit' | '2nd Visit'; ca: string; name: string; district: string; surveyor: string }
 interface DistrictRow { name: string; total: number; first: number; second: number; pending: number; today: number; pct: number }
@@ -93,36 +98,134 @@ const n = (x: number) => x.toLocaleString('en-IN');
 const cv = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// Enter / Space se bhi click chale (keyboard + accessibility)
+const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fn();
+  }
+};
 
-// Scoped styling to tighten spacing between PageHead and Filter Operations (same as Jammu)
+// Phone detection (charts ki height / labels adjust karne ke liye)
+const useIsMobile = (breakpoint = 640) => {
+  const get = () => typeof window !== 'undefined' && window.innerWidth < breakpoint;
+  const [m, setM] = useState(get);
+  useEffect(() => {
+    const onResize = () => setM(get());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breakpoint]);
+  return m;
+};
+
+// Scoped styling: spacing + fully responsive layout
 const PAGE_CSS = `
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
   .solar-erp-page .ax-dash-grid { margin-top: 0; }
-  .solar-erp-page .ax-card__footer {
-    width: 100%;
-    box-sizing: border-box;
-  }
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
-    width: 100%;
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    margin: 0;
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .solar-erp-page .ula-pagination-left > * {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* Card header: title left, actions (search / export) right */
+  .solar-erp-page .ax-card__header {
+    display: flex;  align-items: flex-start;
+    justify-content: space-between; gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 auto; min-width: 0; }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+  .solar-erp-page .ax-card__actions {
+    margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-end; }
+
+  /* Tables: sideways scroll on small screens */
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .solar-erp-page .ula-table--sm { min-width: 540px; }
+  .solar-erp-page .ula-table--md { min-width: 660px; }
+  .solar-erp-page .ax-welcome__lede { max-width: 780px; }
+
+  /* Filter bar */
+  .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
+  .solar-erp-page .ula-filter-item select { width: 170px; }
+
+  /* Desktop: search + export toolbar ek hi row mein */
+  @media (min-width: 641px) {
+    .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
+  }
+
+  /* Tablet */
+@media (max-width: 1100px) {
+  .solar-erp-page .ax-col--8,
+  .solar-erp-page .ax-col--4 {
+    grid-column: span 12;
+  }
+
+  .solar-erp-page .ax-col--3 {
+    grid-column: span 6;
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
+
+  
+  }
+
+  /* Mobile */
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-welcome__stats {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+    }
+    .solar-erp-page .ula-filter-item { width: 100%; justify-content: space-between; }
+    .solar-erp-page .ula-filter-item select { flex: 1; width: auto; max-width: 100%; }
+    .solar-erp-page .ula-filter-scope { width: 100%; }
+    .solar-erp-page .ax-card__header { gap: 10px; }
+    .solar-erp-page .ax-card__actions { width: 100%; justify-content: flex-end; }
+    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; justify-content: flex-end; }
+
+    /* First column fixed rahe jab table sideways scroll ho */
+    .solar-erp-page .ula-sticky-first th:first-child,
+    .solar-erp-page .ula-sticky-first td:first-child {
+      position: sticky; left: 0; z-index: 1;
+      background: var(--ax-bg-surface);
+      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+    }
+
+.ax-card__title {
+     max-width:280px;
+}
+
+  }
+
+
+
+  /* Small phones: KPI cards 1 column */
+  @media (max-width: 490px) {
+
+       .ax-card__title {
+     max-width:200px;
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
+
+    .solar-erp-page .ax-col--3 { grid-column: span 12; }
   }
 `;
 
-/* ───────── Icons (Tabler style, same as Jammu) ───────── */
-const ICON_CAL = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" /></svg>
-);
-const ICON_CHEV = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>
-);
+/* ───────── Icons (Tabler style) ───────── */
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
 );
@@ -135,7 +238,6 @@ const ARROW_UP = (
 const svg = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 const I_CHECK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 7v5l3 3" /></>);
@@ -144,7 +246,7 @@ const I_USERS = svg(<><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d
 const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
 const I_WRENCH = svg(<path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5z" />);
 
-/* ───────── KPI card (identical markup to Jammu KPI cards) ───────── */
+/* ───────── KPI card ───────── */
 interface KpiProps {
   icon: React.ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
@@ -173,7 +275,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
       tabIndex={onClick ? 0 : undefined}
       aria-label={label}
       onClick={onClick}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      onKeyDown={onClick ? onActivate(onClick) : undefined}
       style={{
         borderRadius: 'var(--ax-radius-lg)',
         background: 'var(--ax-bg-surface)',
@@ -196,11 +298,11 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
               {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500 }}>{sub}</div>
+            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
           </div>
           {spark && spark.length > 1 && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
@@ -215,7 +317,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
 
 function Bar({ pct }: { pct: number }) {
   return (
-    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap' }}>
+    <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap' }}>
       <div className="ax-progress ax-progress--sm" style={{ minWidth: 80, width: 80 }}>
         <div className="ax-progress__track">
           <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald)' : 'var(--ax-accent)' }} />
@@ -228,6 +330,8 @@ function Bar({ pct }: { pct: number }) {
 
 const AVATAR_COLORS = ['var(--ax-accent)', 'var(--ax-viz-cyan)', 'var(--ax-viz-violet)', 'var(--ax-viz-amber)', 'var(--ax-viz-pink)'];
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
+const selectStyle = { height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -237,11 +341,13 @@ const footerStyle = {
   width: '100%',
   boxSizing: 'border-box',
 } as const;
+const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' } as const;
 
 const ULA_VIEW_ROUTE = '/dle/bihar/ula/installation/view';
 
 export function BiharULAInstallationDashboard() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile(640);
   const [records, setRecords] = useState<Rec[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -249,17 +355,20 @@ export function BiharULAInstallationDashboard() {
   const [qVisits, setQVisits] = useState('');
   const [qDistrict, setQDistrict] = useState('');
   const [qSurveyor, setQSurveyor] = useState('');
-  // Interactive filters (same pattern as Jammu)
   const [selectedDistrict, setSelectedDistrict] = useState('All');
   const [selectedSurveyor, setSelectedSurveyor] = useState('All');
 
-  // Dashboard -> View ULA. Query params preserve exactly what was clicked.
+  /* Dashboard -> View ULA.
+     Selected District/Surveyor filters automatically carry over; explicit params override them.
+     Query params keep refresh/back/share working. */
   const openUlaView = (params: Record<string, string> = {}) => {
+    const merged: Record<string, string> = { district: selectedDistrict, surveyor: selectedSurveyor, ...params };
     const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
+    Object.entries(merged).forEach(([key, value]) => {
       if (value && value !== 'All') search.set(key, value);
     });
-    navigate(`${ULA_VIEW_ROUTE}${search.toString() ? `?${search.toString()}` : ''}`);
+    const qs = search.toString();
+    navigate(`${ULA_VIEW_ROUTE}${qs ? `?${qs}` : ''}`);
   };
 
   const openDistrict = (district: string) => openUlaView({ district });
@@ -272,12 +381,12 @@ export function BiharULAInstallationDashboard() {
     setError(null);
     try {
       // dleService relative URL (/api/bihar/ula/list) use karta hai -> Vite proxy
-   const json = await dleService.getBiharUlaList(signal);
-const list = extractList(json);
-const mine = filterByCompanyStrict(list); // login user ki company_id se match
-console.info('[ULA] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
-setRecords(mine.map(normalize));
-setUpdatedAt(new Date());
+      const json = await dleService.getBiharUlaList(signal);
+      const list = extractList(json);
+      const mine = filterByCompanyStrict(list); // login user ki company_id se match
+      console.info('[ULA] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
+      setRecords(mine.map(normalize));
+      setUpdatedAt(new Date());
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
         const msg = e?.message || 'Failed to load data';
@@ -358,6 +467,7 @@ setUpdatedAt(new Date());
       const dv = vs.filter((v) => sameDay(v.ts, d));
       return {
         label: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`,
+        iso: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
         first: dv.filter((v) => v.type === '1st Visit').length,
         second: dv.filter((v) => v.type === '2nd Visit').length,
         active: new Set(dv.map((v) => v.surveyor.toLowerCase())).size,
@@ -386,7 +496,11 @@ setUpdatedAt(new Date());
     };
   }, [filtered]);
 
-  const match = (q: string, ...vals: string[]) => !q || vals.some((v) => v.toLowerCase().includes(q.toLowerCase()));
+  /* ───────── Search + pagination ───────── */
+  const match = (q: string, ...vals: string[]) => {
+    const s = q.trim().toLowerCase();
+    return !s || vals.some((v) => v.toLowerCase().includes(s));
+  };
   const fVisits = useMemo(() => visits.filter((v) => match(qVisits, v.ca, v.name, v.surveyor, v.district)), [visits, qVisits]);
   const fDistricts = useMemo(() => districts.filter((d) => match(qDistrict, d.name)), [districts, qDistrict]);
   const fSurveyors = useMemo(() => surveyors.filter((s) => match(qSurveyor, s.name)), [surveyors, qSurveyor]);
@@ -395,7 +509,12 @@ setUpdatedAt(new Date());
   const pD = usePagination({ data: fDistricts, initialPageSize: 15 });
   const pS = usePagination({ data: fSurveyors, initialPageSize: 15 });
 
-  // Table export toolbar state: supports Copy, CSV, Excel, PDF and column visibility.
+  // Search / filter badalne par page 1 par wapas jao
+  useEffect(() => { pV.setPage(1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [qVisits, selectedDistrict, selectedSurveyor]);
+  useEffect(() => { pD.setPage(1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [qDistrict, selectedDistrict, selectedSurveyor]);
+  useEffect(() => { pS.setPage(1); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [qSurveyor, selectedDistrict, selectedSurveyor]);
+
+  /* ───────── Export (Copy / CSV / Excel / PDF + column toggle) ───────── */
   const [hiddenVisitColumns, setHiddenVisitColumns] = useState<string[]>([]);
   const [hiddenDistrictColumns, setHiddenDistrictColumns] = useState<string[]>([]);
   const [hiddenSurveyorColumns, setHiddenSurveyorColumns] = useState<string[]>([]);
@@ -431,22 +550,12 @@ setUpdatedAt(new Date());
 
   const stamp = new Date().toISOString().slice(0, 10);
 
-  const escapeExcelHtml = (value: unknown) =>
-    String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\"/g, '&quot;');
-
   const getExportValue = <T,>(row: T, column: ExportColumn<T>) => {
     if (typeof column.accessor === 'function') return column.accessor(row);
     return (row as unknown as Record<string, unknown>)[column.accessor as string];
   };
 
-  const escapeExportValue = (value: unknown) => {
-    if (value === null || value === undefined) return '';
-    return String(value);
-  };
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
 
   const downloadTextFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
@@ -462,35 +571,20 @@ setUpdatedAt(new Date());
 
   const exportToCSV = <T,>(data: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!data.length || !columns.length) return;
-
     const rows = [
       columns.map((column) => column.header),
-      ...data.map((row) =>
-        columns.map((column) => escapeExportValue(getExportValue(row, column)))
-      ),
+      ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column)))),
     ];
-
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) => `"${value.replace(/"/g, '""')}"`)
-          .join(',')
-      )
-      .join('\r\n');
-
+    const csv = rows.map((row) => row.map((value) => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
   const copyToClipboard = async <T,>(data: T[], columns: ExportColumn<T>[]) => {
     if (!data.length || !columns.length) return;
-
     const textToCopy = [
       columns.map((column) => column.header).join('\t'),
-      ...data.map((row) =>
-        columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')
-      ),
+      ...data.map((row) => columns.map((column) => escapeExportValue(getExportValue(row, column))).join('\t')),
     ].join('\n');
-
     try {
       await navigator.clipboard.writeText(textToCopy);
     } catch {
@@ -507,109 +601,26 @@ setUpdatedAt(new Date());
 
   const exportToExcel = <T,>(data: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!data.length || !columns.length) return;
-
-    const tableHtml = `
-      <table border="1">
-        <thead>
-          <tr>${columns.map((column) => `<th>${escapeExportValue(column.header)}</th>`).join('')}</tr>
-        </thead>
-        <tbody>
-          ${data.map((row) => `
-            <tr>
-              ${columns.map((column) => `<td>${escapeExportValue(getExportValue(row, column))}</td>`).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-
-    const html = `
-      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
-        <head><meta charset="UTF-8" /></head>
-        <body>${tableHtml}</body>
-      </html>
-    `;
-
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${data.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
     downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
   };
 
   const exportToPDF = <T,>(data: T[], columns: ExportColumn<T>[], title: string) => {
     if (!data.length || !columns.length) return;
-
-    const rows = data.map((row) =>
-      columns.map((column) => escapeExportValue(getExportValue(row, column)))
-    );
-
+    const rows = data.map((row) => columns.map((column) => escapeHtml(escapeExportValue(getExportValue(row, column)))));
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="UTF-8" />
-          <title>${title}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
-              color: #222;
-            }
-            h1 {
-              font-size: 20px;
-              margin: 0 0 16px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              font-size: 11px;
-            }
-            th, td {
-              border: 1px solid #d8dee6;
-              padding: 7px 8px;
-              text-align: left;
-              vertical-align: top;
-            }
-            th {
-              background: #f3f5f7;
-              font-weight: 700;
-            }
-            @media print {
-              body { padding: 0; }
-              @page { size: landscape; margin: 12mm; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <table>
-            <thead>
-              <tr>${columns.map((column) => `<th>${escapeExportValue(column.header)}</th>`).join('')}</tr>
-            </thead>
-            <tbody>
-              ${rows.map((row) => `
-                <tr>${row.map((value) => `<td>${value}</td>`).join('')}</tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function () {
-              window.print();
-            };
-          </script>
-        </body>
-      </html>
-    `);
-
+    printWindow.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
     printWindow.document.close();
     printWindow.focus();
   };
 
-  const makeToolbarColumns = <T,>(
-    columns: ExportColumn<T>[],
-    hidden: string[],
-  ) =>
+  const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.map((column, index) => ({
       key: `${column.header}-${index}`,
       label: column.header,
@@ -623,12 +634,17 @@ setUpdatedAt(new Date());
   const surveyorToolbarColumns = makeToolbarColumns(surveyorCols, hiddenSurveyorColumns);
   const visitToolbarColumns = makeToolbarColumns(visitCols, hiddenVisitColumns);
 
+  const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
+    setter((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
 
-
+  /* ───────── View helpers ───────── */
   const todayLabel = fmtDate(new Date());
   const dash = (v: number) => (loading && !records.length ? '…' : n(v));
   const topSurveyors = surveyors.slice(0, 5);
   const filtersActive = selectedDistrict !== 'All' || selectedSurveyor !== 'All';
+  const chartH = isMobile ? 260 : 320;
+  const donutH = isMobile ? 210 : 230;
+  const districtChartH = Math.min(560, Math.max(isMobile ? 280 : 320, districts.length * (isMobile ? 38 : 44)));
 
   const milestones = [
     { label: '1. Survey Records Received', v: stats.total, of: stats.total, color: 'var(--ax-viz-emerald)' },
@@ -637,6 +653,8 @@ setUpdatedAt(new Date());
     { label: '4. 2nd Visit Pending', v: stats.pending2, of: stats.total, color: 'var(--ax-viz-amber)' },
     { label: '5. 1st Visit Pending', v: stats.pending1, of: stats.total, color: 'var(--ax-viz-pink)' },
   ];
+
+  const visitStatusOf = (type: Visit['type']) => (type === '1st Visit' ? 'firstCompleted' : 'secondCompleted');
 
   return (
     <div className="solar-erp-page">
@@ -656,26 +674,9 @@ setUpdatedAt(new Date());
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Bihar
             </span>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--pill" aria-label="Fiscal Year filter">
-              {ICON_CAL}
-              <span className="ax-btn__label">FY 2026–27</span>
-              {ICON_CHEV}
-            </button>
             <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh dashboard" onClick={() => load()} disabled={loading}>
               {ICON_REFRESH}
             </button>
-            {/* <TableExportToolbar
-              onCopy={() => copyToClipboard(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
-              onExportCSV={() => exportToCSV(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `ULA_Report_${stamp}`)}
-              onExportExcel={() => exportToExcel(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `ULA_Report_${stamp}`)}
-              onExportPDF={() => exportToPDF(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), 'ULA Report')}
-              columns={districtToolbarColumns}
-              onToggleColumn={(key) =>
-                setHiddenDistrictColumns((prev) =>
-                  prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-                )
-              }
-            /> */}
           </div>
         }
       />
@@ -715,24 +716,17 @@ setUpdatedAt(new Date());
                 {ICON_FILTER} Filter Operations
               </span>
 
-              <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
-                <label htmlFor="state-select" style={labelStyle}>State:</label>
-                <select id="state-select" className="ax-input ax-input--sm" style={{ width: 130, height: 30, fontSize: 'var(--ax-text-xs)', fontWeight: 600, paddingInline: '8px' }} defaultValue="Bihar" disabled>
-                  <option value="Bihar">Bihar (Active)</option>
-                </select>
-              </div>
-
-              <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
+              <div className="ax-cluster ula-filter-item" style={{ alignItems: 'center' }}>
                 <label htmlFor="district-select" style={labelStyle}>District:</label>
-                <select id="district-select" className="ax-input ax-input--sm" style={{ width: 160, height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }} value={selectedDistrict} onChange={(e) => setSelectedDistrict(e.target.value)}>
+                <select id="district-select" className="ax-input ax-input--sm" style={selectStyle} value={selectedDistrict} onChange={(e) => setSelectedDistrict(e.target.value)}>
                   <option value="All">All Districts ({districtOptions.length})</option>
                   {districtOptions.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
 
-              <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
+              <div className="ax-cluster ula-filter-item" style={{ alignItems: 'center' }}>
                 <label htmlFor="surveyor-select" style={labelStyle}>Surveyor:</label>
-                <select id="surveyor-select" className="ax-input ax-input--sm" style={{ width: 170, height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }} value={selectedSurveyor} onChange={(e) => setSelectedSurveyor(e.target.value)}>
+                <select id="surveyor-select" className="ax-input ax-input--sm" style={selectStyle} value={selectedSurveyor} onChange={(e) => setSelectedSurveyor(e.target.value)}>
                   <option value="All">All Surveyors ({surveyorOptions.length})</option>
                   {surveyorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -745,12 +739,9 @@ setUpdatedAt(new Date());
               )}
             </div>
 
-            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+            <div className="ax-cluster ula-filter-scope" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Scope: <b style={{ color: 'var(--ax-text-strong)' }}>ULA Installation</b> · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
-              </span>
-              <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                2-Visit Survey
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(stats.total)}</b> installations · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
               </span>
             </div>
           </div>
@@ -761,7 +752,7 @@ setUpdatedAt(new Date());
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
               <p className="ax-welcome__eyebrow">ULA Installation Management System · State Hub</p>
-              <h2 className="ax-welcome__title">Welcome to Bihar ULA Installation Dashboard</h2>
+              <h2 className="ax-card__title">Welcome to Bihar ULA Installation Dashboard</h2>
               <p className="ax-welcome__lede">
                 Bihar state survey overview: <b>{dash(stats.total)} installations</b> tracked across <b>{dash(stats.districtCount)} districts</b> by <b>{dash(stats.surveyorCount)} surveyors</b>.
                 <b> {dash(stats.second)} ({stats.pct2}%)</b> completed both visits, with <b>{dash(stats.pending2)}</b> awaiting the 2nd visit.
@@ -794,17 +785,6 @@ setUpdatedAt(new Date());
         </section>
 
         {/* 4. KPI Cards */}
-<KpiCard
-  icon={I_CHECK}
-  tone="cyan"
-  label="1st Visit Completed"
-  value={dash(stats.first)}
-  unit="Nos."
-  sub={`${dash(stats.pending1)} Pending`}
-  badge={`${stats.pct1}%`}
-  spark={daily.map((d) => d.first)}
-  onClick={() => openVisitStatus('firstCompleted')}
-/>
         <KpiCard icon={I_CHECK} tone="cyan" label="1st Visit Completed" value={dash(stats.first)} unit="Nos." sub={`${dash(stats.pending1)} Pending`} badge={`${stats.pct1}%`} spark={daily.map((d) => d.first)} onClick={() => openVisitStatus('firstCompleted')} />
         <KpiCard icon={I_DONE} tone="emerald" label="2nd Visit Completed" value={dash(stats.second)} unit="Nos." sub={`${dash(stats.pending2)} Pending`} badge={`${stats.pct2}%`} spark={daily.map((d) => d.second)} onClick={() => openVisitStatus('secondCompleted')} />
         <KpiCard icon={I_CLOCK} tone="amber" label="2nd Visit Pending" value={dash(stats.pending2)} unit="Nos." sub="1st done, 2nd awaited" onClick={() => openVisitStatus('secondPending')} />
@@ -823,22 +803,23 @@ setUpdatedAt(new Date());
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-                  <i style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--ax-accent)' }} />
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>1st Visits</small>
-                </span>
-                <span className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-                  <i style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--ax-viz-cyan)' }} />
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>2nd Visits</small>
-                </span>
+                {[
+                  { l: '1st Visits', c: LIGHT_BLUE },
+                  { l: '2nd Visits', c: LIGHT_GREEN },
+                ].map((i) => (
+                  <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+                    <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c }} />
+                    <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{i.l}</small>
+                  </span>
+                ))}
               </div>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <ApexChart
-              key={`daily-${daily.map((d) => d.first + d.second).join('-')}`}
+              key={`daily-${chartH}-${daily.map((d) => `${d.first}.${d.second}`).join('-')}`}
               type="bar"
-              height={320}
+              height={chartH}
               legend="none"
               ariaLabel="Daily 1st and 2nd visit column chart"
               series={[
@@ -846,21 +827,23 @@ setUpdatedAt(new Date());
                 { name: '2nd Visits', data: daily.map((d) => d.second) },
               ]}
               apex={{
-                colors: [cv('--ax-accent'), cv('--ax-viz-cyan')],
-                plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
-                xaxis: { categories: daily.map((d) => d.label) },
+                colors: [LIGHT_BLUE, LIGHT_GREEN],
+                plotOptions: { bar: { borderRadius: 4, columnWidth: isMobile ? '70%' : '55%' } },
+                xaxis: { categories: daily.map((d) => d.label), labels: { rotate: -45, hideOverlappingLabels: true, style: { fontSize: '11px' } } },
                 yaxis: { title: { text: 'Visits (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                 chart: {
-                   events: {
-                     dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                       const day = daily[opts?.dataPointIndex];
-                       if (day) openUlaView({
-                         date: day.label,
-                         visitStatus: opts?.seriesIndex === 0 ? 'firstCompleted' : 'secondCompleted',
-                       });
-                     },
-                   },
-                 },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const day = daily[opts?.dataPointIndex];
+                      if (day) {
+                        openUlaView({
+                          date: day.iso,
+                          visitStatus: opts?.seriesIndex === 0 ? 'firstCompleted' : 'secondCompleted',
+                        });
+                      }
+                    },
+                  },
+                },
               }}
             />
           </div>
@@ -876,30 +859,30 @@ setUpdatedAt(new Date());
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <ApexChart
-              key={`donut-${stats.second}-${stats.pending2}-${stats.pending1}`}
-              type="donut" height={230} legend="none"
+              key={`donut-${donutH}-${stats.second}-${stats.pending2}-${stats.pending1}`}
+              type="donut" height={donutH} legend="none"
               ariaLabel="Donut chart of installations by visit status"
               series={[stats.second, stats.pending2, stats.pending1]}
               apex={{
                 labels: ['Completed (2 visits)', '2nd Visit Pending', '1st Visit Pending'],
-                colors: [cv('--ax-accent'), cv('--ax-viz-cyan'), cv('--ax-viz-amber')],
+                colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
                 stroke: { width: 0 },
-                 chart: {
-                   events: {
-                     dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                       const status = ['secondCompleted', 'secondPending', 'firstPending'][opts?.dataPointIndex];
-                       if (status) openVisitStatus(status);
-                     },
-                   },
-                 },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const status = ['secondCompleted', 'secondPending', 'firstPending'][opts?.dataPointIndex];
+                      if (status) openVisitStatus(status);
+                    },
+                  },
+                },
                 plotOptions: { pie: { donut: { size: '72%', labels: { show: true, name: { fontFamily: cv('--ax-font-sans') }, value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 }, total: { show: true, label: 'Installations', formatter: () => n(stats.total) } } } } },
               }}
             />
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
-                { label: 'Completed (2 visits)', sub: `${stats.pct2}% of total`, v: stats.second, color: 'var(--ax-accent)' },
-                { label: '2nd Visit Pending', sub: '1st done, 2nd awaited', v: stats.pending2, color: 'var(--ax-viz-cyan)' },
-                { label: '1st Visit Pending', sub: 'Not yet surveyed', v: stats.pending1, color: 'var(--ax-viz-amber)' },
+                { label: 'Completed (2 visits)', sub: `${stats.pct2}% of total`, v: stats.second, color: LIGHT_GREEN },
+                { label: '2nd Visit Pending', sub: '1st done, 2nd awaited', v: stats.pending2, color: LIGHT_BLUE },
+                { label: '1st Visit Pending', sub: 'Not yet surveyed', v: stats.pending1, color: LIGHT_AMBER },
               ].map((s) => (
                 <li key={s.label} className="ax-list__row" style={{ border: 0, paddingInline: 0 }}>
                   <span className="ax-list__leading"><i style={{ width: 9, height: 9, borderRadius: 3, background: s.color, display: 'inline-block' }} /></span>
@@ -928,8 +911,8 @@ setUpdatedAt(new Date());
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <ApexChart
-              key={`bar-${districts.length}-${stats.total}-${stats.second}`}
-              type="bar" height={Math.min(520, Math.max(320, districts.length * 44))} legend="top" stacked
+              key={`bar-${districtChartH}-${districts.length}-${stats.total}-${stats.second}`}
+              type="bar" height={districtChartH} legend="top" stacked
               ariaLabel="Horizontal stacked bar of installations per district by visit progress"
               series={[
                 { name: 'Completed (2 visits)', data: districts.map((d) => d.second) },
@@ -937,18 +920,19 @@ setUpdatedAt(new Date());
                 { name: '1st visit pending', data: districts.map((d) => d.total - d.first) },
               ]}
               apex={{
-                colors: [cv('--ax-accent'), cv('--ax-viz-cyan'), cv('--ax-viz-amber')],
+                colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
                 plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '58%' } },
                 xaxis: { categories: districts.map((d) => d.name), labels: { style: { fontSize: '11px' } } },
-
-                 chart: {
-                   events: {
-                     dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                       const district = districts[opts?.dataPointIndex]?.name;
-                       if (district) openDistrict(district);
-                     },
-                   },
-                 },              }}
+                yaxis: { labels: { maxWidth: isMobile ? 90 : 160, style: { fontSize: '11px' } } },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const district = districts[opts?.dataPointIndex]?.name;
+                      if (district) openDistrict(district);
+                    },
+                  },
+                },
+              }}
             />
           </div>
         </section>
@@ -966,7 +950,7 @@ setUpdatedAt(new Date());
               const p = pctOf(m.v, m.of);
               return (
                 <div key={m.label}>
-                  <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
                     <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
                     <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{n(m.v)} / {n(m.of)} ({p}%)</b>
                   </div>
@@ -986,25 +970,21 @@ setUpdatedAt(new Date());
               <p className="ax-card__subtitle">Visit progress per district</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" style={{ minWidth: 110 }} /> */}
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                   onExportCSV={() => exportToCSV(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `ULA_District_Wise_${stamp}`)}
                   onExportExcel={() => exportToExcel(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `ULA_District_Wise_${stamp}`)}
                   onExportPDF={() => exportToPDF(fDistricts, visibleColumns(districtCols, hiddenDistrictColumns), 'ULA District Wise')}
                   columns={districtToolbarColumns}
-                  onToggleColumn={(key) =>
-                    setHiddenDistrictColumns((prev) =>
-                      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-                    )
-                  }
+                  onToggleColumn={toggleIn(setHiddenDistrictColumns)}
                 />
               </div>
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover ula-table--md ula-sticky-first">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
@@ -1024,7 +1004,7 @@ setUpdatedAt(new Date());
                     role="button"
                     tabIndex={0}
                     onClick={() => openDistrict(d.name)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDistrict(d.name); }}
+                    onKeyDown={onActivate(() => openDistrict(d.name))}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{d.name}</td>
@@ -1036,16 +1016,20 @@ setUpdatedAt(new Date());
                     <td className="ax-table__td"><Bar pct={d.pct} /></td>
                   </tr>
                 ))}
-                {/* Total Row */}
-                <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
-                  <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total</td>
-                  <td className="ax-table__td ax-table__td--num ax-num">{n(stats.total)}</td>
-                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan)' }}>{n(stats.first)}</td>
-                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald)' }}>{n(stats.second)}</td>
-                  <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber)' }}>{n(stats.pending2)}</td>
-                  <td className="ax-table__td ax-table__td--num ax-num">{n(stats.todayVisits)}</td>
-                  <td className="ax-table__td"><Bar pct={Math.round(stats.pct2)} /></td>
-                </tr>
+                {!loading && fDistricts.length === 0 && (
+                  <tr><td className="ax-table__td" colSpan={7} style={emptyCellStyle}>No districts match the filters.</td></tr>
+                )}
+                {fDistricts.length > 0 && (
+                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
+                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', background: 'var(--ax-surface-subtle)' }}>Total</td>
+                    <td className="ax-table__td ax-table__td--num ax-num">{n(stats.total)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan)' }}>{n(stats.first)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald)' }}>{n(stats.second)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber)' }}>{n(stats.pending2)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num">{n(stats.todayVisits)}</td>
+                    <td className="ax-table__td"><Bar pct={Math.round(stats.pct2)} /></td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1072,25 +1056,21 @@ setUpdatedAt(new Date());
               <p className="ax-card__subtitle">Visits done by each field surveyor</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-              
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput value={qSurveyor} onChange={setQSurveyor} placeholder="Search surveyor..." size="sm" style={{ minWidth: 150 }} />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(fSurveyors, visibleColumns(surveyorCols, hiddenSurveyorColumns))}
                   onExportCSV={() => exportToCSV(fSurveyors, visibleColumns(surveyorCols, hiddenSurveyorColumns), `ULA_Surveyor_Wise_${stamp}`)}
                   onExportExcel={() => exportToExcel(fSurveyors, visibleColumns(surveyorCols, hiddenSurveyorColumns), `ULA_Surveyor_Wise_${stamp}`)}
                   onExportPDF={() => exportToPDF(fSurveyors, visibleColumns(surveyorCols, hiddenSurveyorColumns), 'ULA Surveyor Wise')}
                   columns={surveyorToolbarColumns}
-                  onToggleColumn={(key) =>
-                    setHiddenSurveyorColumns((prev) =>
-                      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-                    )
-                  }
+                  onToggleColumn={toggleIn(setHiddenSurveyorColumns)}
                 />
               </div>
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover ula-table--md ula-sticky-first">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Surveyor</th>
@@ -1110,7 +1090,7 @@ setUpdatedAt(new Date());
                     role="button"
                     tabIndex={0}
                     onClick={() => openSurveyor(s.name)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openSurveyor(s.name); }}
+                    onKeyDown={onActivate(() => openSurveyor(s.name))}
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{s.name}</td>
@@ -1122,6 +1102,9 @@ setUpdatedAt(new Date());
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{fmtDate(s.last)}</td>
                   </tr>
                 ))}
+                {fSurveyors.length === 0 && (
+                  <tr><td className="ax-table__td" colSpan={7} style={emptyCellStyle}>{loading ? 'Loading…' : 'No surveyors match the filters.'}</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1148,25 +1131,21 @@ setUpdatedAt(new Date());
               <p className="ax-card__subtitle">1st &amp; 2nd visits recorded today</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-                <SearchInput value={qVisits} onChange={setQVisits} placeholder="Search CA no., beneficiary..." size="sm" style={{ minWidth: 190 }} />
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput value={qVisits} onChange={setQVisits} placeholder="Search CA no., beneficiary..." size="sm" />
                 <TableExportToolbar
                   onCopy={() => copyToClipboard(fVisits, visibleColumns(visitCols, hiddenVisitColumns))}
                   onExportCSV={() => exportToCSV(fVisits, visibleColumns(visitCols, hiddenVisitColumns), `ULA_Todays_Visits_${stamp}`)}
                   onExportExcel={() => exportToExcel(fVisits, visibleColumns(visitCols, hiddenVisitColumns), `ULA_Todays_Visits_${stamp}`)}
                   onExportPDF={() => exportToPDF(fVisits, visibleColumns(visitCols, hiddenVisitColumns), "ULA Today's Visits")}
                   columns={visitToolbarColumns}
-                  onToggleColumn={(key) =>
-                    setHiddenVisitColumns((prev) =>
-                      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-                    )
-                  }
+                  onToggleColumn={toggleIn(setHiddenVisitColumns)}
                 />
               </div>
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover ula-table--sm ula-sticky-first">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Beneficiary</th>
@@ -1178,28 +1157,31 @@ setUpdatedAt(new Date());
               </thead>
               <tbody>
                 {pV.paginatedData.length === 0 && (
-                  <tr><td className="ax-table__td" colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' }}>{loading ? 'Loading…' : 'No visits recorded today.'}</td></tr>
+                  <tr><td className="ax-table__td" colSpan={5} style={emptyCellStyle}>{loading ? 'Loading…' : 'No visits recorded today.'}</td></tr>
                 )}
-                {pV.paginatedData.map((v) => (
-                  <tr
-                    key={v.key}
-                    className="ax-table__row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: v.type === '1st Visit' ? 'firstCompleted' : 'secondCompleted', today: '1' })}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: v.type === '1st Visit' ? 'firstCompleted' : 'secondCompleted', today: '1' }); }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td className="ax-table__td">
-                      <div style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{v.name}</div>
-                      <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)', marginTop: 2 }}>{v.ca}</div>
-                    </td>
-                    <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ax-badge--${v.type === '2nd Visit' ? 'success' : 'info'} ax-badge--pill`}><span className="ax-badge__dot" />{v.type}</span></td>
-                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', fontWeight: 500 }}>{v.district}</td>
-                    <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{v.surveyor}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{fmtTime(v.ts)}</td>
-                  </tr>
-                ))}
+                {pV.paginatedData.map((v) => {
+                  const go = () => openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: visitStatusOf(v.type), today: '1' });
+                  return (
+                    <tr
+                      key={v.key}
+                      className="ax-table__row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={go}
+                      onKeyDown={onActivate(go)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="ax-table__td">
+                        <div style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{v.name}</div>
+                        <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)', marginTop: 2 }}>{v.ca}</div>
+                      </td>
+                      <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ax-badge--${v.type === '2nd Visit' ? 'success' : 'info'} ax-badge--pill`}><span className="ax-badge__dot" />{v.type}</span></td>
+                      <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', fontWeight: 500 }}>{v.district}</td>
+                      <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{v.surveyor}</td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{fmtTime(v.ts)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1230,31 +1212,34 @@ setUpdatedAt(new Date());
               <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>{loading ? 'Loading…' : 'No visits recorded yet.'}</div>
             ) : (
               <ul className="ax-timeline">
-                {recent.map((v) => (
-                  <li
-                    key={v.key}
-                    className={`ax-timeline__item ax-timeline__item--${v.type === '2nd Visit' ? 'success' : 'info'}`}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: v.type === '1st Visit' ? 'firstCompleted' : 'secondCompleted' })}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: v.type === '1st Visit' ? 'firstCompleted' : 'secondCompleted' }); }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span className="ax-timeline__marker">
-                      <i style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                    </span>
-                    <div className="ax-timeline__content">
-                      <p className="ax-timeline__title">
-                        <b style={{ color: 'var(--ax-text-strong)' }}>{v.surveyor}</b> completed {v.type.toLowerCase()}
-                      </p>
-                      <p style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginBlock: '2px 4px' }}>{v.name}</p>
-                      <div className="ax-cluster" style={{ justifyContent: 'space-between', fontSize: '11px', color: 'var(--ax-text-subtle)' }}>
-                        <span>District: {v.district}</span>
-                        <span>{fmtDate(v.ts)} · {fmtTime(v.ts)}</span>
+                {recent.map((v) => {
+                  const go = () => openUlaView({ district: v.district, surveyor: v.surveyor, visitStatus: visitStatusOf(v.type) });
+                  return (
+                    <li
+                      key={v.key}
+                      className={`ax-timeline__item ax-timeline__item--${v.type === '2nd Visit' ? 'success' : 'info'}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={go}
+                      onKeyDown={onActivate(go)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="ax-timeline__marker">
+                        <i style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+                      </span>
+                      <div className="ax-timeline__content">
+                        <p className="ax-timeline__title">
+                          <b style={{ color: 'var(--ax-text-strong)' }}>{v.surveyor}</b> completed {v.type.toLowerCase()}
+                        </p>
+                        <p style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginBlock: '2px 4px' }}>{v.name}</p>
+                        <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 4, fontSize: '11px', color: 'var(--ax-text-subtle)' }}>
+                          <span>District: {v.district}</span>
+                          <span>{fmtDate(v.ts)} · {fmtTime(v.ts)}</span>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
 
@@ -1262,7 +1247,7 @@ setUpdatedAt(new Date());
 
             {/* Field workforce mini summary */}
             <div>
-              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
+              <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 'var(--ax-space-2)' }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>Top Surveyors</span>
                 <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{dash(stats.activeToday)} Active Today</span>
               </div>
@@ -1283,7 +1268,7 @@ setUpdatedAt(new Date());
                         <div className="ax-truncate" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-sm)' }}>{s.name}</div>
                         <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>{n(s.first)} 1st · {n(s.second)} 2nd</div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <b className="ax-num" style={{ color: 'var(--ax-text-strong)' }}>{n(s.total)}</b>
                         {s.today > 0 && <span className="ax-kpi__delta ax-kpi__delta--up" style={{ display: 'flex', justifyContent: 'flex-end' }}>{ARROW_UP}{s.today} today</span>}
                       </div>

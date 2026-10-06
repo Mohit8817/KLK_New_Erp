@@ -9,7 +9,7 @@ import { dleService, filterByCompanyStrict } from '../../../../../services/dleSe
 import { authService } from '../../../../../services/authService';
 import { exportDataToCSV, exportDataToExcel, printTableData, copyTableDataToClipboard } from '../../../../../common/export/exportUtils';
 
-/* ---------- Types ---------- */
+
 interface ImageItem { label: string; url: string; raw: string; }
 interface LightRow {
   id: string;
@@ -173,9 +173,6 @@ const svg = (children: ReactElement | ReactElement[]) => (
 );
 const ICON = {
   refresh: svg([<path key="a" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />, <path key="b" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />]),
-  search: svg([<path key="a" d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />, <path key="b" d="M21 21l-6 -6" />]),
-  chevL: svg(<path d="M15 6l-6 6l6 6" />),
-  chevR: svg(<path d="M9 6l6 6l-6 6" />),
   down: svg(<path d="M6 9l6 6l6 -6" />),
   close: svg([<path key="a" d="M18 6l-12 12" />, <path key="b" d="M6 6l12 12" />]),
   eye: svg([<path key="a" d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />, <path key="b" d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />]),

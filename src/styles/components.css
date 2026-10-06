@@ -7,34 +7,25 @@
  * RULES (locked):
  *  - Token law: consume Layer-2 role tokens (--ax-surface/--ax-text/--ax-accent/
  *    --ax-border …) or Layer-3 component vars ONLY. Never a raw --ax-neutral
- *    stop, never a raw --ax-accent-500 stop, never a literal theme hex. (The handful of
- *    rgba(0,0,0,…) scrim/backdrop values and rgba(255,255,255,…) striping are
- *    deliberate semi-transparent overlays, not theme colors, and are the only
- *    literals permitted. #fff appears solely as on-semantic ink for solid
- *    success/warning/danger fills where no on-color token exists.)
- *  - Naming: BEM-ish .ax-block__element--modifier. State classes is-*. Behaviour
- *    hooks data-ax-*.
- *  - Aurora look: glass surfaces (.ax-card / .ax-glass recipe), high radius,
- *    ambient glow, gradient-accent primary pills with glow, accent-wash selection.
- *  - Both [data-ax-theme] modes + 12 [data-ax-accent] presets inherit for free,
- *    because we never bind a stop/hex — only role tokens that the theme re-values.
- *  - Focus is ALWAYS :focus-visible (the global ring lives in _recipes.css;
- *    components only refine where outline clips a glass corner — there we use the
- *    canvas-gap + accent-ring box-shadow recipe).
- *  - prefers-reduced-motion honored per block (and globally in _recipes.css).
+ *    stop, never a raw --ax-accent-500 stop, never a literal theme hex. (The
+ *    handful of rgba(0,0,0,…) scrim/backdrop values and rgba(255,255,255,…)
+ *    striping are deliberate overlays; #fff only as on-semantic ink.)
+ *  - Naming: BEM-ish .ax-block__element--modifier. State classes is-*.
+ *    Behaviour hooks data-ax-*.
+ *  - Focus is ALWAYS :focus-visible.
+ *  - prefers-reduced-motion honored per block.
  *
- * "Alpine:" comments mark which blocks are driven by an Alpine component
- * (src/js/alpine/*). CSS here only paints; behaviour is wired in JS.
+ * MOBILE / RESPONSIVE: every phone/tablet/touch rule lives in ONE place —
+ * section 30 at the very bottom of this file. Desktop rules above are untouched.
+ *
+ * "Alpine:" comments mark which blocks are driven by an Alpine component.
  * ----------------------------------------------------------------------------
  */
 
 @layer components {
   /* ========================================================================
-     0 · SHARED PRIMITIVES (mixins / helpers used across many components)
+     0 · SHARED PRIMITIVES
      ======================================================================== */
-
-  /* Aurora glass surface — compose into menu / modal / popover / toast.
-     Cards use the dedicated .ax-card below; this is the generic floating glass. */
   .ax-glass {
     position: relative;
     background: var(--ax-surface);
@@ -57,7 +48,6 @@
     }
   }
 
-  /* visually-hidden (a11y) — avatars/spinners/ratings/icon-only labels */
   .ax-visually-hidden {
     position: absolute !important;
     width: 1px;
@@ -70,12 +60,10 @@
     border: 0;
   }
 
-  /* tabular numerics helper (also in primitives; safe to repeat) */
   .ax-num {
     font-variant-numeric: tabular-nums;
   }
 
-  /* shared keyframes */
   @keyframes ax-spin {
     to {
       transform: rotate(360deg);
@@ -84,13 +72,6 @@
 
   /* ========================================================================
      1 · BUTTONS — .ax-btn
-     Style variants: --primary(gradient pill glow), --solid(flat accent),
-       --secondary/--outline, --tertiary/--tonal, --ghost, --link,
-       --soft-{success|warning|info|danger}.
-     Tones: --accent(default), --neutral, --success, --warning, --danger, --info.
-     Sizes: --sm/--compact(32), default(38), --lg(44). Plus --icon, --block, --pill.
-     States: hover / :focus-visible / active / disabled / is-loading.
-     Alpine: none for base (toggles add aria-pressed; openers aria-expanded).
      ======================================================================== */
   .ax-btn {
     --_btn-h: var(--ax-control-h); /* 38 */
@@ -132,10 +113,7 @@
   .ax-btn__label {
     overflow: hidden;
     text-overflow: ellipsis;
-    /* .ax-btn sets line-height:1 (for icon centring), but that makes the label's
-       line box = em-size, so overflow:hidden clips glyph descenders (g/j/p/q/y).
-       Restore enough leading to contain them; flex align-items:center keeps it
-       vertically centred regardless. */
+    /* restore leading so overflow:hidden doesn't clip descenders (g/j/p/q/y) */
     line-height: 1.25;
     padding-block: 0.05em;
   }
@@ -145,10 +123,7 @@
     top: 50%;
     width: var(--_btn-icon);
     height: var(--_btn-icon);
-    /* Centre via translate, not negative margins: the unlayered `* { margin:0 }`
-       reset in base.css beats this layered rule (unlayered > layered), so margins
-       compute to 0. `translate` is independent of the rotate animation's
-       `transform`, so both apply. */
+    /* translate (not negative margins): base.css `* {margin:0}` is unlayered and wins */
     translate: -50% -50%;
     border-radius: 50%;
     border: 2px solid currentColor;
@@ -157,7 +132,6 @@
     animation: ax-spin 0.7s var(--ax-ease-linear) infinite;
   }
 
-  /* — sizes — */
   .ax-btn--sm,
   .ax-btn--compact {
     --_btn-h: var(--ax-control-h-compact);
@@ -171,7 +145,6 @@
     --_btn-icon: var(--ax-icon-md);
   }
 
-  /* — icon-only — square; label hidden; REQUIRES aria-label — */
   .ax-btn--icon {
     padding-inline: 0;
     width: var(--_btn-h);
@@ -185,7 +158,6 @@
     border-radius: var(--ax-radius-pill);
   }
 
-  /* — PRIMARY: Aurora gradient + accent glow (signature) — */
   .ax-btn--primary {
     color: var(--ax-on-accent);
     background: var(--ax-gradient-accent);
@@ -200,7 +172,6 @@
     filter: brightness(0.97);
   }
 
-  /* — SOLID: flat accent fill — */
   .ax-btn--solid {
     color: var(--ax-on-accent);
     background: var(--ax-accent);
@@ -213,7 +184,6 @@
     filter: brightness(0.97);
   }
 
-  /* — SECONDARY / OUTLINE — */
   .ax-btn--secondary,
   .ax-btn--outline {
     color: var(--ax-text);
@@ -230,7 +200,6 @@
     background: var(--ax-fill-active);
   }
 
-  /* — TERTIARY / TONAL — */
   .ax-btn--tertiary,
   .ax-btn--tonal {
     color: var(--ax-text-strong);
@@ -242,7 +211,6 @@
     background: var(--ax-fill-active);
   }
 
-  /* — GHOST — */
   .ax-btn--ghost {
     color: var(--ax-text);
     background: transparent;
@@ -256,7 +224,6 @@
     background: var(--ax-fill-active);
   }
 
-  /* — LINK — */
   .ax-btn--link {
     min-height: 0;
     padding: 0;
@@ -271,8 +238,6 @@
     text-underline-offset: 2px;
   }
 
-  /* — TONE modifiers: locally remap the accent role to a semantic so
-       --primary/--solid/--ghost pick it up automatically — */
   .ax-btn--success {
     --ax-accent: var(--ax-success-500);
     --ax-accent-hover: var(--ax-success-500);
@@ -308,7 +273,6 @@
     --ax-link: var(--ax-text);
     --ax-focus-ring: var(--ax-text-strong);
   }
-  /* semantic tones lack an --ax-accent-rgb glow pair → flatten primary fill */
   .ax-btn--success.ax-btn--primary,
   .ax-btn--warning.ax-btn--primary,
   .ax-btn--danger.ax-btn--primary,
@@ -318,7 +282,6 @@
     box-shadow: var(--ax-shadow-sm);
   }
 
-  /* — SOFT semantic buttons — */
   .ax-btn--soft-success {
     color: var(--ax-success-500);
     background: var(--ax-success-50);
@@ -342,7 +305,6 @@
     filter: brightness(0.97);
   }
 
-  /* — disabled — */
   .ax-btn:disabled,
   .ax-btn[aria-disabled="true"],
   .ax-btn.is-disabled {
@@ -355,7 +317,6 @@
     pointer-events: none;
   }
 
-  /* — loading: reveal spinner, dim label, preserve width, block clicks — */
   .ax-btn.is-loading {
     pointer-events: none;
   }
@@ -377,10 +338,6 @@
 
   /* ========================================================================
      2 · BUTTON GROUP / SEGMENTED — .ax-btn-group
-     Variants: --action, --segmented(radio), --multi, --split, --vertical.
-     Members share one hairline seam; only outer corners rounded.
-     Selected (segmented) = accent-wash + accent text (NOT hover).
-     Alpine: axTabs-style roving tabindex; split caret uses axDropdown.
      ======================================================================== */
   .ax-btn-group {
     display: inline-flex;
@@ -419,7 +376,6 @@
     border-radius: 0 0 var(--ax-radius-sm) var(--ax-radius-sm);
   }
 
-  /* segmented: boxed track + accent-wash selection */
   .ax-btn-group--segmented {
     padding: var(--ax-space-1);
     gap: var(--ax-space-1);
@@ -452,11 +408,6 @@
 
   /* ========================================================================
      3 · CARDS — .ax-card  (THE glass recipe surface)
-     Sub: __header/__titles/__eyebrow/__title/__subtitle/__actions/__media/
-          __body/__footer/__handle.
-     Variants: --stat/--chart/--media/--collapsible/--accent-edge/--interactive/
-               --compact/--selected. States: hover/selected/loading/dragging.
-     Alpine: --collapsible→axCollapse; --draggable→axSortable.
      ======================================================================== */
   .ax-card {
     position: relative;
@@ -562,8 +513,6 @@
     padding: var(--ax-space-5);
   }
 
-  /* Balance plate: stack the header so the currency switcher drops to its own
-     line instead of squeezing the title in the narrow (col--4) header. */
   .ax-card--balance .ax-card__header {
     flex-direction: column;
     align-items: flex-start;
@@ -611,19 +560,11 @@
     border-radius: var(--ax-radius-xl) var(--ax-radius-xl) 0 0;
   }
 
-  /* ── CARD MATERIALS ─────────────────────────────────────────────────────
-     --filled / --gradient / --bleed / --flat live UNLAYERED in
-     tokens/_recipes.css, directly under the .ax-card primitive they override.
-     They cannot live here: .ax-card is itself unlayered, and an unlayered
-     rule beats every rule in @layer components no matter how specific — so a
-     material declared here would lose its background and paint white ink on
-     the untouched glass surface. Keep them next to the primitive. */
+  /* CARD MATERIALS (--filled / --gradient / --bleed / --flat) live UNLAYERED in
+     tokens/_recipes.css next to the .ax-card primitive (unlayered > layered). */
 
   /* ========================================================================
      4 · KPI WIDGET — .ax-kpi (standalone) + .ax-card--stat (card flavour)
-     __icon tile (c1..c4 = accent/cyan/violet/amber), __value (display, tabular),
-     __delta up/down chip, __label, optional __spark.
-     Alpine: none (count-up via page JS; disabled under reduced-motion).
      ======================================================================== */
   .ax-kpi {
     display: flex;
@@ -720,12 +661,9 @@
     margin-top: var(--ax-space-2);
   }
 
-  /* ── KPI layout: icon top-left · title + delta stacked top-right ·
-     value and spark each on their own row. The grid container is whatever
-     directly holds .ax-kpi__top — the card body, or the bare wrapper used in
-     the skeletons "loaded" preview — so every KPI card is patched uniformly
-     with no markup change. :has + display:contents sit inside the Tailwind v4
-     browser baseline this stack already targets. */
+  /* KPI layout: icon top-left · title + delta stacked top-right · value and
+     spark each on their own row. The grid container is whatever directly holds
+     .ax-kpi__top (card body or bare wrapper). */
   :has(> .ax-kpi__top) {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -733,8 +671,6 @@
     row-gap: var(--ax-space-2);
     align-items: center;
   }
-  /* dissolve the icon/delta and value/spark wrappers so all five pieces
-     become direct grid items of the container above */
   :has(> .ax-kpi__top) > .ax-kpi__top,
   :has(> .ax-kpi__meta) > .ax-kpi__meta {
     display: contents;
@@ -768,7 +704,6 @@
     margin: 0;
   }
 
-  /* card-stat flavour reuses kpi internals */
   .ax-card--stat .ax-card__body {
     display: flex;
     flex-direction: column;
@@ -811,20 +746,9 @@
 
   /* ========================================================================
      4b · DASHBOARD COMPOSITION BLOCKS
-     Six openers and summarisers that give a dashboard a silhouette of its
-     own. Without them every page can only be built as "four KPI tiles, then
-     an 8+4 chart row", which is exactly how 17 dashboards end up looking
-     like one dashboard. Each is a plain block usable inside any .ax-card.
-       .ax-welcome    greeting band — the page's own voice, replaces a KPI row
-       .ax-statgroup  4–6 metrics inside ONE card, not four cards
-       .ax-quicktiles action tile grid
-       .ax-gauge      radial figure + supporting rows
-       .ax-ranklist   ranked rows with an inline proportion bar
-       .ax-spotlight  one figure, oversized, for a --gradient/--filled card
+       .ax-welcome  .ax-statgroup  .ax-quicktiles  .ax-gauge  .ax-ranklist
+       .ax-spotlight
      ======================================================================== */
-
-  /* ── Welcome band. Sits at col--12 or col--8; the stat rail wraps under the
-     copy on narrow columns. The glow is decorative and accent-derived. */
   .ax-welcome {
     position: relative;
     overflow: hidden;
@@ -853,12 +777,7 @@
     gap: var(--ax-space-6);
     padding: var(--ax-space-6);
   }
-  /* Spaced with flex GAP, not child margins. base.css's reset is unlayered, and
-     its `* { margin: 0 }` beats anything declared here in @layer components no
-     matter how specific — so the eyebrow's margin-bottom, the lede's margin-top
-     and the action row's margin-top all computed to 0 and the four rows sat
-     flush against each other, separated only by their line-box leading. gap is
-     set by the container, so the reset can't reach it. */
+  /* Spaced with flex GAP, not child margins (base.css `* {margin:0}` is unlayered). */
   .ax-welcome__text {
     min-width: 0;
     flex: 1 1 260px;
@@ -886,10 +805,6 @@
     font-size: var(--ax-text-sm);
     color: var(--ax-text-muted);
   }
-  /* The action row is a step down in the hierarchy, not another paragraph: it
-     needs the same air the card gives its own edges, otherwise the buttons read
-     as attached to the last line of the lede. Padding rather than margin, for
-     the reason above — it stacks on the column's 8px gap to make 24. */
   .ax-welcome__actions {
     display: flex;
     flex-wrap: wrap;
@@ -922,7 +837,6 @@
     font-variant-numeric: tabular-nums;
     color: var(--ax-text-strong);
   }
-  /* On a gradient card the band inherits inverted ink. */
   .ax-card--gradient .ax-welcome__title,
   .ax-card--gradient .ax-welcome__stat dd {
     color: inherit;
@@ -937,33 +851,18 @@
     background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
   }
 
-  /* ── Stat group: the anti-KPI-row. Cells share one card, divided by
-     hairlines each cell draws on its own leading and trailing edge. The
-     dividers are box-shadows rather than a painted grid background: a group
-     whose count does not divide by the column count leaves empty tracks in
-     the last row, and a painted background turns those into a grey slab. A
-     shadow is drawn by the cell, so an absent cell draws nothing and the card
-     material shows through instead. overflow:hidden clips the outermost rules,
-     so no edge of the block carries a dangling hairline.
-     Cells stay transparent for the same reason — an opaque cell would paint
-     over the accent wash of a --filled card or the matte of a --flat one. */
+  /* Stat group: cells share one card, divided by box-shadow hairlines so empty
+     tracks in the last row draw nothing. overflow:hidden clips outer rules. */
   .ax-statgroup {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     border-radius: var(--ax-radius-md);
     overflow: hidden;
   }
-  /* Stacked: a vertical KPI rail for the 4-column slot beside a hero chart,
-     which is the whole point of leading a page with the chart instead of a
-     row of tiles. */
   .ax-statgroup--stack {
     grid-template-columns: 1fr;
   }
-  /* Six is the one count that reliably orphans: five 210px tracks fit across a
-     12-column card before six do, so a six-cell group runs 5 + 1 with a lone
-     cell stranded on its own row. Capping the track at a third of the block
-     makes it wrap as two full rows of three, and the 210px floor still takes
-     over on narrow screens (2 + 2 + 2, then stacked). */
+  /* Six cells wrap as two rows of three instead of 5 + 1. */
   .ax-statgroup:not(.ax-statgroup--stack):has(> .ax-statgroup__cell:nth-child(6)):not(
       :has(> .ax-statgroup__cell:nth-child(7))
     ) {
@@ -974,8 +873,6 @@
     align-items: center;
     gap: var(--ax-space-3);
     padding: var(--ax-space-4);
-    /* leading rule + rule underneath; both fall outside the block on the
-       first column and the last row, where overflow:hidden removes them. */
     box-shadow: -1px 0 0 var(--ax-border), 0 1px 0 var(--ax-border);
   }
   [dir="rtl"] .ax-statgroup__cell {
@@ -1022,16 +919,11 @@
     gap: 1px;
     min-width: 0;
   }
-  /* Labels wrap rather than ellipsize: a two-word metric name clipped to
-     "Cus…" tells the reader nothing, and the row simply grows to fit. */
   .ax-statgroup__label {
     font-size: var(--ax-text-xs);
     line-height: 1.35;
     color: var(--ax-text-muted);
   }
-  /* The figure is the one thing that must not wrap, so it is also the one
-     thing that can outgrow a squeezed cell — clip it rather than let it run
-     under the delta. */
   .ax-statgroup__value {
     font-family: var(--ax-font-display);
     font-size: var(--ax-text-lg);
@@ -1058,7 +950,6 @@
     color: var(--ax-delta-down);
   }
 
-  /* ── Quick-action tiles. */
   .ax-quicktiles {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
@@ -1110,7 +1001,6 @@
     line-height: 1.25;
   }
 
-  /* ── Gauge card: one radial figure with supporting rows beneath. */
   .ax-gauge {
     display: flex;
     flex-direction: column;
@@ -1152,8 +1042,6 @@
     color: var(--ax-text-strong);
   }
 
-  /* ── Rank list: ranked rows carrying their own proportion bar, so a
-     leaderboard reads as a chart without costing a chart mount. */
   .ax-ranklist {
     display: flex;
     flex-direction: column;
@@ -1221,8 +1109,6 @@
     border-radius: inherit;
   }
 
-  /* ── Spotlight: one oversized figure. Designed for a --gradient or
-     --filled card, where it inherits the inverted ink. */
   .ax-spotlight {
     display: flex;
     flex-direction: column;
@@ -1266,7 +1152,6 @@
     height: var(--ax-icon-xs);
     stroke-width: var(--ax-icon-stroke-bold);
   }
-  /* Outside a gradient card the chip needs a real tone, not white-on-white. */
   .ax-card:not(.ax-card--gradient) .ax-spotlight__label,
   .ax-card:not(.ax-card--gradient) .ax-spotlight__foot {
     color: var(--ax-text-muted);
@@ -1282,9 +1167,6 @@
 
   /* ========================================================================
      5 · BADGES — .ax-badge
-     Variants: --soft(default)/--solid/--outline/--dot/--count/--pill/--chip/--filter.
-     Tones: --success/--warning/--danger/--info/--neutral/--accent.
-     Sizes: --sm/default. Alpine: --chip remove / --filter toggles aria-pressed.
      ======================================================================== */
   .ax-badge {
     --_badge-50: var(--ax-fill-hover);
@@ -1331,7 +1213,6 @@
     opacity: 1;
   }
 
-  /* tones */
   .ax-badge--success {
     --_badge-50: var(--ax-success-50);
     --_badge-500: var(--ax-success-500);
@@ -1357,7 +1238,6 @@
     --_badge-500: var(--ax-text-muted);
   }
 
-  /* styles */
   .ax-badge--soft {
     color: var(--_badge-500);
     background: var(--_badge-50);
@@ -1395,14 +1275,12 @@
     background: var(--ax-danger-500);
   }
 
-  /* sizes */
   .ax-badge--sm {
     height: 16px;
     padding-inline: var(--ax-space-1);
     font-size: var(--ax-text-2xs);
   }
 
-  /* interactive */
   .ax-badge--chip,
   .ax-badge--filter {
     cursor: pointer;
@@ -1419,9 +1297,6 @@
 
   /* ========================================================================
      6 · AVATARS — .ax-avatar
-     image / __initials / __icon fallback. Shapes --circle(default)/--squircle.
-     Sizes --xs/--sm/--md(default)/--lg/--xl/--2xl. Status dot. Group + overflow.
-     Alpine: __overflow → axPopover list.
      ======================================================================== */
   .ax-avatar {
     --_av-size: 36px;
@@ -1447,11 +1322,7 @@
     object-fit: cover;
     border-radius: inherit;
   }
-  /* `.ax-avatar` is normally the CONTAINER and `.ax-avatar__img` the portrait
-     inside it, but the shell partials collapse both roles onto one <img> (header
-     trigger, profile card, notification chips, sidebar user). That element gets
-     the box without the portrait rule, so the first non-square photo a buyer
-     drops in is stretched to fit by the initial `object-fit: fill`. */
+  /* shell partials collapse container + portrait onto one <img> */
   img.ax-avatar {
     object-fit: cover;
   }
@@ -1539,8 +1410,6 @@
 
   /* ========================================================================
      7 · ALERTS — .ax-alert
-     Tones + --solid/--inline/--dismissible/--with-actions/--accent-edge.
-     Alpine: dismiss removes node + returns focus.
      ======================================================================== */
   .ax-alert {
     --_a-50: var(--ax-fill-hover);
@@ -1645,8 +1514,6 @@
 
   /* ========================================================================
      8 · TOASTS — .ax-toast (region .ax-toast-region)
-     positions: top/bottom × start/center/end. Stack gap. Timer line.
-     Alpine: axToast global store (queue/timers/promise/politeness).
      ======================================================================== */
   .ax-toast-region {
     position: fixed;
@@ -1792,9 +1659,7 @@
   }
 
   /* ========================================================================
-     9 · DROPDOWN / MENU — .ax-dropdown / .ax-menu (glass overlay)
-     __item/__icon/__shortcut/__divider/__section-label/__check, --item--danger.
-     Alpine: axDropdown.
+     9 · DROPDOWN / MENU — .ax-dropdown / .ax-menu
      ======================================================================== */
   .ax-dropdown {
     position: relative;
@@ -1808,8 +1673,7 @@
     overflow-y: auto;
     padding: var(--ax-space-2);
     color: var(--ax-text);
-    /* Opaque, no backdrop-filter — dropdown menus read cleaner solid, and when
-       nested in a glass card the blur can't reach the page anyway. */
+    /* Opaque, no backdrop-filter — reads cleaner solid inside glass cards. */
     background: var(--ax-surface-solid);
     border: 1px solid var(--ax-border);
     border-radius: var(--ax-radius-lg);
@@ -1893,9 +1757,6 @@
 
   /* ========================================================================
      10 · MODALS — .ax-modal
-     __backdrop/__dialog/__header/__title/__close/__body/__footer/__status/__counter.
-     Sizes --sm/default/--lg/--xl/--fullscreen. --scrollable / --centered.
-     Alpine: axModal.
      ======================================================================== */
   .ax-modal {
     position: fixed;
@@ -2032,9 +1893,7 @@
   }
 
   /* ========================================================================
-     11 · OFFCANVAS (drawer) — .ax-offcanvas (4 edges)
-     __backdrop/__panel/__header/__body/__footer. --start/--end/--top/--bottom.
-     Alpine: axOffcanvas.
+     11 · OFFCANVAS (drawer) — .ax-offcanvas
      ======================================================================== */
   .ax-offcanvas {
     position: fixed;
@@ -2148,8 +2007,6 @@
 
   /* ========================================================================
      12 · TABS / NAVS / PILLS — .ax-tabs
-     --line(default)/--pill/--segmented/--vertical/--scrollable.
-     __list/__tab/__icon/__badge/__indicator/__panel. Alpine: axTabs.
      ======================================================================== */
   .ax-tabs {
     display: flex;
@@ -2279,19 +2136,15 @@
     overflow-x: auto;
     flex-wrap: nowrap;
   }
-  /* Without these the tabs just SHRINK to fit — flex items default to
-     flex-shrink:1, so the row never overflows and never scrolls; labels wrap
-     to two lines instead. Opting out of shrink is what makes it scrollable. */
+  /* Without these the tabs SHRINK to fit (flex-shrink:1) and never scroll. */
   .ax-tabs--scrollable .ax-tabs__tab {
     flex: 0 0 auto;
     white-space: nowrap;
   }
-  /* The bar itself is hidden in base.css §3 — the global `*` scrollbar rule is
-     unlayered and would beat anything declared here inside @layer components. */
+  /* The scrollbar itself is hidden in base.css §3 (unlayered `*` rule wins here). */
 
   /* ========================================================================
-     13 · BREADCRUMB — .ax-breadcrumb (chevron separators)
-     Alpine: collapsed overflow → axDropdown.
+     13 · BREADCRUMB — .ax-breadcrumb
      ======================================================================== */
   .ax-breadcrumb__list {
     display: flex;
@@ -2345,8 +2198,6 @@
 
   /* ========================================================================
      14 · PAGINATION — .ax-pagination
-     __prev/__next/__pages/__page/__ellipsis/__summary. current = accent-wash.
-     Alpine: none (anchors/buttons).
      ======================================================================== */
   .ax-pagination {
     display: flex;
@@ -2422,9 +2273,7 @@
   }
 
   /* ========================================================================
-     15 · PROGRESS — .ax-progress (linear + striped + circle + segmented)
-     __track/__fill/__value/__center/__ring-track/__ring-fill.
-     Alpine: none (style/aria driven).
+     15 · PROGRESS — .ax-progress
      ======================================================================== */
   .ax-progress {
     --_p-h: 6px;
@@ -2554,7 +2403,6 @@
 
   /* ========================================================================
      16 · SPINNERS & LOADERS — .ax-spinner / .ax-page-loader
-     Alpine: none. data-ax-loader="off" hides page loader.
      ======================================================================== */
   .ax-spinner {
     --_s-size: 24px;
@@ -2615,9 +2463,7 @@
   }
 
   /* ========================================================================
-     17 · SKELETONS — .ax-skeleton (+ composites)
-     --line/--circle/--rect, --shimmer(default)/--pulse/--static.
-     Alpine: none (CSS); container toggles aria-busy.
+     17 · SKELETONS — .ax-skeleton
      ======================================================================== */
   .ax-skeleton {
     position: relative;
@@ -2693,9 +2539,6 @@
 
   /* ========================================================================
      18 · LIST GROUPS — .ax-list
-     __row/__leading/__content/__title/__meta/__trailing/__group-label.
-     --flush/--inset/--linked/--selectable/--actionable/--grouped + densities.
-     Alpine: --selectable roving; --sortable → axSortable.
      ======================================================================== */
   .ax-list {
     margin: 0;
@@ -2790,8 +2633,6 @@
 
   /* ========================================================================
      19 · TIMELINE — .ax-timeline
-     __item/__marker/__content/__time/__title/__body. Hairline rail.
-     Alpine: none (expandable items use axCollapse).
      ======================================================================== */
   .ax-timeline {
     position: relative;
@@ -2885,9 +2726,7 @@
   }
 
   /* ========================================================================
-     20 · RIBBONS — .ax-ribbon (host must be position:relative; overflow:hidden)
-     --corner(--top-start/--top-end), --edge/--flag, --pill, semantic tones.
-     Alpine: none.
+     20 · RIBBONS — .ax-ribbon
      ======================================================================== */
   .ax-ribbon {
     position: absolute;
@@ -2953,8 +2792,6 @@
 
   /* ========================================================================
      21 · RATINGS — .ax-rating
-     __star(--full/--half/--empty), __value. Amber fill (documented exception).
-     Alpine: axRating (input).
      ======================================================================== */
   .ax-rating {
     display: inline-flex;
@@ -2998,8 +2835,6 @@
 
   /* ========================================================================
      22 · ACCORDION / COLLAPSE — .ax-accordion / .ax-collapse
-     __item/__header/__title/__chevron/__panel. --bordered/--flush.
-     Alpine: axCollapse / axAccordion.
      ======================================================================== */
   .ax-accordion {
     display: flex;
@@ -3074,9 +2909,7 @@
   }
 
   /* ========================================================================
-     23 · TOOLTIP — .ax-tooltip (inverse dark bubble default)
-     __text/__arrow/__key. placements --top/--bottom/--start/--end.
-     Alpine: axTooltip.
+     23 · TOOLTIP — .ax-tooltip
      ======================================================================== */
   .ax-tooltip {
     position: absolute;
@@ -3122,8 +2955,7 @@
   }
 
   /* ========================================================================
-     24 · POPOVER — .ax-popover (mini glass card)
-     __panel/__header/__body/__footer/__arrow. Alpine: axPopover.
+     24 · POPOVER — .ax-popover
      ======================================================================== */
   .ax-popover {
     position: relative;
@@ -3135,7 +2967,6 @@
     min-width: 200px;
     max-width: 360px;
     color: var(--ax-text);
-    /* Opaque, no backdrop-filter (see .ax-menu / .ax-combobox__panel). */
     background: var(--ax-surface-solid);
     border: 1px solid var(--ax-border);
     border-radius: var(--ax-radius-lg);
@@ -3168,9 +2999,7 @@
   }
 
   /* ========================================================================
-     25 · TABLES — .ax-table (wrap + base/striped/bordered/hover/compact)
-     sticky header, selected row = accent-wash + accent marker, status pills.
-     Alpine: axTableSelect, sticky shadow toggle, column-vis via axDropdown.
+     25 · TABLES — .ax-table
      ======================================================================== */
   .ax-table-wrap {
     position: relative;
@@ -3290,11 +3119,8 @@
 
   /* ========================================================================
      26 · FORMS — fields, inputs, selects, textarea, checks/radios/switch,
-     input-group, range, file/dropzone, combobox, labels/help/error, validation.
-     Alpine: axCombobox, axRange, axFileDrop (where noted).
+     input-group, range, file/dropzone, combobox, labels/help/error.
      ======================================================================== */
-
-  /* — field wrapper — */
   .ax-field {
     display: flex;
     flex-direction: column;
@@ -3326,7 +3152,6 @@
     color: var(--ax-success-500);
   }
 
-  /* — glass field recipe (input / textarea / select) — */
   .ax-input,
   .ax-textarea,
   .ax-select {
@@ -3416,7 +3241,6 @@
     border-color: var(--ax-success-500);
   }
 
-  /* — affixes (leading/trailing icon or button) — */
   .ax-field__control {
     position: relative;
     display: flex;
@@ -3455,12 +3279,10 @@
     border: 0;
   }
 
-  /* — floating label — */
   .ax-input--floating {
     position: relative;
   }
 
-  /* — checkbox — */
   .ax-check {
     display: inline-flex;
     align-items: center;
@@ -3521,7 +3343,6 @@
     border-color: var(--ax-danger-500);
   }
 
-  /* — radio — */
   .ax-radio {
     position: relative;
     flex: 0 0 auto;
@@ -3557,7 +3378,6 @@
     cursor: not-allowed;
   }
 
-  /* — switch (track → accent when on) — */
   .ax-switch {
     position: relative;
     flex: 0 0 auto;
@@ -3628,7 +3448,6 @@
     }
   }
 
-  /* — input group — */
   .ax-input-group {
     display: flex;
     align-items: stretch;
@@ -3673,7 +3492,6 @@
     border-color: var(--ax-danger-500);
   }
 
-  /* — range slider — Alpine: axRange — */
   .ax-range {
     display: flex;
     align-items: center;
@@ -3752,7 +3570,6 @@
     border-radius: 50%;
   }
 
-  /* — file upload / dropzone — Alpine: axFileDrop — */
   .ax-file {
     display: inline-flex;
   }
@@ -3821,7 +3638,6 @@
     color: var(--ax-danger-500);
   }
 
-  /* — combobox / enhanced select — Alpine: axCombobox — */
   .ax-combobox {
     position: relative;
     width: 100%;
@@ -3875,9 +3691,7 @@
     max-height: 320px;
     overflow-y: auto;
     padding: var(--ax-space-2);
-    /* Opaque surface, no backdrop-filter: the panel lives inside a glass card
-       (a backdrop root), so its own backdrop-filter could only blur the card's
-       flat surface, never the page — solid reads cleaner for option lists. */
+    /* Opaque, no backdrop-filter (panel lives inside a glass card). */
     background: var(--ax-surface-solid);
     border: 1px solid var(--ax-border);
     border-radius: var(--ax-radius-lg);
@@ -3944,7 +3758,6 @@
     gap: var(--ax-space-1);
   }
 
-  /* — tags input — */
   .ax-tags {
     display: flex;
     flex-wrap: wrap;
@@ -3970,7 +3783,6 @@
     outline: none;
   }
 
-  /* — password strength meter — */
   .ax-strength {
     display: flex;
     flex-direction: column;
@@ -4000,7 +3812,6 @@
     color: var(--ax-text-subtle);
   }
 
-  /* — OTP — */
   .ax-otp {
     display: inline-flex;
     gap: var(--ax-space-2);
@@ -4008,9 +3819,7 @@
   }
   .ax-otp__cell {
     width: 44px;
-    /* 44px is the ideal, not a floor: six fixed cells plus five gaps need 304px,
-       more than a 360px phone leaves inside a card, and the last cell was
-       clipped. flex-shrink lets the row give way instead. */
+    /* 44px is the ideal, not a floor: let the row shrink on a 360px phone. */
     flex: 0 1 44px;
     min-inline-size: 0;
     height: 48px;
@@ -4029,9 +3838,7 @@
   }
 
   /* ========================================================================
-     27 · SEGMENT — .ax-segment (theme/dir/density segmented toggles)
-     Used by customizer + header. Active = accent-wash + accent text.
-     Alpine: none (buttons set data-ax-* / aria-pressed).
+     27 · SEGMENT — .ax-segment
      ======================================================================== */
   .ax-segment {
     display: inline-flex;
@@ -4075,9 +3882,7 @@
   }
 
   /* ========================================================================
-     28 · CHART WRAPPER — .ax-chart (JS-mounted box: ApexCharts/Chart.js/ECharts)
-     Sized container + legend + a11y data-mirror table styling.
-     Alpine: none (charts init by src/js/charts/* via data-ax-chart-*).
+     28 · CHART WRAPPER — .ax-chart
      ======================================================================== */
   .ax-chart {
     position: relative;
@@ -4111,8 +3916,7 @@
   }
 
   /* ========================================================================
-     29 · INLINE TYPOGRAPHY HELPERS — link/code/kbd/mark/eyebrow/truncate
-     (consume role tokens; pages use these inline)
+     29 · INLINE TYPOGRAPHY HELPERS + brand logos
      ======================================================================== */
   .ax-link {
     color: var(--ax-link);
@@ -4173,5 +3977,542 @@
   :is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .ax-sidebar__logo-large {
     display: none !important;
   }
-}
 
+  /* ========================================================================
+     30 · MOBILE / RESPONSIVE  (ALL phone, tablet & touch rules live here)
+     ------------------------------------------------------------------------
+     Breakpoints match base.css:  ≤1024 tablet · ≤767.98 phone · ≤480 small
+     phone · ≤360 very small.  Plus (pointer:coarse) touch targets,
+     (hover:none) hover-only affordances, short-landscape, safe-area insets.
+     Tokens only — no new colors. Same layer as the rules above, so these win
+     by source order at equal specificity.
+     ======================================================================== */
+
+  /* ── Tablet (≤1024) ─────────────────────────────────────────────────── */
+  @media (max-width: 1024px) {
+    .ax-card__header {
+      padding: var(--ax-space-4) var(--ax-space-5);
+    }
+    .ax-card__body {
+      padding: var(--ax-space-5);
+    }
+    .ax-card__footer {
+      padding: var(--ax-space-3) var(--ax-space-5);
+    }
+    .ax-modal__header,
+    .ax-modal__body,
+    .ax-modal__footer,
+    .ax-offcanvas__header,
+    .ax-offcanvas__body,
+    .ax-offcanvas__footer {
+      padding-inline: var(--ax-space-5);
+    }
+    .ax-welcome__body {
+      padding: var(--ax-space-5);
+      gap: var(--ax-space-5);
+    }
+  }
+
+  /* ── Phone (≤767.98) ────────────────────────────────────────────────── */
+  @media (max-width: 767.98px) {
+    /* Cards */
+    .ax-card {
+      border-radius: var(--ax-radius-lg);
+    }
+    .ax-card__header {
+      flex-wrap: wrap;
+      padding: var(--ax-space-4);
+    }
+    .ax-card__titles {
+      flex: 1 1 160px;
+    }
+    .ax-card__actions {
+      flex-wrap: wrap;
+      max-inline-size: 100%;
+    }
+    .ax-card__body {
+      padding: var(--ax-space-4);
+    }
+    .ax-card__footer {
+      flex-wrap: wrap;
+      padding: var(--ax-space-3) var(--ax-space-4);
+    }
+    .ax-card--compact .ax-card__header {
+      padding: var(--ax-space-3) var(--ax-space-4);
+    }
+    .ax-card--compact .ax-card__body {
+      padding: var(--ax-space-4);
+    }
+    .ax-card__title {
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
+    /* hover lift makes no sense on touch and can "stick" after a tap */
+    .ax-card--interactive:hover {
+      box-shadow: var(--ax-shadow-card);
+      border-color: var(--ax-border);
+    }
+
+    /* KPI */
+    .ax-kpi__value,
+    .ax-card__kpi-val {
+      font-size: var(--ax-text-2xl);
+      line-height: var(--ax-leading-2xl);
+    }
+    .ax-kpi__icon,
+    .ax-card__kpi-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* Dashboard composition blocks */
+    .ax-welcome::before {
+      width: 260px;
+      height: 260px;
+    }
+    .ax-welcome__body {
+      padding: var(--ax-space-4);
+      gap: var(--ax-space-4);
+    }
+    .ax-welcome__title {
+      font-size: var(--ax-text-xl);
+    }
+    .ax-welcome__actions {
+      padding-block-start: var(--ax-space-3);
+    }
+    .ax-welcome__stats {
+      gap: var(--ax-space-4);
+      inline-size: 100%;
+    }
+    .ax-welcome__stat {
+      min-width: 0;
+      flex: 1 1 80px;
+    }
+    .ax-welcome__stat dd {
+      font-size: var(--ax-text-lg);
+    }
+    .ax-statgroup {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+    .ax-statgroup:not(.ax-statgroup--stack):has(> .ax-statgroup__cell:nth-child(6)):not(
+        :has(> .ax-statgroup__cell:nth-child(7))
+      ) {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+    .ax-statgroup__cell {
+      padding: var(--ax-space-3);
+      gap: var(--ax-space-2);
+    }
+    .ax-statgroup__icon {
+      width: 32px;
+      height: 32px;
+    }
+    .ax-statgroup__value {
+      font-size: var(--ax-text-md);
+    }
+    .ax-quicktiles {
+      grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+      gap: var(--ax-space-2);
+    }
+    .ax-quicktiles__tile {
+      padding: var(--ax-space-3) var(--ax-space-2);
+    }
+    .ax-spotlight__value {
+      font-size: var(--ax-text-2xl);
+    }
+    .ax-gauge__rows {
+      grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    }
+
+    /* Button groups / segmented controls scroll instead of overflowing */
+    .ax-btn-group--segmented,
+    .ax-segment {
+      max-inline-size: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ax-btn-group--segmented > .ax-btn,
+    .ax-segment__option {
+      flex: 0 0 auto;
+    }
+
+    /* Tabs: one scrollable row; vertical tabs become a horizontal strip */
+    .ax-tabs__list {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+    }
+    .ax-tabs__tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .ax-tabs__panel {
+      padding-top: var(--ax-space-4);
+    }
+    .ax-tabs--vertical {
+      flex-direction: column;
+      gap: var(--ax-space-4);
+    }
+    .ax-tabs--vertical .ax-tabs__list {
+      flex-direction: row;
+      align-items: center;
+      border-inline-start: 0;
+      border-bottom: 1px solid var(--ax-border);
+    }
+    .ax-tabs--vertical .ax-tabs__indicator {
+      display: none;
+    }
+    .ax-tabs--vertical .ax-tabs__tab[aria-selected="true"],
+    .ax-tabs--vertical .ax-tabs__tab.is-active {
+      color: var(--ax-accent);
+      box-shadow: inset 0 -2px 0 var(--ax-accent);
+    }
+
+    /* Breadcrumb / pagination */
+    .ax-breadcrumb__list {
+      font-size: var(--ax-text-xs);
+    }
+    .ax-pagination {
+      justify-content: center;
+      gap: var(--ax-space-2);
+    }
+    .ax-pagination__summary {
+      inline-size: 100%;
+      text-align: center;
+      order: 2;
+    }
+    .ax-pagination__pages {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Tables: scroll inside the wrapper rather than squashing columns.
+       Add .ax-table--fit to a narrow table to opt out. */
+    .ax-table-wrap {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+    }
+    .ax-table-wrap > .ax-table:not(.ax-table--fit) {
+      min-inline-size: 600px;
+    }
+    .ax-table__th,
+    .ax-table__td {
+      padding: var(--ax-space-2) var(--ax-space-3);
+    }
+    .ax-table__foot td {
+      padding: var(--ax-space-2) var(--ax-space-3);
+    }
+
+    /* Alerts / lists / timeline */
+    .ax-alert {
+      padding: var(--ax-space-3) var(--ax-space-4);
+    }
+    .ax-alert__actions {
+      flex-wrap: wrap;
+    }
+    .ax-list__row {
+      padding: var(--ax-space-3);
+    }
+    .ax-timeline__item {
+      gap: var(--ax-space-3);
+    }
+
+    /* Toasts: full-width strip, centred, clear of the home indicator */
+    .ax-toast-region {
+      inset-inline: 0;
+      margin-inline: auto;
+      width: min(100%, 420px);
+      padding: var(--ax-space-3);
+    }
+    .ax-toast-region--bottom-end,
+    .ax-toast-region--bottom-start,
+    .ax-toast-region--bottom-center {
+      padding-block-end: max(var(--ax-space-3), env(safe-area-inset-bottom, 0px));
+    }
+    .ax-toast-region--top-end,
+    .ax-toast-region--top-start,
+    .ax-toast-region--top-center {
+      padding-block-start: max(var(--ax-space-3), env(safe-area-inset-top, 0px));
+    }
+
+    /* Floating panels never wider than the screen */
+    .ax-menu {
+      min-width: 180px;
+      max-inline-size: calc(100vw - var(--ax-space-4));
+    }
+    .ax-popover__panel {
+      max-width: calc(100vw - var(--ax-space-6));
+    }
+    .ax-tooltip {
+      max-width: min(240px, calc(100vw - var(--ax-space-6)));
+    }
+    .ax-combobox__panel {
+      max-height: min(320px, 50vh);
+    }
+
+    /* Modals: near-full-width, scroll inside, safe-area aware */
+    .ax-modal {
+      padding: var(--ax-space-3);
+      padding-block-start: max(var(--ax-space-3), env(safe-area-inset-top, 0px));
+      padding-block-end: max(var(--ax-space-3), env(safe-area-inset-bottom, 0px));
+    }
+    .ax-modal__dialog,
+    .ax-modal__dialog--sm,
+    .ax-modal__dialog--lg,
+    .ax-modal__dialog--xl {
+      max-width: 100%;
+      max-height: calc(100vh - var(--ax-space-6));
+    }
+    .ax-modal__header,
+    .ax-modal__body,
+    .ax-modal__footer {
+      padding: var(--ax-space-4);
+    }
+    .ax-modal__footer {
+      flex-wrap: wrap;
+    }
+    .ax-modal__title {
+      font-size: var(--ax-text-md);
+    }
+    .ax-modal__dialog--fullscreen {
+      border-radius: 0;
+    }
+
+    /* Offcanvas: wider on phones, safe-area padding on the footer */
+    .ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--start,
+    .ax-offcanvas__panel--sm.ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--sm.ax-offcanvas__panel--start,
+    .ax-offcanvas__panel--lg.ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--lg.ax-offcanvas__panel--start {
+      width: min(420px, 94vw);
+    }
+    .ax-offcanvas__panel--top,
+    .ax-offcanvas__panel--bottom {
+      height: min(420px, 85vh);
+    }
+    .ax-offcanvas__header,
+    .ax-offcanvas__body,
+    .ax-offcanvas__footer {
+      padding: var(--ax-space-4);
+    }
+    .ax-offcanvas__footer {
+      flex-wrap: wrap;
+      padding-block-end: max(var(--ax-space-4), env(safe-area-inset-bottom, 0px));
+    }
+
+    /* Forms */
+    .ax-dropzone__area {
+      padding: var(--ax-space-5);
+    }
+    .ax-input-group {
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    .ax-input-group .ax-input,
+    .ax-input-group .ax-select {
+      min-width: 0;
+    }
+    .ax-chart__legend {
+      gap: var(--ax-space-2) var(--ax-space-3);
+    }
+  }
+
+  /* ── Small phone (≤480) ─────────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .ax-statgroup {
+      grid-template-columns: 1fr;
+    }
+    .ax-statgroup:not(.ax-statgroup--stack):has(> .ax-statgroup__cell:nth-child(6)):not(
+        :has(> .ax-statgroup__cell:nth-child(7))
+      ) {
+      grid-template-columns: 1fr;
+    }
+    .ax-quicktiles {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .ax-welcome__actions > .ax-btn {
+      flex: 1 1 auto;
+    }
+    /* stack dialog / drawer actions full-width, primary action on top */
+    .ax-modal__footer,
+    .ax-offcanvas__footer,
+    .ax-card__footer {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
+    .ax-modal__footer > .ax-btn,
+    .ax-offcanvas__footer > .ax-btn,
+    .ax-card__footer > .ax-btn {
+      width: 100%;
+    }
+    .ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--start,
+    .ax-offcanvas__panel--sm.ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--sm.ax-offcanvas__panel--start,
+    .ax-offcanvas__panel--lg.ax-offcanvas__panel--end,
+    .ax-offcanvas__panel--lg.ax-offcanvas__panel--start {
+      width: 100vw;
+      border-radius: 0;
+    }
+    .ax-pagination__page,
+    .ax-pagination__prev,
+    .ax-pagination__next,
+    .ax-pagination__ellipsis {
+      min-width: 32px;
+      height: 32px;
+    }
+    .ax-otp {
+      gap: var(--ax-space-1);
+    }
+    .ax-otp__cell {
+      height: 44px;
+    }
+  }
+
+  /* ── Very small phone (≤360) ────────────────────────────────────────── */
+  @media (max-width: 360px) {
+    .ax-card__header,
+    .ax-card__body {
+      padding: var(--ax-space-3);
+    }
+    .ax-quicktiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ax-spotlight__value {
+      font-size: var(--ax-text-xl);
+    }
+  }
+
+  /* ── Touch devices: comfortable ≥44px targets ───────────────────────── */
+  @media (pointer: coarse) {
+    .ax-btn {
+      --_btn-h: max(var(--ax-control-h), 42px);
+    }
+    .ax-btn--sm,
+    .ax-btn--compact {
+      --_btn-h: max(var(--ax-control-h-compact), 36px);
+    }
+    .ax-btn--lg {
+      --_btn-h: max(var(--ax-control-h-lg), 46px);
+    }
+    .ax-btn--link {
+      min-height: 0;
+    }
+    .ax-input,
+    .ax-select {
+      --_f-h: max(var(--ax-control-h), 44px);
+    }
+    .ax-input--sm,
+    .ax-select--sm {
+      --_f-h: max(var(--ax-control-h-compact), 38px);
+    }
+    .ax-combobox__trigger,
+    .ax-tags {
+      min-height: 44px;
+    }
+    .ax-checkbox,
+    .ax-radio {
+      width: 22px;
+      height: 22px;
+    }
+    .ax-radio:checked::after {
+      inset: 5px;
+    }
+    .ax-check {
+      min-height: 44px;
+    }
+    .ax-switch {
+      width: 44px;
+      height: 24px;
+    }
+    .ax-switch::after {
+      width: 20px;
+      height: 20px;
+    }
+    .ax-switch:checked::after {
+      transform: translateX(20px);
+    }
+    [dir="rtl"] .ax-switch:checked::after {
+      transform: translateX(-20px);
+    }
+    .ax-menu__item,
+    .ax-combobox__option {
+      min-height: 44px;
+    }
+    .ax-tabs__tab {
+      min-height: 44px;
+    }
+    .ax-segment__option {
+      min-height: 36px;
+    }
+    .ax-pagination__page,
+    .ax-pagination__prev,
+    .ax-pagination__next {
+      min-width: 40px;
+      height: 40px;
+    }
+    .ax-modal__close,
+    .ax-offcanvas__close,
+    .ax-alert__dismiss,
+    .ax-dropzone__remove,
+    .ax-combobox__clear {
+      min-width: 36px;
+      min-height: 36px;
+      align-items: center;
+      justify-content: center;
+    }
+    .ax-range__handle {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  /* ── No hover (phones/tablets): never hide controls behind :hover ───── */
+  @media (hover: none) {
+    .ax-toast__dismiss {
+      opacity: 1;
+    }
+    .ax-badge__remove {
+      opacity: 1;
+    }
+  }
+
+  /* ── Short landscape phones ─────────────────────────────────────────── */
+  @media (max-height: 480px) and (orientation: landscape) {
+    .ax-modal {
+      align-items: flex-start;
+    }
+    .ax-modal__dialog {
+      max-height: calc(100vh - var(--ax-space-4));
+    }
+    .ax-offcanvas__panel--top,
+    .ax-offcanvas__panel--bottom {
+      height: 92vh;
+    }
+  }
+
+  /* ── dvh refinement (mobile browser URL bar) ────────────────────────── */
+  @supports (height: 100dvh) {
+    @media (max-width: 767.98px) {
+      .ax-modal__dialog,
+      .ax-modal__dialog--sm,
+      .ax-modal__dialog--lg,
+      .ax-modal__dialog--xl {
+        max-height: calc(100dvh - var(--ax-space-6));
+      }
+      .ax-modal__dialog--fullscreen {
+        height: 100dvh;
+        max-height: 100dvh;
+      }
+      .ax-combobox__panel {
+        max-height: min(320px, 50dvh);
+      }
+      .ax-offcanvas__panel--top,
+      .ax-offcanvas__panel--bottom {
+        height: min(420px, 85dvh);
+      }
+    }
+  }
+}
