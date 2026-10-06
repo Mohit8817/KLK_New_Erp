@@ -414,7 +414,7 @@ export function DleUsers() {
                 {(urlState !== 'All' || urlDistrict !== 'All' || urlActivity !== 'All' || urlCreated !== 'All') ? ' · Dashboard filter applied' : ''}
               </p>
             </div>
-            <div className="ax-card__actions" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="ax-card__actions w-25" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
               <select
                 className="ax-select ax-select--sm"
                 value={approval}
