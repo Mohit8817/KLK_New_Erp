@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
+import { TableExportToolbar, type ColumnDef, } from '../../../../../common/TableExportToolbar';
+import Pagination from '../../../../../common/pagination/Pagination';
 import SearchInput from '../../../../../common/search/SearchInput';
 import { createPortal } from 'react-dom';
 import { useClickOutside } from '../../../../../hooks/useClickOutside';
@@ -733,19 +734,6 @@ if (!list.length) {
   const rangeStart = filtered.length ? start + 1 : 0;
   const rangeEnd = Math.min(curPage * perPage, filtered.length);
 
-  const pageList: (number | '…')[] = useMemo(() => {
-    const out: (number | '…')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) out.push(i);
-      return out;
-    }
-    out.push(1);
-    if (curPage > 3) out.push('…');
-    for (let i = Math.max(2, curPage - 1); i <= Math.min(totalPages - 1, curPage + 1); i++) out.push(i);
-    if (curPage < totalPages - 2) out.push('…');
-    out.push(totalPages);
-    return out;
-  }, [totalPages, curPage]);
 
   const sortBy = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -1019,80 +1007,22 @@ if (!list.length) {
             </div>
           )}
 
-          {!loading && !!filtered.length && (
-            <div className="ax-card__footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>
-                  Showing {rangeStart}–{rangeEnd} of {filtered.length}
-                </span>
-
-                <label className="ax-cluster" style={{
-                  gap: 'var(--ax-space-2)',
-                  fontSize: 'var(--ax-text-xs)',
-                  color: 'var(--ax-text-muted)'
-                }}>
-                  Rows
-                  <select
-                    className="ax-select ax-select--sm"
-                    value={perPage}
-                    onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-                    aria-label="Rows per page"
-                    style={{ minWidth: 72 }}
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </label>
-              </div>
-
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button
-                  type="button"
-                  className="ax-pagination__prev"
-                  disabled={curPage === 1}
-                  aria-disabled={curPage === 1}
-                  onClick={() => setPage(Math.max(1, curPage - 1))}
-                  aria-label="Previous page"
-                >
-                  {ICON.chevL}
-                </button>
-
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p, i) => (
-                    <li key={`${p}-${i}`}>
-                      {p === '…'
-                        ? <span className="ax-pagination__ellipsis">…</span>
-                        : (
-                          <button
-                            type="button"
-                            className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`}
-                            aria-current={curPage === p ? 'page' : undefined}
-                            aria-label={`Page ${p}`}
-                            onClick={() => setPage(p)}
-                          >
-                            {p}
-                          </button>
-                        )}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  className="ax-pagination__next"
-                  disabled={curPage === totalPages}
-                  aria-disabled={curPage === totalPages}
-                  onClick={() => setPage(Math.min(totalPages, curPage + 1))}
-                  aria-label="Next page"
-                >
-                  {ICON.chevR}
-                </button>
-              </nav>
-            </div>
-          )}
+         {!loading && !!filtered.length && (
+  <Pagination
+    currentPage={curPage}
+    totalItems={filtered.length}
+    pageSize={perPage}
+    setPage={setPage}
+    onPageSizeChange={(size) => {
+      setPerPage(size);
+      setPage(1);
+    }}
+    pageSizeOptions={[5, 10, 25, 50, 100]}
+    showSummary
+    rangeStart={rangeStart}
+    rangeEnd={rangeEnd}
+  />
+)}
         </section>
       </div>
 

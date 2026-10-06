@@ -232,14 +232,15 @@ const TOOLBAR_CSS = `
     }
 
     .ax-export-toolbar__button {
-      font-size: 12px;
-      padding-inline: 6px !important;
-      gap: 4px;
+      font-size: 10px !important;    
+        padding: 3px 4px !important;
+      gap: 2px;
     }
 
+
     .ax-export-toolbar__button svg {
-      width: 13px;
-      height: 13px;
+      width: 12px !important;
+      height: 12px !important;
       flex-shrink: 0;
     }
   }

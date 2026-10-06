@@ -89,6 +89,42 @@ const FLOAT_CSS = `
     transition:none
   }
 }
+
+.bh-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:var(--ax-space-6)
+}
+.bh-span2{grid-column:span 2}
+.bh-footer{
+  display:flex;
+  justify-content:space-between;
+  gap:var(--ax-space-3)
+}
+
+@media (max-width:640px){
+  .bh-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:var(--ax-space-4)
+  }
+  .bh-span2{grid-column:auto}
+  .bh-grid .ax-select,
+  .bh-grid .ax-select option,
+  .bh-grid .ax-textarea,
+  .ax-ms__item{
+    font-size:12px;
+  }
+  .bh-empty{display:none}
+  .bh-footer{flex-direction:column}
+  .bh-footer .ax-btn{width:100%}
+  .ax-float__label{
+    max-width:calc(100% - var(--ax-space-6));
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap
+  }
+  .ax-ms__panel{max-height:50vh}
+}
 `;
 
 export function BiharAMCSSLAssignLight() {
@@ -111,8 +147,7 @@ export function BiharAMCSSLAssignLight() {
   const [selPan, setSelPan] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
 
-  const [errors, setErrors] =
-    useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [busy, setBusy] = useState(false);
 
@@ -121,13 +156,9 @@ export function BiharAMCSSLAssignLight() {
     msg: string;
   } | null>(null);
 
-  const msRef =
-    useRef<HTMLDivElement>(null);
+  const msRef = useRef<HTMLDivElement>(null);
 
-  const set = (
-    k: keyof typeof f,
-    v: string
-  ) => {
+  const set = (k: keyof typeof f, v: string) => {
     setF((s) => ({
       ...s,
       [k]: v,
@@ -138,9 +169,7 @@ export function BiharAMCSSLAssignLight() {
     if (e?.name !== 'AbortError') {
       setAlert({
         type: 'danger',
-        msg:
-          e?.message ||
-          'Something went wrong.',
+        msg: e?.message || 'Something went wrong.',
       });
     }
   };
@@ -152,46 +181,45 @@ export function BiharAMCSSLAssignLight() {
   useEffect(() => {
     const ac = new AbortController();
 
-  dleService
-  .getAdminUsers(ac.signal)
-  .then((j: any) => {
-    // 1) Company match (ya company null)
-    const companyUsers = filterByCompany(extractList(j));
+    dleService
+      .getAdminUsers(ac.signal)
+      .then((j: any) => {
+        // 1) Company match (ya company null)
+        const companyUsers = filterByCompany(extractList(j));
 
-    // 2) Sirf approved
-    const approvedUsers = filterApproved(companyUsers);
+        // 2) Sirf approved
+        const approvedUsers = filterApproved(companyUsers);
 
-    // 3) Bihar state
-    const biharUsers = approvedUsers.filter(
-      (u: any) =>
-        String(u?.state ?? '').trim().toLowerCase() === 'bihar'
-    );
+        // 3) Bihar state
+        const biharUsers = approvedUsers.filter(
+          (u: any) =>
+            String(u?.state ?? '').trim().toLowerCase() === 'bihar'
+        );
 
-    setUsers(toOptions(biharUsers));
+        setUsers(toOptions(biharUsers));
 
-    if (!biharUsers.length) {
-      setAlert({
-        type: 'danger',
-        msg: 'No approved DLE users found for your company.',
+        if (!biharUsers.length) {
+          setAlert({
+            type: 'danger',
+            msg: 'No approved DLE users found for your company.',
+          });
+        }
+      })
+      .catch((err: any) => {
+        if (err?.name !== 'AbortError') {
+          console.error('Failed to load Bihar DLE users:', err);
+          setAlert({
+            type: 'danger',
+            msg: err?.message || 'Unable to load Bihar DLE users.',
+          });
+        }
       });
-    }
-  })
-  .catch((err: any) => {
-    if (err?.name !== 'AbortError') {
-      console.error('Failed to load Bihar DLE users:', err);
-      setAlert({
-        type: 'danger',
-        msg: err?.message || 'Unable to load Bihar DLE users.',
-      });
-    }
-  });
+
     /* Load Bihar volumes */
 
     biharSslAmc
       .getVolumes(ac.signal)
-      .then((j) =>
-        setVolumes(toOptions(j))
-      )
+      .then((j) => setVolumes(toOptions(j)))
       .catch(fail);
 
     return () => ac.abort();
@@ -203,26 +231,14 @@ export function BiharAMCSSLAssignLight() {
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (
-        msRef.current &&
-        !msRef.current.contains(
-          e.target as Node
-        )
-      ) {
+      if (msRef.current && !msRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
 
-    document.addEventListener(
-      'mousedown',
-      h
-    );
+    document.addEventListener('mousedown', h);
 
-    return () =>
-      document.removeEventListener(
-        'mousedown',
-        h
-      );
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
   /* ─────────────────────────────────────────────
@@ -246,9 +262,7 @@ export function BiharAMCSSLAssignLight() {
 
     biharSslAmc
       .getDistricts(v)
-      .then((j) =>
-        setDistricts(toOptions(j))
-      )
+      .then((j) => setDistricts(toOptions(j)))
       .catch(fail);
   };
 
@@ -271,9 +285,7 @@ export function BiharAMCSSLAssignLight() {
 
     biharSslAmc
       .getBlocks(v, f.volume)
-      .then((j) =>
-        setBlocks(toOptions(j))
-      )
+      .then((j) => setBlocks(toOptions(j)))
       .catch(fail);
   };
 
@@ -293,14 +305,8 @@ export function BiharAMCSSLAssignLight() {
     if (!v) return;
 
     biharSslAmc
-      .getPanchayats(
-        v,
-        f.district_id,
-        f.volume
-      )
-      .then((j) =>
-        setPanchayats(toOptions(j))
-      )
+      .getPanchayats(v, f.district_id, f.volume)
+      .then((j) => setPanchayats(toOptions(j)))
       .catch(fail);
   };
 
@@ -310,24 +316,18 @@ export function BiharAMCSSLAssignLight() {
 
   const toggle = (v: string) => {
     setSelPan((s) =>
-      s.includes(v)
-        ? s.filter((x) => x !== v)
-        : [...s, v]
+      s.includes(v) ? s.filter((x) => x !== v) : [...s, v]
     );
   };
 
   const allSelected =
-    panchayats.length > 0 &&
-    selPan.length ===
-      panchayats.length;
+    panchayats.length > 0 && selPan.length === panchayats.length;
 
   /* ─────────────────────────────────────────────
      Submit
      ───────────────────────────────────────────── */
 
-  const submit = async (
-    e: React.FormEvent
-  ) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const er: Record<string, string> = {};
@@ -341,18 +341,15 @@ export function BiharAMCSSLAssignLight() {
     }
 
     if (!f.district_id) {
-      er.district_id =
-        'Select a district.';
+      er.district_id = 'Select a district.';
     }
 
     if (!f.block_id) {
-      er.block_id =
-        'Select a block.';
+      er.block_id = 'Select a block.';
     }
 
     if (!selPan.length) {
-      er.panchayat =
-        'Select at least one panchayat.';
+      er.panchayat = 'Select at least one panchayat.';
     }
 
     setErrors(er);
@@ -365,20 +362,17 @@ export function BiharAMCSSLAssignLight() {
     setAlert(null);
 
     try {
-      const res =
-        await biharSslAmc.storeAssignLight({
-          ...f,
-          district: f.district_id,
-          block: f.block_id,
-          panchayat_id: selPan,
-          panchayat: selPan,
-        });
+      const res = await biharSslAmc.storeAssignLight({
+        ...f,
+        district: f.district_id,
+        block: f.block_id,
+        panchayat_id: selPan,
+        panchayat: selPan,
+      });
 
       setAlert({
         type: 'success',
-        msg:
-          res?.message ||
-          'Assigned successfully.',
+        msg: res?.message || 'Assigned successfully.',
       });
 
       setF({
@@ -398,9 +392,7 @@ export function BiharAMCSSLAssignLight() {
     } catch (err: any) {
       setAlert({
         type: 'danger',
-        msg:
-          err?.message ||
-          'Something went wrong.',
+        msg: err?.message || 'Something went wrong.',
       });
     } finally {
       setBusy(false);
@@ -408,9 +400,7 @@ export function BiharAMCSSLAssignLight() {
   };
 
   const scls = (k: string) =>
-    `ax-select ax-float__input${
-      errors[k] ? ' is-invalid' : ''
-    }`;
+    `ax-select ax-float__input${errors[k] ? ' is-invalid' : ''}`;
 
   const err = (k: string) =>
     errors[k] && (
@@ -419,8 +409,7 @@ export function BiharAMCSSLAssignLight() {
         role="alert"
         style={{
           display: 'block',
-          marginTop:
-            'var(--ax-space-2)',
+          marginTop: 'var(--ax-space-2)',
         }}
       >
         {errors[k]}
@@ -428,9 +417,7 @@ export function BiharAMCSSLAssignLight() {
     );
 
   const panLabel = (v: string) =>
-    panchayats.find(
-      (p) => p.value === v
-    )?.label ?? v;
+    panchayats.find((p) => p.value === v)?.label ?? v;
 
   return (
     <>
@@ -441,8 +428,7 @@ export function BiharAMCSSLAssignLight() {
         subtitle="Assign SSL lights to a DLE user by volume, district, block and panchayats."
       />
 
-      <div className="ax-dash-grid">
-
+      <div className="ax-dash-grid" style={{ marginTop: '-26px' }}>
         {alert && (
           <div className="ax-col--12">
             <div
@@ -450,9 +436,7 @@ export function BiharAMCSSLAssignLight() {
               role="status"
             >
               <div className="ax-alert__content">
-                <p className="ax-alert__message">
-                  {alert.msg}
-                </p>
+                <p className="ax-alert__message">{alert.msg}</p>
               </div>
             </div>
           </div>
@@ -463,79 +447,41 @@ export function BiharAMCSSLAssignLight() {
           role="region"
           aria-label="Assign Bihar SSL lights"
         >
-
           <div className="ax-card__header">
             <div className="ax-card__titles">
-
-              <span className="ax-card__eyebrow">
-                Bihar
-              </span>
+              <span className="ax-card__eyebrow">Bihar</span>
 
               <p className="ax-card__subtitle">
-                All fields except remarks
-                are required.
+                All fields except remarks are required.
               </p>
-
             </div>
           </div>
 
-          <form
-            onSubmit={submit}
-            noValidate
-          >
-
+          <form onSubmit={submit} noValidate>
             <div className="ax-card__body">
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(2,minmax(0,1fr))',
-                  gap: 'var(--ax-space-6)',
-                }}
-              >
-
+              <div className="bh-grid">
                 {/* DLE USER */}
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="bh-user"
-                      className={scls(
-                        'user_id'
-                      )}
+                      className={scls('user_id')}
                       value={f.user_id}
-                      onChange={(e) =>
-                        set(
-                          'user_id',
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => set('user_id', e.target.value)}
                     >
-
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select DLE User</option>
 
                       {users.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
-
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-user"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-user">
                       DLE users *
                     </label>
-
                   </div>
 
                   {err('user_id')}
@@ -545,46 +491,25 @@ export function BiharAMCSSLAssignLight() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="bh-vol"
-                      className={scls(
-                        'volume'
-                      )}
+                      className={scls('volume')}
                       value={f.volume}
-                      onChange={(e) =>
-                        onVolume(
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => onVolume(e.target.value)}
                     >
-
-                      <option value="">
-                        {' '}
-                      </option>
-
-                        <option value="ALL">
-                        {'ALL'}
-                      </option>
+                      <option value="">Select Volume</option>
+                      <option value="0">ALL</option>
 
                       {volumes.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
-
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-vol"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-vol">
                       Volume *
                     </label>
-
                   </div>
 
                   {err('volume')}
@@ -594,45 +519,25 @@ export function BiharAMCSSLAssignLight() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="bh-dist"
-                      className={scls(
-                        'district_id'
-                      )}
-                      value={
-                        f.district_id
-                      }
-                      onChange={(e) =>
-                        onDistrict(
-                          e.target.value
-                        )
-                      }
+                      className={scls('district_id')}
+                      value={f.district_id}
+                      onChange={(e) => onDistrict(e.target.value)}
                       disabled={!f.volume}
                     >
-
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select District</option>
 
                       {districts.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
-
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-dist"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-dist">
                       District *
                     </label>
-
                   </div>
 
                   {err('district_id')}
@@ -642,47 +547,25 @@ export function BiharAMCSSLAssignLight() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="bh-block"
-                      className={scls(
-                        'block_id'
-                      )}
-                      value={
-                        f.block_id
-                      }
-                      onChange={(e) =>
-                        onBlock(
-                          e.target.value
-                        )
-                      }
-                      disabled={
-                        !f.district_id
-                      }
+                      className={scls('block_id')}
+                      value={f.block_id}
+                      onChange={(e) => onBlock(e.target.value)}
+                      disabled={!f.district_id}
                     >
-
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select Block</option>
 
                       {blocks.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
-
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-block"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-block">
                       Block *
                     </label>
-
                   </div>
 
                   {err('block_id')}
@@ -690,48 +573,43 @@ export function BiharAMCSSLAssignLight() {
 
                 {/* PANCHAYAT */}
 
-                <div
-                  className="ax-ms"
-                  ref={msRef}
-                >
-
+                <div className="ax-ms" ref={msRef}>
                   <div className="ax-float ax-float--select">
-
-                    <button
-                      type="button"
+                    <select
                       id="bh-pan"
-                      className={`ax-select ax-float__input${
-                        errors.panchayat
-                          ? ' is-invalid'
-                          : ''
-                      }`}
-                      style={{
-                        textAlign: 'start',
+                      className={scls('panchayat')}
+                      value=""
+                      onChange={() => {}}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        if (f.block_id) setOpen((o) => !o);
                       }}
-                      onClick={() =>
-                        f.block_id &&
-                        setOpen(
-                          (o) => !o
-                        )
-                      }
-                      disabled={
-                        !f.block_id
-                      }
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === 'Enter' ||
+                          e.key === ' ' ||
+                          e.key === 'ArrowDown'
+                        ) {
+                          e.preventDefault();
+                          if (f.block_id) setOpen(true);
+                        } else if (e.key === 'Escape') {
+                          setOpen(false);
+                        }
+                      }}
+                      disabled={!f.block_id}
                       aria-haspopup="listbox"
                       aria-expanded={open}
                     >
-                      {selPan.length
-                        ? `${selPan.length} selected`
-                        : '\u00A0'}
-                    </button>
+                      <option value="">
+                        {selPan.length
+                          ? `${selPan.length} selected`
+                          : 'Select Panchayat'}
+                      </option>
+                    </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-pan"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-pan">
                       Panchayat *
                     </label>
-
                   </div>
 
                   {open && (
@@ -740,80 +618,45 @@ export function BiharAMCSSLAssignLight() {
                       role="listbox"
                       aria-multiselectable="true"
                     >
-
-                      {panchayats.length ===
-                        0 && (
+                      {panchayats.length === 0 && (
                         <div
                           className="ax-ms__item"
-                          style={{
-                            color:
-                              'var(--ax-text-subtle)',
-                          }}
+                          style={{ color: 'var(--ax-text-subtle)' }}
                         >
-                          No panchayat
-                          found
+                          No panchayat found
                         </div>
                       )}
 
-                      {panchayats.length >
-                        0 && (
+                      {panchayats.length > 0 && (
                         <label
                           className="ax-ms__item"
-                          style={{
-                            fontWeight:
-                              'var(--ax-weight-semibold)',
-                          }}
+                          style={{ fontWeight: 'var(--ax-weight-semibold)' }}
                         >
-
                           <input
                             type="checkbox"
                             className="ax-checkbox"
-                            checked={
-                              allSelected
-                            }
+                            checked={allSelected}
                             onChange={() =>
                               setSelPan(
-                                allSelected
-                                  ? []
-                                  : panchayats.map(
-                                      (p) =>
-                                        p.value
-                                    )
+                                allSelected ? [] : panchayats.map((p) => p.value)
                               )
                             }
                           />
-
                           Select all
-
                         </label>
                       )}
 
-                      {panchayats.map(
-                        (p) => (
-                          <label
-                            key={p.value}
-                            className="ax-ms__item"
-                          >
-
-                            <input
-                              type="checkbox"
-                              className="ax-checkbox"
-                              checked={selPan.includes(
-                                p.value
-                              )}
-                              onChange={() =>
-                                toggle(
-                                  p.value
-                                )
-                              }
-                            />
-
-                            {p.label}
-
-                          </label>
-                        )
-                      )}
-
+                      {panchayats.map((p) => (
+                        <label key={p.value} className="ax-ms__item">
+                          <input
+                            type="checkbox"
+                            className="ax-checkbox"
+                            checked={selPan.includes(p.value)}
+                            onChange={() => toggle(p.value)}
+                          />
+                          {p.label}
+                        </label>
+                      ))}
                     </div>
                   )}
 
@@ -823,114 +666,67 @@ export function BiharAMCSSLAssignLight() {
                     <div
                       className="ax-cluster"
                       style={{
-                        marginTop:
-                          'var(--ax-space-2)',
-                        gap:
-                          'var(--ax-space-2)',
-                        flexWrap:
-                          'wrap',
+                        marginTop: 'var(--ax-space-2)',
+                        gap: 'var(--ax-space-2)',
+                        flexWrap: 'wrap',
                       }}
                     >
-
-                      {selPan.map(
-                        (v) => (
-                          <span
-                            key={v}
-                            className="ax-badge ax-badge--soft ax-badge--neutral"
-                          >
-                            {panLabel(v)}
-                          </span>
-                        )
-                      )}
-
+                      {selPan.map((v) => (
+                        <span
+                          key={v}
+                          className="ax-badge ax-badge--soft ax-badge--neutral"
+                        >
+                          {panLabel(v)}
+                        </span>
+                      ))}
                     </div>
                   )}
-
                 </div>
 
-                <div />
+                <div className="bh-empty" />
 
                 {/* REMARKS */}
 
-                <div
-                  style={{
-                    gridColumn:
-                      'span 2',
-                  }}
-                >
-
+                <div className="bh-span2">
                   <div className="ax-float ax-float--area">
-
                     <textarea
                       id="bh-remarks"
                       className="ax-textarea ax-float__input"
                       rows={3}
                       placeholder=" "
                       value={f.remarks}
-                      onChange={(e) =>
-                        set(
-                          'remarks',
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => set('remarks', e.target.value)}
                     />
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="bh-remarks"
-                    >
+                    <label className="ax-float__label" htmlFor="bh-remarks">
                       Remarks
                     </label>
-
                   </div>
-
                 </div>
-
               </div>
-
             </div>
 
-            <div
-              className="ax-card__footer"
-              style={{
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-                gap:
-                  'var(--ax-space-3)',
-              }}
-            >
-
+            <div className="ax-card__footer bh-footer">
               <button
                 type="submit"
                 className="ax-btn ax-btn--primary ax-btn--pill"
                 disabled={busy}
               >
                 <span className="ax-btn__label">
-                  {busy
-                    ? 'Submitting…'
-                    : 'Submit'}
+                  {busy ? 'Submitting…' : 'Submit'}
                 </span>
               </button>
 
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--pill"
-                onClick={() =>
-                  navigate(-1)
-                }
+                onClick={() => navigate(-1)}
               >
-                <span className="ax-btn__label">
-                  Cancel
-                </span>
+                <span className="ax-btn__label">Cancel</span>
               </button>
-
             </div>
-
           </form>
-
         </section>
-
       </div>
     </>
   );

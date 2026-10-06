@@ -136,33 +136,125 @@ const DATE_KEYS: string[] = ['amcDate', 'nextAmcDate'];
 
 const yesNo = (v: boolean | null) => (v === null ? '' : v ? 'Yes' : 'No');
 
-const CSV_COLS: { header: string; get: (r: LightRow) => string }[] = [
-  { header: 'District', get: (r) => r.district },
-  { header: 'Block', get: (r) => r.block },
-  { header: 'Panchayat', get: (r) => r.panchayat },
-  { header: 'SSL ID', get: (r) => r.sslId },
-  { header: 'Beneficiary Name', get: (r) => r.beneficiary },
-  { header: 'Contact', get: (r) => r.contact },
-  { header: 'AMC Date', get: (r) => r.amcDate },
-  { header: 'Next AMC Date', get: (r) => r.nextAmcDate },
-  { header: 'Quarter', get: (r) => r.quarter },
-  { header: 'Light Working', get: (r) => yesNo(r.lightWorking) },
-  { header: 'Complaint', get: (r) => r.complaint },
-  { header: 'Approval Status', get: (r) => r.approval },
+const EXPORT_COLS: { key: string; header: string; get: (r: LightRow) => string }[] = [
+  { key: 'district', header: 'District', get: (r) => r.district },
+  { key: 'block', header: 'Block', get: (r) => r.block },
+  { key: 'panchayat', header: 'Panchayat', get: (r) => r.panchayat },
+  { key: 'sslId', header: 'SSL ID', get: (r) => r.sslId },
+  { key: 'beneficiary', header: 'Beneficiary Name', get: (r) => r.beneficiary },
+  { key: 'contact', header: 'Contact', get: (r) => r.contact },
+  { key: 'amcDate', header: 'AMC Date', get: (r) => r.amcDate },
+  { key: 'nextAmcDate', header: 'Next AMC Date', get: (r) => r.nextAmcDate },
+  { key: 'quarter', header: 'Quarter', get: (r) => r.quarter },
+  { key: 'lightWorking', header: 'Light Working', get: (r) => yesNo(r.lightWorking) },
+  { key: 'complaint', header: 'Complaint', get: (r) => r.complaint },
+  { key: 'approval', header: 'Approval Status', get: (r) => r.approval },
 ];
+type ExpCol = (typeof EXPORT_COLS)[number];
 
-const exportCsv = (rows: LightRow[], filename: string) => {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [CSV_COLS.map((c) => esc(c.header)).join(',')];
-  rows.forEach((r) => lines.push(CSV_COLS.map((c) => esc(c.get(r))).join(',')));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const downloadFile = (content: string, filename: string, mime: string) => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${filename}.csv`;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+const exportCsv = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [cols.map((c) => esc(c.header)).join(',')];
+  rows.forEach((r) => lines.push(cols.map((c) => esc(c.get(r))).join(',')));
+  downloadFile('\uFEFF' + lines.join('\r\n'), `${filename}.csv`, 'text/csv');
+};
+
+const exportExcel = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const table = `<table border="1"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${table}</body></html>`;
+  downloadFile('\uFEFF' + html, `${filename}.xls`, 'application/vnd.ms-excel');
+};
+
+const exportPdf = (rows: LightRow[], cols: ExpCol[], title: string) => {
+  if (!rows.length || !cols.length) return;
+  const w = window.open('', '_blank', 'width=1200,height=800');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+    th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+  w.document.close();
+  w.focus();
+};
+
+/* ───────── Responsive CSS ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .amc-footer { border-top: 1px solid var(--ax-border); overflow-x: auto; }
+
+  .solar-erp-page .ax-card__header {
+    display: flex; flex-wrap: nowrap; align-items: flex-start;
+    justify-content: space-between; gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto; min-width: 0; margin-left: auto;
+    display: flex; align-items: center; justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 90px; max-width: 260px; }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
+
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .solar-erp-page .amc-table { min-width: 1700px; }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md);
+    }
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
+
+    /* District column fixed rahe jab table sideways scroll ho */
+    .solar-erp-page .amc-sticky-first th:first-child,
+    .solar-erp-page .amc-sticky-first td:first-child {
+      position: sticky; left: 0; z-index: 1;
+      background: var(--ax-bg-surface);
+      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+`;
 
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
@@ -253,7 +345,7 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{ICON.close}</button>
         </div>
         <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 'var(--ax-space-3)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 'var(--ax-space-3)' }}>
             {label2.map(([k, v]) => (
               <div key={k} style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', background: 'var(--ax-surface-subtle)', border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)' }}>
                 <div style={cap}>{k}</div>
@@ -272,8 +364,8 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
           <div>
             <div style={{ ...cap, marginBottom: 8 }}>Images</div>
             {row.images.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 'var(--ax-space-3)' }}>
-                {row.images.map((im) => <ImageTile key={im.raw} im={im} />)}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 'var(--ax-space-3)' }}>
+                {row.images.map((im, k) => <ImageTile key={im.raw + k} im={im} />)}
               </div>
             ) : (
               <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>No images available for this record.</div>
@@ -422,11 +514,32 @@ export function BiharAMCSSLViewSurveyLight() {
       default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
     }
   };
+
+  const exportCols = EXPORT_COLS.filter((c) => visibleCols.some((v) => v.key === c.key));
+  const stamp = new Date().toISOString().slice(0, 10);
+
   const handleCopy = async () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    await navigator.clipboard.writeText(filtered.map((r) => cols.map((c) => cellText(r, c.key)).join('\t')).join('\n'));
+    if (!filtered.length || !exportCols.length) return;
+    const text = [
+      exportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r) => exportCols.map((c) => c.get(r)).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
   };
-  const handleExport = () => exportCsv(filtered, 'bihar-amc-light');
+  const handleCsv = () => exportCsv(filtered, exportCols, `bihar-amc-light-${stamp}`);
+  const handleExcel = () => exportExcel(filtered, exportCols, `bihar-amc-light-${stamp}`);
+  const handlePdf = () => exportPdf(filtered, exportCols, 'Bihar AMC Light');
 
   const renderCell = (key: string, r: LightRow) => {
     switch (key) {
@@ -489,7 +602,9 @@ export function BiharAMCSSLViewSurveyLight() {
   };
 
   return (
-    <>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+
       <PageHead
         title="Bihar AMC Light"
         subtitle="Quarterly AMC visits with light status, complaints, photos and approval."
@@ -511,24 +626,23 @@ export function BiharAMCSSLViewSurveyLight() {
         )}
 
         <section className="ax-card ax-col--12" role="region" aria-label="AMC light records">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 className="ax-card__title">AMC Light</h2>
               <p className="ax-card__subtitle ax-num" style={mono}>{filtered.length} results · {pendingCount}/{rows.length} pending approval</p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+            <div className="ax-card__actions">
               <SearchInput
                 value={q}
                 onChange={(v) => { setQ(v); setPage(1); }}
                 placeholder="Search records…"
                 ariaLabel="Search records"
-                style={{ marginLeft: 0 }}
               />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExport}
-                onExportExcel={handleExport}
-                onExportPDF={handleExport}
+                onExportCSV={handleCsv}
+                onExportExcel={handleExcel}
+                onExportPDF={handlePdf}
                 columns={columns}
                 onToggleColumn={toggleColumn}
               />
@@ -536,7 +650,7 @@ export function BiharAMCSSLViewSurveyLight() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ minWidth: 1700 }}>
+            <table className="ax-table ax-table--hover amc-table amc-sticky-first">
               <caption className="ax-visually-hidden">AMC light records, sortable and searchable</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -575,21 +689,23 @@ export function BiharAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <Pagination
-              curPage={curPage}
-              total={filtered.length}
-              pageSize={perPage}
-              setPage={setPage}
-              onPageSizeChange={setPerPage}
-              pageSizeOptions={[5, 10, 25, 50, 100]}
-              style={{ padding: 'var(--ax-space-3) var(--ax-space-5)', borderTop: '1px solid var(--ax-border)' }}
-            />
+            <div className="amc-footer">
+              <Pagination
+                curPage={curPage}
+                total={filtered.length}
+                pageSize={perPage}
+                setPage={setPage}
+                onPageSizeChange={setPerPage}
+                pageSizeOptions={[5, 10, 25, 50, 100]}
+                style={{ padding: 'var(--ax-space-3) var(--ax-space-5)' }}
+              />
+            </div>
           )}
         </section>
       </div>
 
       <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
-    </>
+    </div>
   );
 }
 

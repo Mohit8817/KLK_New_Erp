@@ -565,7 +565,7 @@ export function DleUsers() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer ax-flex" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+            <div className="ax-card__footer ax-flex">
               <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>
                 Showing {start + 1} to {Math.min(curPage * PAGE_SIZE, filtered.length)} of {filtered.length}
               </span>
