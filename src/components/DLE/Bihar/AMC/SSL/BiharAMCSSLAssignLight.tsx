@@ -113,6 +113,7 @@ const FLOAT_CSS = `
   .bh-grid .ax-textarea,
   .ax-ms__item{
     font-size:12px;
+      padding:2px 10px !important;
   }
   .bh-empty{display:none}
   .bh-footer{flex-direction:column}

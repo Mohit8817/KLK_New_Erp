@@ -87,7 +87,10 @@ const FLOAT_CSS = `
   .up-grid .ax-input,
   .up-grid .ax-textarea{
     font-size:12px;
+    padding:2px 10px !important;
   }
+
+
   .up-footer{flex-direction:column}
   .up-footer .ax-btn{width:100%}
   .ax-float__label{
