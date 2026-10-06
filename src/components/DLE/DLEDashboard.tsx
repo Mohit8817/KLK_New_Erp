@@ -69,7 +69,6 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-// Scoped styling: spacing + responsive layout + right-aligned card actions
 const PAGE_CSS = `
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -81,19 +80,68 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* Card header: title left, actions (search / export) in RIGHT corner */
+  /* ───── Card header (desktop): title ko jagah, actions sikudenge ───── */
   .solar-erp-page .ax-card__header {
-    display: flex; flex-wrap: wrap; align-items: flex-start;
-    justify-content: space-between; gap: 12px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 0; }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;          /* title kabhi iss se chhota nahi hoga */
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
   .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
-  .solar-erp-page .ax-card__actions {
-    margin-left: auto; display: flex; align-items: center;
-    justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%;
-  }
-  .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-end; }
 
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+
+  /* Search: jagah kam ho to chhota ho jaye */
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 90px;
+    max-width: 260px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+
+  /* Export toolbar: compact + sikude */
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  /* Tables */
   .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .solar-erp-page .ax-table { min-width: 480px; }
   .solar-erp-page .ax-welcome__lede { max-width: 780px; }
@@ -102,34 +150,99 @@ const PAGE_CSS = `
   .solar-erp-page .dle-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .dle-filter-item select { width: 165px; }
 
-  /* Tablet */
+  /* ───── Tablet (<=1100px) ───── */
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
     .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
+
+    /* Export buttons: sirf icon (text hide) */
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
 
-  /* Mobile */
+  /* ───── Mobile (<=760px): header STACK ───── */
   @media (max-width: 760px) {
     .solar-erp-page .ax-welcome__stats {
       display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
     }
     .solar-erp-page .dle-filter-item { width: 100%; justify-content: space-between; }
     .solar-erp-page .dle-filter-item select { flex: 1; width: auto; max-width: 100%; }
-    .solar-erp-page .ax-card__header { gap: 10px; }
-    .solar-erp-page .ax-card__actions { width: 100%; justify-content: flex-end; }
-    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; justify-content: flex-end; }
 
-         .ax-card__title {
-    font-family: var(--ax-font-display);
-    font-size: var(--ax-text-md);
-    line-height: var(--ax-leading-md);
-  }
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
+    .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
+      width: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    /* Search poori width, export buttons uske neeche */
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    /* Mobile par text wapas dikhao, padding kam */
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
   }
 
-  /* Small phones: KPI cards 1 column */
-  @media (max-width: 420px) {
+  /* ───── Small phones (<=490px) ───── */
+  @media (max-width: 490px) {
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
