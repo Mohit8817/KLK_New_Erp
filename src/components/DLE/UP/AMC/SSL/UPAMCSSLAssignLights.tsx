@@ -135,16 +135,9 @@ export function UPAMCSSLAssignLights() {
           filterByCompany(extractList(j))
         );
 
-<<<<<<< HEAD
-        const upUsers = approvedUsers.filter((u: any) => {
-          const state = String(u?.state ?? '').trim().toLowerCase();
-          return state === 'uttar pradesh' || state === 'up';
-        });
-=======
         const upUsers = approvedUsers.filter((u: any) =>
           isUpState(u?.state)
         );
->>>>>>> origin/harshklk
 
         setUsers(toOptions(upUsers));
 
@@ -165,15 +158,6 @@ export function UPAMCSSLAssignLights() {
         }
       });
 
-<<<<<<< HEAD
-    upSslAmc
-      .getDistricts(ac.signal)
-      .then((j) => setDistricts(toOptions(j)))
-      .catch((err: any) => {
-        if (err?.name !== 'AbortError') {
-          console.error('Failed to load UP districts:', err);
-        }
-=======
     return () => ac.abort();
   }, []);
 
@@ -207,7 +191,6 @@ export function UPAMCSSLAssignLights() {
           type: 'danger',
           msg: e?.message || 'Unable to load districts.',
         });
->>>>>>> origin/harshklk
       });
 
     return () => ac.abort();

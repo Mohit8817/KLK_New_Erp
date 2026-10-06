@@ -2,11 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
-<<<<<<< HEAD
 import SearchInput from '../../../../../common/search/SearchInput';
-=======
-import { SearchInput } from '../../../../../common/search/SearchInput';
->>>>>>> origin/harshklk
 import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
@@ -321,37 +317,18 @@ export function UPAMCSSLViewSurveyLight() {
       setDemoReason(reason);
     };
     try {
-<<<<<<< HEAD
       const json: any = await dleService.getUpAmcLight(undefined, signal);
       let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
       if (raw?.data && Array.isArray(raw.data)) raw = raw.data;
-=======
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json: any = await dleService.getUpAmcLight(undefined, signal);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-      if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
->>>>>>> origin/harshklk
       const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
 
       console.info('[UP AMC light] rows:', list.length, 'first record:', list[0]);
       console.info('[UP AMC light] my company_id:', authService.getCompanyId());
 
       if (!list.length) {
-<<<<<<< HEAD
         useDemo('No records returned from API');
       } else {
         const allowed = filterByCompanyStrict(list).filter(
-=======
-        // API se sach mein kuch nahi aaya → demo
-        useDemo('API se koi record nahi aaya');
-      } else {
-        // 1) company_id same ho (null wale hide)
-        // 2) approval_status approved ho
-        const allowed = filterByCompanyStrict(list).filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
->>>>>>> origin/harshklk
           (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
         );
 
@@ -362,11 +339,7 @@ export function UPAMCSSLViewSurveyLight() {
       }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-<<<<<<< HEAD
       useDemo((e as Error).message || 'Failed to load data from API');
-=======
-      useDemo((e as Error).message || 'data not loaded from API');
->>>>>>> origin/harshklk
     } finally {
       setLoading(false);
     }
@@ -555,7 +528,6 @@ export function UPAMCSSLViewSurveyLight() {
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
               <SearchInput
                 value={q}
-<<<<<<< HEAD
                 onChange={(val) => {
                   setQ(val);
                   setPage(1);
@@ -570,12 +542,6 @@ export function UPAMCSSLViewSurveyLight() {
                   flex: '0 0 auto',
                   marginLeft: 'auto',
                 }}
-=======
-                onChange={(v) => { setQ(v); setPage(1); }}
-                placeholder="Search records…"
-                ariaLabel="Search records"
-                
->>>>>>> origin/harshklk
               />
               <TableExportToolbar
                 onCopy={handleCopy}
@@ -628,7 +594,6 @@ export function UPAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-<<<<<<< HEAD
             <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
               <Pagination
                 currentPage={curPage}
@@ -642,17 +607,6 @@ export function UPAMCSSLViewSurveyLight() {
                 pageSizeOptions={[10, 25, 50, 100]}
               />
             </div>
-=======
-            <Pagination
-              curPage={curPage}
-              total={filtered.length}
-              pageSize={perPage}
-              setPage={setPage}
-              onPageSizeChange={setPerPage}
-              pageSizeOptions={[5, 10, 25, 50, 100]}
-              style={{ padding: 'var(--ax-space-3) var(--ax-space-5)', borderTop: '1px solid var(--ax-border)' }}
-            />
->>>>>>> origin/harshklk
           )}
         </section>
       </div>

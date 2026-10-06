@@ -438,7 +438,7 @@ export function BiharULAInstallationDashboard() {
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
         const msg = e?.message || 'Failed to load data';
-        setError(e?.status === 401 ? `${msg} (Unauthorized / check DLE API key)` : msg);
+        setError(e?.status === 401 ? `${msg} (Vite proxy / DLE API key check karo)` : msg);
       }
     } finally {
       setLoading(false);
@@ -739,7 +739,7 @@ export function BiharULAInstallationDashboard() {
 
         {!error && !loading && records.length === 0 && (
           <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', color: 'var(--ax-text-strong)', borderRadius: 'var(--ax-radius-md)', fontSize: 'var(--ax-text-sm)' }}>
-            No records found from API. Please verify company assignment or network response.
+            No records found from the API. Please check the <b>[ULA]</b> logs in the browser console or review the <code>ula/list</code> response in the Network tab.
           </div>
         )}
 
