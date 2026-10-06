@@ -30,8 +30,8 @@ const SEARCH_CSS = `
       margin-left: 0 !important;
     }
     .ax-search-input input[type="search"] {
-      min-height: 40px;
-      font-size: 16px; /* iOS auto-zoom rokne ke liye */
+      min-height: 35px;
+      font-size: 14px; /* iOS auto-zoom rokne ke liye */
     }
   }
 `;

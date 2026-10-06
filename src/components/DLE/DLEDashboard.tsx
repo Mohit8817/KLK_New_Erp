@@ -7,8 +7,7 @@ import { SearchInput } from '../../common/search/SearchInput';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
 import { dleService, extractList, filterByCompany } from '../../services/dleServices';
 
-/* ───────── Config ───────── */
-// A DLE is "Active" if it was created/updated in the last N days
+
 const ACTIVE_WINDOW_DAYS = 30;
 // approval_status: 0 = pending, 1 = approved, 2 = rejected
 const STATUS_APPROVED = 1;

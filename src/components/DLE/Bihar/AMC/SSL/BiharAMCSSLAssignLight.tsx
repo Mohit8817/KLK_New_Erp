@@ -563,6 +563,10 @@ export function BiharAMCSSLAssignLight() {
                         {' '}
                       </option>
 
+                        <option value="ALL">
+                        {'ALL'}
+                      </option>
+
                       {volumes.map((o) => (
                         <option
                           key={o.value}

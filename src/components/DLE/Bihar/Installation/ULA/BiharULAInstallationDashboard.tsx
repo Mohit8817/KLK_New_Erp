@@ -30,7 +30,7 @@ const FIELD_KEYS = {
 /* ──────────────────────────────────────────────────────────── */
 
 // Light shades for bar charts / donut
-const LIGHT_BLUE = '#8DB8F8';
+const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
 
