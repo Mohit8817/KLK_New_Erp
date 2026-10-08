@@ -1,12 +1,6 @@
 /*
- * Vireo React — Sidebar (manifest-driven nav tree).
- *
- * Renders the reference .ax-sidebar DOM contract from nav-manifest.json:
- * brand → menu filter → role="tree" nav with section headers, L1 parent groups
- * (collapsible) and child leaves. The active leaf (matched against the router
- * path) gets `ax-nav__item--active is-active aria-current="page"`, its ancestor
- * group opens (`is-open`, panel un-hidden), and the parent button gets
- * `ax-nav__item--trail` — exactly as core/nav.js does in the HTML edition.
+ * KLK Ventures ERP — Universal Dynamic Sidebar
+ * Seamlessly switches between Main ERP Navigation and DLE Portal Navigation
  */
 import { useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -39,11 +33,27 @@ const CARET = (
     strokeWidth={1.75}
     strokeLinecap="round"
     strokeLinejoin="round"
-    width={29}
-    height={22}
+    width={20}
+    height={20}
     aria-hidden="true"
   >
     <path d="M9 6l6 6l-6 6" />
+  </svg>
+);
+
+const CHEVRON_RIGHT = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    width={16}
+    height={16}
+    style={{ marginLeft: 'auto', opacity: 0.6 }}
+  >
+    <path d="M9 18l6-6-6-6" />
   </svg>
 );
 
@@ -59,9 +69,10 @@ function Leaf({ node, level, activeSlug, filter }: LeafProps) {
   const isActive = resolved.slug === activeSlug;
   const hidden = filter && !matches(node, filter);
   const cls = ['ax-nav__item'];
-  if (level > 1) cls.push('ax-nav__item--child'); // level-1 leaf (e.g. DLE Dashboard) looks like a top item
+  if (level > 1) cls.push('ax-nav__item--child');
   if (isActive) cls.push('ax-nav__item--active', 'is-active');
   if (hidden) cls.push('is-hidden');
+
   return (
     <Link
       className={cls.join(' ')}
@@ -96,7 +107,7 @@ function Group({ node, level, activeSlug, filter }: GroupProps) {
     [node, activeSlug],
   );
   const [open, setOpen] = useState(
-    containsActive || (level === 1 && (node.section === 'MAIN' || node.section === 'ASSAM' || node.section === 'UP')),
+    containsActive || (level === 1 && (node.section === 'MAIN' || node.section === 'ASSAM' || node.section === 'UP' || node.section?.startsWith('DLE'))),
   );
   const isOpen = filter ? true : open || containsActive;
   const groupHidden = filter && !subtreeMatches(node, filter);
@@ -160,15 +171,138 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
   const activeSlug = slugFromPath(location.pathname);
   const [filter, setFilter] = useState('');
   const rootRef = useRef<HTMLElement>(null);
-  // While the rail is an open off-canvas drawer it is a modal surface: trap Tab
-  // inside it and open on the menu filter (core/sidebar.js openDrawer()).
   useFocusTrap(rootRef, drawerOpen, '.ax-sidebar__filter');
+
+  const isDlePortal = location.pathname.startsWith('/dle');
+
+  // Main ERP menu items matching the screenshot
+  const mainErpMenu = [
+    {
+      section: 'DASHBOARD',
+      items: [
+        {
+          title: 'ERP Dashboard',
+          to: '/',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+          ),
+          active: location.pathname === '/' || location.pathname === '/dashboard',
+        },
+      ],
+    },
+    {
+      section: 'MODULES',
+      items: [
+        {
+          title: 'DLE',
+          to: '/dle/dashboard',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <rect x="9" y="9" width="6" height="6" />
+              <line x1="9" y1="1" x2="9" y2="4" />
+              <line x1="15" y1="1" x2="15" y2="4" />
+              <line x1="9" y1="20" x2="9" y2="23" />
+              <line x1="15" y1="20" x2="15" y2="23" />
+              <line x1="20" y1="9" x2="23" y2="9" />
+              <line x1="20" y1="14" x2="23" y2="14" />
+              <line x1="1" y1="9" x2="4" y2="9" />
+              <line x1="1" y1="14" x2="4" y2="14" />
+            </svg>
+          ),
+          hasChevron: true,
+          active: location.pathname.startsWith('/dle'),
+        },
+        {
+          title: 'Vendor',
+          to: '/vendor/dashboard',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          ),
+          hasChevron: true,
+          active: location.pathname.startsWith('/vendor'),
+        },
+        {
+          title: 'Gallery',
+          to: '/apps/gallery',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          ),
+          hasChevron: true,
+          active: location.pathname.startsWith('/apps/gallery') || location.pathname.startsWith('/gallery'),
+        },
+        {
+          title: 'Complaints',
+          to: '/complaints',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          ),
+          hasChevron: true,
+          active: location.pathname.startsWith('/complaints'),
+        },
+      ],
+    },
+    {
+      section: 'REPORTS',
+      items: [
+        {
+          title: 'Analytics',
+          to: '/reports/analytics',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          ),
+          active: location.pathname.startsWith('/reports/analytics') || location.pathname.startsWith('/dashboards/analytics'),
+        },
+        {
+          title: 'Geo Reports',
+          to: '/maps/leaflet',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+          ),
+          active: location.pathname.startsWith('/maps'),
+        },
+        {
+          title: 'Settings',
+          to: '/settings',
+          icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          ),
+          active: location.pathname.startsWith('/settings'),
+        },
+      ],
+    },
+  ];
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>
       {/* ===== BRAND ===== */}
       <div className="ax-sidebar__brand">
-        <Link className="ax-sidebar__logo" to="/jammu/dashboard" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }}>
+        <Link className="ax-sidebar__logo" to="/" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }}>
           <img
             src="/logo-abbr.png"
             alt="KLK"
@@ -238,34 +372,106 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
 
       {/* ===== NAV TREE ===== */}
       <nav className="ax-sidebar__nav" role="tree" aria-label="Main menu">
-        {sections().map((section) => (
-          <div key={section}>
-            <p className="ax-sidebar__section" role="presentation">
-              {sectionLabel(section)}
-            </p>
-            {groupsInSection(section)
-              .filter((g) => g.inMenu)
-              .map((g) =>
-                manifest.childrenOf(g.id).some((c) => c.inMenu) ? (
-                  <Group
-                    key={g.id}
-                    node={g}
-                    level={1}
-                    activeSlug={activeSlug}
-                    filter={filter.trim().toLowerCase()}
-                  />
-                ) : (
-                  <Leaf
-                    key={g.id}
-                    node={g}
-                    level={1}
-                    activeSlug={activeSlug}
-                    filter={filter.trim().toLowerCase()}
-                  />
-                ),
-              )}
-          </div>
-        ))}
+        {isDlePortal ? (
+          <>
+            {/* Top Switcher Button to return to Main ERP */}
+            <div style={{ padding: '0 8px 12px 8px' }}>
+              <Link
+                to="/"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                  color: '#2563eb',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                  transition: 'background-color 0.15s',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span>Back to ERP Dashboard</span>
+              </Link>
+            </div>
+
+            {/* DLE Manifest Sections */}
+            {sections()
+              .filter((s) => s.startsWith('DLE'))
+              .map((section) => (
+                <div key={section}>
+                  <p className="ax-sidebar__section" role="presentation">
+                    {sectionLabel(section)}
+                  </p>
+                  {groupsInSection(section)
+                    .filter((g) => g.inMenu)
+                    .map((g) =>
+                      manifest.childrenOf(g.id).some((c) => c.inMenu) ? (
+                        <Group
+                          key={g.id}
+                          node={g}
+                          level={1}
+                          activeSlug={activeSlug}
+                          filter={filter.trim().toLowerCase()}
+                        />
+                      ) : (
+                        <Leaf
+                          key={g.id}
+                          node={g}
+                          level={1}
+                          activeSlug={activeSlug}
+                          filter={filter.trim().toLowerCase()}
+                        />
+                      ),
+                    )}
+                </div>
+              ))}
+          </>
+        ) : (
+          /* Main ERP Dashboard Menu */
+          <>
+            {mainErpMenu.map((group) => {
+              const visibleItems = group.items.filter((item) =>
+                !filter || item.title.toLowerCase().includes(filter.toLowerCase())
+              );
+
+              if (visibleItems.length === 0) return null;
+
+              return (
+                <div key={group.section} style={{ marginBottom: '12px' }}>
+                  <p className="ax-sidebar__section" role="presentation">
+                    {group.section}
+                  </p>
+                  {visibleItems.map((item) => (
+                    <Link
+                      key={item.title}
+                      to={item.to}
+                      className={`ax-nav__item ${item.active ? 'ax-nav__item--active is-active' : ''}`}
+                      role="treeitem"
+                      aria-current={item.active ? 'page' : undefined}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <span className="ax-nav__icon">{item.icon}</span>
+                      <span className="ax-nav__label" style={{ fontWeight: item.active ? 700 : 500 }}>
+                        {item.title}
+                      </span>
+                      {item.hasChevron && CHEVRON_RIGHT}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
+          </>
+        )}
       </nav>
     </aside>
   );
@@ -273,7 +479,6 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
 
 /* ── helpers ── */
 function sectionLabel(s: string): string {
-  // Manifest sections are upper-case; reference renders them title-ish.
   const map: Record<string, string> = {
     MAIN: 'Main',
     ASSAM: 'Assam Operations',

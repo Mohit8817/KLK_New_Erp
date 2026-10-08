@@ -52,14 +52,6 @@ interface UlaRow {
   images: ImageItem[];
 }
 
-/* ---------- Fake data (jab API fail ho ya empty aaye) ---------- */
-const FAKE_API_ROWS = [
-  { id: 1, ca_no: '122205346656', ca_name: 'Manoj mahto', beneficiary_name: 'Manoj mahto', contact: '9162805002', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Damodar pati simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072662877', panel_2_no: 'SGMJ550072663622', inverter_no: '114191234388', surveyor: 'NIRAJ KUMAR', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:41 PM', visit2_at: '30-09-2026 12:41 PM', images: [] },
-  { id: 2, ca_no: '122205346692', ca_name: 'Shankar Mahto', beneficiary_name: 'Shankar Mahto', contact: '9801295143', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Yadupatti simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072662867', panel_2_no: 'SGMJ550072662967', inverter_no: '114191558507', surveyor: 'Vikash kumar', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:40 PM', visit2_at: '30-09-2026 12:40 PM', images: [] },
-  { id: 3, ca_no: '122205346618', ca_name: 'Bhuli devi', beneficiary_name: 'Bhuli devi', contact: '8521447239', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Damodar pati simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072663236', panel_2_no: 'SGMJ550072662780', inverter_no: '114190161279', surveyor: 'NIRAJ KUMAR', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:35 PM', visit2_at: '30-09-2026 12:35 PM', images: [] },
-  { id: 4, ca_no: '12220534666', ca_name: 'Nagina devi', beneficiary_name: 'Nagina devi', contact: '9708326915', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Yadupatti simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072663288', panel_2_no: 'SGMJ550072662818', inverter_no: '114190164719', surveyor: 'Vikash kumar', first_visit: 'Completed', second_visit: 'Pending', visit1_at: '30-09-2026 12:33 PM', visit2_at: '', images: [] },
-];
-
 /* ---------- Helpers ---------- */
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
 
@@ -582,8 +574,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
 
   const [rows, setRows] = useState<UlaRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
-  const [demoReason, setDemoReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('surveyDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -594,31 +585,27 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const visibleCols = columns.filter((c) => c.visible);
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-const [dlError, setDlError] = useState<string | null>(null);
+  const [dlError, setDlError] = useState<string | null>(null);
 
-const downloadImages = async (r: UlaRow) => {
-  if (downloadingId) return;
-  setDownloadingId(r.id);
-  setDlError(null);
-  try {
-    await dleService.downloadUlaImagesZip(r.id); // /api/bihar/ula/:id/download-images
-  } catch (e) {
-    setDlError((e as Error).message || 'Images download nahi ho paayi');
-  } finally {
-    setDownloadingId(null);
-  }
-};
+  const downloadImages = async (r: UlaRow) => {
+    if (downloadingId) return;
+    setDownloadingId(r.id);
+    setDlError(null);
+    try {
+      await dleService.downloadUlaImagesZip(r.id); // /api/bihar/ula/:id/download-images
+    } catch (e) {
+      setDlError((e as Error).message || 'Images download nahi ho paayi');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const toggleColumn = (key: string) =>
     setColumns((prev) => prev.map((c) => c.key === key ? { ...c, visible: !c.visible } : c));
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const useDemo = (reason: string) => {
-      setRows(FAKE_API_ROWS.map(normalize));
-      setUsingDemo(true);
-      setDemoReason(reason);
-    };
+    setError(null);
     try {
       // id hai to detail API (/api/bihar/ula/:id), nahi to poori list
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -631,21 +618,17 @@ const downloadImages = async (r: UlaRow) => {
       if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
       // detail API aksar single object deti hai -> array bana do
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
-const mine = filterByCompanyStrict(list);
+      const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
+      const mine = filterByCompanyStrict(list);
 
-console.info('[ULA view] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
+      console.info('[ULA view] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
 
-if (!list.length) {
-  // API se sach mein kuch nahi aaya → demo
-  useDemo('API  record not  loaded');
-} else {
-  setRows(mine.map(normalize));
-  setUsingDemo(false);
-}
+      // empty ho to table ka "No records found" state dikhega
+      setRows(mine.map(normalize));
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'API se data load nahi hua');
+      setRows([]);
+      setError((e as Error).message || 'Data load nahi ho paya');
     } finally {
       setLoading(false);
     }
@@ -856,23 +839,23 @@ if (!list.length) {
             </button>
           </td>
         );
-     case 'action': {
-  const busy = downloadingId === r.id;
-  return (
-    <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
-      <button
-        type="button"
-        className="ax-btn ax-btn--secondary ax-btn--sm"
-        onClick={() => downloadImages(r)}
-        disabled={busy || !r.images.length}
-        title={r.images.length ? 'Saari images ZIP mein download karo' : 'Is record mein images nahi hain'}
-      >
-        <span className="ax-btn__icon">{ICON.download}</span>
-        <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
-      </button>
-    </td>
-  );
-}
+      case 'action': {
+        const busy = downloadingId === r.id;
+        return (
+          <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => downloadImages(r)}
+              disabled={busy || !r.images.length}
+              title={r.images.length ? 'Saari images ZIP mein download karo' : 'Is record mein images nahi hain'}
+            >
+              <span className="ax-btn__icon">{ICON.download}</span>
+              <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
+            </button>
+          </td>
+        );
+      }
       default:
         return <td key={key} className="ax-table__td">—</td>;
     }
@@ -891,11 +874,20 @@ if (!list.length) {
       />
 
       <div className="ax-dash-grid">
-        {usingDemo && !loading && (
+        {error && !loading && (
           <div className="ax-col--12">
-            <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Demo data dikh raha hai ({demoReason}).</span>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
+            <div className="ax-alert ax-alert--danger" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+              <span>Data load nahi ho paya ({error}).</span>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry</button>
+            </div>
+          </div>
+        )}
+
+        {dlError && (
+          <div className="ax-col--12">
+            <div className="ax-alert ax-alert--danger" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+              <span>{dlError}</span>
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setDlError(null)}>Dismiss</button>
             </div>
           </div>
         )}
@@ -909,19 +901,6 @@ if (!list.length) {
               </p>
             </div>
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              {/* {(dashboardDistrict !== 'All' || dashboardSurveyor !== 'All' || dashboardVisitStatus !== 'All' || dashboardToday || dashboardActive || dashboardDate) && (
-                <div className="ax-cluster" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {dashboardDistrict !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">District: {dashboardDistrict}</span>}
-                  {dashboardSurveyor !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">Surveyor: {dashboardSurveyor}</span>}
-                  {dashboardVisitStatus !== 'All' && <span className="ax-badge ax-badge--soft ax-badge--neutral">Status: {dashboardVisitStatus}</span>}
-                  {dashboardToday && <span className="ax-badge ax-badge--soft ax-badge--success">Today</span>}
-                  {dashboardActive && <span className="ax-badge ax-badge--soft ax-badge--success">Active</span>}
-                  {dashboardDate && <span className="ax-badge ax-badge--soft ax-badge--neutral">Date: {dashboardDate}</span> }
-                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => { setSearchParams({}); setPage(1); }}>
-                    Clear dashboard filter
-                  </button>
-                </div>
-              )} */}
               <SearchInput
                 value={q}
                 onChange={(value) => {
@@ -1001,28 +980,40 @@ if (!list.length) {
 
           {!loading && !filtered.length && (
             <div style={{ textAlign: 'center', padding: 'var(--ax-space-10) var(--ax-space-5)' }}>
-              <h3 style={{ color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-display)', marginBottom: 'var(--ax-space-2)' }}>No records found</h3>
-              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)', marginBottom: 'var(--ax-space-4)' }}>No rows match your search. Try a different term.</p>
-              <button type="button" className="ax-btn ax-btn--secondary" onClick={() => { setQ(''); setPage(1); }}>Clear search</button>
+              <h3 style={{ color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-display)', marginBottom: 'var(--ax-space-2)' }}>
+                {error ? 'Data not available' : 'No records found'}
+              </h3>
+              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)', marginBottom: 'var(--ax-space-4)' }}>
+                {error
+                  ? 'Server se data nahi mil paya. Kuch der baad Retry karein.'
+                  : q
+                    ? 'No rows match your search. Try a different term.'
+                    : 'Is company ke liye koi ULA installation record nahi mila.'}
+              </p>
+              {error ? (
+                <button type="button" className="ax-btn ax-btn--secondary" onClick={() => load()}>Retry</button>
+              ) : q ? (
+                <button type="button" className="ax-btn ax-btn--secondary" onClick={() => { setQ(''); setPage(1); }}>Clear search</button>
+              ) : null}
             </div>
           )}
 
-         {!loading && !!filtered.length && (
-  <Pagination
-    currentPage={curPage}
-    totalItems={filtered.length}
-    pageSize={perPage}
-    setPage={setPage}
-    onPageSizeChange={(size) => {
-      setPerPage(size);
-      setPage(1);
-    }}
-    pageSizeOptions={[5, 10, 25, 50, 100]}
-    showSummary
-    rangeStart={rangeStart}
-    rangeEnd={rangeEnd}
-  />
-)}
+          {!loading && !!filtered.length && (
+            <Pagination
+              currentPage={curPage}
+              totalItems={filtered.length}
+              pageSize={perPage}
+              setPage={setPage}
+              onPageSizeChange={(size) => {
+                setPerPage(size);
+                setPage(1);
+              }}
+              pageSizeOptions={[5, 10, 25, 50, 100]}
+              showSummary
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+            />
+          )}
         </section>
       </div>
 

@@ -25,14 +25,6 @@ interface UserRow {
   createdTs: number;
 }
 
-/* ---------- Fake data (used when the API fails or returns nothing) — in the real API shape ---------- */
-const FAKE = [
-  { id: '130', state: 'Bihar', district: 'Muzaffarpur ', block: 'Saraiya ', panchayat: 'Bahilwara rupnath south ', name: 'Rakesh Kumar Chaudhary ', email: 'rakeshkumarchaudhary489@gmail.com', contact_no: '9708494537', emergency_contact_no: '6203975750', police_verification_validity: '', address: 'Village:- Bahilwara Gangauliya, Post office:- Azizpur, police station:-saraiya, district:- Muzaffarpur ', educational_document: '/uploads/user/documents/1789784821620-891887534.jpg', aadhaar_voter_id: '/uploads/user/aadhaar/1789784821687-698813235.jpg', pan_card: '/uploads/user/pan/1789784821696-917889325.jpg', profile_image: null, status: 0, approval_status: 0, created_at: '2026-09-19T02:27:02.000Z' },
-  { id: '129', state: 'Bihar', district: 'MUZAFFARPUR ', block: 'SAKRA ', panchayat: 'RAMPUR KRISHN', name: 'DEEPAK KUMAR ', email: 'deepakkumarmuz690@gmail.com', contact_no: '8084250954', emergency_contact_no: '9973913502', police_verification_validity: '1', address: 'Vill-Repura P.S-sakra P.O-Mahmmadpur susta ', educational_document: '/uploads/user/documents/1789782275036-779144256.jpg', aadhaar_voter_id: '/uploads/user/aadhaar/1789782275041-410924547.pdf', profile_image: null, status: 0, approval_status: 0, created_at: '2026-09-19T01:44:35.000Z' },
-  { id: '128', state: 'Bihar', district: 'Belsand', block: 'Belsand ', panchayat: 'Patahi ', name: 'Abhay Kashyap ', email: 'kashyapabhay9534@gmail.com', contact_no: '9534394566', emergency_contact_no: '9304550858', police_verification_validity: '26/09/27', address: 'Bhorhanmal', educational_document: '/uploads/user/documents/1789781272273-866414022.jpg', profile_image: null, status: 1, approval_status: 1, created_at: '2026-09-19T01:27:53.000Z' },
-  { id: '127', state: 'Bihar', district: 'Muzaffarpur ', block: 'Sakra', panchayat: 'Rampur krishna', name: 'Keshav kumar', email: 'keshavmfp98@gmail.com', contact_no: '9709895610', emergency_contact_no: '8084845609', police_verification_validity: '1', address: 'Vill-Repura, Sakra, muzaffarpur,bihar', profile_image: null, status: 1, approval_status: 1, created_at: '2026-09-18T18:27:35.000Z' },
-];
-
 /* ---------- Helpers ---------- */
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v).trim());
 
@@ -152,7 +144,6 @@ export function DleUsers() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [demoReason, setDemoReason] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [approval, setApproval] = useState('All');
   const [sortKey, setSortKey] = useState<SortKey>('createdTs');
@@ -175,30 +166,31 @@ export function DleUsers() {
     if (approvalParam && APPROVALS.includes(approvalParam)) setApproval(approvalParam);
   }, [searchParams]);
 
-  /* Users list — via dleService (the Vite proxy adds the API key) */
-  const load = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
-    const useDemo = (reason: string) => { setRows(FAKE.map(normalize)); setDemoReason(reason); };
-    try {
-      const json = await dleService.getAdminUsers(signal);
-      const list = extractList(json);
+const load = useCallback(async (signal?: AbortSignal) => {
+  setLoading(true);
 
-      if (!list.length) {
-        // The API genuinely returned nothing → demo data
-        useDemo('The API returned no users');
-      } else {
-        // Match the logged-in user's company_id (BEFORE normalize, on the raw list)
-        const mine = filterByCompany(list);
-        setRows(mine.map(normalize));
-        setDemoReason(null);
-      }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'Failed to load data from the API');
-    } finally {
-      setLoading(false);
+  try {
+    const json = await dleService.getAdminUsers(signal);
+    const list = extractList(json);
+
+    if (!list.length) {
+      setRows([]);
+    } else {
+      // Match logged-in user's company_id before normalize
+      const mine = filterByCompany(list);
+      setRows(mine.map(normalize));
     }
-  }, []);
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') return;
+
+    console.error('Failed to load DLE users:', e);
+
+    // Real ERP: never show fake/demo data
+    setRows([]);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -356,19 +348,18 @@ export function DleUsers() {
     if (!window.confirm(`Approve "${u.name}"? This action will be locked after approval.`)) return;
     setBusyId(u.id);
     try {
-      if (!demoReason) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const json: any = await dleService.updateApprovalStatus({
-          user_id: u.id,
-          id: u.id,
-          approval_status: 1, // 1 = Approved
-        });
-        if (json?.success === false) throw new Error(str(json?.message ?? json?.error) || 'Could not approve the user');
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json: any = await dleService.updateApprovalStatus({
+        user_id: u.id,
+        id: u.id,
+        approval_status: 1, // 1 = Approved
+      });
+      if (json?.success === false) throw new Error(str(json?.message ?? json?.error) || 'Could not approve the user');
+      
       const done = (x: UserRow): UserRow => (x.id === u.id ? { ...x, approval: 'Approved', status: 'Active' } : x);
       setRows((rs) => rs.map(done));
       setSelected((s) => (s ? done(s) : s));
-      setToast({ type: 'ok', msg: demoReason ? `${u.name} approved (demo mode, no API call made)` : `${u.name} approved` });
+      setToast({ type: 'ok', msg: `${u.name} approved` });
     } catch (e) {
       setToast({ type: 'err', msg: (e as Error).message || 'Could not approve the user' });
     } finally {
@@ -409,14 +400,6 @@ export function DleUsers() {
       />
 
       <div className="ax-dash-grid">
-        {demoReason && !loading && (
-          <div className="ax-col--12">
-            <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Showing demo data: {demoReason}.</span>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
-            </div>
-          </div>
-        )}
 
         <section className="ax-card ax-col--12" role="region" aria-label="DLE users">
           <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>

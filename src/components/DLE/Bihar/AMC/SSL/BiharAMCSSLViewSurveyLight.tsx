@@ -33,11 +33,6 @@ interface LightRow {
   images: ImageItem[];
 }
 
-/* ---------- Fake data (jab API fail ho ya empty aaye) ---------- */
-const FAKE_API_ROWS = [
-  { id: 1, district: 'VAISHALI', block: 'Patepur', panchayat: 'Nirpur', ssl_id: '702656', beneficiary_name: 'Rabin Sahni', beneficiary_contact: '10', amc_date: '2026-09-25', next_amc_date: '2026-12-25', quarter_no: 1, light_working: 'Yes', complaint_raised: 0, approval_status: 0 },
-];
-
 /* ---------- Helpers ---------- */
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
 const truthy = (v: unknown): boolean | null => {
@@ -415,8 +410,7 @@ function RowAction({ onView }: { onView: () => void }) {
 export function BiharAMCSSLViewSurveyLight() {
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
-  const [demoReason, setDemoReason] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [q, setQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('amcDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -430,11 +424,7 @@ export function BiharAMCSSLViewSurveyLight() {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const useDemo = (reason: string) => {
-      setRows(FAKE_API_ROWS.map(normalize));
-      setUsingDemo(true);
-      setDemoReason(reason);
-    };
+    setErrorMsg('');
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await dleService.getBiharAmcLight(undefined, signal);
@@ -448,24 +438,20 @@ export function BiharAMCSSLViewSurveyLight() {
       console.info('[Bihar AMC light] my company_id:', authService.getCompanyId());
 
       if (!list.length) {
-        // API se sach mein kuch nahi aaya → demo
-        useDemo('API se koi record nahi aaya');
+        setRows([]);
+        setErrorMsg('No records found from the server.');
       } else {
         // 1) company_id same ho (null wale hide)
-        // 2) approval_status approved ho
-        const allowed = filterByCompanyStrict(list).filter(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
-        );
+        const allowed = filterByCompanyStrict(list);
 
         console.info('[Bihar AMC light] after filter:', allowed.length);
 
         setRows(allowed.map(normalize));
-        setUsingDemo(false);
       }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'API se data load nahi hua');
+      setErrorMsg((e as Error).message || 'Failed to fetch data from the server.');
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -616,11 +602,11 @@ export function BiharAMCSSLViewSurveyLight() {
       />
 
       <div className="ax-dash-grid">
-        {usingDemo && !loading && (
+        {errorMsg && !loading && (
           <div className="ax-col--12">
             <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Demo data dikh raha hai ({demoReason}).</span>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
+              <span>{errorMsg}</span>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry</button>
             </div>
           </div>
         )}
