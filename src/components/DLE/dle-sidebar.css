@@ -1,0 +1,546 @@
+﻿/* ═══════════════════════════════════════════════════════════════════════════
+   DLE Modern Professional Sidebar Styles
+   Buttery smooth accordion animations, elegant badge-style dashboard,
+   and clean enterprise hierarchy.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dle-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 2px 4px 28px 4px;
+  user-select: none;
+  font-family: inherit;
+}
+
+/* ── Top Portal Switcher Card ── */
+.dle-sb__top-card {
+  position: relative;
+  margin: 0 2px 14px 2px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-ax-theme='dark'] .dle-sb__top-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dle-sb__top-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+[data-ax-theme='dark'] .dle-sb__top-card:hover {
+  background: #1e293b;
+  border-color: #475569;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.dle-sb__portal-info {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.dle-sb__portal-badge-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #eff6ff;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dle-sb__top-card:hover .dle-sb__portal-badge-icon {
+  transform: rotate(10deg) scale(1.05);
+}
+
+.dle-sb__portal-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dle-sb__portal-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ax-text-strong, #0f172a);
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dle-sb__live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: dle-pulse 2s infinite ease-in-out;
+}
+
+@keyframes dle-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+.dle-sb__portal-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted, #64748b);
+  line-height: 1.2;
+}
+
+.dle-sb__back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5.5px 9px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-ax-theme='dark'] .dle-sb__back-btn {
+  background: #0f172a;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+.dle-sb__back-btn:hover {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
+}
+
+.dle-sb__back-btn svg {
+  transition: transform 0.18s ease;
+}
+
+.dle-sb__back-btn:hover svg {
+  transform: translateX(-3px);
+}
+
+/* ── Section Title ── */
+.dle-sb__section {
+  margin: 14px 4px 6px 4px;
+  padding: 0 6px;
+}
+
+.dle-sb__section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ax-text-subtle, #94a3b8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dle-sb__section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--ax-border, #e2e8f0);
+  opacity: 0.6;
+}
+
+/* ── Group & Leaf Items ── */
+.dle-sb__group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+}
+
+/* Button & Link base */
+.dle-sb__item-btn,
+.dle-sb__item-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ax-text-muted, #475569);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.dle-sb__item-btn:hover,
+.dle-sb__item-link:hover {
+  background: #f1f5f9;
+  color: var(--ax-text-strong, #0f172a);
+  transform: translateX(2px);
+}
+
+[data-ax-theme='dark'] .dle-sb__item-btn:hover,
+[data-ax-theme='dark'] .dle-sb__item-link:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+/* ── DASHBOARD BUTTON (Clean Badge Style - No harsh high blue!) ── */
+.dle-sb__item-link--dashboard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: var(--ax-text-default, #1e293b);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+[data-ax-theme='dark'] .dle-sb__item-link--dashboard {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.dle-sb__item-link--dashboard:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #2563eb;
+  transform: translateX(2px);
+}
+
+[data-ax-theme='dark'] .dle-sb__item-link--dashboard:hover {
+  background: #334155;
+  border-color: #475569;
+}
+
+.dle-sb__item-link--dashboard.is-active {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #2563eb;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.08);
+}
+
+[data-ax-theme='dark'] .dle-sb__item-link--dashboard.is-active {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #60a5fa;
+}
+
+.dle-sb__item-link--dashboard.is-active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: #2563eb;
+}
+
+/* Dashboard Badge */
+.dle-sb__badge-pill {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-left: auto;
+  transition: all 0.18s ease;
+}
+
+.dle-sb__item-link--dashboard.is-active .dle-sb__badge-pill {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+[data-ax-theme='dark'] .dle-sb__badge-pill {
+  background: #334155;
+  color: #94a3b8;
+}
+
+/* Group Parent Button */
+.dle-sb__item-btn--group {
+  font-weight: 600;
+  color: var(--ax-text-default, #1e293b);
+  padding: 7px 9px;
+}
+
+.dle-sb__item-btn--group.is-trail {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.04);
+}
+
+/* Icon Box Containers */
+.dle-sb__icon-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.dle-sb__icon-box--dashboard {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.dle-sb__icon-box--amc {
+  background: rgba(14, 165, 233, 0.08);
+  color: #0284c7;
+}
+
+.dle-sb__icon-box--installation {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+}
+
+.dle-sb__icon-box--management {
+  background: rgba(139, 92, 246, 0.08);
+  color: #7c3aed;
+}
+
+.dle-sb__item-btn:hover .dle-sb__icon-box,
+.dle-sb__item-link:hover .dle-sb__icon-box {
+  transform: scale(1.08);
+}
+
+/* Item Label */
+.dle-sb__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Caret Arrows with Smooth Animation */
+.dle-sb__caret {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ax-text-subtle, #94a3b8);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1), color 0.18s ease;
+}
+
+.dle-sb__item-btn:hover .dle-sb__caret {
+  color: #2563eb;
+}
+
+.dle-sb__caret.is-open {
+  transform: rotate(180deg);
+}
+
+.dle-sb__caret-right.is-open {
+  transform: rotate(90deg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SMOOTH CSS GRID ACCORDION (Buttery smooth 60fps expansion & collapse)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dle-sb__collapse-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.26s;
+}
+
+.dle-sb__collapse-wrapper.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+
+.dle-sb__collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Children Container with Tree Guide Line */
+.dle-sb__children-tree {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 3px 0 5px 12px;
+  padding-left: 10px;
+  border-left: 1.5px solid #e2e8f0;
+}
+
+[data-ax-theme='dark'] .dle-sb__children-tree {
+  border-left-color: #334155;
+}
+
+/* ── SubGroup Item (SSL, ULA) ── */
+.dle-sb__subgroup-btn {
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  color: var(--ax-text-muted, #475569);
+  background: transparent;
+}
+
+.dle-sb__subgroup-btn:hover {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+
+[data-ax-theme='dark'] .dle-sb__subgroup-btn:hover {
+  background: #1e293b;
+  color: #60a5fa;
+}
+
+.dle-sb__subgroup-btn.is-trail {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.dle-sb__subgroup-tag {
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  letter-spacing: 0.02em;
+}
+
+[data-ax-theme='dark'] .dle-sb__subgroup-tag {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+/* Nested sub-tree */
+.dle-sb__sub-tree {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px 6px;
+  padding-left: 10px;
+  border-left: 1.5px dashed #cbd5e1;
+}
+
+[data-ax-theme='dark'] .dle-sb__sub-tree {
+  border-left-color: #475569;
+}
+
+/* ── Leaf Navigation Links ── */
+.dle-sb__leaf-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ax-text-muted, #64748b);
+  text-decoration: none;
+  transition:
+    background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dle-sb__leaf-link:hover {
+  background: #f1f5f9;
+  color: #2563eb;
+  transform: translateX(3px);
+}
+
+[data-ax-theme='dark'] .dle-sb__leaf-link:hover {
+  background: #1e293b;
+  color: #60a5fa;
+}
+
+.dle-sb__leaf-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.65;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.dle-sb__leaf-link:hover .dle-sb__leaf-icon {
+  opacity: 1;
+  color: #2563eb;
+  transform: scale(1.12);
+}
+
+/* ── Active State for Leaf Links ── */
+.dle-sb__leaf-link.is-active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.06);
+}
+
+[data-ax-theme='dark'] .dle-sb__leaf-link.is-active {
+  background: rgba(37, 99, 235, 0.16);
+  color: #60a5fa;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.dle-sb__leaf-link.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: #2563eb;
+}
+
+.dle-sb__leaf-link.is-active .dle-sb__leaf-icon {
+  opacity: 1;
+  color: #2563eb;
+}

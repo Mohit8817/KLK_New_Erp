@@ -1800,6 +1800,14 @@
   }
   .ax-modal__dialog--lg {
     max-width: 760px;
+
+      .ax-btn__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* restore leading so overflow:hidden doesn't clip descenders (g/j/p/q/y) */
+    line-height: 1.25;
+    padding-block: 0.03em;
+  }
   }
   .ax-modal__dialog--xl {
     max-width: 960px;

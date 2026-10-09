@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
+import { TableExportToolbar, type ColumnDef, } from '../../../../../common/TableExportToolbar';
+import Pagination from '../../../../../common/pagination/Pagination';
 import SearchInput from '../../../../../common/search/SearchInput';
-import { Pagination } from '../../../../../common/pagination/Pagination';
 import { createPortal } from 'react-dom';
+import { useClickOutside } from '../../../../../hooks/useClickOutside';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+// DLE service: relative URL use karta hai -> Vite proxy API key/secret lagata hai
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
-import { exportDataToExcel, printTableData } from '../../../../../common/export/exportUtils';
 
 /* ---------- Types ---------- */
 interface Visit { status: string; at: string; }
@@ -50,14 +51,6 @@ interface UlaRow {
   secondVisitComplete: boolean;
   images: ImageItem[];
 }
-
-/* ---------- Fake data (jab API fail ho ya empty aaye) ---------- */
-const FAKE_API_ROWS = [
-  { id: 1, ca_no: '122205346656', ca_name: 'Manoj mahto', beneficiary_name: 'Manoj mahto', contact: '9162805002', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Damodar pati simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072662877', panel_2_no: 'SGMJ550072663622', inverter_no: '114191234388', surveyor: 'NIRAJ KUMAR', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:41 PM', visit2_at: '30-09-2026 12:41 PM', images: [] },
-  { id: 2, ca_no: '122205346692', ca_name: 'Shankar Mahto', beneficiary_name: 'Shankar Mahto', contact: '9801295143', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Yadupatti simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072662867', panel_2_no: 'SGMJ550072662967', inverter_no: '114191558507', surveyor: 'Vikash kumar', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:40 PM', visit2_at: '30-09-2026 12:40 PM', images: [] },
-  { id: 3, ca_no: '122205346618', ca_name: 'Bhuli devi', beneficiary_name: 'Bhuli devi', contact: '8521447239', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Damodar pati simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072663236', panel_2_no: 'SGMJ550072662780', inverter_no: '114190161279', surveyor: 'NIRAJ KUMAR', first_visit: 'Completed', second_visit: 'Completed', visit1_at: '30-09-2026 12:35 PM', visit2_at: '30-09-2026 12:35 PM', images: [] },
-  { id: 4, ca_no: '12220534666', ca_name: 'Nagina devi', beneficiary_name: 'Nagina devi', contact: '9708326915', state: 'Bihar', district: 'SITAMARHI', block: 'Charaut', panchayat: 'YADUPATTI', village: 'Yadupatti simri', survey_date: '30-09-2026', panel_1_no: 'SGMJ550072663288', panel_2_no: 'SGMJ550072662818', inverter_no: '114190164719', surveyor: 'Vikash kumar', first_visit: 'Completed', second_visit: 'Pending', visit1_at: '30-09-2026 12:33 PM', visit2_at: '', images: [] },
-];
 
 /* ---------- Helpers ---------- */
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
@@ -199,51 +192,71 @@ const parseDMY = (s: string) => {
 
 type SortKey = 'caNo' | 'caName' | 'district' | 'block' | 'surveyDate' | 'surveyor';
 
-const CSV_COLS: { header: string; get: (r: UlaRow) => string }[] = [
-  { header: 'ID', get: (r) => r.id },
-  { header: 'Company ID', get: (r) => r.companyId },
-  { header: 'CA No.', get: (r) => r.caNo },
-  { header: 'CA Name', get: (r) => r.caName },
-  { header: 'Beneficiary Name', get: (r) => r.beneficiary },
-  { header: 'Beneficiary Contact', get: (r) => r.contact },
-  { header: 'State', get: (r) => r.state },
-  { header: 'District', get: (r) => r.district },
-  { header: 'Block', get: (r) => r.block },
-  { header: 'Panchayat', get: (r) => r.panchayat },
-  { header: 'Village', get: (r) => r.village },
-  { header: 'Survey Date', get: (r) => r.surveyDate },
-  { header: 'Panel 1 No.', get: (r) => r.panel1 },
-  { header: 'Panel 2 No.', get: (r) => r.panel2 },
-  { header: 'Inverter No.', get: (r) => r.inverter },
-  { header: '1st Surveyor', get: (r) => r.surveyor },
-  { header: '2nd Surveyor', get: (r) => r.surveyor2 },
-  { header: 'User ID', get: (r) => r.userId },
-  { header: 'User Name', get: (r) => r.userName },
-  { header: '1st Visit', get: (r) => r.visit1.status },
-  { header: '2nd Visit', get: (r) => r.visit2.status },
-  { header: '1st Visit Note', get: (r) => r.visit1Note },
-  { header: '2nd Visit Note', get: (r) => r.visit2Note },
-  { header: 'Second Visit At', get: (r) => r.secondVisitAt },
-  { header: 'Modification', get: (r) => r.modification },
-  { header: 'Latitude', get: (r) => str(r.lat) },
-  { header: 'Longitude', get: (r) => str(r.lng) },
-  { header: 'Latitude 2', get: (r) => str(r.lat2) },
-  { header: 'Longitude 2', get: (r) => str(r.lng2) },
-  { header: 'Image Count', get: (r) => String(r.images.length) },
-  { header: 'Remarks', get: (r) => r.remarks },
+const EXPORT_COLS: { key: string; header: string; get: (r: UlaRow) => string }[] = [
+  { key: 'srNo', header: 'Sr. No.', get: (_r) => '' },
+  { key: 'caNo', header: 'CA No.', get: (r) => r.caNo },
+  { key: 'caName', header: 'CA Name', get: (r) => r.caName },
+  { key: 'beneficiary', header: 'Beneficiary', get: (r) => r.beneficiary },
+  { key: 'contact', header: 'Contact', get: (r) => r.contact },
+  { key: 'state', header: 'State', get: (r) => r.state },
+  { key: 'district', header: 'District', get: (r) => r.district },
+  { key: 'block', header: 'Block', get: (r) => r.block },
+  { key: 'panchayat', header: 'Panchayat', get: (r) => r.panchayat },
+  { key: 'village', header: 'Village', get: (r) => r.village },
+  { key: 'surveyDate', header: 'Survey Date', get: (r) => r.surveyDate },
+  { key: 'panel1', header: 'Panel 1 No.', get: (r) => r.panel1 },
+  { key: 'panel2', header: 'Panel 2 No.', get: (r) => r.panel2 },
+  { key: 'inverter', header: 'Inverter No.', get: (r) => r.inverter },
+  { key: 'surveyor', header: 'Surveyor', get: (r) => r.surveyor },
+  { key: 'visit1', header: '1st Visit', get: (r) => r.visit1.status },
+  { key: 'visit2', header: '2nd Visit', get: (r) => r.visit2.status },
+  { key: 'location', header: 'Location', get: (r) => (r.lat !== null && r.lng !== null ? `${r.lat}, ${r.lng}` : '') },
+  { key: 'images', header: 'Images', get: (r) => String(r.images.length) },
 ];
+type ExpCol = (typeof EXPORT_COLS)[number];
 
-const exportCsv = (rows: UlaRow[], filename: string) => {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [CSV_COLS.map((c) => esc(c.header)).join(',')];
-  rows.forEach((r) => lines.push(CSV_COLS.map((c) => esc(c.get(r))).join(',')));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const downloadFile = (content: string, filename: string, mime: string) => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${filename}.csv`;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+const exportCsv = (rows: UlaRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [cols.map((c) => esc(c.header)).join(',')];
+  rows.forEach((r, i) => {
+    lines.push(cols.map((c) => esc(c.key === 'srNo' ? String(i + 1) : c.get(r))).join(','));
+  });
+  downloadFile('\uFEFF' + lines.join('\r\n'), `${filename}.csv`, 'text/csv');
+};
+
+const exportExcel = (rows: UlaRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const table = `<table border="1"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r, i) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.key === 'srNo' ? String(i + 1) : c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${table}</body></html>`;
+  downloadFile('\uFEFF' + html, `${filename}.xls`, 'application/vnd.ms-excel');
+};
+
+const exportPdf = (rows: UlaRow[], cols: ExpCol[], title: string) => {
+  if (!rows.length || !cols.length) return;
+  const w = window.open('', '_blank', 'width=1200,height=800');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+    th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r, i) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.key === 'srNo' ? String(i + 1) : c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+  w.document.close();
+  w.focus();
 };
 
 const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
@@ -576,31 +589,32 @@ function UlaModal({
 
 export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const params = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const id = idProp ?? params.id ?? '';
 
   const [rows, setRows] = useState<UlaRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
-  const [demoReason, setDemoReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('surveyDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [preview, setPreview] = useState<UlaRow | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
-  const [perPage, setPerPage] = useState(100);
+  const [perPage, setPerPage] = useState(10);
   const visibleCols = columns.filter((c) => c.visible);
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [dlError, setDlError] = useState<string | null>(null);
 
   const downloadImages = async (r: UlaRow) => {
     if (downloadingId) return;
     setDownloadingId(r.id);
+    setDlError(null);
     try {
-      await dleService.downloadUlaImagesZip(r.id);
+      await dleService.downloadUlaImagesZip(r.id); // /api/bihar/ula/:id/download-images
     } catch (e) {
-      console.error((e as Error).message || 'Failed to download images');
+      setDlError((e as Error).message || 'Images download nahi ho paayi');
     } finally {
       setDownloadingId(null);
     }
@@ -611,32 +625,30 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const useDemo = (reason: string) => {
-      setRows(FAKE_API_ROWS.map(normalize));
-      setUsingDemo(true);
-      setDemoReason(reason);
-    };
+    setError(null);
     try {
+      // id hai to detail API (/api/bihar/ula/:id), nahi to poori list
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = id
         ? await dleService.getBiharUlaDetail(id, signal)
         : await dleService.getBiharUlaList(signal);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-      if (raw?.data && Array.isArray(raw.data)) raw = raw.data;
+      if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
+      // detail API aksar single object deti hai -> array bana do
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
       const mine = filterByCompanyStrict(list);
 
       console.info('[ULA view] rows:', list.length, '→ my company:', mine.length, 'first record:', list[0]);
 
-      if (!list.length) {
-        useDemo('No records returned from API');
-      } else {
-        setRows(mine.map(normalize));
-        setUsingDemo(false);
-      }
+      // empty ho to table ka "No records found" state dikhega
+      setRows(mine.map(normalize));
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'Failed to load data from API');
+      setRows([]);
+      setError((e as Error).message || 'Data load nahi ho paya');
     } finally {
       setLoading(false);
     }
@@ -722,12 +734,21 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const curPage = Math.min(page, totalPages);
   const start = (curPage - 1) * perPage;
   const paged = filtered.slice(start, start + perPage);
+  const rangeStart = filtered.length ? start + 1 : 0;
+  const rangeEnd = Math.min(curPage * perPage, filtered.length);
+
 
   const sortBy = (k: SortKey) => {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(k); setSortDir('asc'); }
     setPage(1);
   };
+  const sortable = (k: SortKey, label: string) => (
+    <th className="ax-table__th ax-table__th--sortable" scope="col" onClick={() => sortBy(k)}
+        aria-sort={sortKey === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      {label} <SortIcon dir={sortKey === k ? sortDir : null} />
+    </th>
+  );
 
   const fullyVisited = useMemo(
     () => rows.filter((r) => r.visit1.status === 'Completed' && r.visit2.status === 'Completed').length,
@@ -735,50 +756,35 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   );
 
 
-  const cellText = (r: UlaRow, i: number, key: string): string => {
-    switch (key) {
-      case 'srNo': return String(start + i + 1);
-      case 'visit1': return r.visit1.status;
-      case 'visit2': return r.visit2.status;
-      case 'location': return r.lat !== null && r.lng !== null ? `${r.lat}, ${r.lng}` : '';
-      case 'images': return String(r.images.length);
-      default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
-    }
-  };
+  const activeCols = useMemo(() => {
+    const visibleKeys = new Set(columns.filter((c) => c.visible).map((c) => c.key));
+    return EXPORT_COLS.filter((c) => visibleKeys.has(c.key));
+  }, [columns]);
+
+  const toolbarColumns = useMemo(
+    () => columns.filter((c) => !['action'].includes(c.key)).map((c) => ({ key: c.key, label: c.label, visible: c.visible })),
+    [columns],
+  );
 
   const handleCopy = async () => {
-    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
-    await navigator.clipboard.writeText(
-      filtered.map((r, i) => cols.map((c) => cellText(r, i, c.key)).join('\t')).join('\n')
-    );
+    if (!filtered.length) return;
+    const lines = [
+      activeCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r, i) => activeCols.map((c) => (c.key === 'srNo' ? String(i + 1) : c.get(r))).join('\t')),
+    ];
+    await navigator.clipboard.writeText(lines.join('\n'));
   };
 
   const handleExportCSV = () => {
-    exportCsv(filtered, `ula-installations-${id || 'all'}`);
+    exportCsv(filtered, activeCols, `ula-installations-${id || 'all'}`);
   };
 
   const handleExportExcel = () => {
-    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
-    exportDataToExcel(
-      `ula-installations-${id || 'all'}`,
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: UlaRow) => cellText(r, 0, c.key),
-      }))
-    );
+    exportExcel(filtered, activeCols, `ula-installations-${id || 'all'}`);
   };
 
   const handleExportPDF = () => {
-    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
-    printTableData(
-      'ULA Installation Records',
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: UlaRow) => cellText(r, 0, c.key),
-      }))
-    );
+    exportPdf(filtered, activeCols, `ULA Installation Records - ${id || 'All'}`);
   };
 
   const triggerRefresh = () => {
@@ -794,11 +800,11 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const renderCell = (key: string, r: UlaRow, i: number) => {
     switch (key) {
       case 'srNo':
-        return <td key={key} className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{start + i + 1}</td>;
+        return <td key={key} className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)', position: 'sticky', left: 0, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 60 }}>{start + i + 1}</td>;
       case 'caNo':
-        return <td key={key} className="ax-table__td ax-num" style={{ ...mono, color: 'var(--ax-accent)', fontWeight: 'var(--ax-weight-semibold)' }}>{r.caNo || '—'}</td>;
+        return <td key={key} className="ax-table__td ax-num" style={{ ...mono, color: 'var(--ax-accent)', fontWeight: 'var(--ax-weight-semibold)', position: 'sticky', left: 60, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 120 }}>{r.caNo || '—'}</td>;
       case 'caName':
-        return <td key={key} className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.caName || '—'}</td>;
+        return <td key={key} className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)', position: 'sticky', left: 180, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 200, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{r.caName || '—'}</td>;
       case 'beneficiary':
         return <td key={key} className="ax-table__td">{r.beneficiary || '—'}</td>;
       case 'contact':
@@ -856,29 +862,29 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
         return (
           <td key={key} className="ax-table__td">
             <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm"
-              disabled={!r.images.length} onClick={() => setPreview(r)}>
+              disabled={!r.images.length} onClick={() => navigate(`/dle/bihar/ula/installation/view/${r.id}`)}>
               <span className="ax-btn__icon">{ICON.eye}</span>
-              <span className="ax-btn__label">{r.images.length ? `${r.images.length} photos` : 'None'}</span>
+              <span className="ax-btn__label">View Data</span>
             </button>
           </td>
         );
-     case 'action': {
-  const busy = downloadingId === r.id;
-  return (
-    <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
-      <button
-        type="button"
-        className="ax-btn ax-btn--secondary ax-btn--sm"
-        onClick={() => downloadImages(r)}
-        disabled={busy || !r.images.length}
-        title={r.images.length ? 'Download all images in ZIP' : 'No images available for this record'}
-      >
-        <span className="ax-btn__icon">{ICON.download}</span>
-        <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
-      </button>
-    </td>
-  );
-}
+      case 'action': {
+        const busy = downloadingId === r.id;
+        return (
+          <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => downloadImages(r)}
+              disabled={busy || !r.images.length}
+              title={r.images.length ? 'Saari images ZIP mein download karo' : 'Is record mein images nahi hain'}
+            >
+              <span className="ax-btn__icon">{ICON.download}</span>
+              <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
+            </button>
+          </td>
+        );
+      }
       default:
         return <td key={key} className="ax-table__td">—</td>;
     }
@@ -897,11 +903,20 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
       />
 
       <div className="ax-dash-grid">
-        {usingDemo && !loading && (
+        {error && !loading && (
           <div className="ax-col--12">
-            <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Showing demo data: {demoReason}.</span>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
+            <div className="ax-alert ax-alert--danger" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+              <span>Data load nahi ho paya ({error}).</span>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry</button>
+            </div>
+          </div>
+        )}
+
+        {dlError && (
+          <div className="ax-col--12">
+            <div className="ax-alert ax-alert--danger" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+              <span>{dlError}</span>
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setDlError(null)}>Dismiss</button>
             </div>
           </div>
         )}
@@ -937,7 +952,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                 onExportCSV={handleExportCSV}
                 onExportExcel={handleExportExcel}
                 onExportPDF={handleExportPDF}
-                columns={columns}
+                columns={toolbarColumns}
                 onToggleColumn={toggleColumn}
               />
             </div>
@@ -950,6 +965,12 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                 <tr>
                   {visibleCols.map((c) => {
                     const isSortable = SORTABLE.includes(c.key);
+                    const stickyStyle: React.CSSProperties = 
+                      c.key === 'srNo' ? { position: 'sticky', left: 0, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 60 } :
+                      c.key === 'caNo' ? { position: 'sticky', left: 60, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 120 } :
+                      c.key === 'caName' ? { position: 'sticky', left: 180, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 200, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' } :
+                      {};
+
                     return isSortable ? (
                       <th
                         key={c.key}
@@ -957,6 +978,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                         scope="col"
                         aria-sort={ariaSort(c.key as TableSortKey)}
                         onClick={() => sortBy(c.key as TableSortKey)}
+                        style={stickyStyle}
                       >
                         {c.label} {glyph(c.key as TableSortKey)}
                       </th>
@@ -965,7 +987,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                         key={c.key}
                         className="ax-table__th"
                         scope="col"
-                        style={c.key === 'action' ? { textAlign: 'center' } : undefined}
+                        style={c.key === 'action' ? { textAlign: 'center', ...stickyStyle } : stickyStyle}
                       >
                         {c.label}
                       </th>
@@ -994,31 +1016,42 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
 
           {!loading && !filtered.length && (
             <div style={{ textAlign: 'center', padding: 'var(--ax-space-10) var(--ax-space-5)' }}>
-              <h3 style={{ color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-display)', marginBottom: 'var(--ax-space-2)' }}>No records found</h3>
-              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)', marginBottom: 'var(--ax-space-4)' }}>No rows match your search. Try a different term.</p>
-              <button type="button" className="ax-btn ax-btn--secondary" onClick={() => { setQ(''); setPage(1); }}>Clear search</button>
+              <h3 style={{ color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-display)', marginBottom: 'var(--ax-space-2)' }}>
+                {error ? 'Data not available' : 'No records found'}
+              </h3>
+              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)', marginBottom: 'var(--ax-space-4)' }}>
+                {error
+                  ? 'Server se data nahi mil paya. Kuch der baad Retry karein.'
+                  : q
+                    ? 'No rows match your search. Try a different term.'
+                    : 'Is company ke liye koi ULA installation record nahi mila.'}
+              </p>
+              {error ? (
+                <button type="button" className="ax-btn ax-btn--secondary" onClick={() => load()}>Retry</button>
+              ) : q ? (
+                <button type="button" className="ax-btn ax-btn--secondary" onClick={() => { setQ(''); setPage(1); }}>Clear search</button>
+              ) : null}
             </div>
           )}
 
           {!loading && !!filtered.length && (
-            <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
-              <Pagination
-                currentPage={curPage}
-                totalItems={filtered.length}
-                pageSize={perPage}
-                onPageChange={setPage}
-                onPageSizeChange={(size) => {
-                  setPerPage(size);
-                  setPage(1);
-                }}
-                pageSizeOptions={[10, 25, 50, 100]}
-              />
-            </div>
+            <Pagination
+              currentPage={curPage}
+              totalItems={filtered.length}
+              pageSize={perPage}
+              setPage={setPage}
+              onPageSizeChange={(size) => {
+                setPerPage(size);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 20, 40]}
+              showSummary
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+            />
           )}
         </section>
       </div>
-
-      <UlaModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
     </>
   );
 }

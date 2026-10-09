@@ -14,6 +14,10 @@ export const DLE_BASE_URL = (
 
 export const APPROVAL_APPROVED = 1;
 
+/** Backend `status` values for POST /api/admin/approval/status */
+export const APPROVAL_PENDING = 0;
+export const APPROVAL_REJECTED = 2;
+
 export const DLE_ENDPOINTS = {
   // Bihar ULA
   BIHAR_ULA_LIST: `${DLE_BASE_URL}/api/bihar/ula/list`,
@@ -25,6 +29,8 @@ export const DLE_ENDPOINTS = {
   // Admin Management
   ADMIN_USERS: `${DLE_BASE_URL}/api/admin/users`,
   ADMIN_APPROVAL_STATUS: `${DLE_BASE_URL}/api/admin/approval/status`,
+  ADMIN_APPROVE_BY_ID: (id: string | number) =>
+    `${DLE_BASE_URL}/api/admin/approve/${id}`,
 
   // UP AMC
   UP_AMC_LIGHT_LIST: `${DLE_BASE_URL}/api/up/amc/light/list`,
@@ -109,6 +115,10 @@ export const filterByCompany = <T = any>(list: T[]): T[] => {
   });
 };
 
+/** Logged-in user ki company_id (khaali ho to '') — original case me, approve/reject payload ke liye */
+export const getLoginCompanyId = (): string =>
+  String(authService.getCompanyId() ?? '').trim();
+
 /**
  * STRICT: sirf wahi records jinki company_id login user ki company_id ke barabar ho.
  * Record ki company_id null/khaali ho → HIDE.
@@ -135,6 +145,18 @@ export const isApprovedUser = (u: any): boolean =>
 /** Sirf approved users (approval_status === 1) */
 export const filterApproved = <T = any>(list: T[]): T[] =>
   list.filter(isApprovedUser);
+
+/** Payload for POST /api/admin/approval/status (matches approveUserController) */
+export interface UpdateApprovalPayload {
+  /** User id */
+  id: string | number;
+  /** 0 = Pending, 1 = Approved, 2 = Rejected */
+  status: number;
+  /** Remark — mandatory for rejection */
+  approval_remarks: string;
+  /** Optional: company_id to save on the user while approving / rejecting */
+  company_id?: string | number;
+}
 
 export class DleService {
   /**
@@ -170,8 +192,15 @@ export class DleService {
         try {
           const errData = await response.json();
 
+          // Validation errors (e.g. { errors: { field: ['msg'] } })
+          const detail = errData?.errors
+            ? Object.values(errData.errors).flat().join(', ')
+            : '';
+
           if (errData?.message) {
             errorMsg = errData.message;
+          } else if (detail) {
+            errorMsg = detail;
           }
         } catch {
           // Ignore non-JSON error responses
@@ -293,12 +322,16 @@ export class DleService {
    *
    * State filtering is handled by the page because the same
    * API is used by both Bihar and Uttar Pradesh pages.
+   *
+   * cache: 'no-store' → approve/reject ke baad hamesha fresh list aaye,
+   * browser purani (stale) list na de.
    */
   async getAdminUsers(signal?: AbortSignal) {
     return this.request(
       DLE_ENDPOINTS.ADMIN_USERS,
       {
         method: 'GET',
+        cache: 'no-store',
         signal,
       }
     );
@@ -314,18 +347,42 @@ export class DleService {
     return filterByCompany(extractList(res));
   }
 
+  /**
+   * Approve / Reject / Pending a user.
+   * Backend: POST /api/admin/approval/status
+   * Body: { id, status (0|1|2), approval_remarks, company_id? }
+   */
   async updateApprovalStatus(
-    payload: {
-      user_id: string | number;
-      approval_status: number;
-      id?: string | number;
-    },
+    payload: UpdateApprovalPayload,
     signal?: AbortSignal
   ) {
     return this.request(
       DLE_ENDPOINTS.ADMIN_APPROVAL_STATUS,
       {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal,
+      }
+    );
+  }
+
+  /**
+   * EDIT an already processed user (Approved <-> Rejected).
+   * Backend: PATCH /api/admin/approve/:id
+   * Body: { status (0|1|2), approval_remarks, company_id? }  (id comes from the URL)
+   */
+  async editApproval(
+    id: string | number,
+    payload: Omit<UpdateApprovalPayload, 'id'>,
+    signal?: AbortSignal
+  ) {
+    return this.request(
+      DLE_ENDPOINTS.ADMIN_APPROVE_BY_ID(id),
+      {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },

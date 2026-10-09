@@ -63,6 +63,43 @@ const FLOAT_CSS = `
     transition:none
   }
 }
+
+.up-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:var(--ax-space-6)
+}
+.up-span2{grid-column:span 2}
+.up-footer{
+  display:flex;
+  justify-content:space-between;
+  gap:var(--ax-space-3)
+}
+
+@media (max-width:640px){
+  .up-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:var(--ax-space-4)
+  }
+  .up-span2{grid-column:auto}
+  .up-grid .ax-select,
+  .up-grid .ax-select option,
+  .up-grid .ax-input,
+  .up-grid .ax-textarea{
+    font-size:12px;
+    padding:2px 10px !important;
+  }
+
+
+  .up-footer{flex-direction:column}
+  .up-footer .ax-btn{width:100%}
+  .ax-float__label{
+    max-width:calc(100% - var(--ax-space-6));
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap
+  }
+}
 `;
 
 /** Sirf Uttar Pradesh ke districts rakhta hai (agar API me state info ho). */
@@ -84,6 +121,29 @@ const filterUpDistricts = (list: any[]): any[] => {
   );
 };
 
+/**
+ * Backend (Laravel) validation errors ko readable message me badalta hai.
+ * Supports: err.errors, err.data.errors, err.response.data.errors
+ */
+const buildErrorMessage = (err: any): string => {
+  const bag =
+    err?.errors ??
+    err?.data?.errors ??
+    err?.response?.data?.errors ??
+    null;
+
+  if (bag && typeof bag === 'object') {
+    const lines = Object.entries(bag).map(([field, msgs]) => {
+      const text = Array.isArray(msgs) ? msgs.join(' ') : String(msgs);
+      return `${field}: ${text}`;
+    });
+
+    if (lines.length) return lines.join(' | ');
+  }
+
+  return err?.message || 'Something went wrong.';
+};
+
 export function UPAMCSSLAssignLights() {
   const navigate = useNavigate();
 
@@ -101,8 +161,7 @@ export function UPAMCSSLAssignLights() {
     remarks: '',
   });
 
-  const [errors, setErrors] =
-    useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [busy, setBusy] = useState(false);
 
@@ -111,10 +170,7 @@ export function UPAMCSSLAssignLights() {
     msg: string;
   } | null>(null);
 
-  const set = (
-    k: keyof typeof f,
-    v: string
-  ) => {
+  const set = (k: keyof typeof f, v: string) => {
     setF((s) => ({
       ...s,
       [k]: v,
@@ -215,9 +271,7 @@ export function UPAMCSSLAssignLights() {
 
     upSslAmc
       .getBlocks(v)
-      .then((j) =>
-        setBlocks(toOptions(j))
-      )
+      .then((j) => setBlocks(toOptions(j)))
       .catch((e: any) => {
         if (e?.name !== 'AbortError') {
           setAlert({
@@ -244,13 +298,8 @@ export function UPAMCSSLAssignLights() {
     if (!v) return;
 
     upSslAmc
-      .getPanchayats(
-        v,
-        f.district_id
-      )
-      .then((j) =>
-        setPanchayats(toOptions(j))
-      )
+      .getPanchayats(v, f.district_id)
+      .then((j) => setPanchayats(toOptions(j)))
       .catch((e: any) => {
         if (e?.name !== 'AbortError') {
           setAlert({
@@ -265,9 +314,7 @@ export function UPAMCSSLAssignLights() {
      Submit
      ───────────────────────────────────────────── */
 
-  const submit = async (
-    e: React.FormEvent
-  ) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const er: Record<string, string> = {};
@@ -285,16 +332,11 @@ export function UPAMCSSLAssignLights() {
     }
 
     if (!f.panchayat_id) {
-      er.panchayat_id =
-        'Select a panchayat.';
+      er.panchayat_id = 'Select a panchayat.';
     }
 
-    if (
-      !f.light_count ||
-      Number(f.light_count) < 1
-    ) {
-      er.light_count =
-        'Enter light count.';
+    if (!f.light_count || Number(f.light_count) < 1) {
+      er.light_count = 'Enter light count.';
     }
 
     setErrors(er);
@@ -307,19 +349,42 @@ export function UPAMCSSLAssignLights() {
     setAlert(null);
 
     try {
-      const res =
-        await upSslAmc.storeAssignLight({
-          ...f,
-          district: f.district_id,
-          block: f.block_id,
-          panchayat: f.panchayat_id,
-        });
+      const lightCount = Number(f.light_count);
+
+      /**
+       * "users" ek INTEGER chahiye (array nahi).
+       * district/block/panchayat ki values numeric nahi bhi ho sakti
+       * (name/code), isliye unhe Number() me mat badlo -> NaN => null
+       * => "field is required". Ye as-is (string) jaate hain.
+       */
+      const payload = {
+        users: Number(f.user_id),
+        user_id: Number(f.user_id),
+
+        district_id: f.district_id,
+        district: f.district_id,
+
+        block_id: f.block_id,
+        block: f.block_id,
+
+        panchayat_id: f.panchayat_id,
+        // backend ko "panchayat" ARRAY me chahiye
+        panchayat: [f.panchayat_id],
+
+        // backend light count ko "sitecount" naam se maangta hai
+        sitecount: lightCount,
+        light_count: lightCount,
+        lights: lightCount,
+
+        remarks: f.remarks,
+        remark: f.remarks,
+      };
+
+      const res = await upSslAmc.storeAssignLight(payload);
 
       setAlert({
         type: 'success',
-        msg:
-          res?.message ||
-          'Assigned successfully.',
+        msg: res?.message || 'Assigned successfully.',
       });
 
       setF({
@@ -335,11 +400,11 @@ export function UPAMCSSLAssignLights() {
       setPanchayats([]);
       setErrors({});
     } catch (err: any) {
+      console.error('Assign light failed:', err);
+
       setAlert({
         type: 'danger',
-        msg:
-          err?.message ||
-          'Something went wrong.',
+        msg: buildErrorMessage(err),
       });
     } finally {
       setBusy(false);
@@ -347,14 +412,10 @@ export function UPAMCSSLAssignLights() {
   };
 
   const cls = (k: string) =>
-    `ax-input ax-float__input${
-      errors[k] ? ' is-invalid' : ''
-    }`;
+    `ax-input ax-float__input${errors[k] ? ' is-invalid' : ''}`;
 
   const scls = (k: string) =>
-    `ax-select ax-float__input${
-      errors[k] ? ' is-invalid' : ''
-    }`;
+    `ax-select ax-float__input${errors[k] ? ' is-invalid' : ''}`;
 
   const err = (k: string) =>
     errors[k] && (
@@ -363,8 +424,7 @@ export function UPAMCSSLAssignLights() {
         role="alert"
         style={{
           display: 'block',
-          marginTop:
-            'var(--ax-space-2)',
+          marginTop: 'var(--ax-space-2)',
         }}
       >
         {errors[k]}
@@ -381,7 +441,6 @@ export function UPAMCSSLAssignLights() {
       />
 
       <div className="ax-dash-grid">
-
         {alert && (
           <div className="ax-col--12">
             <div
@@ -389,9 +448,7 @@ export function UPAMCSSLAssignLights() {
               role="status"
             >
               <div className="ax-alert__content">
-                <p className="ax-alert__message">
-                  {alert.msg}
-                </p>
+                <p className="ax-alert__message">{alert.msg}</p>
               </div>
             </div>
           </div>
@@ -402,74 +459,41 @@ export function UPAMCSSLAssignLights() {
           role="region"
           aria-label="Assign UP SSL AMC lights"
         >
-
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">
-                Uttar Pradesh
-              </span>
+              <span className="ax-card__eyebrow">Uttar Pradesh</span>
 
               <p className="ax-card__subtitle">
-                All fields except remarks are
-                required.
+                All fields except remarks are required.
               </p>
             </div>
           </div>
 
-          <form
-            onSubmit={submit}
-            noValidate
-          >
+          <form onSubmit={submit} noValidate>
             <div className="ax-card__body">
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(2,minmax(0,1fr))',
-                  gap: 'var(--ax-space-6)',
-                }}
-              >
-
+              <div className="up-grid">
                 {/* DLE USER */}
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="up-user"
-                      className={scls(
-                        'user_id'
-                      )}
+                      className={scls('user_id')}
                       value={f.user_id}
-                      onChange={(e) =>
-                        set(
-                          'user_id',
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => set('user_id', e.target.value)}
                     >
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select DLE User</option>
 
                       {users.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-user"
-                    >
+                    <label className="ax-float__label" htmlFor="up-user">
                       DLE user *
                     </label>
-
                   </div>
 
                   {err('user_id')}
@@ -479,40 +503,24 @@ export function UPAMCSSLAssignLights() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="up-district"
-                      className={scls(
-                        'district_id'
-                      )}
+                      className={scls('district_id')}
                       value={f.district_id}
-                      onChange={(e) =>
-                        onDistrict(
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => onDistrict(e.target.value)}
                     >
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select District</option>
 
                       {districts.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-district"
-                    >
+                    <label className="ax-float__label" htmlFor="up-district">
                       District *
                     </label>
-
                   </div>
 
                   {err('district_id')}
@@ -522,43 +530,25 @@ export function UPAMCSSLAssignLights() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="up-block"
-                      className={scls(
-                        'block_id'
-                      )}
+                      className={scls('block_id')}
                       value={f.block_id}
-                      onChange={(e) =>
-                        onBlock(
-                          e.target.value
-                        )
-                      }
-                      disabled={
-                        !f.district_id
-                      }
+                      onChange={(e) => onBlock(e.target.value)}
+                      disabled={!f.district_id}
                     >
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select Block</option>
 
                       {blocks.map((o) => (
-                        <option
-                          key={o.value}
-                          value={o.value}
-                        >
+                        <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
                       ))}
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-block"
-                    >
+                    <label className="ax-float__label" htmlFor="up-block">
                       Block *
                     </label>
-
                   </div>
 
                   {err('block_id')}
@@ -568,163 +558,91 @@ export function UPAMCSSLAssignLights() {
 
                 <div>
                   <div className="ax-float ax-float--select">
-
                     <select
                       id="up-pan"
-                      className={scls(
-                        'panchayat_id'
-                      )}
-                      value={
-                        f.panchayat_id
-                      }
-                      onChange={(e) =>
-                        set(
-                          'panchayat_id',
-                          e.target.value
-                        )
-                      }
-                      disabled={
-                        !f.block_id
-                      }
+                      className={scls('panchayat_id')}
+                      value={f.panchayat_id}
+                      onChange={(e) => set('panchayat_id', e.target.value)}
+                      disabled={!f.block_id}
                     >
-                      <option value="">
-                        {' '}
-                      </option>
+                      <option value="">Select Panchayat</option>
 
-                      {panchayats.map(
-                        (o) => (
-                          <option
-                            key={o.value}
-                            value={o.value}
-                          >
-                            {o.label}
-                          </option>
-                        )
-                      )}
+                      {panchayats.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-pan"
-                    >
+                    <label className="ax-float__label" htmlFor="up-pan">
                       Panchayat *
                     </label>
-
                   </div>
 
-                  {err(
-                    'panchayat_id'
-                  )}
+                  {err('panchayat_id')}
                 </div>
 
                 {/* LIGHT COUNT */}
 
                 <div>
                   <div className="ax-float">
-
                     <input
                       id="up-count"
                       type="number"
                       min="1"
-                      className={cls(
-                        'light_count'
-                      )}
+                      className={cls('light_count')}
                       placeholder=" "
-                      value={
-                        f.light_count
-                      }
-                      onChange={(e) =>
-                        set(
-                          'light_count',
-                          e.target.value
-                        )
-                      }
+                      value={f.light_count}
+                      onChange={(e) => set('light_count', e.target.value)}
                     />
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-count"
-                    >
+                    <label className="ax-float__label" htmlFor="up-count">
                       Light count *
                     </label>
-
                   </div>
 
-                  {err(
-                    'light_count'
-                  )}
+                  {err('light_count')}
                 </div>
 
                 {/* REMARKS */}
 
-                <div
-                  style={{
-                    gridColumn: 'span 2',
-                  }}
-                >
+                <div className="up-span2">
                   <div className="ax-float ax-float--area">
-
                     <textarea
                       id="up-remarks"
                       className="ax-textarea ax-float__input"
                       rows={3}
                       placeholder=" "
                       value={f.remarks}
-                      onChange={(e) =>
-                        set(
-                          'remarks',
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => set('remarks', e.target.value)}
                     />
 
-                    <label
-                      className="ax-float__label"
-                      htmlFor="up-remarks"
-                    >
+                    <label className="ax-float__label" htmlFor="up-remarks">
                       Remarks
                     </label>
-
                   </div>
                 </div>
-
               </div>
             </div>
 
-            <div
-              className="ax-card__footer"
-              style={{
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-                gap: 'var(--ax-space-3)',
-              }}
-            >
-
+            <div className="ax-card__footer up-footer">
               <button
                 type="submit"
                 className="ax-btn ax-btn--primary ax-btn--pill"
                 disabled={busy}
               >
                 <span className="ax-btn__label">
-                  {busy
-                    ? 'Submitting…'
-                    : 'Submit'}
+                  {busy ? 'Submitting…' : 'Submit'}
                 </span>
               </button>
 
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--pill"
-                onClick={() =>
-                  navigate(-1)
-                }
+                onClick={() => navigate(-1)}
               >
-                <span className="ax-btn__label">
-                  Cancel
-                </span>
+                <span className="ax-btn__label">Cancel</span>
               </button>
-
             </div>
           </form>
         </section>

@@ -67,17 +67,23 @@ const BiharAMCSSLViewAssignLight = lazy(() => import('./components/DLE/Bihar/AMC
 const BiharAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewSurveyLight'));
 const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
 const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
+const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
 const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 
-const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
-const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
-const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
-const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
-const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
-const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
+const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'));
+const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
+const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
+const MapsLeaflet = lazy(() => import('./pages/maps/Leaflet'));
+
+// const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
+// const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
+// const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
+// const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
+// const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
+// const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 
 // const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 // const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
@@ -411,26 +417,27 @@ const shell: Record<string, PageComponent> = {
   'dle/bihar/ssl/amc/view-verify-light': BiharAMCSSLViewSurveyLight,
   'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
   'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
+  'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
   'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
   'dle/users': DLEManagementViewData,
 
-  'assam': AssamDashboard,
-  'assam/dashboard': AssamDashboard,
-  'assam/installation': AssamInstallation,
-  'assam/swp': AssamDashboard,
-  'assam/swp/dashboard': AssamDashboard,
-  'assam/swp/installation-request': AssamInstallationRequest,
-  'assam/installation-request': AssamInstallationRequest,
-  'assam/swp/installation-site': AssamInstallationSite,
-  'assam/installation-site': AssamInstallationSite,
-  'assam/swp/add-installation': AssamInstallationSite,
-  'assam/add-installation': AssamInstallationSite,
-  'assam/swp/view-installation': AssamViewInstallation,
-  'assam/view-installation': AssamViewInstallation,
-  'assam/swp/view-payment': AssamViewPayment,
-  'assam/view-payment': AssamViewPayment,
+  // 'assam': AssamDashboard,
+  // 'assam/dashboard': AssamDashboard,
+  // 'assam/installation': AssamInstallation,
+  // 'assam/swp': AssamDashboard,
+  // 'assam/swp/dashboard': AssamDashboard,
+  // 'assam/swp/installation-request': AssamInstallationRequest,
+  // 'assam/installation-request': AssamInstallationRequest,
+  // 'assam/swp/installation-site': AssamInstallationSite,
+  // 'assam/installation-site': AssamInstallationSite,
+  // 'assam/swp/add-installation': AssamInstallationSite,
+  // 'assam/add-installation': AssamInstallationSite,
+  // 'assam/swp/view-installation': AssamViewInstallation,
+  // 'assam/view-installation': AssamViewInstallation,
+  // 'assam/swp/view-payment': AssamViewPayment,
+  // 'assam/view-payment': AssamViewPayment,
 
   // ── Uttar Pradesh: Survey ──
   // 'up/survey/resco/assigned-survey': UPSurveyRescoAssignedSurvey,
@@ -720,16 +727,23 @@ export function App() {
               ))}
             </Route>
             {/* Dashboard shell */}
-       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-  {/* Login ke baad pehla page: DLE dashboard */}
-  <Route index element={<Navigate to="/dle/dashboard" replace />} />
-  {/* <Route index element={wrap(JammuDashboard)} /> */}
-  {/* <Route path="dashboards/sales" element={wrap(Sales)} /> */}
-  <Route element={<Navigate to="/dle/dashboard" replace />} />
-  {Object.entries(shell).map(([slug, C]) => (
-    <Route key={slug} path={slug} element={guarded(slug, C)} />
-  ))}
-</Route>
+            {/* Dashboard shell */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              {/* Login ke baad pehla page: KLK ERP Dashboard */}
+              <Route index element={wrap(ErpMainDashboard)} />
+              <Route path="dashboard" element={wrap(ErpMainDashboard)} />
+              <Route path="erp-dashboard" element={wrap(ErpMainDashboard)} />
+              <Route path="vendor/dashboard" element={wrap(ModulePlaceholder)} />
+              <Route path="vendor" element={wrap(ModulePlaceholder)} />
+              <Route path="gallery" element={wrap(AppsGallery)} />
+              <Route path="complaints" element={wrap(ModulePlaceholder)} />
+              <Route path="reports/analytics" element={wrap(DashboardsAnalytics)} />
+              <Route path="reports/geo-reports" element={wrap(MapsLeaflet)} />
+              <Route path="settings" element={wrap(ModulePlaceholder)} />
+              {Object.entries(shell).map(([slug, C]) => (
+                <Route key={slug} path={slug} element={guarded(slug, C)} />
+              ))}
+            </Route>
             {/* Unknown → 404 screen (standalone) */}
             <Route path="*" element={wrap(standalone['error/404'])} />
           </Routes>

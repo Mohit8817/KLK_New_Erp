@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
-import SearchInput from '../../../../../common/search/SearchInput';
+import { SearchInput } from '../../../../../common/search/SearchInput';
 import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
 import { authService } from '../../../../../services/authService';
-import { exportDataToCSV, exportDataToExcel, printTableData, copyTableDataToClipboard } from '../../../../../common/export/exportUtils';
 
 
 interface ImageItem { label: string; url: string; raw: string; }
@@ -33,11 +32,6 @@ interface LightRow {
   lng: number | null;
   images: ImageItem[];
 }
-
-/* ---------- Fake data (jab API fail ho ya empty aaye) ---------- */
-const FAKE_API_ROWS = [
-  { id: 1, district: 'VAISHALI', block: 'Patepur', panchayat: 'Nirpur', ssl_id: '702656', beneficiary_name: 'Rabin Sahni', beneficiary_contact: '10', amc_date: '2026-09-25', next_amc_date: '2026-12-25', quarter_no: 1, light_working: 'Yes', complaint_raised: 0, approval_status: 0 },
-];
 
 /* ---------- Helpers ---------- */
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
@@ -137,6 +131,64 @@ const DATE_KEYS: string[] = ['amcDate', 'nextAmcDate'];
 
 const yesNo = (v: boolean | null) => (v === null ? '' : v ? 'Yes' : 'No');
 
+const EXPORT_COLS: { key: string; header: string; get: (r: LightRow) => string }[] = [
+  { key: 'district', header: 'District', get: (r) => r.district },
+  { key: 'block', header: 'Block', get: (r) => r.block },
+  { key: 'panchayat', header: 'Panchayat', get: (r) => r.panchayat },
+  { key: 'sslId', header: 'SSL ID', get: (r) => r.sslId },
+  { key: 'beneficiary', header: 'Beneficiary Name', get: (r) => r.beneficiary },
+  { key: 'contact', header: 'Contact', get: (r) => r.contact },
+  { key: 'amcDate', header: 'AMC Date', get: (r) => r.amcDate },
+  { key: 'nextAmcDate', header: 'Next AMC Date', get: (r) => r.nextAmcDate },
+  { key: 'quarter', header: 'Quarter', get: (r) => r.quarter },
+  { key: 'lightWorking', header: 'Light Working', get: (r) => yesNo(r.lightWorking) },
+  { key: 'complaint', header: 'Complaint', get: (r) => r.complaint },
+  { key: 'approval', header: 'Approval Status', get: (r) => r.approval },
+];
+type ExpCol = (typeof EXPORT_COLS)[number];
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const downloadFile = (content: string, filename: string, mime: string) => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const exportCsv = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [cols.map((c) => esc(c.header)).join(',')];
+  rows.forEach((r) => lines.push(cols.map((c) => esc(c.get(r))).join(',')));
+  downloadFile('\uFEFF' + lines.join('\r\n'), `${filename}.csv`, 'text/csv');
+};
+
+const exportExcel = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const table = `<table border="1"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${table}</body></html>`;
+  downloadFile('\uFEFF' + html, `${filename}.xls`, 'application/vnd.ms-excel');
+};
+
+const exportPdf = (rows: LightRow[], cols: ExpCol[], title: string) => {
+  if (!rows.length || !cols.length) return;
+  const w = window.open('', '_blank', 'width=1200,height=800');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+    th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+  w.document.close();
+  w.focus();
+};
+
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
 /* ---------- Icons ---------- */
@@ -184,7 +236,7 @@ function ImageTile({ im }: { im: ImageItem }) {
         </a>
       ) : (
         <div style={{ width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'var(--ax-space-3)', background: 'var(--ax-surface-subtle)', border: '1px dashed var(--ax-border)', borderRadius: 'var(--ax-radius-md)', color: 'var(--ax-danger-500)', fontSize: 'var(--ax-text-xs)' }}>
-          {im.url ? 'Image failed to load' : 'Image URL is not configured'}
+          {im.url ? 'Image load nahi hui' : 'Image URL set nahi hai (.env: VITE_R2_PUBLIC_URL)'}
         </div>
       )}
       <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: 5 }}>{im.label}</div>
@@ -223,7 +275,7 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
       <div ref={ref} className="ax-modal__dialog ax-modal__dialog--lg">
         <div className="ax-modal__header">
           <h2 className="ax-modal__title" id="amc-detail-title">AMC light · {row.sslId}</h2>
-          <button type="button" className="ax-btn ax-modal__close" onClick={onClose} aria-label="Close dialog">{ICON.close}</button>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{ICON.close}</button>
         </div>
         <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 'var(--ax-space-3)' }}>
@@ -296,13 +348,12 @@ function RowAction({ onView }: { onView: () => void }) {
 export function UPAMCSSLViewSurveyLight() {
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
-  const [demoReason, setDemoReason] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [q, setQ] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('amcDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(100);
+  const [perPage, setPerPage] = useState(10);
   const [preview, setPreview] = useState<LightRow | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
   const visibleCols = columns.filter((c) => c.visible);
@@ -311,35 +362,34 @@ export function UPAMCSSLViewSurveyLight() {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
-    const useDemo = (reason: string) => {
-      setRows(FAKE_API_ROWS.map(normalize));
-      setUsingDemo(true);
-      setDemoReason(reason);
-    };
+    setErrorMsg('');
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await dleService.getUpAmcLight(undefined, signal);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let raw: any = Array.isArray(json) ? json : json?.data ?? json?.rows ?? json?.records ?? json;
-      if (raw?.data && Array.isArray(raw.data)) raw = raw.data;
+      if (raw?.data && Array.isArray(raw.data)) raw = raw.data; // paginated response
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const list: any[] = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
 
       console.info('[UP AMC light] rows:', list.length, 'first record:', list[0]);
       console.info('[UP AMC light] my company_id:', authService.getCompanyId());
 
       if (!list.length) {
-        useDemo('No records returned from API');
+        setRows([]);
+        setErrorMsg('No records found from the server.');
       } else {
-        const allowed = filterByCompanyStrict(list).filter(
-          (r: any) => approvalLabel(r?.approval_status ?? r?.approval) === 'Approved'
-        );
+        // 1) company_id same ho (null wale hide)
+        const allowed = filterByCompanyStrict(list);
 
         console.info('[UP AMC light] after filter:', allowed.length);
 
         setRows(allowed.map(normalize));
-        setUsingDemo(false);
       }
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
-      useDemo((e as Error).message || 'Failed to load data from API');
+      setErrorMsg((e as Error).message || 'Failed to fetch data from the server.');
+      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -388,54 +438,36 @@ export function UPAMCSSLViewSurveyLight() {
       default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
     }
   };
+  const toolbarColumns = EXPORT_COLS.map((c) => ({
+    key: c.key,
+    label: c.header,
+    visible: visibleCols.some((v) => v.key === c.key),
+  }));
+  const activeExportCols = EXPORT_COLS.filter((c) => visibleCols.some((v) => v.key === c.key));
+  const stamp = new Date().toISOString().slice(0, 10);
 
   const handleCopy = async () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    await copyTableDataToClipboard(
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: LightRow) => cellText(r, c.key),
-      }))
-    );
+    if (!filtered.length || !activeExportCols.length) return;
+    const text = [
+      activeExportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r) => activeExportCols.map((c) => c.get(r)).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
   };
-
-  const handleExportCSV = () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    exportDataToCSV(
-      'up-amc-light',
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: LightRow) => cellText(r, c.key),
-      }))
-    );
-  };
-
-  const handleExportExcel = () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    exportDataToExcel(
-      'up-amc-light',
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: LightRow) => cellText(r, c.key),
-      })),
-      'UP AMC Light'
-    );
-  };
-
-  const handleExportPDF = () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    printTableData(
-      'Uttar Pradesh AMC Light Records',
-      filtered,
-      cols.map((c) => ({
-        header: c.label,
-        accessor: (r: LightRow) => cellText(r, c.key),
-      }))
-    );
-  };
+  const handleCsv = () => exportCsv(filtered, activeExportCols, `up-amc-light-${stamp}`);
+  const handleExcel = () => exportExcel(filtered, activeExportCols, `up-amc-light-${stamp}`);
+  const handlePdf = () => exportPdf(filtered, activeExportCols, 'UP AMC Light');
 
   const renderCell = (key: string, r: LightRow) => {
     switch (key) {
@@ -510,11 +542,11 @@ export function UPAMCSSLViewSurveyLight() {
       />
 
       <div className="ax-dash-grid">
-        {usingDemo && !loading && (
+        {errorMsg && !loading && (
           <div className="ax-col--12">
             <div className="ax-alert ax-alert--warning" role="status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Showing demo data: {demoReason}.</span>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry API</button>
+              <span>{errorMsg}</span>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry</button>
             </div>
           </div>
         )}
@@ -528,27 +560,18 @@ export function UPAMCSSLViewSurveyLight() {
             <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
               <SearchInput
                 value={q}
-                onChange={(val) => {
-                  setQ(val);
-                  setPage(1);
-                }}
+                onChange={(v) => { setQ(v); setPage(1); }}
                 placeholder="Search records…"
-                size="sm"
                 ariaLabel="Search records"
-                showClear
-                style={{
-                  width: 250,
-                  maxWidth: 350,
-                  flex: '0 0 auto',
-                  marginLeft: 'auto',
-                }}
+                size="sm"
+                style={{ width: 220, maxWidth: 260, flex: '1 1 180px', marginLeft: 'auto' }}
               />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExportCSV}
-                onExportExcel={handleExportExcel}
-                onExportPDF={handleExportPDF}
-                columns={columns}
+                onExportCSV={handleCsv}
+                onExportExcel={handleExcel}
+                onExportPDF={handlePdf}
+                columns={toolbarColumns}
                 onToggleColumn={toggleColumn}
               />
             </div>
@@ -594,7 +617,7 @@ export function UPAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderTop: '1px solid var(--ax-border)' }}>
+            <div style={{ borderTop: '1px solid var(--ax-border)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
               <Pagination
                 currentPage={curPage}
                 totalItems={filtered.length}
@@ -604,7 +627,8 @@ export function UPAMCSSLViewSurveyLight() {
                   setPerPage(size);
                   setPage(1);
                 }}
-                pageSizeOptions={[10, 25, 50, 100]}
+                pageSizeOptions={[10, 20, 40]}
+                showSummary
               />
             </div>
           )}
