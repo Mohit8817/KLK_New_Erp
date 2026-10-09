@@ -458,7 +458,7 @@ export function BiharAMCSSLViewAssignLight() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 25, 50, 100]}
+                pageSizeOptions={[10, 20, 40]}
               />
             </div>
           </div>

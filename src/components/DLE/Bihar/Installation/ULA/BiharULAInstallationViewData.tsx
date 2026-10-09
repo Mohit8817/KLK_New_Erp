@@ -192,51 +192,71 @@ const parseDMY = (s: string) => {
 
 type SortKey = 'caNo' | 'caName' | 'district' | 'block' | 'surveyDate' | 'surveyor';
 
-const CSV_COLS: { header: string; get: (r: UlaRow) => string }[] = [
-  { header: 'ID', get: (r) => r.id },
-  { header: 'Company ID', get: (r) => r.companyId },
-  { header: 'CA No.', get: (r) => r.caNo },
-  { header: 'CA Name', get: (r) => r.caName },
-  { header: 'Beneficiary Name', get: (r) => r.beneficiary },
-  { header: 'Beneficiary Contact', get: (r) => r.contact },
-  { header: 'State', get: (r) => r.state },
-  { header: 'District', get: (r) => r.district },
-  { header: 'Block', get: (r) => r.block },
-  { header: 'Panchayat', get: (r) => r.panchayat },
-  { header: 'Village', get: (r) => r.village },
-  { header: 'Survey Date', get: (r) => r.surveyDate },
-  { header: 'Panel 1 No.', get: (r) => r.panel1 },
-  { header: 'Panel 2 No.', get: (r) => r.panel2 },
-  { header: 'Inverter No.', get: (r) => r.inverter },
-  { header: '1st Surveyor', get: (r) => r.surveyor },
-  { header: '2nd Surveyor', get: (r) => r.surveyor2 },
-  { header: 'User ID', get: (r) => r.userId },
-  { header: 'User Name', get: (r) => r.userName },
-  { header: '1st Visit', get: (r) => r.visit1.status },
-  { header: '2nd Visit', get: (r) => r.visit2.status },
-  { header: '1st Visit Note', get: (r) => r.visit1Note },
-  { header: '2nd Visit Note', get: (r) => r.visit2Note },
-  { header: 'Second Visit At', get: (r) => r.secondVisitAt },
-  { header: 'Modification', get: (r) => r.modification },
-  { header: 'Latitude', get: (r) => str(r.lat) },
-  { header: 'Longitude', get: (r) => str(r.lng) },
-  { header: 'Latitude 2', get: (r) => str(r.lat2) },
-  { header: 'Longitude 2', get: (r) => str(r.lng2) },
-  { header: 'Image Count', get: (r) => String(r.images.length) },
-  { header: 'Remarks', get: (r) => r.remarks },
+const EXPORT_COLS: { key: string; header: string; get: (r: UlaRow) => string }[] = [
+  { key: 'srNo', header: 'Sr. No.', get: (_r) => '' },
+  { key: 'caNo', header: 'CA No.', get: (r) => r.caNo },
+  { key: 'caName', header: 'CA Name', get: (r) => r.caName },
+  { key: 'beneficiary', header: 'Beneficiary', get: (r) => r.beneficiary },
+  { key: 'contact', header: 'Contact', get: (r) => r.contact },
+  { key: 'state', header: 'State', get: (r) => r.state },
+  { key: 'district', header: 'District', get: (r) => r.district },
+  { key: 'block', header: 'Block', get: (r) => r.block },
+  { key: 'panchayat', header: 'Panchayat', get: (r) => r.panchayat },
+  { key: 'village', header: 'Village', get: (r) => r.village },
+  { key: 'surveyDate', header: 'Survey Date', get: (r) => r.surveyDate },
+  { key: 'panel1', header: 'Panel 1 No.', get: (r) => r.panel1 },
+  { key: 'panel2', header: 'Panel 2 No.', get: (r) => r.panel2 },
+  { key: 'inverter', header: 'Inverter No.', get: (r) => r.inverter },
+  { key: 'surveyor', header: 'Surveyor', get: (r) => r.surveyor },
+  { key: 'visit1', header: '1st Visit', get: (r) => r.visit1.status },
+  { key: 'visit2', header: '2nd Visit', get: (r) => r.visit2.status },
+  { key: 'location', header: 'Location', get: (r) => (r.lat !== null && r.lng !== null ? `${r.lat}, ${r.lng}` : '') },
+  { key: 'images', header: 'Images', get: (r) => String(r.images.length) },
 ];
+type ExpCol = (typeof EXPORT_COLS)[number];
 
-const exportCsv = (rows: UlaRow[], filename: string) => {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [CSV_COLS.map((c) => esc(c.header)).join(',')];
-  rows.forEach((r) => lines.push(CSV_COLS.map((c) => esc(c.get(r))).join(',')));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const downloadFile = (content: string, filename: string, mime: string) => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${filename}.csv`;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+const exportCsv = (rows: UlaRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [cols.map((c) => esc(c.header)).join(',')];
+  rows.forEach((r, i) => {
+    lines.push(cols.map((c) => esc(c.key === 'srNo' ? String(i + 1) : c.get(r))).join(','));
+  });
+  downloadFile('\uFEFF' + lines.join('\r\n'), `${filename}.csv`, 'text/csv');
+};
+
+const exportExcel = (rows: UlaRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const table = `<table border="1"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r, i) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.key === 'srNo' ? String(i + 1) : c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${table}</body></html>`;
+  downloadFile('\uFEFF' + html, `${filename}.xls`, 'application/vnd.ms-excel');
+};
+
+const exportPdf = (rows: UlaRow[], cols: ExpCol[], title: string) => {
+  if (!rows.length || !cols.length) return;
+  const w = window.open('', '_blank', 'width=1200,height=800');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+    th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r, i) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.key === 'srNo' ? String(i + 1) : c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+  w.document.close();
+  w.focus();
 };
 
 const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
@@ -736,26 +756,35 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   );
 
 
-  const cellText = (r: UlaRow, i: number, key: string): string => {
-    switch (key) {
-      case 'srNo': return String(start + i + 1);
-      case 'visit1': return r.visit1.status;
-      case 'visit2': return r.visit2.status;
-      case 'location': return r.lat !== null && r.lng !== null ? `${r.lat}, ${r.lng}` : '';
-      case 'images': return String(r.images.length);
-      default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
-    }
-  };
+  const activeCols = useMemo(() => {
+    const visibleKeys = new Set(columns.filter((c) => c.visible).map((c) => c.key));
+    return EXPORT_COLS.filter((c) => visibleKeys.has(c.key));
+  }, [columns]);
+
+  const toolbarColumns = useMemo(
+    () => columns.filter((c) => !['action'].includes(c.key)).map((c) => ({ key: c.key, label: c.label, visible: c.visible })),
+    [columns],
+  );
 
   const handleCopy = async () => {
-    const cols = visibleCols.filter((c) => !['action', 'location', 'images'].includes(c.key));
-    await navigator.clipboard.writeText(
-      filtered.map((r, i) => cols.map((c) => cellText(r, i, c.key)).join('\t')).join('\n')
-    );
+    if (!filtered.length) return;
+    const lines = [
+      activeCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r, i) => activeCols.map((c) => (c.key === 'srNo' ? String(i + 1) : c.get(r))).join('\t')),
+    ];
+    await navigator.clipboard.writeText(lines.join('\n'));
   };
 
-  const handleExport = () => {
-    exportCsv(filtered, `ula-installations-${id || 'all'}`);
+  const handleExportCSV = () => {
+    exportCsv(filtered, activeCols, `ula-installations-${id || 'all'}`);
+  };
+
+  const handleExportExcel = () => {
+    exportExcel(filtered, activeCols, `ula-installations-${id || 'all'}`);
+  };
+
+  const handleExportPDF = () => {
+    exportPdf(filtered, activeCols, `ULA Installation Records - ${id || 'All'}`);
   };
 
   const triggerRefresh = () => {
@@ -920,10 +949,10 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
               />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExport}
-                onExportExcel={handleExport}
-                onExportPDF={handleExport}
-                columns={columns}
+                onExportCSV={handleExportCSV}
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
+                columns={toolbarColumns}
                 onToggleColumn={toggleColumn}
               />
             </div>
@@ -1015,7 +1044,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                 setPerPage(size);
                 setPage(1);
               }}
-              pageSizeOptions={[5, 10, 25, 50, 100]}
+              pageSizeOptions={[10, 20, 40]}
               showSummary
               rangeStart={rangeStart}
               rangeEnd={rangeEnd}

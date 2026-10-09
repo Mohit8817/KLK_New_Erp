@@ -118,6 +118,10 @@ export const filterByCompany = <T = any>(list: T[]): T[] => {
   });
 };
 
+/** Logged-in user ki company_id (khaali ho to '') — original case me, approve/reject payload ke liye */
+export const getLoginCompanyId = (): string =>
+  String(authService.getCompanyId() ?? '').trim();
+
 /**
  * STRICT: sirf wahi records jinki company_id login user ki company_id ke barabar ho.
  * Record ki company_id null/khaali ho → HIDE.
@@ -153,7 +157,7 @@ export interface UpdateApprovalPayload {
   status: number;
   /** Remark — mandatory for rejection */
   approval_remarks: string;
-  /** Optional: company_id to save on the user while approving */
+  /** Optional: company_id to save on the user while approving / rejecting */
   company_id?: string | number;
 }
 

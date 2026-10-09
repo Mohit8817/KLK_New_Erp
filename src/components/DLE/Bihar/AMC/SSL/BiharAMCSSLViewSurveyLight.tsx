@@ -251,6 +251,7 @@ const PAGE_CSS = `
   }
 `;
 
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
 /* ---------- Icons ---------- */
@@ -501,14 +502,19 @@ export function BiharAMCSSLViewSurveyLight() {
     }
   };
 
-  const exportCols = EXPORT_COLS.filter((c) => visibleCols.some((v) => v.key === c.key));
+  const toolbarColumns = EXPORT_COLS.map((c) => ({
+    key: c.key,
+    label: c.header,
+    visible: visibleCols.some((v) => v.key === c.key),
+  }));
+  const activeExportCols = EXPORT_COLS.filter((c) => visibleCols.some((v) => v.key === c.key));
   const stamp = new Date().toISOString().slice(0, 10);
 
   const handleCopy = async () => {
-    if (!filtered.length || !exportCols.length) return;
+    if (!filtered.length || !activeExportCols.length) return;
     const text = [
-      exportCols.map((c) => c.header).join('\t'),
-      ...filtered.map((r) => exportCols.map((c) => c.get(r)).join('\t')),
+      activeExportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r) => activeExportCols.map((c) => c.get(r)).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -523,9 +529,9 @@ export function BiharAMCSSLViewSurveyLight() {
       document.body.removeChild(ta);
     }
   };
-  const handleCsv = () => exportCsv(filtered, exportCols, `bihar-amc-light-${stamp}`);
-  const handleExcel = () => exportExcel(filtered, exportCols, `bihar-amc-light-${stamp}`);
-  const handlePdf = () => exportPdf(filtered, exportCols, 'Bihar AMC Light');
+  const handleCsv = () => exportCsv(filtered, activeExportCols, `bihar-amc-light-${stamp}`);
+  const handleExcel = () => exportExcel(filtered, activeExportCols, `bihar-amc-light-${stamp}`);
+  const handlePdf = () => exportPdf(filtered, activeExportCols, 'Bihar AMC Light');
 
   const renderCell = (key: string, r: LightRow) => {
     switch (key) {
@@ -618,20 +624,23 @@ export function BiharAMCSSLViewSurveyLight() {
               <p className="ax-card__subtitle ax-num" style={mono}>{filtered.length} results · {pendingCount}/{rows.length} pending approval</p>
             </div>
             <div className="ax-card__actions">
-              <SearchInput
-                value={q}
-                onChange={(v) => { setQ(v); setPage(1); }}
-                placeholder="Search records…"
-                ariaLabel="Search records"
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-                columns={columns}
-                onToggleColumn={toggleColumn}
-              />
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={q}
+                  onChange={(v) => { setQ(v); setPage(1); }}
+                  placeholder="Search records…"
+                  ariaLabel="Search records"
+                  size="sm"
+                />
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                  columns={toolbarColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              </div>
             </div>
           </div>
 
@@ -675,15 +684,18 @@ export function BiharAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="amc-footer">
+            <div className="amc-footer" style={{ padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
               <Pagination
-                curPage={curPage}
-                total={filtered.length}
+                currentPage={curPage}
+                totalItems={filtered.length}
                 pageSize={perPage}
-                setPage={setPage}
-                onPageSizeChange={setPerPage}
-                pageSizeOptions={[5, 10, 25, 50, 100]}
-                style={{ padding: 'var(--ax-space-3) var(--ax-space-5)' }}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 20, 40]}
+                showSummary
               />
             </div>
           )}

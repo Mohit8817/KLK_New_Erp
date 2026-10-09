@@ -131,32 +131,62 @@ const DATE_KEYS: string[] = ['amcDate', 'nextAmcDate'];
 
 const yesNo = (v: boolean | null) => (v === null ? '' : v ? 'Yes' : 'No');
 
-const CSV_COLS: { header: string; get: (r: LightRow) => string }[] = [
-  { header: 'District', get: (r) => r.district },
-  { header: 'Block', get: (r) => r.block },
-  { header: 'Panchayat', get: (r) => r.panchayat },
-  { header: 'SSL ID', get: (r) => r.sslId },
-  { header: 'Beneficiary Name', get: (r) => r.beneficiary },
-  { header: 'Contact', get: (r) => r.contact },
-  { header: 'AMC Date', get: (r) => r.amcDate },
-  { header: 'Next AMC Date', get: (r) => r.nextAmcDate },
-  { header: 'Quarter', get: (r) => r.quarter },
-  { header: 'Light Working', get: (r) => yesNo(r.lightWorking) },
-  { header: 'Complaint', get: (r) => r.complaint },
-  { header: 'Approval Status', get: (r) => r.approval },
+const EXPORT_COLS: { key: string; header: string; get: (r: LightRow) => string }[] = [
+  { key: 'district', header: 'District', get: (r) => r.district },
+  { key: 'block', header: 'Block', get: (r) => r.block },
+  { key: 'panchayat', header: 'Panchayat', get: (r) => r.panchayat },
+  { key: 'sslId', header: 'SSL ID', get: (r) => r.sslId },
+  { key: 'beneficiary', header: 'Beneficiary Name', get: (r) => r.beneficiary },
+  { key: 'contact', header: 'Contact', get: (r) => r.contact },
+  { key: 'amcDate', header: 'AMC Date', get: (r) => r.amcDate },
+  { key: 'nextAmcDate', header: 'Next AMC Date', get: (r) => r.nextAmcDate },
+  { key: 'quarter', header: 'Quarter', get: (r) => r.quarter },
+  { key: 'lightWorking', header: 'Light Working', get: (r) => yesNo(r.lightWorking) },
+  { key: 'complaint', header: 'Complaint', get: (r) => r.complaint },
+  { key: 'approval', header: 'Approval Status', get: (r) => r.approval },
 ];
+type ExpCol = (typeof EXPORT_COLS)[number];
 
-const exportCsv = (rows: LightRow[], filename: string) => {
-  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const lines = [CSV_COLS.map((c) => esc(c.header)).join(',')];
-  rows.forEach((r) => lines.push(CSV_COLS.map((c) => esc(c.get(r))).join(',')));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const downloadFile = (content: string, filename: string, mime: string) => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8;` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${filename}.csv`;
+  a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+const exportCsv = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const lines = [cols.map((c) => esc(c.header)).join(',')];
+  rows.forEach((r) => lines.push(cols.map((c) => esc(c.get(r))).join(',')));
+  downloadFile('\uFEFF' + lines.join('\r\n'), `${filename}.csv`, 'text/csv');
+};
+
+const exportExcel = (rows: LightRow[], cols: ExpCol[], filename: string) => {
+  if (!rows.length || !cols.length) return;
+  const table = `<table border="1"><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${table}</body></html>`;
+  downloadFile('\uFEFF' + html, `${filename}.xls`, 'application/vnd.ms-excel');
+};
+
+const exportPdf = (rows: LightRow[], cols: ExpCol[], title: string) => {
+  if (!rows.length || !cols.length) return;
+  const w = window.open('', '_blank', 'width=1200,height=800');
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
+    th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${cols.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(c.get(r))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+  w.document.close();
+  w.focus();
 };
 
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
@@ -408,11 +438,36 @@ export function UPAMCSSLViewSurveyLight() {
       default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
     }
   };
+  const toolbarColumns = EXPORT_COLS.map((c) => ({
+    key: c.key,
+    label: c.header,
+    visible: visibleCols.some((v) => v.key === c.key),
+  }));
+  const activeExportCols = EXPORT_COLS.filter((c) => visibleCols.some((v) => v.key === c.key));
+  const stamp = new Date().toISOString().slice(0, 10);
+
   const handleCopy = async () => {
-    const cols = visibleCols.filter((c) => c.key !== 'action' && c.key !== 'images');
-    await navigator.clipboard.writeText(filtered.map((r) => cols.map((c) => cellText(r, c.key)).join('\t')).join('\n'));
+    if (!filtered.length || !activeExportCols.length) return;
+    const text = [
+      activeExportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((r) => activeExportCols.map((c) => c.get(r)).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
   };
-  const handleExport = () => exportCsv(filtered, 'up-amc-light');
+  const handleCsv = () => exportCsv(filtered, activeExportCols, `up-amc-light-${stamp}`);
+  const handleExcel = () => exportExcel(filtered, activeExportCols, `up-amc-light-${stamp}`);
+  const handlePdf = () => exportPdf(filtered, activeExportCols, 'UP AMC Light');
 
   const renderCell = (key: string, r: LightRow) => {
     switch (key) {
@@ -508,14 +563,15 @@ export function UPAMCSSLViewSurveyLight() {
                 onChange={(v) => { setQ(v); setPage(1); }}
                 placeholder="Search records…"
                 ariaLabel="Search records"
-                
+                size="sm"
+                style={{ width: 220, maxWidth: 260, flex: '1 1 180px', marginLeft: 'auto' }}
               />
               <TableExportToolbar
                 onCopy={handleCopy}
-                onExportCSV={handleExport}
-                onExportExcel={handleExport}
-                onExportPDF={handleExport}
-                columns={columns}
+                onExportCSV={handleCsv}
+                onExportExcel={handleExcel}
+                onExportPDF={handlePdf}
+                columns={toolbarColumns}
                 onToggleColumn={toggleColumn}
               />
             </div>
@@ -561,15 +617,20 @@ export function UPAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <Pagination
-              curPage={curPage}
-              total={filtered.length}
-              pageSize={perPage}
-              setPage={setPage}
-              onPageSizeChange={setPerPage}
-              pageSizeOptions={[5, 10, 25, 50, 100]}
-              style={{ padding: 'var(--ax-space-3) var(--ax-space-5)', borderTop: '1px solid var(--ax-border)' }}
-            />
+            <div style={{ borderTop: '1px solid var(--ax-border)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
+              <Pagination
+                currentPage={curPage}
+                totalItems={filtered.length}
+                pageSize={perPage}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPerPage(size);
+                  setPage(1);
+                }}
+                pageSizeOptions={[10, 20, 40]}
+                showSummary
+              />
+            </div>
           )}
         </section>
       </div>

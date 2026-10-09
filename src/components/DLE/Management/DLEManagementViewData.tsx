@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
-import { TableExportToolbar, type ColumnDef } from '../../../common/TableExportToolbar';
-import { dleService, extractList, filterByCompany } from '../../../services/dleServices';
+import { TableExportToolbar, type ColumnDef, Pagination, SearchInput } from '../../../common';
+import { dleService, extractList, filterByCompany, getLoginCompanyId } from '../../../services/dleServices';
 
 /* ---------- Types ---------- */
 interface UserRow {
@@ -139,7 +139,6 @@ const SortIcon = ({ dir }: { dir: 'asc' | 'desc' | null }) => (
 
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 const APPROVALS = ['All', 'Pending', 'Approved', 'Rejected'];
-const PAGE_SIZE = 10;
 
 /* ---------- Page ---------- */
 export function DleUsers() {
@@ -151,6 +150,7 @@ export function DleUsers() {
   const [sortKey, setSortKey] = useState<SortKey>('createdTs');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<UserRow | null>(null);
   const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -245,15 +245,12 @@ export function DleUsers() {
     setPage(1);
   }, [urlState, urlDistrict, urlActivity, urlCreated, approval]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const curPage = Math.min(page, totalPages);
-  const start = (curPage - 1) * PAGE_SIZE;
-  const paged = filtered.slice(start, start + PAGE_SIZE);
-  const pageList = useMemo(() => {
-    const from = Math.max(1, Math.min(curPage - 3, totalPages - 6));
-    const to = Math.min(totalPages, from + 6);
-    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
-  }, [curPage, totalPages]);
+  const start = (curPage - 1) * pageSize;
+  const paged = filtered.slice(start, start + pageSize);
+  const rangeStart = filtered.length ? start + 1 : 0;
+  const rangeEnd = Math.min(curPage * pageSize, filtered.length);
 
   const counts = useMemo(() => ({
     Pending: rows.filter((r) => r.approval === 'Pending').length,
@@ -380,14 +377,14 @@ export function DleUsers() {
     }
     setBusyId(u.id);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      // company_id of the user row coming from /admin/users (no fallback to the logged-in admin)
-      const companyId = u.companyId;
+      // company_id of the /admin/users row; if it is null, use the logged-in user's company_id
+      const companyId = u.companyId || getLoginCompanyId();
       const payload = {
         status: isApprove ? 1 : 2, // backend reads "status": 0 = Pending, 1 = Approved, 2 = Rejected
         approval_remarks: text,
         ...(companyId ? { company_id: companyId } : {}),
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = editMode
         ? await dleService.editApproval(u.id, payload) // PATCH /api/admin/approve/:id
         : await dleService.updateApprovalStatus({ id: u.id, ...payload }); // POST /api/admin/approval/status
@@ -591,20 +588,20 @@ export function DleUsers() {
           )}
 
           {!loading && !!filtered.length && (
-            <div className="ax-card__footer ax-flex">
-              <span className="ax-pagination__summary ax-num" style={{ ...mono, fontSize: 'var(--ax-text-xs)' }}>
-                Showing {start + 1} to {Math.min(curPage * PAGE_SIZE, filtered.length)} of {filtered.length}
-              </span>
-              <nav className="ax-pagination" aria-label="Pagination">
-                <button type="button" className="ax-pagination__prev" disabled={curPage === 1} aria-disabled={curPage === 1} onClick={() => setPage(curPage - 1)} aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6l6 6" /></svg></button>
-                <ul className="ax-pagination__pages">
-                  {pageList.map((p) => (
-                    <li key={p}><button type="button" className={`ax-pagination__page${curPage === p ? ' is-active' : ''}`} aria-current={curPage === p ? 'page' : undefined} onClick={() => setPage(p)}>{p}</button></li>
-                  ))}
-                </ul>
-                <button type="button" className="ax-pagination__next" disabled={curPage === totalPages} aria-disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)} aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6" /></svg></button>
-              </nav>
-            </div>
+            <Pagination
+              currentPage={curPage}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              setPage={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+              pageSizeOptions={[10, 20, 50, 100]}
+              showSummary
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+            />
           )}
         </section>
       </div>
