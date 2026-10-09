@@ -57,19 +57,34 @@ export const toOptions = (json: any): Option[] => {
 async function request<T = any>(url: string, options: RequestInit = {}, params?: Record<string, string | number>): Promise<T> {
   const token = getDleToken();
   const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+  const method = (options.method || 'GET').toUpperCase();
+  const isWrite = method !== 'GET';
+
   const res = await fetch(url + qs, {
     ...options,
+    // Write (POST) requests par redirect follow mat karo.
+    // Backend save karke redirect()->back() karta hai (Referer = localhost:5173),
+    // jise browser follow karke CORS error deta hai.
+    ...(isWrite ? { redirect: 'manual' as RequestRedirect } : {}),
     headers: {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+
+  // POST ke baad backend ne redirect kiya => data save ho chuka hai
+  if (isWrite && (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400))) {
+    return { success: true, message: 'Assigned successfully.' } as any;
+  }
+
   let json: any = null;
   try { json = await res.json(); } catch { /* non-json */ }
+
   if (!res.ok) {
     const err = new Error(json?.message || `API Error ${res.status}`) as any;
     err.status = res.status;
+    err.errors = json?.errors; // Laravel validation errors (field -> [messages])
     throw err;
   }
   return json;

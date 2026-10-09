@@ -121,6 +121,29 @@ const filterUpDistricts = (list: any[]): any[] => {
   );
 };
 
+/**
+ * Backend (Laravel) validation errors ko readable message me badalta hai.
+ * Supports: err.errors, err.data.errors, err.response.data.errors
+ */
+const buildErrorMessage = (err: any): string => {
+  const bag =
+    err?.errors ??
+    err?.data?.errors ??
+    err?.response?.data?.errors ??
+    null;
+
+  if (bag && typeof bag === 'object') {
+    const lines = Object.entries(bag).map(([field, msgs]) => {
+      const text = Array.isArray(msgs) ? msgs.join(' ') : String(msgs);
+      return `${field}: ${text}`;
+    });
+
+    if (lines.length) return lines.join(' | ');
+  }
+
+  return err?.message || 'Something went wrong.';
+};
+
 export function UPAMCSSLAssignLights() {
   const navigate = useNavigate();
 
@@ -326,12 +349,38 @@ export function UPAMCSSLAssignLights() {
     setAlert(null);
 
     try {
-      const res = await upSslAmc.storeAssignLight({
-        ...f,
+      const lightCount = Number(f.light_count);
+
+      /**
+       * "users" ek INTEGER chahiye (array nahi).
+       * district/block/panchayat ki values numeric nahi bhi ho sakti
+       * (name/code), isliye unhe Number() me mat badlo -> NaN => null
+       * => "field is required". Ye as-is (string) jaate hain.
+       */
+      const payload = {
+        users: Number(f.user_id),
+        user_id: Number(f.user_id),
+
+        district_id: f.district_id,
         district: f.district_id,
+
+        block_id: f.block_id,
         block: f.block_id,
-        panchayat: f.panchayat_id,
-      });
+
+        panchayat_id: f.panchayat_id,
+        // backend ko "panchayat" ARRAY me chahiye
+        panchayat: [f.panchayat_id],
+
+        // backend light count ko "sitecount" naam se maangta hai
+        sitecount: lightCount,
+        light_count: lightCount,
+        lights: lightCount,
+
+        remarks: f.remarks,
+        remark: f.remarks,
+      };
+
+      const res = await upSslAmc.storeAssignLight(payload);
 
       setAlert({
         type: 'success',
@@ -351,9 +400,11 @@ export function UPAMCSSLAssignLights() {
       setPanchayats([]);
       setErrors({});
     } catch (err: any) {
+      console.error('Assign light failed:', err);
+
       setAlert({
         type: 'danger',
-        msg: err?.message || 'Something went wrong.',
+        msg: buildErrorMessage(err),
       });
     } finally {
       setBusy(false);

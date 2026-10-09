@@ -8,6 +8,7 @@ import { dleService, extractList, filterByCompany } from '../../../services/dleS
 /* ---------- Types ---------- */
 interface UserRow {
   id: string;
+  companyId: string;
   state: string;
   name: string;
   email: string;
@@ -54,9 +55,17 @@ const statusLabel = (v: unknown): string => {
   return s === '1' || s === 'active' || s === 'true' ? 'Active' : 'Inactive';
 };
 
-/* Keep relative paths (/uploads/...) so requests go through the Vite proxy, which adds the API key */
-const fileUrl = (p: string): string =>
-  !p ? '' : /^https?:\/\//i.test(p) ? p : (p.startsWith('/') ? p : '/' + p);
+/*
+ * Keep relative paths (/uploads/...) so requests go through the Vite proxy, which adds the API key.
+ * API returns values like "r2:userdocuments/xxx.jpg" -> strip the "r2:" prefix.
+ * NOTE: "/uploads/" is a guess — change it to whatever route your backend/proxy uses to serve R2 files.
+ */
+const fileUrl = (p: string): string => {
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith('r2:')) return `/uploads/${p.slice(3)}`;
+  return p.startsWith('/') ? p : '/' + p;
+};
 
 const DOC_FIELDS: [string, string][] = [
   ['educational_document', 'Educational document'],
@@ -74,6 +83,7 @@ const normalize = (r: any, i: number): UserRow => {
   const ts = toTs(r?.created_at ?? r?.createdAt);
   return {
     id: str(r?.id ?? r?._id ?? i),
+    companyId: str(r?.company_id),
     state: str(r?.state),
     name: str(r?.name ?? r?.full_name),
     email: str(r?.email),
@@ -93,26 +103,18 @@ const normalize = (r: any, i: number): UserRow => {
 };
 
 const approvalClass = (s: string) => (({ Approved: 'ax-badge--success', Pending: 'ax-badge--warning', Rejected: 'ax-badge--danger' } as Record<string, string>)[s] || 'ax-badge--neutral');
-const statusClass = (s: string) => (s === 'Active' ? 'ax-badge--success' : 'ax-badge--neutral');
 
 type SortKey = 'state' | 'name' | 'district' | 'block' | 'approval' | 'status' | 'createdTs';
 
 /* Table + export columns — this single list drives both the column toggle and the export */
 const COLUMN_DEFS: { key: string; label: string; get: (r: UserRow) => string }[] = [
-  { key: 'state', label: 'State', get: (r) => r.state },
   { key: 'name', label: 'Name', get: (r) => r.name },
   { key: 'email', label: 'Email', get: (r) => r.email },
   { key: 'contact', label: 'Contact', get: (r) => r.contact },
-  { key: 'emergency', label: 'Emergency Contact', get: (r) => r.emergency },
   { key: 'district', label: 'District', get: (r) => r.district },
-  { key: 'block', label: 'Block', get: (r) => r.block },
   { key: 'panchayat', label: 'Panchayat', get: (r) => r.panchayat },
-  { key: 'address', label: 'Address', get: (r) => r.address },
-  { key: 'police', label: 'Police Verification', get: (r) => r.police },
-  { key: 'documents', label: 'Documents', get: (r) => r.documents.map((d) => d.url).join(' | ') },
   { key: 'approval', label: 'Approval Status', get: (r) => r.approval },
-  { key: 'status', label: 'Status', get: (r) => r.status },
-  { key: 'created', label: 'Created At', get: (r) => r.createdAt },
+  { key: 'documents', label: 'Documents', get: (r) => r.documents.map((d) => d.url).join(' | ') },
 ];
 
 const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -154,43 +156,46 @@ export function DleUsers() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
   const [colVis, setColVis] = useState<Record<string, boolean>>({});
+  // Approve flow: user for whom the remark modal is open + the remark text
+  const [approveFor, setApproveFor] = useState<UserRow | null>(null);
+  const [remark, setRemark] = useState('Approved');
+  const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
+  // true = editing an already Approved/Rejected user (PATCH /approve/:id)
+  const [editMode, setEditMode] = useState(false);
 
   const vis = (k: string) => colVis[k] !== false;
 
   // Convert query params coming from the dashboard into View Data filters.
   useEffect(() => {
-    const state = searchParams.get('state');
-    const district = searchParams.get('district');
     const approvalParam = searchParams.get('approval');
-    if (state) setQ(''); // state/district filters are handled by dedicated params below
     if (approvalParam && APPROVALS.includes(approvalParam)) setApproval(approvalParam);
   }, [searchParams]);
 
-const load = useCallback(async (signal?: AbortSignal) => {
-  setLoading(true);
+  const load = useCallback(async (signal?: AbortSignal, silent = false) => {
+    if (!silent) setLoading(true);
 
-  try {
-    const json = await dleService.getAdminUsers(signal);
-    const list = extractList(json);
+    try {
+      const json = await dleService.getAdminUsers(signal);
+      const list = extractList(json);
 
-    if (!list.length) {
+      if (!list.length) {
+        setRows([]);
+      } else {
+        // Match logged-in user's company_id before normalize
+        const mine = filterByCompany(list);
+        setRows(mine.map(normalize));
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+
+      console.error('Failed to load DLE users:', e);
+
+      // Real ERP: never show fake/demo data
       setRows([]);
-    } else {
-      // Match logged-in user's company_id before normalize
-      const mine = filterByCompany(list);
-      setRows(mine.map(normalize));
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    if ((e as Error).name === 'AbortError') return;
-
-    console.error('Failed to load DLE users:', e);
-
-    // Real ERP: never show fake/demo data
-    setRows([]);
-  } finally {
-    setLoading(false);
-  }
-}, []);
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -234,7 +239,7 @@ const load = useCallback(async (signal?: AbortSignal) => {
     const dir = sortDir === 'asc' ? 1 : -1;
     return [...list].sort((a, b) =>
       sortKey === 'createdTs' ? (a.createdTs - b.createdTs) * dir : a[sortKey].localeCompare(b[sortKey]) * dir);
-  }, [rows, q, approval, sortKey, sortDir, urlState, urlDistrict, urlActivity, urlCreated, searchParams]);
+  }, [rows, q, approval, sortKey, sortDir, urlState, urlDistrict, urlActivity, urlCreated]);
 
   useEffect(() => {
     setPage(1);
@@ -336,32 +341,71 @@ const load = useCallback(async (signal?: AbortSignal) => {
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>, r: UserRow) => {
     if (menu?.id === r.id) { setMenu(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
-    const w = 176, h = 52;
+    const w = 176, h = 92;
     const left = Math.max(8, Math.min(rect.right - w, window.innerWidth - w - 8));
     const top = rect.bottom + 4 + h > window.innerHeight ? rect.top - h - 4 : rect.bottom + 4;
     setMenu({ id: r.id, top, left });
   };
 
-  const approveUser = async (u: UserRow) => {
+  // Step 1: "Approve" / "Reject" in the dropdown opens the remark modal
+  // Only Pending users can be acted on — Approved and Rejected are both locked.
+  const openAction = (u: UserRow, type: 'approve' | 'reject') => {
     setMenu(null);
-    if (u.approval === 'Approved' || busyId) return;
-    if (!window.confirm(`Approve "${u.name}"? This action will be locked after approval.`)) return;
+    if (u.approval !== 'Pending' || busyId) return;
+    setEditMode(false);
+    setActionType(type);
+    setRemark(type === 'approve' ? 'Approved' : '');
+    setApproveFor(u);
+  };
+
+  // Edit a locked (Approved / Rejected) user: switch the decision to the opposite one
+  const openEdit = (u: UserRow) => {
+    setMenu(null);
+    if (u.approval === 'Pending' || busyId) return;
+    const type: 'approve' | 'reject' = u.approval === 'Approved' ? 'reject' : 'approve';
+    setEditMode(true);
+    setActionType(type);
+    setRemark(type === 'approve' ? 'Approved' : '');
+    setApproveFor(u);
+  };
+
+  // Step 2: "Approve" in the modal sends status + remark to the API
+  const submitAction = async (u: UserRow, remarkText: string) => {
+    if ((!editMode && u.approval !== 'Pending') || busyId) return;
+    const isApprove = actionType === 'approve';
+    const text = remarkText.trim();
+    if (!text) {
+      setToast({ type: 'err', msg: 'Remark is required' });
+      return;
+    }
     setBusyId(u.id);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const json: any = await dleService.updateApprovalStatus({
-        user_id: u.id,
-        id: u.id,
-        approval_status: 1, // 1 = Approved
-      });
-      if (json?.success === false) throw new Error(str(json?.message ?? json?.error) || 'Could not approve the user');
-      
-      const done = (x: UserRow): UserRow => (x.id === u.id ? { ...x, approval: 'Approved', status: 'Active' } : x);
+      // company_id of the user row coming from /admin/users (no fallback to the logged-in admin)
+      const companyId = u.companyId;
+      const payload = {
+        status: isApprove ? 1 : 2, // backend reads "status": 0 = Pending, 1 = Approved, 2 = Rejected
+        approval_remarks: text,
+        ...(companyId ? { company_id: companyId } : {}),
+      };
+      const json: any = editMode
+        ? await dleService.editApproval(u.id, payload) // PATCH /api/admin/approve/:id
+        : await dleService.updateApprovalStatus({ id: u.id, ...payload }); // POST /api/admin/approval/status
+      if (json?.success === false) {
+        const detail = json?.errors ? Object.values(json.errors).flat().join(', ') : '';
+        throw new Error(str(json?.message ?? json?.error) || detail || `Could not ${isApprove ? 'approve' : 'reject'} the user`);
+      }
+
+      const done = (x: UserRow): UserRow => (x.id === u.id ? { ...x, approval: isApprove ? 'Approved' : 'Rejected', status: isApprove ? 'Active' : 'Inactive' } : x);
       setRows((rs) => rs.map(done));
       setSelected((s) => (s ? done(s) : s));
-      setToast({ type: 'ok', msg: `${u.name} approved` });
+      setApproveFor(null);
+      setToast({ type: 'ok', msg: `${u.name} ${isApprove ? 'approved' : 'rejected'}` });
+      // Re-sync with the server so the lock always reflects what is actually saved in the DB
+      load(undefined, true);
     } catch (e) {
-      setToast({ type: 'err', msg: (e as Error).message || 'Could not approve the user' });
+      setToast({ type: 'err', msg: (e as Error).message || `Could not ${isApprove ? 'approve' : 'reject'} the user` });
+      load(undefined, true); // state may have changed on the server (e.g. already approved)
     } finally {
       setBusyId(null);
     }
@@ -459,20 +503,13 @@ const load = useCallback(async (signal?: AbortSignal) => {
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th ax-table__th--num" scope="col">Sr. No.</th>
-                  {vis('state') && sortable('state', 'State')}
                   {vis('name') && sortable('name', 'Name')}
                   {vis('email') && plainTh('Email')}
                   {vis('contact') && plainTh('Contact')}
-                  {vis('emergency') && plainTh('Emergency Contact')}
                   {vis('district') && sortable('district', 'District')}
-                  {vis('block') && sortable('block', 'Block')}
                   {vis('panchayat') && plainTh('Panchayat')}
-                  {vis('address') && plainTh('Address')}
-                  {vis('police') && plainTh('Police Verification')}
-                  {vis('documents') && plainTh('Documents')}
                   {vis('approval') && sortable('approval', 'Approval Status')}
-                  {vis('status') && sortable('status', 'Status')}
-                  {vis('created') && sortable('createdTs', 'Created At')}
+                  {vis('documents') && plainTh('Documents')}
                   <th className="ax-table__th" scope="col">Action</th>
                 </tr>
               </thead>
@@ -487,16 +524,12 @@ const load = useCallback(async (signal?: AbortSignal) => {
                 {!loading && paged.map((r, i) => (
                   <tr key={`${r.id}-${start + i}`} className="ax-table__row">
                     <td className="ax-table__td ax-table__td--num ax-num">{start + i + 1}</td>
-                    {vis('state') && <td className="ax-table__td">{r.state}</td>}
                     {vis('name') && <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.name}</td>}
                     {vis('email') && <td className="ax-table__td">{r.email}</td>}
                     {vis('contact') && <td className="ax-table__td ax-num" style={mono}>{r.contact}</td>}
-                    {vis('emergency') && <td className="ax-table__td ax-num" style={mono}>{r.emergency || '—'}</td>}
                     {vis('district') && <td className="ax-table__td">{r.district}</td>}
-                    {vis('block') && <td className="ax-table__td">{r.block}</td>}
                     {vis('panchayat') && <td className="ax-table__td">{r.panchayat}</td>}
-                    {vis('address') && <td className="ax-table__td" style={{ maxWidth: 260, whiteSpace: 'normal' }}>{r.address || '—'}</td>}
-                    {vis('police') && <td className="ax-table__td">{r.police || '—'}</td>}
+                    {vis('approval') && <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ${approvalClass(r.approval)}`}>{r.approval}</span></td>}
                     {vis('documents') && (
                       <td className="ax-table__td">
                         {r.documents.length
@@ -504,32 +537,42 @@ const load = useCallback(async (signal?: AbortSignal) => {
                           : <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>}
                       </td>
                     )}
-                    {vis('approval') && <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ${approvalClass(r.approval)}`}>{r.approval}</span></td>}
-                    {vis('status') && <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ${statusClass(r.status)}`}>{r.status}</span></td>}
-                    {vis('created') && <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{r.createdAt}</td>}
                     <td className="ax-table__td">
                       {(() => {
-                        const locked = r.approval === 'Approved';
+                        const locked = r.approval !== 'Pending';
                         const busy = busyId === r.id;
                         return (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <button
                             type="button"
                             disabled={locked || busy}
                             aria-haspopup="menu"
                             aria-expanded={menu?.id === r.id}
                             onClick={(e) => openMenu(e, r)}
-                            title={locked ? 'Approved — action locked' : undefined}
+                            title={locked ? `${r.approval} — action locked` : undefined}
                             className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: locked || busy ? 'not-allowed' : 'pointer' }}
                           >
                             {locked ? (
                               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg>
                             ) : null}
-                            <span>{locked ? 'Locked' : busy ? 'Approving…' : 'Action'}</span>
+                            <span>{locked ? 'Locked' : busy ? 'Processing…' : 'Action'}</span>
                             {!locked && !busy ? (
                               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>
                             ) : null}
                           </button>
+                          {/* {locked ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--sm"
+                              disabled={busy}
+                              onClick={() => openEdit(r)}
+                              title={`Change decision (currently ${r.approval})`}
+                            >
+                              Edit
+                            </button>
+                          ) : null} */}
+                          </div>
                         );
                       })()}
                     </td>
@@ -596,7 +639,7 @@ const load = useCallback(async (signal?: AbortSignal) => {
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => approveUser(u)}
+                onClick={() => openAction(u, 'approve')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -617,11 +660,93 @@ const load = useCallback(async (signal?: AbortSignal) => {
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10" /></svg>
                 Approve
               </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => openAction(u, 'reject')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: 0,
+                  borderRadius: 6,
+                  background: 'transparent',
+                  color: 'var(--ax-text-strong, #111)',
+                  fontSize: 14,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgb(220 38 38 / 0.12)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                Reject
+              </button>
             </div>
           </>,
           document.body,
         );
       })()}
+
+      {/* Approve remark modal */}
+      {approveFor && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${actionType === 'approve' ? 'Approve' : 'Reject'} ${approveFor.name}`}
+          onClick={() => { if (!busyId) setApproveFor(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgb(0 0 0 / 0.5)', display: 'grid', placeItems: 'center', zIndex: 60, padding: 'var(--ax-space-4)' }}
+        >
+          <div className="ax-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460, width: '100%' }}>
+            <div className="ax-card__header">
+              <div className="ax-card__titles">
+                <h2 className="ax-card__title">
+                  {editMode
+                    ? `Change to ${actionType === 'approve' ? 'Approved' : 'Rejected'}`
+                    : actionType === 'approve' ? 'Approve user' : 'Reject user'}
+                </h2>
+                <p className="ax-card__subtitle">{approveFor.name} · {approveFor.contact}</p>
+              </div>
+            </div>
+            <div style={{ padding: 'var(--ax-space-4)', display: 'grid', gap: 'var(--ax-space-3)' }}>
+              <label htmlFor="approve-remark" style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+                Remark <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <textarea
+                id="approve-remark"
+                className="ax-input"
+                rows={3}
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                placeholder={actionType === 'approve' ? 'Enter remark…' : 'Enter rejection reason…'}
+                autoFocus
+                style={{ width: '100%', resize: 'vertical' }}
+              />
+              <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
+                {editMode
+                  ? `Current status: ${approveFor.approval}. This will overwrite it.`
+                  : `This action will be locked after ${actionType === 'approve' ? 'approval' : 'rejection'}.`}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--ax-space-2)' }}>
+                <button type="button" className="ax-btn ax-btn--ghost" disabled={!!busyId} onClick={() => setApproveFor(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--primary"
+                  disabled={!!busyId || !remark.trim()}
+                  onClick={() => submitAction(approveFor, remark)}
+                  style={actionType === 'reject' ? { background: '#dc2626', borderColor: '#dc2626', color: '#fff' } : undefined}
+                >
+                  {busyId === approveFor.id ? 'Processing…' : actionType === 'approve' ? 'Approve' : 'Reject'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div

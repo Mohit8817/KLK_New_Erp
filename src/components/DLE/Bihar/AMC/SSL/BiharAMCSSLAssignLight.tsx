@@ -365,11 +365,14 @@ export function BiharAMCSSLAssignLight() {
     try {
       const res = await biharSslAmc.storeAssignLight({
         ...f,
+        users:f.user_id,
         district: f.district_id,
         block: f.block_id,
         panchayat_id: selPan,
         panchayat: selPan,
       });
+
+      console.log(res)
 
       setAlert({
         type: 'success',

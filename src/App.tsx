@@ -67,6 +67,7 @@ const BiharAMCSSLViewAssignLight = lazy(() => import('./components/DLE/Bihar/AMC
 const BiharAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewSurveyLight'));
 const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
 const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
+const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
 const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
@@ -416,6 +417,7 @@ const shell: Record<string, PageComponent> = {
   'dle/bihar/ssl/amc/view-verify-light': BiharAMCSSLViewSurveyLight,
   'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
   'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
+  'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
   'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,

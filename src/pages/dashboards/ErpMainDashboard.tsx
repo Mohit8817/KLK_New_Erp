@@ -47,7 +47,7 @@ const REGIONS: Array<'All' | Region> = ['All', 'North', 'East', 'West', 'South',
 const RECENT_KEY = 'klk_erp_recent_states';
 const GALLERY_COUNT = 246;
 const OPEN_COMPLAINTS = 18;
-const MAP_HEIGHT = 520;
+const MAP_HEIGHT = 640;
 
 type ModuleKey = 'dle' | 'vendor' | 'gallery' | 'complaints';
 type ActivityTone = 'info' | 'success' | 'danger' | 'warning';
@@ -330,6 +330,8 @@ export function ErpMainDashboard() {
     });
   }, [hoverKey, geo, workByGeo, styleOfWork]);
 
+
+
   /* keep popup position in sync on zoom/move */
   useEffect(() => {
     if (!map) return;
@@ -345,7 +347,7 @@ export function ErpMainDashboard() {
     return {
       x: Math.min(Math.max(p.x, 120), size.x - 120),
       y: Math.min(Math.max(p.y, 20), size.y - 20),
-      below: p.y < 190,
+      below: p.y < 200,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, hoverState, tick]);
@@ -734,18 +736,19 @@ export function ErpMainDashboard() {
             )}
 
             {/* Map & State Explorer Split Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.05fr) minmax(360px, 1.4fr)', gap: 'var(--ax-space-5)', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(360px, 1.05fr)', gap: 'var(--ax-space-5)', alignItems: 'start' }}>
 
               {/* Left: Leaflet India Interactive Map (Subtle borders + KLK logo markers) */}
               <div style={{ minWidth: 0 }}>
-                <div style={{ position: 'relative', isolation: 'isolate', borderRadius: 'var(--ax-radius-lg)', overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
+                <div style={{ position: 'relative', isolation: 'isolate', borderRadius: 'var(--ax-radius-xl)', overflow: 'hidden', border: '1px solid var(--ax-border)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
                   <MapContainer
                     ref={setMap}
-                    center={[22.5, 80]}
-                    zoom={4}
-                    minZoom={4}
-                    maxBounds={[[5, 66], [38, 100]]}
-                    scrollWheelZoom={false}
+                    center={[22.5, 80.5]}
+                    zoom={4.3}
+                    minZoom={4.0}
+                    maxZoom={7}
+                    maxBounds={[[6, 67], [37.5, 98.5]]}
+                    scrollWheelZoom={true}
                     style={{ height: MAP_HEIGHT, width: '100%' }}
                   >
                     <TileLayer
@@ -767,16 +770,12 @@ export function ErpMainDashboard() {
                             mouseout: () => setHoverId(null),
                             click: () => openState(s),
                           }}
-                        >
-                          <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
-                            <span style={{ fontWeight: 700 }}>{s.name}</span>: {num(s.dles)} DLEs · {num(s.vendors)} Vendors
-                          </Tooltip>
-                        </Marker>
+                        />
                       );
                     })}
                   </MapContainer>
 
-                  {/* Hover detail modal */}
+                  {/* Interactive Map Detail Modal on Hover */}
                   {hoverState && popPos && (() => {
                     const locked = !hasStateAccess(hoverState.id);
                     const c = stateColor(hoverState.id);
@@ -789,41 +788,52 @@ export function ErpMainDashboard() {
                           left: popPos.x,
                           top: popPos.y,
                           transform: popPos.below ? 'translate(-50%, 14px)' : 'translate(-50%, calc(-100% - 14px))',
-                          width: 220,
+                          width: 230,
                           zIndex: 1000,
                           pointerEvents: 'none',
                           borderTop: `3px solid ${c}`,
-                          boxShadow: 'var(--ax-shadow-md)',
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                          borderRadius: 'var(--ax-radius-lg)',
                           padding: 'var(--ax-space-3) var(--ax-space-4)',
+                          background: 'var(--ax-surface)',
+                          border: `1px solid var(--ax-border)`,
+                          borderTopColor: c,
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                          <div style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>{hoverState.name}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <div style={{ fontWeight: 700, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)' }}>{hoverState.name}</div>
                           {locked ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill"><Icon size={11} style={{ marginRight: 2 }}>{I_LOCK}</Icon>Locked</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 10, padding: '1px 6px' }}>
+                              <Icon size={10} style={{ marginRight: 2 }}>{I_LOCK}</Icon>Locked
+                            </span>
                           ) : (
-                            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">Authorized</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontSize: 10, padding: '1px 6px' }}>
+                              Authorized
+                            </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', margin: '2px 0 var(--ax-space-3)' }}>
+
+                        <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginBottom: 'var(--ax-space-2)' }}>
                           {hoverState.code} · {hoverState.region} Region
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--ax-space-2)', textAlign: 'center' }}>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--ax-space-1)', textAlign: 'center', background: 'var(--ax-surface-subtle)', padding: '6px 4px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
                           <div>
-                            <div className="ax-num" style={{ fontWeight: 800, color: 'var(--ax-text-strong)' }}>{num(hoverState.dles)}</div>
-                            <small style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>DLEs</small>
+                            <div className="ax-num" style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ax-text-strong)' }}>{num(hoverState.dles)}</div>
+                            <small style={{ fontSize: 9.5, color: 'var(--ax-text-muted)', fontWeight: 600 }}>DLEs</small>
                           </div>
                           <div>
-                            <div className="ax-num" style={{ fontWeight: 800, color: 'var(--ax-text-strong)' }}>{num(hoverState.vendors)}</div>
-                            <small style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>Vendors</small>
+                            <div className="ax-num" style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ax-text-strong)' }}>{num(hoverState.vendors)}</div>
+                            <small style={{ fontSize: 9.5, color: 'var(--ax-text-muted)', fontWeight: 600 }}>Vendors</small>
                           </div>
                           <div>
-                            <div className="ax-num" style={{ fontWeight: 800, color: 'var(--ax-text-strong)' }}>{num(hoverState.dles + hoverState.vendors)}</div>
-                            <small style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>Total</small>
+                            <div className="ax-num" style={{ fontWeight: 800, fontSize: '13px', color: 'var(--ax-text-strong)' }}>{num(hoverState.dles + hoverState.vendors)}</div>
+                            <small style={{ fontSize: 9.5, color: 'var(--ax-text-muted)', fontWeight: 600 }}>Total</small>
                           </div>
                         </div>
-                        <div style={{ marginTop: 'var(--ax-space-3)', fontSize: 'var(--ax-text-xs)', fontWeight: 700, color: locked ? 'var(--ax-text-subtle)' : 'var(--ax-accent)' }}>
-                          {locked ? 'Access restricted' : 'Click to open workspace ›'}
+
+                        <div style={{ marginTop: 'var(--ax-space-2)', fontSize: '11px', fontWeight: 700, color: locked ? 'var(--ax-text-subtle)' : c, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                          {locked ? 'Access restricted' : <>Open Workspace <Icon size={12}>{I_ARROW_UP_RIGHT}</Icon></>}
                         </div>
                       </div>
                     );
@@ -845,7 +855,7 @@ export function ErpMainDashboard() {
               </div>
 
               {/* Right: State Directory Cards or Table */}
-              <div style={{ minWidth: 0, maxHeight: MAP_HEIGHT, overflowY: 'auto', paddingRight: 4 }}>
+              <div style={{ minWidth: 0, maxHeight: MAP_HEIGHT, overflowY: 'auto', paddingRight: 6 }}>
                 {filtered.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)', color: 'var(--ax-text-muted)' }}>
                     <p style={{ margin: '0 0 var(--ax-space-3)' }}>No state found matching your search filter.</p>
@@ -854,61 +864,96 @@ export function ErpMainDashboard() {
                     </button>
                   </div>
                 ) : view === 'grid' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 'var(--ax-space-3)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--ax-space-3)' }}>
                     {filtered.map((s) => {
                       const locked = !hasStateAccess(s.id);
+                      const isHot = hoverId === s.id;
                       const c = stateColor(s.id);
                       return (
-                        <button
+                        <div
                           key={s.id}
-                          type="button"
+                          className="ax-card"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => openState(s)}
                           onMouseEnter={() => setHoverId(s.id)}
                           onMouseLeave={() => setHoverId(null)}
                           onFocus={() => setHoverId(s.id)}
                           onBlur={() => setHoverId(null)}
-                          aria-disabled={locked || undefined}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s); } }}
                           style={{
-                            textAlign: 'left',
+                            cursor: locked ? 'not-allowed' : 'pointer',
+                            border: locked ? '1px dashed var(--ax-border)' : isHot ? `1.5px solid ${c}` : '1px solid var(--ax-border)',
+                            borderRadius: 'var(--ax-radius-xl)',
+                            padding: 'var(--ax-space-4)',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            padding: 'var(--ax-space-4)',
-                            background: `color-mix(in oklab, ${c} 12%, var(--ax-bg-surface))`,
-                            border: `1px ${locked ? 'dashed' : 'solid'} color-mix(in oklab, ${c} 55%, var(--ax-border))`,
-                            borderTop: `4px solid ${c}`,
-                            borderRadius: 'var(--ax-radius-lg)',
-                            cursor: locked ? 'not-allowed' : 'pointer',
-                            transition: 'all 160ms ease',
-                            opacity: locked ? 0.75 : 1,
-                            minHeight: 140,
+                            background: isHot ? `color-mix(in oklab, ${c} 8%, var(--ax-bg-surface))` : 'var(--ax-bg-surface)',
+                            transition: 'all 180ms ease',
+                            boxShadow: isHot ? `0 4px 14px color-mix(in oklab, ${c} 20%, transparent)` : undefined,
+                            minHeight: 145,
+                            opacity: locked ? 0.72 : 1,
                           }}
                         >
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
-                              <span className="ax-avatar" style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-md)', background: c, color: '#ffffff', fontWeight: 800, fontSize: '12px' }}>
+                            {/* Card Header: Avatar & Access pill */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--ax-space-3)' }}>
+                              <span
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 'var(--ax-radius-lg)',
+                                  background: `color-mix(in oklab, ${c} 16%, transparent)`,
+                                  color: c,
+                                  fontWeight: 800,
+                                  fontSize: '12px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  border: `1px solid color-mix(in oklab, ${c} 30%, transparent)`,
+                                }}
+                              >
                                 {s.code}
                               </span>
+
                               {locked ? (
-                                <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill"><Icon size={11} style={{ marginRight: 2 }}>{I_LOCK}</Icon>Locked</span>
+                                <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
+                                  <Icon size={11} style={{ marginRight: 3 }}>{I_LOCK}</Icon>Locked
+                                </span>
                               ) : (
-                                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">Authorized</span>
+                                <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ background: `color-mix(in oklab, ${c} 12%, transparent)`, color: c }}>
+                                  {s.region}
+                                </span>
                               )}
                             </div>
-                            <div style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-md)' }}>{s.name}</div>
-                            <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: 2 }}>{s.region} Region</div>
+
+                            {/* State Name */}
+                            <h4 style={{ fontSize: 'var(--ax-text-md)', fontWeight: 700, color: 'var(--ax-text-strong)', margin: '0 0 2px' }}>
+                              {s.name}
+                            </h4>
+                            <p style={{ fontSize: '11px', color: 'var(--ax-text-muted)', margin: 0 }}>
+                              National operations & field grid
+                            </p>
                           </div>
 
-                          <div style={{ marginTop: 'var(--ax-space-3)', paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', fontSize: 'var(--ax-text-xs)' }}>
-                              <span style={{ color: 'var(--ax-text-strong)', fontWeight: 800 }}>{num(s.dles)} DLEs</span>
-                              <span style={{ color: 'var(--ax-text-strong)', fontWeight: 800 }}>{num(s.vendors)} Vendors</span>
+                          {/* Footer Info: Counters & Action link */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border)', marginTop: 'var(--ax-space-3)' }}>
+                            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+                              <span className="ax-num" style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)' }}>
+                                {num(s.dles)} <small style={{ fontWeight: 500, color: 'var(--ax-text-muted)', fontSize: '10.5px' }}>DLEs</small>
+                              </span>
+                              <span style={{ color: 'var(--ax-border)' }}>·</span>
+                              <span className="ax-num" style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)' }}>
+                                {num(s.vendors)} <small style={{ fontWeight: 500, color: 'var(--ax-text-muted)', fontSize: '10.5px' }}>Ven</small>
+                              </span>
                             </div>
-                            <span style={{ color: locked ? 'var(--ax-text-subtle)' : 'var(--ax-accent)', fontWeight: 700, fontSize: 'var(--ax-text-xs)' }}>
-                              {locked ? 'Locked' : 'Open ›'}
+
+                            <span style={{ color: locked ? 'var(--ax-text-subtle)' : c, display: 'inline-flex', alignItems: 'center', gap: 2, fontWeight: 700, fontSize: 'var(--ax-text-xs)' }}>
+                              {locked ? 'Locked' : <>Open <Icon size={12}>{I_ARROW_UP_RIGHT}</Icon></>}
                             </span>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -977,41 +1022,78 @@ export function ErpMainDashboard() {
           </div>
         </section>
 
-        {/* ═══════ 4. LIVE ACTIVITY STREAM + QUICK PORTALS ═══════ */}
-        <section className="ax-card ax-col--8" role="region" aria-label="Live System Updates">
-          <div className="ax-card__header">
+        {/* ═══════ 4. QUICK OVERVIEW + QUICK PORTALS ═══════ */}
+        <section className="ax-card ax-col--8" role="region" aria-label="Quick Overview" style={{ background: 'linear-gradient(135deg, var(--ax-surface) 0%, color-mix(in oklab, var(--ax-accent) 3%, var(--ax-surface)) 100%)' }}>
+          <div className="ax-card__header" style={{ paddingBottom: 'var(--ax-space-3)' }}>
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Real-time Operational Stream</span>
-              <h2 className="ax-card__title">Recent System Activities & Field Updates</h2>
+              <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 800 }}>Quick Overview</h2>
+              <p style={{ margin: 0, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>Top 5 states by active projects</p>
             </div>
             <div className="ax-card__actions">
-              <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">Authorized Logs</span>
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ color: 'var(--ax-accent)', fontWeight: 700 }} onClick={() => navigate('/dle/dashboard')}>
+                <span className="ax-btn__label">View All</span>
+                <Icon size={14}>{I_ARROW_UP_RIGHT}</Icon>
+              </button>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div className="ax-table-wrap">
-              <table className="ax-table ax-table--compact ax-table--hover">
-                <caption className="ax-visually-hidden">Live system activities</caption>
-                <thead className="ax-table__head">
-                  <tr>
-                    <th className="ax-table__th" scope="col">Timestamp</th>
-                    <th className="ax-table__th" scope="col">Module</th>
-                    <th className="ax-table__th" scope="col">Operational Detail</th>
-                    <th className="ax-table__th" scope="col">Officer</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleActivities.map((a, i) => (
-                    <tr key={`${a.when}-${i}`} className="ax-table__row">
-                      <td className="ax-table__td" style={{ whiteSpace: 'nowrap', color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{a.when}</td>
-                      <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ax-badge--${a.tone} ax-badge--pill`}>{a.label}</span></td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{a.details}</td>
-                      <td className="ax-table__td" style={{ whiteSpace: 'nowrap', color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{a.user}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {(() => {
+              const top5 = [...STATES_DATA]
+                .sort((a, b) => (b.dles + b.vendors) - (a.dles + a.vendors))
+                .slice(0, 5);
+              const maxTotal = top5[0].dles + top5[0].vendors;
+              return top5.map((s, idx) => {
+                const total = s.dles + s.vendors;
+                const barWidth = Math.round((total / maxTotal) * 100);
+                return (
+                  <div
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openState(s)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s); }}}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '28px 140px 90px 1fr 70px 22px',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: 'var(--ax-space-4) var(--ax-space-3)',
+                      borderBottom: idx < 4 ? '1px solid color-mix(in oklab, var(--ax-border) 50%, transparent)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in oklab, var(--ax-accent) 4%, transparent)'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  >
+                    {/* 1. Rank */}
+                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ax-text-muted)' }}>{idx + 1}.</span>
+
+                    {/* 2. State Name */}
+                    <span style={{ fontWeight: 700, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
+
+                    {/* 3. Sites Count */}
+                    <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>{total} Sites</span>
+
+                    {/* 4. Progress Bar */}
+                    <div style={{ height: 10, borderRadius: 99, background: 'color-mix(in oklab, var(--ax-border) 40%, transparent)', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${barWidth}%`,
+                        borderRadius: 99,
+                        background: 'linear-gradient(90deg, #0d9488, #10b981)',
+                        transition: 'width 0.8s cubic-bezier(0.34,1.56,0.64,1)',
+                      }} />
+                    </div>
+
+                    {/* 5. Completed Count */}
+                    <span style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', textAlign: 'right' }}>{total}</span>
+
+                    {/* 6. Up Arrow */}
+                    <span style={{ width: 16, height: 16, display: 'inline-flex', color: '#10b981' }}>{I_ARROW_UP_RIGHT}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </section>
 
@@ -1179,15 +1261,14 @@ export function ErpMainDashboard() {
   <div
     className="ax-card__body"
     style={{
-      paddingTop: 0,
-      paddingBottom: 15
+      padding: 'var(--ax-space-4)',
     }}
   >
     <div
       style={{
         position: 'relative',
         width: '100%',
-        height: 380,
+        aspectRatio: '16/9',
         borderRadius: 'var(--ax-radius-lg)',
         overflow: 'hidden',
         border: '1px solid var(--ax-border)',

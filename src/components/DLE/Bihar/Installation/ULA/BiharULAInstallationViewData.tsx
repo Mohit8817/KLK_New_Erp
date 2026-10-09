@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef, } from '../../../../../common/TableExportToolbar';
 import Pagination from '../../../../../common/pagination/Pagination';
@@ -569,6 +569,7 @@ function UlaModal({
 
 export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const params = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const id = idProp ?? params.id ?? '';
 
@@ -579,7 +580,6 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const [sortKey, setSortKey] = useState<SortKey>('surveyDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
-  const [preview, setPreview] = useState<UlaRow | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
   const [perPage, setPerPage] = useState(10);
   const visibleCols = columns.filter((c) => c.visible);
@@ -771,11 +771,11 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const renderCell = (key: string, r: UlaRow, i: number) => {
     switch (key) {
       case 'srNo':
-        return <td key={key} className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{start + i + 1}</td>;
+        return <td key={key} className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)', position: 'sticky', left: 0, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 60 }}>{start + i + 1}</td>;
       case 'caNo':
-        return <td key={key} className="ax-table__td ax-num" style={{ ...mono, color: 'var(--ax-accent)', fontWeight: 'var(--ax-weight-semibold)' }}>{r.caNo || '—'}</td>;
+        return <td key={key} className="ax-table__td ax-num" style={{ ...mono, color: 'var(--ax-accent)', fontWeight: 'var(--ax-weight-semibold)', position: 'sticky', left: 60, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 120 }}>{r.caNo || '—'}</td>;
       case 'caName':
-        return <td key={key} className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.caName || '—'}</td>;
+        return <td key={key} className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)', position: 'sticky', left: 180, backgroundColor: 'var(--ax-surface-solid)', zIndex: 1, minWidth: 200, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' }}>{r.caName || '—'}</td>;
       case 'beneficiary':
         return <td key={key} className="ax-table__td">{r.beneficiary || '—'}</td>;
       case 'contact':
@@ -833,9 +833,9 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
         return (
           <td key={key} className="ax-table__td">
             <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm"
-              disabled={!r.images.length} onClick={() => setPreview(r)}>
+              disabled={!r.images.length} onClick={() => navigate(`/dle/bihar/ula/installation/view/${r.id}`)}>
               <span className="ax-btn__icon">{ICON.eye}</span>
-              <span className="ax-btn__label">{r.images.length ? `${r.images.length} photos` : 'None'}</span>
+              <span className="ax-btn__label">View Data</span>
             </button>
           </td>
         );
@@ -936,6 +936,12 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                 <tr>
                   {visibleCols.map((c) => {
                     const isSortable = SORTABLE.includes(c.key);
+                    const stickyStyle: React.CSSProperties = 
+                      c.key === 'srNo' ? { position: 'sticky', left: 0, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 60 } :
+                      c.key === 'caNo' ? { position: 'sticky', left: 60, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 120 } :
+                      c.key === 'caName' ? { position: 'sticky', left: 180, backgroundColor: 'var(--ax-surface-solid)', zIndex: 2, minWidth: 200, boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)' } :
+                      {};
+
                     return isSortable ? (
                       <th
                         key={c.key}
@@ -943,6 +949,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                         scope="col"
                         aria-sort={ariaSort(c.key as TableSortKey)}
                         onClick={() => sortBy(c.key as TableSortKey)}
+                        style={stickyStyle}
                       >
                         {c.label} {glyph(c.key as TableSortKey)}
                       </th>
@@ -951,7 +958,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
                         key={c.key}
                         className="ax-table__th"
                         scope="col"
-                        style={c.key === 'action' ? { textAlign: 'center' } : undefined}
+                        style={c.key === 'action' ? { textAlign: 'center', ...stickyStyle } : stickyStyle}
                       >
                         {c.label}
                       </th>
@@ -1016,8 +1023,6 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
           )}
         </section>
       </div>
-
-      <UlaModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
     </>
   );
 }
