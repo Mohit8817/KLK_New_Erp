@@ -65,6 +65,7 @@ const DLEDashboard = lazy(() => import('./components/DLE/DLEDashboard'));
 const BiharAMCSSLAssignLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLAssignLight'));
 const BiharAMCSSLViewAssignLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewAssignLight'));
 const BiharAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewSurveyLight'));
+const BiharAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLSurveyLightDetails'));
 const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
 const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
 const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
@@ -72,6 +73,7 @@ const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAM
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
+const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
 
 const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'));
 const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
@@ -411,10 +413,11 @@ const shell: Record<string, PageComponent> = {
   // 'jammu/add-srt-new': JammuAddSRT70MWSingleCard,
 
   
-    'dle/dashboard': DLEDashboard,
+  'dle/dashboard': DLEDashboard,
   'dle/bihar/ssl/amc/create-assign-light': BiharAMCSSLAssignLight,
   'dle/bihar/ssl/amc/view-assign-light': BiharAMCSSLViewAssignLight,
   'dle/bihar/ssl/amc/view-verify-light': BiharAMCSSLViewSurveyLight,
+  'dle/bihar/ssl/amc/view-verify-light/:id': BiharAMCSSLSurveyLightDetails,
   'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
   'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
   'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
@@ -422,6 +425,7 @@ const shell: Record<string, PageComponent> = {
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
   'dle/users': DLEManagementViewData,
+  'dle/users/:id': DleUserDetail,
 
   // 'assam': AssamDashboard,
   // 'assam/dashboard': AssamDashboard,

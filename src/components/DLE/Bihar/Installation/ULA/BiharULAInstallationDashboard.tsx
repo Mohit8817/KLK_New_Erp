@@ -710,7 +710,7 @@ export function BiharULAInstallationDashboard() {
 
       {/* 1. Page Header */}
       <PageHead
-        title="ULA Installation Dashboard"
+        title="ULA Survey Dashboard"
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
             Bihar State Operations · ULA installation survey progress — last updated {updatedAt ? fmtTime(updatedAt) : '—'}
@@ -800,7 +800,7 @@ export function BiharULAInstallationDashboard() {
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
               <p className="ax-welcome__eyebrow">ULA Installation Management System · State Hub</p>
-              <h2 className="ax-card__title">Welcome to Bihar ULA Installation Dashboard</h2>
+              <h2 className="ax-card__title">Welcome to Bihar ULA Survey Dashboard</h2>
               <p className="ax-welcome__lede">
                 Bihar state survey overview: <b>{dash(stats.total)} installations</b> tracked across <b>{dash(stats.districtCount)} districts</b> by <b>{dash(stats.surveyorCount)} surveyors</b>.
                 <b> {dash(stats.second)} ({stats.pct2}%)</b> completed both visits, with <b>{dash(stats.pending2)}</b> awaiting the 2nd visit.

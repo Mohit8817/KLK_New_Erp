@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef, Pagination, SearchInput } from '../../../common';
 import { dleService, extractList, filterByCompany, getLoginCompanyId } from '../../../services/dleServices';
 
 /* ---------- Types ---------- */
-interface UserRow {
+export interface UserRow {
   id: string;
   companyId: string;
   state: string;
@@ -79,7 +79,7 @@ const DOC_FIELDS: [string, string][] = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const normalize = (r: any, i: number): UserRow => {
+export const normalize = (r: any, i: number): UserRow => {
   const ts = toTs(r?.created_at ?? r?.createdAt);
   return {
     id: str(r?.id ?? r?._id ?? i),
@@ -102,7 +102,7 @@ const normalize = (r: any, i: number): UserRow => {
   };
 };
 
-const approvalClass = (s: string) => (({ Approved: 'ax-badge--success', Pending: 'ax-badge--warning', Rejected: 'ax-badge--danger' } as Record<string, string>)[s] || 'ax-badge--neutral');
+export const approvalClass = (s: string) => (({ Approved: 'ax-badge--success', Pending: 'ax-badge--warning', Rejected: 'ax-badge--danger' } as Record<string, string>)[s] || 'ax-badge--neutral');
 
 type SortKey = 'state' | 'name' | 'district' | 'block' | 'approval' | 'status' | 'createdTs';
 
@@ -164,6 +164,8 @@ export function DleUsers() {
   const [editMode, setEditMode] = useState(false);
 
   const vis = (k: string) => colVis[k] !== false;
+
+  const navigate = useNavigate();
 
   // Convert query params coming from the dashboard into View Data filters.
   useEffect(() => {
@@ -530,7 +532,13 @@ export function DleUsers() {
                     {vis('documents') && (
                       <td className="ax-table__td">
                         {r.documents.length
-                          ? <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSelected(r)}>{r.documents.length} files</button>
+                          ? <button
+  type="button"
+  className="ax-btn ax-btn--ghost ax-btn--sm"
+  onClick={() => navigate(`/dle/users/${r.id}`, { state: { user: r } })}
+>
+  {r.documents.length} files
+</button>
                           : <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>}
                       </td>
                     )}

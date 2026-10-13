@@ -6,17 +6,28 @@
  * - Main ERP: <MainErpSidebar /> (src/components/shell/MainErpSidebar.tsx)
  */
 import { useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useAuth } from '../../context/AuthContext';
 import { DLESidebar } from '../DLE/DLESidebar';
 import { VPortalSidebar } from '../V-Portal/VPortalSidebar';
 import { MainErpSidebar } from './MainErpSidebar';
 
 export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [filter, setFilter] = useState('');
   const rootRef = useRef<HTMLElement>(null);
   useFocusTrap(rootRef, drawerOpen, '.ax-sidebar__filter');
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
+  };
 
   const pathname = location.pathname;
   const isDlePortal = pathname.startsWith('/dle');
@@ -109,6 +120,104 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
           <MainErpSidebar filter={filter} />
         )}
       </nav>
+
+      {/* ===== SIDEBAR FOOTER (LOGOUT) ===== */}
+      <div
+        className="ax-sidebar__footer"
+        style={{
+          padding: 'var(--ax-space-3) var(--ax-space-4)',
+          borderTop: '1px solid var(--ax-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'var(--ax-space-2)',
+          background: 'var(--ax-surface-subtle)',
+          marginTop: 'auto',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, overflow: 'hidden' }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'var(--ax-accent)',
+              color: '#fff',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700,
+              fontSize: '13px',
+              flexShrink: 0,
+            }}
+          >
+            {user?.name ? user.name[0].toUpperCase() : 'U'}
+          </div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--ax-text-strong)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {user?.name || 'Administrator'}
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--ax-text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {user?.email || user?.role || 'Operations'}
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Sign out of ERP"
+          aria-label="Log out"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '6px 10px',
+            borderRadius: 'var(--ax-radius-md)',
+            border: '1px solid var(--ax-border)',
+            background: 'var(--ax-surface)',
+            color: 'var(--ax-danger-500, #ef4444)',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--ax-surface)';
+            e.currentTarget.style.borderColor = 'var(--ax-border)';
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   );
 }

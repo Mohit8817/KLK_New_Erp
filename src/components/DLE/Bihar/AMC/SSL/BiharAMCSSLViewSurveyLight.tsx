@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
@@ -409,6 +410,7 @@ function RowAction({ onView }: { onView: () => void }) {
 
 /* ---------- Page ---------- */
 export function BiharAMCSSLViewSurveyLight() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -570,7 +572,14 @@ export function BiharAMCSSLViewSurveyLight() {
             {r.images.length ? (
               <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
                 {r.images.slice(0, 2).map((im, k) => (
-                  <button key={im.raw + k} type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" style={{ color: 'var(--ax-accent)' }} onClick={() => setPreview(r)} aria-label={`View ${im.label}`}>
+                  <button
+                    key={im.raw + k}
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
+                    style={{ color: 'var(--ax-accent)' }}
+                    onClick={() => navigate(`/dle/bihar/ssl/amc/view-verify-light/${r.id}`, { state: { row: r } })}
+                    aria-label={`View ${im.label}`}
+                  >
                     <span className="ax-btn__icon">{ICON.photo}</span>
                   </button>
                 ))}
@@ -587,7 +596,11 @@ export function BiharAMCSSLViewSurveyLight() {
           </td>
         );
       case 'action':
-        return <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}><RowAction onView={() => setPreview(r)} /></td>;
+        return (
+          <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
+            <RowAction onView={() => navigate(`/dle/bihar/ssl/amc/view-verify-light/${r.id}`, { state: { row: r } })} />
+          </td>
+        );
       default:
         return <td key={key} className="ax-table__td">{cellText(r, key) || '—'}</td>;
     }
@@ -702,7 +715,7 @@ export function BiharAMCSSLViewSurveyLight() {
         </section>
       </div>
 
-      <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
+      {preview && <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }

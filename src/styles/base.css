@@ -506,7 +506,7 @@ hr {
   background: var(--ax-surface-overlay);
   color: var(--ax-text);
   border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-md);
+  border-radius: var(--ax-radius-sm);
   box-shadow: var(--ax-shadow-md);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
@@ -618,7 +618,7 @@ hr {
   background: var(--ax-surface);
   border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius-lg);
-  box-shadow: var(--ax-shadow-md);
+  box-shadow: var(--ax-shadow-sm);
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
 }

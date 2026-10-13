@@ -190,7 +190,7 @@
   background: var(--ax-surface-solid);
   border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius-lg);
-  box-shadow: var(--ax-shadow-lg);
+  box-shadow: var(--ax-shadow-md);
 }
 .ax-appswitch__item {
   display: flex;

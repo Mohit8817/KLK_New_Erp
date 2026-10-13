@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, GeoJSON, Marker, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Marker } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { Layer, Map as LeafletMap, Path, PathOptions } from 'leaflet';
@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import { PageHead } from '../../components/shell/PageHead';
 import { SearchInput } from '../../common/search/SearchInput';
 import { ApexChart } from '../../components/charts/ApexChart';
-
+import { dleService } from '../../services/dleServices';
 
 const num = (x: number) => x.toLocaleString('en-IN');
 
@@ -43,6 +43,40 @@ const STATES_DATA: StateItem[] = [
   { id: 'arunachal', name: 'Arunachal Pradesh', code: 'AR', region: 'North-East', dles: 5, vendors: 8, lat: 28.22, lng: 94.73, route: '/dle/dashboard' },
 ];
 
+/* TODO: replace with real per-state user counts from API */
+const USERS_BY_STATE: Record<string, number> = {
+  kashmir: 20, jammu: 30, himachal: 16, haryana: 34, punjab: 28,
+  up: 120, bihar: 85, jharkhand: 18, goa: 8, karnataka: 22,
+  assam: 40, tripura: 10, arunachal: 12,
+};
+
+/* TODO: replace with real per-state complaint counts from API */
+const COMPLAINTS_BY_STATE: Record<string, number> = {
+  kashmir: 12, jammu: 27, himachal: 8, haryana: 31, punjab: 19,
+  up: 95, bihar: 74, jharkhand: 11, goa: 4, karnataka: 17,
+  assam: 38, tripura: 7, arunachal: 6,
+};
+
+/* TODO: replace with real monthly complaint data from API */
+/* months: Jan–Oct 2026 */
+const MONTHLY_COMPLAINTS: Record<string, number[]> = {
+  kashmir:    [2, 1, 2, 1, 1, 2, 1, 1, 1, 0],
+  jammu:      [3, 4, 3, 2, 3, 3, 2, 3, 3, 1],
+  himachal:   [1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
+  haryana:    [4, 3, 4, 3, 3, 4, 3, 3, 3, 1],
+  punjab:     [2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+  up:         [10,12, 9,11,10,10, 9,10, 9, 5],
+  bihar:      [8, 9, 8, 8, 7, 8, 8, 7, 7, 2],
+  jharkhand:  [1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+  goa:        [0, 0, 1, 0, 0, 1, 0, 1, 0, 1],
+  karnataka:  [2, 2, 2, 1, 2, 2, 1, 2, 2, 1],
+  assam:      [4, 5, 4, 4, 4, 4, 4, 4, 5, 0],
+  tripura:    [1, 1, 0, 1, 1, 1, 0, 1, 1, 0],
+  arunachal:  [1, 0, 1, 1, 0, 1, 1, 0, 1, 0],
+};
+
+const COMPLAINT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+
 const REGIONS: Array<'All' | Region> = ['All', 'North', 'East', 'West', 'South', 'North-East'];
 const RECENT_KEY = 'klk_erp_recent_states';
 const GALLERY_COUNT = 246;
@@ -50,16 +84,6 @@ const OPEN_COMPLAINTS = 18;
 const MAP_HEIGHT = 640;
 
 type ModuleKey = 'dle' | 'vendor' | 'gallery' | 'complaints';
-type ActivityTone = 'info' | 'success' | 'danger' | 'warning';
-
-const ACTIVITIES: Array<{ when: string; module: ModuleKey; label: string; tone: ActivityTone; details: string; user: string }> = [
-  { when: '07 Oct, 11:24 AM', module: 'dle', label: 'DLE', tone: 'info', details: 'New DLE registered - Green Solar Projects', user: 'Harsh Rajput' },
-  { when: '07 Oct, 10:05 AM', module: 'vendor', label: 'Vendor', tone: 'success', details: 'Vendor details updated - SunTech Energy', user: 'Priya Sharma' },
-  { when: '06 Oct, 04:32 PM', module: 'complaints', label: 'Complaints', tone: 'danger', details: 'New complaint raised - UP (Installation)', user: 'Amit Kumar' },
-  { when: '06 Oct, 12:18 PM', module: 'gallery', label: 'Gallery', tone: 'warning', details: '5 new site images uploaded - Karnataka', user: 'Neha Verma' },
-  { when: '05 Oct, 03:41 PM', module: 'dle', label: 'DLE', tone: 'info', details: 'DLE approved - MP Solar Infra', user: 'Rohit Singh' },
-  { when: '05 Oct, 11:15 AM', module: 'vendor', label: 'Vendor', tone: 'success', details: 'Compliance documents verified - Apex Power', user: 'Priya Sharma' },
-];
 
 /* ───────── Access Settings ───────── */
 const ACCESS: { role: string; states: string[]; modules: Record<ModuleKey, boolean> } = {
@@ -78,19 +102,19 @@ const ACCESS_FILTERS: Array<{ key: AccessFilter; label: string }> = [
 
 /* ───────── 13 Distinct, Rich & Vibrant Colors (One per state) ───────── */
 const STATE_COLORS: Record<string, string> = {
-  kashmir: '#2563eb',    // Deep Royal Blue
-  jammu: '#0284c7',      // Sky Cyan
-  himachal: '#7c3aed',   // Vivid Violet
-  haryana: '#d97706',    // Rich Amber/Gold
-  punjab: '#ea580c',     // Sunset Orange
-  up: '#db2777',         // Crimson Pink
-  bihar: '#0d9488',      // Rich Teal
-  jharkhand: '#4f46e5',  // Indigo Blue
-  goa: '#e11d48',        // Coral Rose
-  karnataka: '#16a34a',  // Emerald Green
-  assam: '#0891b2',      // Deep Aqua
-  tripura: '#9333ea',    // Royal Purple
-  arunachal: '#c026d3',  // Vivid Magenta
+  kashmir: '#2563eb',
+  jammu: '#0284c7',
+  himachal: '#7c3aed',
+  haryana: '#d97706',
+  punjab: '#ea580c',
+  up: '#db2777',
+  bihar: '#0d9488',
+  jharkhand: '#4f46e5',
+  goa: '#e11d48',
+  karnataka: '#16a34a',
+  assam: '#0891b2',
+  tripura: '#9333ea',
+  arunachal: '#c026d3',
 };
 const stateColor = (id: string) => STATE_COLORS[id] ?? '#64748b';
 
@@ -163,6 +187,12 @@ const readRecent = (): string[] => {
   }
 };
 
+/* shared inline styles for hero stat cards */
+const HERO_STAT: React.CSSProperties = { background: 'var(--ax-bg-surface)', padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' };
+const HERO_LABEL: React.CSSProperties = { fontSize: '11px', color: 'var(--ax-text-muted)', fontWeight: 600, display: 'block' };
+const HERO_VALUE: React.CSSProperties = { fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 };
+const HERO_SUB: React.CSSProperties = { fontSize: '10px', color: 'var(--ax-text-subtle)' };
+
 export function ErpMainDashboard() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -174,6 +204,12 @@ export function ErpMainDashboard() {
   const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | undefined>(undefined);
+  const [selectedComplaintState, setSelectedComplaintState] = useState<string>('all');
+
+  /* total users (from /api/admin/users) */
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState(false);
 
   /* hover link: state cards/rows <-> map */
   const [hoverId, setHoverId] = useState<string | null>(null);
@@ -188,6 +224,23 @@ export function ErpMainDashboard() {
   }, []);
 
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
+
+  /* fetch total users */
+  useEffect(() => {
+    const ctrl = new AbortController();
+    let alive = true;
+
+    dleService
+      .getCompanyAdminUsers(ctrl.signal) // login user ki company_id ke hisaab se filtered array
+      .then((list) => { if (alive) setTotalUsers(list.length); })
+      .catch((err) => {
+        if (err?.name === 'AbortError') return;
+        if (alive) setUsersError(true);
+      })
+      .finally(() => { if (alive) setUsersLoading(false); });
+
+    return () => { alive = false; ctrl.abort(); };
+  }, []);
 
   const workByGeo = useMemo(() => {
     const m = new Map<string, GeoWork>();
@@ -224,8 +277,6 @@ export function ErpMainDashboard() {
       modulesTotal: Object.keys(ACCESS.modules).length,
     };
   }, [workByGeo]);
-
-  const visibleActivities = useMemo(() => ACTIVITIES.filter((a) => ACCESS.modules[a.module]), []);
 
   const regionCount = useMemo(() => {
     const m: Record<string, number> = { All: STATES_DATA.length };
@@ -283,12 +334,13 @@ export function ErpMainDashboard() {
   const openRef = useRef(openState);
   openRef.current = openState;
 
-  // Map polygon style - Clean subtle borders, without harsh dark black outlines
+  // Map polygon style - Clean subtle borders
   const styleOfWork = useCallback((w?: GeoWork): PathOptions => {
     if (!w) return { color: 'rgba(148, 163, 184, 0.4)', weight: 0.8, fillColor: 'transparent', fillOpacity: 0 };
     return w.open
       ? { color: w.color, weight: 1.2, fillColor: w.color, fillOpacity: 0.38 }
       : { color: 'rgba(148, 163, 184, 0.35)', weight: 0.8, dashArray: '3 3', fillColor: w.color, fillOpacity: 0.12 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [borderCol]);
 
   const geoStyle = useCallback(
@@ -329,8 +381,6 @@ export function ErpMainDashboard() {
       });
     });
   }, [hoverKey, geo, workByGeo, styleOfWork]);
-
-
 
   /* keep popup position in sync on zoom/move */
   useEffect(() => {
@@ -393,9 +443,49 @@ export function ErpMainDashboard() {
     return [...STATES_DATA].sort((a, b) => (b.dles + b.vendors) - (a.dles + a.vendors));
   }, []);
 
-  const chartStateCategories = useMemo(() => sortedChartStates.map(s => s.code), [sortedChartStates]);
-  const chartDleSeries = useMemo(() => sortedChartStates.map(s => s.dles), [sortedChartStates]);
-  const chartVendorSeries = useMemo(() => sortedChartStates.map(s => s.vendors), [sortedChartStates]);
+  const chartStateCategories = useMemo(() => sortedChartStates.map((s) => s.code), [sortedChartStates]);
+  const chartDleSeries = useMemo(() => sortedChartStates.map((s) => s.dles), [sortedChartStates]);
+  const chartVendorSeries = useMemo(() => sortedChartStates.map((s) => s.vendors), [sortedChartStates]);
+  const chartUserSeries = useMemo(
+    () => sortedChartStates.map((s) => USERS_BY_STATE[s.id] ?? 0),
+    [sortedChartStates]
+  );
+  const chartSeries = useMemo(
+    () => [
+      { name: 'DLE Partners', type: 'column' as const, data: chartDleSeries },
+      { name: 'Vendors', type: 'column' as const, data: chartVendorSeries },
+      { name: 'Users', type: 'column' as const, data: chartUserSeries },
+    ],
+    [chartDleSeries, chartVendorSeries, chartUserSeries]
+  );
+
+  const waveSeries = useMemo(() => {
+    if (selectedComplaintState === 'all') {
+      return sortedChartStates.slice(0, 6).map((s) => ({
+        name: s.name,
+        data: MONTHLY_COMPLAINTS[s.id] ?? Array(10).fill(0),
+      }));
+    }
+    if (selectedComplaintState === 'all-13') {
+      return sortedChartStates.map((s) => ({
+        name: s.name,
+        data: MONTHLY_COMPLAINTS[s.id] ?? Array(10).fill(0),
+      }));
+    }
+    if (selectedComplaintState === 'total') {
+      const totalPerMonth = COMPLAINT_MONTHS.map((_, i) =>
+        Object.values(MONTHLY_COMPLAINTS).reduce((acc, arr) => acc + (arr[i] ?? 0), 0)
+      );
+      return [{ name: 'National Total Complaints', data: totalPerMonth }];
+    }
+    const stateObj = STATES_DATA.find((s) => s.id === selectedComplaintState);
+    return [
+      {
+        name: stateObj ? stateObj.name : 'Complaints',
+        data: MONTHLY_COMPLAINTS[selectedComplaintState] ?? Array(10).fill(0),
+      },
+    ];
+  }, [selectedComplaintState, sortedChartStates]);
 
   return (
     <>
@@ -447,36 +537,31 @@ export function ErpMainDashboard() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--ax-space-3)' }}>
-              <div style={{ background: 'var(--ax-bg-surface)', padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' }}>
-                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', fontWeight: 600, display: 'block' }}>Active DLEs</span>
-                <span className="ax-num" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 }}>
-                  {num(totals.dles)}
-                </span>
-                <small style={{ fontSize: '10px', color: 'var(--ax-text-subtle)' }}>Field Partners</small>
+              <div style={HERO_STAT}>
+                <span style={HERO_LABEL}>Active DLEs</span>
+                <span className="ax-num" style={HERO_VALUE}>{num(totals.dles)}</span>
+                <small style={HERO_SUB}>Field Partners</small>
               </div>
 
-              <div style={{ background: 'var(--ax-bg-surface)', padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' }}>
-                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', fontWeight: 600, display: 'block' }}>Vendors</span>
-                <span className="ax-num" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 }}>
-                  {num(totals.vendors)}
-                </span>
-                <small style={{ fontSize: '10px', color: 'var(--ax-text-subtle)' }}>Approved Network</small>
+              <div style={HERO_STAT}>
+                <span style={HERO_LABEL}>Vendors</span>
+                <span className="ax-num" style={HERO_VALUE}>{num(totals.vendors)}</span>
+                <small style={HERO_SUB}>Approved Network</small>
               </div>
 
-              <div style={{ background: 'var(--ax-bg-surface)', padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' }}>
-                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', fontWeight: 600, display: 'block' }}>Total States</span>
-                <span className="ax-num" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 }}>
-                  {num(totals.states)}
-                </span>
-                <small style={{ fontSize: '10px', color: 'var(--ax-text-subtle)' }}>{access.geoOpen} Authorized</small>
+              <div style={HERO_STAT}>
+                <span style={HERO_LABEL}>Total States</span>
+                <span className="ax-num" style={HERO_VALUE}>{num(totals.states)}</span>
+                <small style={HERO_SUB}>{access.geoOpen} Authorized</small>
               </div>
 
-              <div style={{ background: 'var(--ax-bg-surface)', padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' }}>
-                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', fontWeight: 600, display: 'block' }}>Complaints</span>
-                <span className="ax-num" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 }}>
-                  {OPEN_COMPLAINTS}
+              {/* Total Users (from /api/admin/users) */}
+              <div style={HERO_STAT}>
+                <span style={HERO_LABEL}>Total Users</span>
+                <span className="ax-num" style={HERO_VALUE}>
+                  {usersLoading ? '…' : usersError || totalUsers === null ? '—' : num(totalUsers)}
                 </span>
-                <small style={{ fontSize: '10px', color: 'var(--ax-text-subtle)' }}>Service Tickets</small>
+                <small style={HERO_SUB}>{usersError ? 'Load nahi hua' : 'Registered Users'}</small>
               </div>
             </div>
           </div>
@@ -738,7 +823,7 @@ export function ErpMainDashboard() {
             {/* Map & State Explorer Split Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(360px, 1.05fr)', gap: 'var(--ax-space-5)', alignItems: 'start' }}>
 
-              {/* Left: Leaflet India Interactive Map (Subtle borders + KLK logo markers) */}
+              {/* Left: Leaflet India Interactive Map */}
               <div style={{ minWidth: 0 }}>
                 <div style={{ position: 'relative', isolation: 'isolate', borderRadius: 'var(--ax-radius-xl)', overflow: 'hidden', border: '1px solid var(--ax-border)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
                   <MapContainer
@@ -897,7 +982,6 @@ export function ErpMainDashboard() {
                           }}
                         >
                           <div>
-                            {/* Card Header: Avatar & Access pill */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--ax-space-3)' }}>
                               <span
                                 style={{
@@ -928,7 +1012,6 @@ export function ErpMainDashboard() {
                               )}
                             </div>
 
-                            {/* State Name */}
                             <h4 style={{ fontSize: 'var(--ax-text-md)', fontWeight: 700, color: 'var(--ax-text-strong)', margin: '0 0 2px' }}>
                               {s.name}
                             </h4>
@@ -937,7 +1020,6 @@ export function ErpMainDashboard() {
                             </p>
                           </div>
 
-                          {/* Footer Info: Counters & Action link */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border)', marginTop: 'var(--ax-space-3)' }}>
                             <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
                               <span className="ax-num" style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)' }}>
@@ -1051,7 +1133,7 @@ export function ErpMainDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => openState(s)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s); }}}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s); } }}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '28px 140px 90px 1fr 70px 22px',
@@ -1065,30 +1147,19 @@ export function ErpMainDashboard() {
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in oklab, var(--ax-accent) 4%, transparent)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
-                    {/* 1. Rank */}
                     <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ax-text-muted)' }}>{idx + 1}.</span>
-
-                    {/* 2. State Name */}
                     <span style={{ fontWeight: 700, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
-
-                    {/* 3. Sites Count */}
                     <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>{total} Sites</span>
-
-                    {/* 4. Progress Bar */}
                     <div style={{ height: 10, borderRadius: 99, background: 'color-mix(in oklab, var(--ax-border) 40%, transparent)', overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
                         width: `${barWidth}%`,
                         borderRadius: 99,
                         background: 'linear-gradient(90deg, #0d9488, #10b981)',
-                        transition: 'width 0.8s cubic-bezier(0.34,1.56,0.64,1)',
+                        transition: 'width 0.8s cubic-bezier(0.,134.56,0.64,1)',
                       }} />
                     </div>
-
-                    {/* 5. Completed Count */}
                     <span style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', textAlign: 'right' }}>{total}</span>
-
-                    {/* 6. Up Arrow */}
                     <span style={{ width: 16, height: 16, display: 'inline-flex', color: '#10b981' }}>{I_ARROW_UP_RIGHT}</span>
                   </div>
                 );
@@ -1161,137 +1232,328 @@ export function ErpMainDashboard() {
           </div>
         </section>
 
-        {/* ═══════ 5. SPLIT SECTION (6 COLS VIDEO + 6 COLS DISTRIBUTION CHART) ═══════ */}
-
-   
-   
-
-        {/* 5.2 State-wise Operations & Network Distribution Chart (Right - 6 cols) */}
+        {/* ═══════ 5. DISTRIBUTION CHART + VIDEO (Side-by-Side: col-6 + col-6) ═══════ */}
         <section className="ax-card ax-card--chart ax-col--6" role="region" aria-label="Territory Distribution Analytics">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Territory Network Breakdown</span>
-              <h2 className="ax-card__title">State-wise DLE & Vendor Distribution</h2>
-              <p className="ax-card__subtitle">Field partner teams vs approved vendor suppliers per state.</p>
+              <h2 className="ax-card__title">State-wise DLE &amp; Vendor Distribution</h2>
+              <p className="ax-card__subtitle">Field partner teams vs approved vendor suppliers vs registered users.</p>
             </div>
             <div className="ax-card__actions">
               <span className="ax-badge ax-badge--soft ax-badge--pill" style={{ background: 'color-mix(in oklab, var(--ax-accent) 15%, transparent)', color: 'var(--ax-accent)' }}>
-                <Icon size={13} style={{ marginRight: 4 }}>{I_CHART}</Icon> National Network
+                <Icon size={13} style={{ marginRight: 4 }}>{I_CHART}</Icon> Pillars
               </span>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <ApexChart
               type="bar"
-              height={300}
+              height={320}
               series={[
                 { name: 'DLE Partners', data: chartDleSeries },
                 { name: 'Vendors', data: chartVendorSeries },
+                { name: 'Users', data: chartUserSeries },
               ]}
               apex={{
-                chart: {
-                  type: 'bar',
-                  toolbar: { show: false },
-                  fontFamily: 'inherit',
-                },
+                chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
                 plotOptions: {
-                  bar: {
-                    horizontal: false,
-                    columnWidth: '55%',
-                    borderRadius: 4,
-                  },
+                  bar: { horizontal: false, columnWidth: '60%', borderRadius: 4 },
                 },
                 dataLabels: { enabled: false },
                 stroke: { show: true, width: 2, colors: ['transparent'] },
                 xaxis: {
                   categories: chartStateCategories,
-                  labels: {
-                    style: { fontSize: '11px', fontWeight: 600 },
-                  },
+                  labels: { style: { fontSize: '11px', fontWeight: 600 } },
                 },
-                yaxis: {
-                  title: { text: 'Active Count', style: { fontSize: '11px', fontWeight: 600 } },
-                },
+                yaxis: { title: { text: 'Count', style: { fontSize: '11px', fontWeight: 600 } } },
                 fill: { opacity: 1 },
                 tooltip: {
+                  shared: true,
+                  intersect: false,
                   y: {
-                    formatter: (val) => `${val} partners`,
+                    formatter: (val: number, opts?: { seriesIndex?: number }) =>
+                      opts?.seriesIndex === 2 ? `${val} users` : opts?.seriesIndex === 1 ? `${val} vendors` : `${val} partners`,
                   },
                 },
-                colors: ['#0284c7', '#8b5cf6'],
-                legend: {
-                  position: 'top',
-                  horizontalAlign: 'right',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                },
+                colors: ['#0284c7', '#8b5cf6', '#f59e0b'],
+                legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 600 },
+                grid: { borderColor: 'var(--ax-border)' },
               }}
             />
           </div>
         </section>
 
+        <section className="ax-card ax-col--6" role="region" aria-label="KLK Corporate Video Showcase">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Production &amp; Field Operations</span>
+              <h2 className="ax-card__title">KLK Ventures Infrastructure</h2>
+              <p className="ax-card__subtitle">
+                Solar pannel street lights, lithium batteries and infrastructure plant tour.
+              </p>
+            </div>
+            <div className="ax-card__actions">
+              <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">HQ &amp; Manufacturing</span>
+            </div>
+          </div>
 
-<section
-  className="ax-card ax-col--6"
-  role="region"
-  aria-label="KLK Corporate Video Showcase"
->
-  <div className="ax-card__header">
-    <div className="ax-card__titles">
-      <span className="ax-card__eyebrow">
-        Production & Field Operations
-      </span>
+          <div className="ax-card__body" style={{ padding: 'var(--ax-space-4)' }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: '16/9',
+                borderRadius: 'var(--ax-radius-lg)',
+                overflow: 'hidden',
+                border: '1px solid var(--ax-border)',
+                background: '#000',
+              }}
+            >
+              <iframe
+                src="https://www.youtube.com/embed/HxSPgWlFAHg?autoplay=1&mute=1&loop=1&playlist=HxSPgWlFAHg&controls=1&rel=0"
+                title="KLK Ventures Infrastructure"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+              />
+            </div>
+          </div>
+        </section>
 
-      <h2 className="ax-card__title">
-        KLK Ventures Infrastructure
-      </h2>
+        {/* ═══════ 6. MONTHLY COMPLAINTS WAVE / AREA CHART (Full Width: col-12) ═══════ */}
+        <section className="ax-card ax-card--chart ax-col--12" role="region" aria-label="Monthly Complaints Wave Analytics">
+          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Month-by-Month State Trend (Wave Curve)</span>
+              <h2 className="ax-card__title">Monthly Complaints by State (Wave Trend)</h2>
+              <p className="ax-card__subtitle">
+                Inspect how complaints trend across months for each state with smooth wave curves.
+              </p>
+            </div>
+            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <label htmlFor="complaint-state-select" style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-muted)' }}>
+                  State:
+                </label>
+                <select
+                  id="complaint-state-select"
+                  className="ax-select ax-select--sm"
+                  value={selectedComplaintState}
+                  onChange={(e) => setSelectedComplaintState(e.target.value)}
+                  style={{ minWidth: 180, fontWeight: 600 }}
+                >
+                  <option value="all">Top 6 States (Comparison)</option>
+                  <option value="all-13">All 13 States</option>
+                  <option value="total">National Total (Combined)</option>
+                  <optgroup label="Select Specific State">
+                    {sortedChartStates.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.code}) — {COMPLAINTS_BY_STATE[s.id] ?? 0} total
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
 
-      <p className="ax-card__subtitle">
-        Solar pannel street lights, lithium batteries and infrastructure plant tour.
-      </p>
-    </div>
+              <span className="ax-badge ax-badge--soft ax-badge--danger ax-badge--pill">
+                <Icon size={13} style={{ marginRight: 4 }}>{I_CHART}</Icon> Wave Chart
+              </span>
+            </div>
+          </div>
 
-    <div className="ax-card__actions">
-      <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">
-        HQ & Manufacturing
-      </span>
-    </div>
-  </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            {/* Quick KPI stats strip */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: 'var(--ax-space-3)',
+                padding: 'var(--ax-space-3) 0 var(--ax-space-4)',
+              }}
+            >
+              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Annual Complaints</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#e11d48', marginTop: 2 }}>
+                  {Object.values(COMPLAINTS_BY_STATE).reduce((a, b) => a + b, 0)}
+                </div>
+              </div>
+              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Highest Volume</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>
+                  UP (95)
+                </div>
+              </div>
+              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Active Tracking</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7', marginTop: 2 }}>
+                  10 Months (Jan–Oct)
+                </div>
+              </div>
+              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Selected View</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#8b5cf6', marginTop: 4, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {selectedComplaintState === 'all'
+                    ? 'Top 6 States'
+                    : selectedComplaintState === 'all-13'
+                    ? 'All 13 States'
+                    : selectedComplaintState === 'total'
+                    ? 'National Total'
+                    : STATES_DATA.find((s) => s.id === selectedComplaintState)?.name || selectedComplaintState}
+                </div>
+              </div>
+            </div>
 
-  <div
-    className="ax-card__body"
-    style={{
-      padding: 'var(--ax-space-4)',
-    }}
-  >
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '16/9',
-        borderRadius: 'var(--ax-radius-lg)',
-        overflow: 'hidden',
-        border: '1px solid var(--ax-border)',
-        background: '#000',
-      }}
-    >
-      <iframe
-        src="https://www.youtube.com/embed/HxSPgWlFAHg?autoplay=1&mute=1&loop=1&playlist=HxSPgWlFAHg&controls=1&rel=0"
-        title="KLK Ventures Infrastructure"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        referrerPolicy="strict-origin-when-cross-origin"
-        allowFullScreen
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          border: 0,
-        }}
-      />
-    </div>
-  </div>
-</section>
+            <ApexChart
+              type="area"
+              height={320}
+              series={waveSeries}
+              apex={{
+                chart: {
+                  type: 'area',
+                  toolbar: { show: false },
+                  fontFamily: 'inherit',
+                  zoom: { enabled: false },
+                },
+                dataLabels: { enabled: false },
+                stroke: {
+                  curve: 'smooth',
+                  width: selectedComplaintState !== 'all' && selectedComplaintState !== 'all-13' ? 3 : 2,
+                },
+                fill: {
+                  type: 'gradient',
+                  gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.45,
+                    opacityTo: 0.05,
+                    stops: [0, 90, 100],
+                  },
+                },
+                xaxis: {
+                  categories: COMPLAINT_MONTHS,
+                  labels: { style: { fontSize: '12px', fontWeight: 600 } },
+                  axisBorder: { show: false },
+                },
+                yaxis: {
+                  title: { text: 'Monthly Complaints', style: { fontSize: '11px', fontWeight: 600 } },
+                  labels: { formatter: (v: number) => Math.round(v).toString() },
+                },
+                tooltip: {
+                  shared: true,
+                  intersect: false,
+                  y: {
+                    formatter: (val: number) => `${val} complaints`,
+                  },
+                },
+                legend: {
+                  position: 'top',
+                  horizontalAlign: 'left',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  itemMargin: { horizontal: 10, vertical: 4 },
+                },
+                grid: { borderColor: 'var(--ax-border)', strokeDashArray: 4 },
+                colors: [
+                  '#e11d48', '#2563eb', '#8b5cf6', '#d97706', '#059669',
+                  '#0891b2', '#ea580c', '#4f46e5', '#db2777', '#16a34a',
+                  '#6366f1', '#a855f7', '#64748b',
+                ],
+              }}
+            />
+          </div>
+        </section>
+
+        {/* ═══════ 7. CONSOLIDATED STATE-WISE SUMMARY TABLE (Full Width: col-12) ═══════ */}
+        <section className="ax-card ax-col--12" role="region" aria-label="State-wise Network Summary">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Complete Operations Matrix</span>
+              <h2 className="ax-card__title">State-wise Operations, Distribution &amp; Complaints</h2>
+              <p className="ax-card__subtitle">
+                Field partner teams (DLE), approved vendors, registered users, and logged complaints per state.
+              </p>
+            </div>
+            <div className="ax-card__actions">
+              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
+                {sortedChartStates.length} States Monitored
+              </span>
+            </div>
+          </div>
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover ax-table--bordered" style={{ minWidth: 720 }}>
+              <caption className="ax-visually-hidden">State-wise DLE, Vendor, User and Complaint counts</caption>
+              <thead className="ax-table__head">
+                <tr>
+                  <th className="ax-table__th" scope="col" style={{ width: 44 }}>Sr.</th>
+                  <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">Region</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col" style={{ textAlign: 'right' }}>DLE Partners</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col" style={{ textAlign: 'right' }}>Vendors</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col" style={{ textAlign: 'right' }}>Users</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col" style={{ textAlign: 'right' }}>Complaints</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col" style={{ textAlign: 'right' }}>Total Active</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedChartStates.map((s, idx) => {
+                  const users = USERS_BY_STATE[s.id] ?? 0;
+                  const complaints = COMPLAINTS_BY_STATE[s.id] ?? 0;
+                  const total = s.dles + s.vendors + users;
+                  return (
+                    <tr key={s.id} className="ax-table__row">
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>{idx + 1}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {s.name} <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)' }}>({s.code})</span>
+                      </td>
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--sm">{s.region}</span>
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right' }}>{num(s.dles)}</td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right' }}>{num(s.vendors)}</td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right' }}>{num(users)}</td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right' }}>{num(complaints)}</td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(total)}</td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          onClick={() => openState(s)}
+                          style={{ fontSize: '12px', padding: '2px 8px' }}
+                        >
+                          View Hub →
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Grand Total Row */}
+                <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)' }}>
+                  <td className="ax-table__td" colSpan={3} style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>Grand Total</td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {num(sortedChartStates.reduce((a, s) => a + s.dles, 0))}
+                  </td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {num(sortedChartStates.reduce((a, s) => a + s.vendors, 0))}
+                  </td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {num(sortedChartStates.reduce((a, s) => a + (USERS_BY_STATE[s.id] ?? 0), 0))}
+                  </td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 700 }}>
+                    {num(sortedChartStates.reduce((a, s) => a + (COMPLAINTS_BY_STATE[s.id] ?? 0), 0))}
+                  </td>
+                  <td className="ax-table__td ax-table__td--num ax-num" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                    {num(sortedChartStates.reduce((a, s) => a + s.dles + s.vendors + (USERS_BY_STATE[s.id] ?? 0), 0))}
+                  </td>
+                  <td className="ax-table__td" style={{ textAlign: 'center', fontSize: '11px', color: 'var(--ax-text-muted)' }}>
+                    All Hubs
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
 
       {/* Access Permission Toast */}
