@@ -8,25 +8,43 @@ export const normState = (s: any): string => {
 
 const loginUser = (): any => {
   const raw = authService.getRawResponse();
-  return raw?.user ?? raw?.data?.user ?? authService.getSession() ?? null;
+  const session = authService.getSession();
+  return raw?.user ?? raw?.data?.user ?? raw?.data ?? session?.user ?? session ?? null;
 };
 
 /** API ka asli role: "0" = sab states, "1" = sirf assigned states */
 export const getRoleLevel = (): string | null => {
-  const r = loginUser()?.role;
-  return r === null || r === undefined ? null : String(r).trim();
+  const u = loginUser();
+  const session = authService.getSession();
+  const rawRole = u?.role_id ?? u?.role;
+  if (rawRole === 0 || rawRole === '0') return '0';
+  if (rawRole === 1 || rawRole === '1') return '1';
+  if (session?.role_id === 0 || session?.role_id === '0') return '0';
+  if (session?.role_id === 1 || session?.role_id === '1') return '1';
+  return rawRole !== null && rawRole !== undefined ? String(rawRole).trim() : null;
 };
 
 export const getAllowedStates = (): string[] | 'ALL' => {
   if (getRoleLevel() === '0') return 'ALL';
 
   const u = loginUser();
-  let list: any = u?.state_access; // '["bihar"]' (JSON string) ya array
+  const session = authService.getSession();
+
+  let list: any =
+    u?.state_access ??
+    session?.state_access ??
+    u?.state_accesses ??
+    session?.state_accesses ??
+    u?.states ??
+    session?.states;
 
   if (typeof list === 'string') {
     try { list = JSON.parse(list); } catch { list = list.split(','); }
   }
-  if (!Array.isArray(list) || !list.length) list = u?.state ? [u.state] : [];
+  if (!Array.isArray(list) || !list.length) {
+    const st = u?.state ?? session?.state ?? u?.state_name ?? session?.state_name;
+    list = st ? [st] : [];
+  }
 
   return [...new Set(list.map(normState).filter(Boolean))] as string[];
 };
@@ -36,10 +54,14 @@ export const canAccessState = (state: string): boolean => {
   return allowed === 'ALL' || allowed.includes(normState(state));
 };
 
-/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/dashboard', 'dle/users' → null (sabke liye) */
+/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam' */
 export const stateOfSlug = (slug: string): string | null => {
-  const m = slug.replace(/^\/+/, '').match(/^dle\/([^/]+)\//);
-  return m ? normState(m[1]) : null;
+  const clean = slug.replace(/^\/+/, '');
+  const mDle = clean.match(/^dle\/([^/]+)\//);
+  if (mDle) return normState(mDle[1]);
+  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir)\//);
+  if (mV) return normState(mV[1]);
+  return null;
 };
 
 export const canAccessSlug = (slug: string): boolean => {

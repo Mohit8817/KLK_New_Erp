@@ -193,6 +193,210 @@ const HERO_LABEL: React.CSSProperties = { fontSize: '11px', color: 'var(--ax-tex
 const HERO_VALUE: React.CSSProperties = { fontSize: '1.6rem', fontWeight: 800, color: 'var(--ax-text-strong)', display: 'block', lineHeight: 1.15, marginTop: 4 };
 const HERO_SUB: React.CSSProperties = { fontSize: '10px', color: 'var(--ax-text-subtle)' };
 
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN SYSTEM SPECIFICATION FOR ERP MAIN DASHBOARD
+   Seamless adaptation across: Mobile (<640px) · Tablet (640-1024px) · Desktop (>1024px)
+   ═══════════════════════════════════════════════════════════════ */
+const DASHBOARD_RESPONSIVE_CSS = `
+  /* Responsive grid container margin & gap */
+  @media (max-width: 768px) {
+    .ax-erp-main-grid {
+      margin-top: -12px !important;
+      gap: var(--ax-space-4) !important;
+    }
+  }
+
+  /* 1. Executive Hero Command Banner */
+  .ax-erp-hero-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: var(--ax-space-6);
+    align-items: center;
+  }
+  .ax-erp-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ax-space-3);
+  }
+
+  @media (max-width: 1024px) {
+    .ax-erp-hero-grid {
+      grid-template-columns: 1fr;
+      gap: var(--ax-space-4);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .ax-erp-hero-banner {
+      padding: var(--ax-space-4) var(--ax-space-4) !important;
+    }
+    .ax-erp-hero-stats {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--ax-space-2);
+    }
+    .ax-erp-hero-stat-card {
+      padding: var(--ax-space-3) var(--ax-space-3) !important;
+    }
+    .ax-erp-hero-stat-num {
+      font-size: 1.35rem !important;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .ax-erp-hero-stats {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+  }
+
+  /* 2. Core ERP Module Cards */
+  .ax-erp-module-tile {
+    min-height: 200px;
+  }
+  @media (max-width: 768px) {
+    .ax-erp-module-tile {
+      min-height: auto;
+      padding: var(--ax-space-4) !important;
+    }
+  }
+
+  /* 3. Territory Command Split: Map + State Directory */
+  .ax-erp-map-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: var(--ax-space-5);
+    align-items: start;
+  }
+  .ax-erp-leaflet-container {
+    height: 620px;
+    width: 100%;
+  }
+  .ax-erp-state-scroll {
+    min-width: 0;
+    max-height: 620px;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+  .ax-erp-state-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: var(--ax-space-3);
+  }
+
+  @media (max-width: 1024px) {
+    .ax-erp-map-split {
+      grid-template-columns: 1fr;
+      gap: var(--ax-space-4);
+    }
+    .ax-erp-leaflet-container {
+      height: 480px;
+    }
+    .ax-erp-state-scroll {
+      max-height: 500px;
+      padding-right: 0;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .ax-erp-leaflet-container {
+      height: 380px;
+    }
+    .ax-erp-state-scroll {
+      max-height: 440px;
+    }
+  }
+
+  @media (max-width: 460px) {
+    .ax-erp-leaflet-container {
+      height: 320px;
+    }
+    .ax-erp-state-cards-grid {
+      grid-template-columns: 1fr;
+      gap: var(--ax-space-2);
+    }
+  }
+
+  /* 4. Quick Overview Rows */
+  .ax-erp-quick-row {
+    display: grid;
+    grid-template-columns: 26px minmax(90px, 130px) 75px 1fr 50px 20px;
+    align-items: center;
+    gap: 12px;
+    padding: var(--ax-space-3) var(--ax-space-3);
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ax-erp-quick-bar {
+    display: block;
+  }
+  .ax-erp-quick-sub {
+    display: inline;
+  }
+
+  @media (max-width: 768px) {
+    .ax-erp-quick-row {
+      grid-template-columns: 22px minmax(80px, 1fr) auto 40px 18px;
+      gap: 8px;
+    }
+    .ax-erp-quick-bar {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .ax-erp-quick-row {
+      grid-template-columns: 20px 1fr auto 16px;
+      gap: 6px;
+      padding: var(--ax-space-2) var(--ax-space-2);
+    }
+    .ax-erp-quick-sub {
+      display: none;
+    }
+  }
+
+  /* 5. Complaints Wave KPIs */
+  .ax-erp-wave-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ax-space-3);
+    padding: var(--ax-space-3) 0 var(--ax-space-4);
+  }
+
+  @media (max-width: 860px) {
+    .ax-erp-wave-kpis {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--ax-space-2);
+    }
+  }
+
+  @media (max-width: 440px) {
+    .ax-erp-wave-kpis {
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .ax-erp-wave-kpi-item {
+      padding: 8px 10px !important;
+    }
+  }
+
+  /* 6. Card Header Responsive */
+  @media (max-width: 640px) {
+    .ax-erp-card-header-responsive {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: var(--ax-space-3) !important;
+    }
+    .ax-erp-header-actions-wrap {
+      flex-wrap: wrap !important;
+      gap: var(--ax-space-2) !important;
+      width: 100% !important;
+    }
+    .ax-erp-header-actions-wrap > * {
+      max-width: 100%;
+    }
+  }
+`;
+
 export function ErpMainDashboard() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -505,11 +709,13 @@ export function ErpMainDashboard() {
         }
       />
 
-      <div className="ax-dash-grid" style={{ marginTop: '-30px' }}>
+      <style>{DASHBOARD_RESPONSIVE_CSS}</style>
+
+      <div className="ax-dash-grid ax-erp-main-grid" style={{ marginTop: '-30px' }}>
 
         {/* ═══════ 1. EXECUTIVE HERO COMMAND BANNER ═══════ */}
         <section
-          className="ax-card ax-col--12"
+          className="ax-card ax-col--12 ax-erp-hero-banner"
           role="region"
           aria-label="Executive Overview"
           style={{
@@ -518,7 +724,7 @@ export function ErpMainDashboard() {
             padding: 'var(--ax-space-5) var(--ax-space-6)',
           }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--ax-space-6)', alignItems: 'center' }}>
+          <div className="ax-erp-hero-grid">
             <div>
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', marginBottom: 'var(--ax-space-2)' }}>
                 <span className="ax-badge ax-badge--solid ax-badge--pill" style={{ background: 'var(--ax-accent)', color: '#fff', fontSize: '11px', padding: '2px 8px' }}>
@@ -536,29 +742,29 @@ export function ErpMainDashboard() {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--ax-space-3)' }}>
-              <div style={HERO_STAT}>
+            <div className="ax-erp-hero-stats">
+              <div className="ax-erp-hero-stat-card" style={HERO_STAT}>
                 <span style={HERO_LABEL}>Active DLEs</span>
-                <span className="ax-num" style={HERO_VALUE}>{num(totals.dles)}</span>
+                <span className="ax-num ax-erp-hero-stat-num" style={HERO_VALUE}>{num(totals.dles)}</span>
                 <small style={HERO_SUB}>Field Partners</small>
               </div>
 
-              <div style={HERO_STAT}>
+              <div className="ax-erp-hero-stat-card" style={HERO_STAT}>
                 <span style={HERO_LABEL}>Vendors</span>
-                <span className="ax-num" style={HERO_VALUE}>{num(totals.vendors)}</span>
+                <span className="ax-num ax-erp-hero-stat-num" style={HERO_VALUE}>{num(totals.vendors)}</span>
                 <small style={HERO_SUB}>Approved Network</small>
               </div>
 
-              <div style={HERO_STAT}>
+              <div className="ax-erp-hero-stat-card" style={HERO_STAT}>
                 <span style={HERO_LABEL}>Total States</span>
-                <span className="ax-num" style={HERO_VALUE}>{num(totals.states)}</span>
+                <span className="ax-num ax-erp-hero-stat-num" style={HERO_VALUE}>{num(totals.states)}</span>
                 <small style={HERO_SUB}>{access.geoOpen} Authorized</small>
               </div>
 
               {/* Total Users (from /api/admin/users) */}
-              <div style={HERO_STAT}>
+              <div className="ax-erp-hero-stat-card" style={HERO_STAT}>
                 <span style={HERO_LABEL}>Total Users</span>
-                <span className="ax-num" style={HERO_VALUE}>
+                <span className="ax-num ax-erp-hero-stat-num" style={HERO_VALUE}>
                   {usersLoading ? '…' : usersError || totalUsers === null ? '—' : num(totalUsers)}
                 </span>
                 <small style={HERO_SUB}>{usersError ? 'Load nahi hua' : 'Registered Users'}</small>
@@ -571,7 +777,7 @@ export function ErpMainDashboard() {
 
         {/* 2.1 DLE Module Card */}
         <div
-          className="ax-card ax-col--3"
+          className="ax-card ax-col--3 ax-erp-module-tile"
           role="button"
           tabIndex={0}
           onClick={() => openModule('dle', 'DLE Management', '/dle/dashboard')}
@@ -615,7 +821,7 @@ export function ErpMainDashboard() {
 
         {/* 2.2 Vendor Module Card */}
         <div
-          className="ax-card ax-col--3"
+          className="ax-card ax-col--3 ax-erp-module-tile"
           role="button"
           tabIndex={0}
           onClick={() => openModule('vendor', 'Vendor Portal', '/vendor/dashboard')}
@@ -659,7 +865,7 @@ export function ErpMainDashboard() {
 
         {/* 2.3 Complaints Module Card */}
         <div
-          className="ax-card ax-col--3"
+          className="ax-card ax-col--3 ax-erp-module-tile"
           role="button"
           tabIndex={0}
           onClick={() => openModule('complaints', 'Complaints Desk', '/complaints')}
@@ -708,7 +914,7 @@ export function ErpMainDashboard() {
 
         {/* 2.4 Gallery Module Card */}
         <div
-          className="ax-card ax-col--3"
+          className="ax-card ax-col--3 ax-erp-module-tile"
           role="button"
           tabIndex={0}
           onClick={() => openModule('gallery', 'Gallery & Media', '/apps/gallery')}
@@ -752,13 +958,13 @@ export function ErpMainDashboard() {
 
         {/* ═══════ 3. TERRITORY COMMAND & STATE HUBS ═══════ */}
         <section className="ax-card ax-col--12" role="region" aria-label="States Command Hub">
-          <div className="ax-card__header">
+          <div className="ax-card__header ax-erp-card-header-responsive">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">National Geographic Footprint</span>
               <h2 className="ax-card__title">State Operations & Territory Management</h2>
               <p className="ax-card__subtitle">Select any operational state below or via the map to directly jump into that state's dedicated workspace.</p>
             </div>
-            <div className="ax-card__actions">
+            <div className="ax-card__actions ax-erp-header-actions-wrap">
               <SearchInput value={query} onChange={setQuery} placeholder="Search state name or code..." ariaLabel="Search states" />
               <div className="ax-btn-group ax-btn-group--segmented" role="radiogroup" aria-label="View switch">
                 <button type="button" className={`ax-btn ax-btn--sm ax-btn--icon${view === 'grid' ? ' is-selected' : ''}`} role="radio" aria-checked={view === 'grid'} aria-label="Cards Grid" onClick={() => setView('grid')}>{I_GRID}</button>
@@ -821,7 +1027,7 @@ export function ErpMainDashboard() {
             )}
 
             {/* Map & State Explorer Split Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(360px, 1.05fr)', gap: 'var(--ax-space-5)', alignItems: 'start' }}>
+            <div className="ax-erp-map-split">
 
               {/* Left: Leaflet India Interactive Map */}
               <div style={{ minWidth: 0 }}>
@@ -833,8 +1039,8 @@ export function ErpMainDashboard() {
                     minZoom={4.0}
                     maxZoom={7}
                     maxBounds={[[6, 67], [37.5, 98.5]]}
-                    scrollWheelZoom={true}
-                    style={{ height: MAP_HEIGHT, width: '100%' }}
+                    scrollWheelZoom={false}
+                    className="ax-erp-leaflet-container"
                   >
                     <TileLayer
                       attribution="&copy; OpenStreetMap contributors"
@@ -940,7 +1146,7 @@ export function ErpMainDashboard() {
               </div>
 
               {/* Right: State Directory Cards or Table */}
-              <div style={{ minWidth: 0, maxHeight: MAP_HEIGHT, overflowY: 'auto', paddingRight: 6 }}>
+              <div className="ax-erp-state-scroll">
                 {filtered.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)', color: 'var(--ax-text-muted)' }}>
                     <p style={{ margin: '0 0 var(--ax-space-3)' }}>No state found matching your search filter.</p>
@@ -949,7 +1155,7 @@ export function ErpMainDashboard() {
                     </button>
                   </div>
                 ) : view === 'grid' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--ax-space-3)' }}>
+                  <div className="ax-erp-state-cards-grid">
                     {filtered.map((s) => {
                       const locked = !hasStateAccess(s.id);
                       const isHot = hoverId === s.id;
@@ -1130,33 +1336,27 @@ export function ErpMainDashboard() {
                 return (
                   <div
                     key={s.id}
+                    className="ax-erp-quick-row"
                     role="button"
                     tabIndex={0}
                     onClick={() => openState(s)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openState(s); } }}
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '28px 140px 90px 1fr 70px 22px',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: 'var(--ax-space-4) var(--ax-space-3)',
                       borderBottom: idx < 4 ? '1px solid color-mix(in oklab, var(--ax-border) 50%, transparent)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s',
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in oklab, var(--ax-accent) 4%, transparent)'; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
                     <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ax-text-muted)' }}>{idx + 1}.</span>
                     <span style={{ fontWeight: 700, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
-                    <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>{total} Sites</span>
-                    <div style={{ height: 10, borderRadius: 99, background: 'color-mix(in oklab, var(--ax-border) 40%, transparent)', overflow: 'hidden' }}>
+                    <span className="ax-erp-quick-sub" style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>{total} Sites</span>
+                    <div className="ax-erp-quick-bar" style={{ height: 10, borderRadius: 99, background: 'color-mix(in oklab, var(--ax-border) 40%, transparent)', overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
                         width: `${barWidth}%`,
                         borderRadius: 99,
                         background: 'linear-gradient(90deg, #0d9488, #10b981)',
-                        transition: 'width 0.8s cubic-bezier(0.,134.56,0.64,1)',
+                        transition: 'width 0.8s cubic-bezier(0, 0, 0.2, 1)',
                       }} />
                     </div>
                     <span style={{ fontWeight: 800, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', textAlign: 'right' }}>{total}</span>
@@ -1279,6 +1479,26 @@ export function ErpMainDashboard() {
                 colors: ['#0284c7', '#8b5cf6', '#f59e0b'],
                 legend: { position: 'top', horizontalAlign: 'right', fontSize: '12px', fontWeight: 600 },
                 grid: { borderColor: 'var(--ax-border)' },
+                responsive: [
+                  {
+                    breakpoint: 1024,
+                    options: {
+                      chart: { height: 320 },
+                      plotOptions: { bar: { columnWidth: '68%' } },
+                      xaxis: { labels: { rotate: -45, style: { fontSize: '10px' } } },
+                      legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px' },
+                    },
+                  },
+                  {
+                    breakpoint: 640,
+                    options: {
+                      chart: { height: 280 },
+                      plotOptions: { bar: { columnWidth: '78%' } },
+                      xaxis: { labels: { rotate: -60, style: { fontSize: '9px' } } },
+                      legend: { position: 'bottom', horizontalAlign: 'center', fontSize: '10px', itemMargin: { horizontal: 6, vertical: 2 } },
+                    },
+                  },
+                ],
               }}
             />
           </div>
@@ -1365,33 +1585,26 @@ export function ErpMainDashboard() {
 
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             {/* Quick KPI stats strip */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                gap: 'var(--ax-space-3)',
-                padding: 'var(--ax-space-3) 0 var(--ax-space-4)',
-              }}
-            >
-              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+            <div className="ax-erp-wave-kpis">
+              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Annual Complaints</div>
                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#e11d48', marginTop: 2 }}>
                   {Object.values(COMPLAINTS_BY_STATE).reduce((a, b) => a + b, 0)}
                 </div>
               </div>
-              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Highest Volume</div>
                 <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>
                   UP (95)
                 </div>
               </div>
-              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Active Tracking</div>
                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7', marginTop: 2 }}>
                   10 Months (Jan–Oct)
                 </div>
               </div>
-              <div style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
+              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Selected View</div>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#8b5cf6', marginTop: 4, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                   {selectedComplaintState === 'all'
@@ -1459,6 +1672,23 @@ export function ErpMainDashboard() {
                   '#0891b2', '#ea580c', '#4f46e5', '#db2777', '#16a34a',
                   '#6366f1', '#a855f7', '#64748b',
                 ],
+                responsive: [
+                  {
+                    breakpoint: 1024,
+                    options: {
+                      chart: { height: 310 },
+                      legend: { position: 'top', horizontalAlign: 'left', fontSize: '11px' },
+                    },
+                  },
+                  {
+                    breakpoint: 640,
+                    options: {
+                      chart: { height: 260 },
+                      xaxis: { labels: { style: { fontSize: '10px' } } },
+                      legend: { position: 'bottom', horizontalAlign: 'center', fontSize: '10px', itemMargin: { horizontal: 5, vertical: 2 } },
+                    },
+                  },
+                ],
               }}
             />
           </div>
@@ -1480,8 +1710,8 @@ export function ErpMainDashboard() {
               </span>
             </div>
           </div>
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ax-table--bordered" style={{ minWidth: 720 }}>
+          <div className="ax-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table className="ax-table ax-table--hover ax-table--bordered" style={{ minWidth: 700, width: '100%' }}>
               <caption className="ax-visually-hidden">State-wise DLE, Vendor, User and Complaint counts</caption>
               <thead className="ax-table__head">
                 <tr>

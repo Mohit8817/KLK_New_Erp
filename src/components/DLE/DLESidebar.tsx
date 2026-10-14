@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { canAccessSlug } from '../../services/stateAccess';
+import { canAccessSlug, canAccessState } from '../../services/stateAccess';
 import './dle-sidebar.css';
 
 interface NavLeaf {
@@ -28,6 +28,7 @@ interface NavGroup {
 
 interface NavSection {
   section: string;
+  state?: string;
   items: (NavLeaf | NavGroup)[];
 }
 
@@ -46,6 +47,7 @@ const DLE_SECTIONS: NavSection[] = [
   },
   {
     section: 'DLE · BIHAR',
+    state: 'bihar',
     items: [
       {
         id: 'grp.dle.bihar.amc',
@@ -84,6 +86,7 @@ const DLE_SECTIONS: NavSection[] = [
   },
   {
     section: 'DLE · UTTAR PRADESH',
+    state: 'up',
     items: [
       {
         id: 'grp.dle.up.amc',
@@ -205,12 +208,32 @@ function LeafIcon({ type }: { type?: NavLeaf['iconType'] }) {
   }
 }
 
+const isLeafAllowed = (to: string) => canAccessSlug(to.replace(/^\//, ''));
+
+const getVisibleSubGroupChildren = (sg: NavSubGroup, filterText: string) => {
+  return sg.children.filter((c) => {
+    if (!isLeafAllowed(c.to)) return false;
+    if (filterText && !c.title.toLowerCase().includes(filterText.toLowerCase())) return false;
+    return true;
+  });
+};
+
+const hasVisibleGroupChildren = (group: NavGroup, filterText: string): boolean => {
+  return group.children.some((child) => {
+    if ('to' in child) {
+      if (!isLeafAllowed(child.to)) return false;
+      if (filterText && !child.title.toLowerCase().includes(filterText.toLowerCase())) return false;
+      return true;
+    }
+    return getVisibleSubGroupChildren(child, filterText).length > 0;
+  });
+};
+
 export function DLESidebar({ filter = '' }: { filter?: string }) {
   const location = useLocation();
   const currentPath = location.pathname;
 
   const isLeafActive = (to: string) => currentPath === to;
-  const isAllowed = (to: string) => canAccessSlug(to.replace(/^\//, ''));
 
   return (
     <div className="dle-sidebar">
@@ -249,11 +272,17 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
 
       {/* ── Navigation Sections ── */}
       {DLE_SECTIONS.map((sec) => {
+        // State-based access control: if section belongs to a state (e.g. 'up' or 'bihar')
+        // and user cannot access that state, hide the entire section!
+        if (sec.state && !canAccessState(sec.state)) {
+          return null;
+        }
+
         const renderedItems = sec.items
           .map((item) => {
             // 1. Direct Leaf (Dashboard Button with Clean Badge)
             if ('to' in item) {
-              if (!isAllowed(item.to)) return null;
+              if (!isLeafAllowed(item.to)) return null;
               if (filter && !item.title.toLowerCase().includes(filter.toLowerCase())) return null;
               const active = isLeafActive(item.to);
               return (
@@ -270,6 +299,10 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
             }
 
             // 2. Group / Nested
+            if (!hasVisibleGroupChildren(item, filter)) {
+              return null;
+            }
+
             return (
               <DLEGroupItem key={item.id} group={item} currentPath={currentPath} filter={filter} />
             );
@@ -300,6 +333,9 @@ function DLEGroupItem({
   currentPath: string;
   filter: string;
 }) {
+  if (!hasVisibleGroupChildren(group, filter)) {
+    return null;
+  }
   const isLeafActive = (to: string) => currentPath === to;
   const isSubGroupActive = (sg: NavSubGroup) =>
     sg.children.some((c) => isLeafActive(c.to));

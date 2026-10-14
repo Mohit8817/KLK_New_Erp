@@ -439,7 +439,7 @@ export function BiharAMCSSLViewAssignLight() {
                     <td className="ax-table__td">{r.block}</td>
                     <td className="ax-table__td">
                       <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)', flexWrap: 'wrap' }}>
-                        {r.panchayat.length ? r.panchayat.map((p: string) => <span key={p} className="ax-badge ax-badge--soft ax-badge--neutral">{p}</span>) : '—'}
+                        {r.panchayat.length ? r.panchayat.map((p: string) => <span key={p} className="ax-badge ax-badge--soft ax-badge--info">{p}</span>) : '—'}
                       </span>
                     </td>
                     <td className="ax-table__td ax-num">{r.date}</td>

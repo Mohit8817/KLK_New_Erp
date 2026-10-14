@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { canAccessSlug, canAccessState } from '../../services/stateAccess';
 
 interface VPortalItem {
   title: string;
@@ -14,12 +15,14 @@ interface VPortalSubGroup {
 
 interface VPortalSection {
   section: string;
+  state?: string;
   groups: VPortalSubGroup[];
 }
 
 const V_PORTAL_NAVIGATION: VPortalSection[] = [
   {
     section: 'Assam Operations',
+    state: 'assam',
     groups: [
       {
         id: 'assam.installation',
@@ -36,6 +39,7 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
   },
   {
     section: 'Jammu & Kashmir',
+    state: 'jammu',
     groups: [
       {
         id: 'jammu.survey',
@@ -85,6 +89,7 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
   },
   {
     section: 'Uttar Pradesh',
+    state: 'up',
     groups: [
       {
         id: 'up.survey',
@@ -196,9 +201,15 @@ export function VPortalSidebar({ filter = '' }: { filter?: string }) {
       </div>
 
       {V_PORTAL_NAVIGATION.map((sec) => {
+        // State-based access control: if user cannot access this state, hide the section!
+        if (sec.state && !canAccessState(sec.state)) {
+          return null;
+        }
+
         const renderedGroups = sec.groups.map((group) => {
           const matchingItems = group.items.filter((item) =>
-            !filter || item.title.toLowerCase().includes(filter.toLowerCase())
+            canAccessSlug(item.to) &&
+            (!filter || item.title.toLowerCase().includes(filter.toLowerCase()))
           );
 
           if (!matchingItems.length) return null;
