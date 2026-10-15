@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
@@ -210,8 +210,10 @@ export function DleUsers() {
   const urlActivity = searchParams.get('activity') || 'All';
   const urlCreated = searchParams.get('created') || 'All';
 
+  const deferredQ = useDeferredValue(q);
+
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = deferredQ.trim().toLowerCase();
     const now = new Date();
     const activeCutoff = now.getTime() - 30 * 86400000;
 
@@ -241,7 +243,7 @@ export function DleUsers() {
     const dir = sortDir === 'asc' ? 1 : -1;
     return [...list].sort((a, b) =>
       sortKey === 'createdTs' ? (a.createdTs - b.createdTs) * dir : a[sortKey].localeCompare(b[sortKey]) * dir);
-  }, [rows, q, approval, sortKey, sortDir, urlState, urlDistrict, urlActivity, urlCreated]);
+  }, [rows, deferredQ, approval, sortKey, sortDir, urlState, urlDistrict, urlActivity, urlCreated]);
 
   useEffect(() => {
     setPage(1);
@@ -254,11 +256,16 @@ export function DleUsers() {
   const rangeStart = filtered.length ? start + 1 : 0;
   const rangeEnd = Math.min(curPage * pageSize, filtered.length);
 
-  const counts = useMemo(() => ({
-    Pending: rows.filter((r) => r.approval === 'Pending').length,
-    Approved: rows.filter((r) => r.approval === 'Approved').length,
-    Rejected: rows.filter((r) => r.approval === 'Rejected').length,
-  }), [rows]);
+  const counts = useMemo(() => {
+    let p = 0, a = 0, rj = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const ap = rows[i].approval;
+      if (ap === 'Pending') p++;
+      else if (ap === 'Approved') a++;
+      else if (ap === 'Rejected') rj++;
+    }
+    return { Pending: p, Approved: a, Rejected: rj };
+  }, [rows]);
 
   /* ---------- Export toolbar (common/TableExportToolbar) ---------- */
   // NOTE: assumes the ColumnDef shape is { key, label, visible } — adjust the mapping here if your type differs

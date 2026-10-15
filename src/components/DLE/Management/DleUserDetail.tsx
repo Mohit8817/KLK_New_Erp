@@ -242,7 +242,7 @@ export function DleUserDetail() {
                               <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
                             </svg>
                             <div>
-                              {failed ? 'Image load nahi hui — click to open' : pdf ? 'PDF — click to open' : 'Click to open'}
+                              {failed ? 'Image unavailable — click to open' : pdf ? 'PDF — click to open' : 'Click to open'}
                             </div>
                           </div>
                         </div>

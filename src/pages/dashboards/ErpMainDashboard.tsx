@@ -767,7 +767,7 @@ export function ErpMainDashboard() {
                 <span className="ax-num ax-erp-hero-stat-num" style={HERO_VALUE}>
                   {usersLoading ? '…' : usersError || totalUsers === null ? '—' : num(totalUsers)}
                 </span>
-                <small style={HERO_SUB}>{usersError ? 'Load nahi hua' : 'Registered Users'}</small>
+                <small style={HERO_SUB}>{usersError ? 'Unavailable' : 'Registered Users'}</small>
               </div>
             </div>
           </div>
@@ -1140,7 +1140,7 @@ export function ErpMainDashboard() {
                 </div>
                 {geoFailed && (
                   <div style={{ marginTop: 'var(--ax-space-2)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Map data load nahi ho paya.
+                    Failed to load map data.
                   </div>
                 )}
               </div>
