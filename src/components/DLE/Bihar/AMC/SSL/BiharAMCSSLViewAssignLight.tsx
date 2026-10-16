@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   Pagination,
@@ -250,7 +250,7 @@ export function BiharAMCSSLViewAssignLight() {
         setRows(list);
         if (usersRes) setUsers(buildUserMap(usersRes));
       } catch (e: any) {
-        if (e?.name !== 'AbortError') setError(e?.message || 'Failed to load data');
+        if (e?.name !== 'AbortError') setError(e?.message || 'Data load nahi hua');
       } finally {
         setLoading(false);
       }
@@ -273,22 +273,10 @@ export function BiharAMCSSLViewAssignLight() {
     };
   }), [rows, users]);
 
-  const deferredQ = useDeferredValue(q);
-
   const filtered = useMemo(() => {
-    const s = deferredQ.trim().toLowerCase();
-    if (!s) return data;
-    return data.filter((r) =>
-      r.user.toLowerCase().includes(s) ||
-      r.state.toLowerCase().includes(s) ||
-      r.district.toLowerCase().includes(s) ||
-      r.block.toLowerCase().includes(s) ||
-      r.panchayat.some((p) => p.toLowerCase().includes(s)) ||
-      r.date.toLowerCase().includes(s) ||
-      r.remarks.toLowerCase().includes(s) ||
-      r.volume.toLowerCase().includes(s)
-    );
-  }, [data, deferredQ]);
+    const s = q.trim().toLowerCase();
+    return s ? data.filter((r) => JSON.stringify(Object.values(r)).toLowerCase().includes(s)) : data;
+  }, [data, q]);
 
   /* ───────── Pagination (common) ───────── */
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =

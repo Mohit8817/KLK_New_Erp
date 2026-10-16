@@ -13,7 +13,7 @@ export const DLE_BASE_URL = (
 
 
 export const APPROVAL_APPROVED = 1;
- 
+
 /** Backend `status` values for POST /api/admin/approval/status */
 export const APPROVAL_PENDING = 0;
 export const APPROVAL_REJECTED = 2;
@@ -34,26 +34,11 @@ export const DLE_ENDPOINTS = {
 
   // UP AMC
   UP_AMC_LIGHT_LIST: `${DLE_BASE_URL}/api/up/amc/light/list`,
-  // GET /api/light-amc/get?region=up  (region zaroori hai)
-  UP_AMC_LIGHT_GET: `${DLE_BASE_URL}/api/light-amc/get`,
+  UP_AMC_LIGHT_GET: `${DLE_BASE_URL}/api/up/amc/light/get`,
 
   // Bihar AMC
   BIHAR_AMC_LIGHT_LIST: `${DLE_BASE_URL}/api/bihar/amc/light/list`,
-  // GET /api/light-amc/get?region=bihar  (region zaroori hai)
-  BIHAR_AMC_LIGHT_GET: `${DLE_BASE_URL}/api/light-amc/get`,
-
-  // AMC approval (Bihar / UP) — SSL AMC documents
-  BIHAR_AMC_APPROVAL_STATUS: `${DLE_BASE_URL}/api/bihar/ssl-amc/approval/status`,
-  UP_AMC_APPROVAL_STATUS: `${DLE_BASE_URL}/api/up/ssl-amc/approval/status`,
-
-  // AMC LIGHT approval (Bihar / UP) — survey light records
-  UP_AMC_LIGHT_APPROVAL_STATUS: `${DLE_BASE_URL}/api/up/amc/light/approval/status`,
-  BIHAR_AMC_LIGHT_APPROVAL_STATUS: `${DLE_BASE_URL}/api/bihar/amc/light/approval/status`,
-  UP_AMC_LIGHT_APPROVAL_LIST: `${DLE_BASE_URL}/api/up/amc/light/approval/list`,
-  BIHAR_AMC_LIGHT_APPROVAL_LIST: `${DLE_BASE_URL}/api/bihar/amc/light/approval/list`,
-  UP_AMC_LIGHT_APPROVAL_PENDING: `${DLE_BASE_URL}/api/up/amc/light/approval/pending`,
-  BIHAR_AMC_LIGHT_APPROVAL_PENDING: `${DLE_BASE_URL}/api/bihar/amc/light/approval/pending`,
-  DLE_DASHBOARD_INTEGRATION: `${DLE_BASE_URL}/api/portal/integration/dle-dashboard`,
+  BIHAR_AMC_LIGHT_GET: `${DLE_BASE_URL}/api/bihar/amc/light/get`,
 };
 
 export const getDleToken = (): string | null => {
@@ -70,10 +55,6 @@ export const getDleToken = (): string | null => {
   );
 };
 
-/**
- * NOTE: Token yahan nahi bheja jaata. Portal key/secret
- * (X-Portal-Api-Key / X-Portal-Api-Secret) Vite proxy lagata hai.
- */
 export const getDleAuthHeaders = (
   extraHeaders?: Record<string, string>
 ): Record<string, string> => ({
@@ -179,48 +160,6 @@ export interface UpdateApprovalPayload {
   /** Optional: company_id to save on the user while approving / rejecting */
   company_id?: string | number;
 }
-
-/** Payload for POST /api/{bihar|up}/ssl-amc/approval/status  &  /api/{bihar|up}/amc/light/approval/status */
-export interface AmcApprovalPayload {
-  /** AMC record id */
-  id: string | number;
-  /** 0 = Pending, 1 = Approved, 2 = Rejected */
-  approval_status: number;
-  /** Rejection par mandatory */
-  approval_remarks?: string;
-  approval_by?: string | number;
-}
-
-/** Query params for GET /api/{bihar|up}/amc/light/approval/list */
-export interface AmcLightApprovalListParams {
-  /** 0 pending, 1 approved, 2 rejected; khaali / 'all' = sab */
-  approval_status?: number | 'all';
-  /** 'all' (default) ya 'mine' (tab user_id zaroori) */
-  scope?: 'all' | 'mine';
-  user_id?: string | number;
-  district?: string;
-  block?: string;
-  panchayat?: string;
-  page?: number;
-  limit?: number;
-  [key: string]: string | number | undefined;
-}
-
-/** undefined / null / '' values hata kar query string banata hai */
-const buildQuery = (params?: Record<string, unknown>): string => {
-  if (!params) return '';
-
-  const sp = new URLSearchParams();
-
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === '') return;
-    sp.append(k, String(v));
-  });
-
-  const s = sp.toString();
-
-  return s ? `?${s}` : '';
-};
 
 export class DleService {
   /**
@@ -472,24 +411,21 @@ export class DleService {
     );
   }
 
-  /**
-   * UP AMC light survey records.
-   * Backend: GET /api/light-amc/get?region=up
-   * region default 'up' lagta hai (params me override ho sakta hai).
-   */
   async getUpAmcLight(
     params?: Record<string, string | number>,
     signal?: AbortSignal
   ) {
+    const query = params
+      ? '?' +
+        new URLSearchParams(
+          params as any
+        ).toString()
+      : '';
+
     return this.request(
-      `${DLE_ENDPOINTS.UP_AMC_LIGHT_GET}${buildQuery({
-        region: 'up',
-        company_id: getLoginCompanyId(),
-        ...params,
-      })}`,
+      `${DLE_ENDPOINTS.UP_AMC_LIGHT_GET}${query}`,
       {
         method: 'GET',
-        cache: 'no-store',
         signal,
       }
     );
@@ -511,146 +447,24 @@ export class DleService {
     );
   }
 
-  /**
-   * Bihar AMC light survey records.
-   * Backend: GET /api/light-amc/get?region=bihar
-   * region default 'bihar' lagta hai (params me override ho sakta hai).
-   */
   async getBiharAmcLight(
     params?: Record<string, string | number>,
     signal?: AbortSignal
   ) {
+    const query = params
+      ? '?' +
+        new URLSearchParams(
+          params as any
+        ).toString()
+      : '';
+
     return this.request(
-      `${DLE_ENDPOINTS.BIHAR_AMC_LIGHT_GET}${buildQuery({
-        region: 'bihar',
-        company_id: getLoginCompanyId(),
-        ...params,
-      })}`,
+      `${DLE_ENDPOINTS.BIHAR_AMC_LIGHT_GET}${query}`,
       {
         method: 'GET',
-        cache: 'no-store',
         signal,
       }
     );
-  }
-
-  /* ─────────────────────────────────────────────────────────────
-     5. AMC Approval (Bihar / UP) — SSL AMC documents
-     ───────────────────────────────────────────────────────────── */
-
-  /**
-   * Approve / Reject an SSL AMC document record.
-   * Backend: POST /api/{bihar|up}/ssl-amc/approval/status
-   * company_id login user se automatically jaata hai.
-   */
-  async updateAmcApproval(
-    region: 'bihar' | 'up',
-    payload: AmcApprovalPayload,
-    signal?: AbortSignal
-  ) {
-    const url =
-      region === 'up'
-        ? DLE_ENDPOINTS.UP_AMC_APPROVAL_STATUS
-        : DLE_ENDPOINTS.BIHAR_AMC_APPROVAL_STATUS;
-
-    return this.request(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...payload,
-        company_id: getLoginCompanyId(),
-      }),
-      signal,
-    });
-  }
-
-  /* ─────────────────────────────────────────────────────────────
-     6. AMC LIGHT Approval (Bihar / UP) — survey light records
-     ───────────────────────────────────────────────────────────── */
-
-  /**
-   * AMC Light records approval ke saath (approval fields + image_*_url).
-   * Backend: GET /api/{bihar|up}/amc/light/approval/list
-   * Response: { success, meta, data: [...] }
-   */
-  async getAmcLightApprovalList(
-    region: 'bihar' | 'up',
-    params?: AmcLightApprovalListParams,
-    signal?: AbortSignal
-  ) {
-    const base =
-      region === 'up'
-        ? DLE_ENDPOINTS.UP_AMC_LIGHT_APPROVAL_LIST
-        : DLE_ENDPOINTS.BIHAR_AMC_LIGHT_APPROVAL_LIST;
-
-    return this.request(`${base}${buildQuery(params)}`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal,
-    });
-  }
-
-  /**
-   * Sirf pending (approval_status = 0) AMC Light records.
-   * Backend: GET /api/{bihar|up}/amc/light/approval/pending
-   */
-  async getAmcLightApprovalPending(
-    region: 'bihar' | 'up',
-    params?: Omit<AmcLightApprovalListParams, 'approval_status'>,
-    signal?: AbortSignal
-  ) {
-    const base =
-      region === 'up'
-        ? DLE_ENDPOINTS.UP_AMC_LIGHT_APPROVAL_PENDING
-        : DLE_ENDPOINTS.BIHAR_AMC_LIGHT_APPROVAL_PENDING;
-
-    return this.request(`${base}${buildQuery(params)}`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal,
-    });
-  }
-
-  /**
-   * Approve / Reject an AMC LIGHT survey record.
-   * Backend: POST /api/{bihar|up}/amc/light/approval/status
-   * Body: { id, approval_status (0|1|2), approval_remarks, approval_by?, company_id }
-   * Reject par approval_remarks mandatory.
-   */
-  async updateAmcLightApproval(
-    region: 'bihar' | 'up',
-    payload: AmcApprovalPayload,
-    signal?: AbortSignal
-  ) {
-    const url =
-      region === 'up'
-        ? DLE_ENDPOINTS.UP_AMC_LIGHT_APPROVAL_STATUS
-        : DLE_ENDPOINTS.BIHAR_AMC_LIGHT_APPROVAL_STATUS;
-
-    return this.request(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...payload,
-        company_id: getLoginCompanyId(),
-      }),
-      signal,
-    });
-  }
-
-  /**
-   * Get DLE Portal Integration Dashboard Summary Data
-   * Backend: GET /api/portal/integration/dle-dashboard
-   */
-  async getDleDashboardIntegration(signal?: AbortSignal) {
-    return this.request(DLE_ENDPOINTS.DLE_DASHBOARD_INTEGRATION, {
-      method: 'GET',
-      signal,
-    });
   }
 }
 

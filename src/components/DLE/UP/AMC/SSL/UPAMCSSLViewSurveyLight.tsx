@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type ReactElement } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
 import { SearchInput } from '../../../../../common/search/SearchInput';
 import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { dleService, filterByCompanyStrict, APPROVAL_APPROVED } from '../../../../../services/dleServices';
+import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
 import { authService } from '../../../../../services/authService';
 
 
@@ -32,8 +31,6 @@ interface LightRow {
   lat: number | null;
   lng: number | null;
   images: ImageItem[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  raw?: any;
 }
 
 /* ---------- Helpers ---------- */
@@ -113,7 +110,6 @@ const normalize = (r: any, i: number): LightRow => {
     lat: num(r?.latitude ?? r?.lat),
     lng: num(r?.longitude ?? r?.lng),
     images: [...fromArray, ...single].filter((im) => im.raw),
-    raw: r,
   };
 };
 
@@ -193,42 +189,6 @@ const exportPdf = (rows: LightRow[], cols: ExpCol[], title: string) => {
   w.focus();
 };
 
-const PAGE_CSS = `
-  .ax-survey-light-page {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-  .ax-survey-light-page .ax-table-wrap {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  @media (max-width: 768px) {
-    .ax-survey-light-page .ax-card__header {
-      flex-direction: column;
-      align-items: stretch !important;
-      gap: var(--ax-space-3) !important;
-    }
-    .ax-survey-light-page .ax-card__actions {
-      width: 100%;
-      flex-direction: column;
-      align-items: stretch !important;
-      gap: var(--ax-space-2) !important;
-    }
-    .ax-survey-light-page .ax-card__actions > * {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin-left: 0 !important;
-    }
-    .ax-survey-light-page .ax-card__body,
-    .ax-survey-light-page .ax-card__header {
-      padding: var(--ax-space-3) !important;
-    }
-  }
-`;
-
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
 /* ---------- Icons ---------- */
@@ -239,8 +199,8 @@ const ICON = {
   refresh: svg([<path key="a" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />, <path key="b" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />]),
   down: svg(<path d="M6 9l6 6l6 -6" />),
   close: svg([<path key="a" d="M18 6l-12 12" />, <path key="b" d="M6 6l12 12" />]),
+  eye: svg([<path key="a" d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />, <path key="b" d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />]),
   photo: svg([<path key="a" d="M15 8h.01" />, <path key="b" d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12" />, <path key="c" d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />, <path key="d" d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />]),
-  eye: svg([<circle key="a" cx="12" cy="12" r="2" />, <path key="b" d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />]),
   sortDef: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.4 }}><path d="M8 9l4 -4l4 4" /><path d="M16 15l-4 4l-4 -4" /></svg>,
   sortAsc: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>,
   sortDesc: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>,
@@ -258,7 +218,7 @@ const INITIAL_COLUMNS: ColumnDef[] = [
   { key: 'quarter', label: 'Quarter', visible: true },
   { key: 'lightWorking', label: 'Light Working', visible: true },
   { key: 'complaint', label: 'Complaint', visible: true },
-  { key: 'images', label: 'View Data', visible: true },
+  { key: 'images', label: 'Images', visible: true },
   { key: 'approval', label: 'Approval Status', visible: true },
   { key: 'action', label: 'Action', visible: true },
 ];
@@ -276,7 +236,7 @@ function ImageTile({ im }: { im: ImageItem }) {
         </a>
       ) : (
         <div style={{ width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'var(--ax-space-3)', background: 'var(--ax-surface-subtle)', border: '1px dashed var(--ax-border)', borderRadius: 'var(--ax-radius-md)', color: 'var(--ax-danger-500)', fontSize: 'var(--ax-text-xs)' }}>
-          {im.url ? 'Failed to load image' : 'Image URL not configured (.env: VITE_R2_PUBLIC_URL)'}
+          {im.url ? 'Image load nahi hui' : 'Image URL set nahi hai (.env: VITE_R2_PUBLIC_URL)'}
         </div>
       )}
       <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: 5 }}>{im.label}</div>
@@ -354,8 +314,8 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
   );
 }
 
-/* ---------- Row action dropdown (Approve) ---------- */
-function RowAction({ onApprove, approved, busy }: { onApprove: () => void; approved: boolean; busy: boolean }) {
+/* ---------- Row action dropdown ---------- */
+function RowAction({ onView }: { onView: () => void }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -374,15 +334,9 @@ function RowAction({ onApprove, approved, busy }: { onApprove: () => void; appro
       </button>
       {open && (
         <div role="menu" style={{ position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 4px)', zIndex: 20, minWidth: 160, background: 'var(--ax-surface-solid)', border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)', padding: 'var(--ax-space-1)' }}>
-          <button
-            type="button"
-            role="menuitem"
-            className="ax-btn ax-btn--ghost ax-btn--sm"
-            style={{ width: '100%', justifyContent: 'flex-start' }}
-            disabled={approved || busy}
-            onClick={() => { setOpen(false); onApprove(); }}
-          >
-            <span className="ax-btn__label">{busy ? 'Approving…' : approved ? 'Approved' : 'Approve'}</span>
+          <button type="button" role="menuitem" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setOpen(false); onView(); }}>
+            <span className="ax-btn__icon">{ICON.eye}</span>
+            <span className="ax-btn__label">View details</span>
           </button>
         </div>
       )}
@@ -392,7 +346,6 @@ function RowAction({ onApprove, approved, busy }: { onApprove: () => void; appro
 
 /* ---------- Page ---------- */
 export function UPAMCSSLViewSurveyLight() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -402,7 +355,6 @@ export function UPAMCSSLViewSurveyLight() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [preview, setPreview] = useState<LightRow | null>(null);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
   const visibleCols = columns.filter((c) => c.visible);
   const toggleColumn = (key: string) =>
@@ -449,31 +401,8 @@ export function UPAMCSSLViewSurveyLight() {
     return () => ctrl.abort();
   }, [load]);
 
-  /* Approve: POST /api/up/ssl-amc/approval/status */
-  const handleApprove = async (r: LightRow) => {
-    if (r.approval === 'Approved' || approvingId) return;
-    if (!window.confirm(`Approve AMC light ${r.sslId || r.id}?`)) return;
-    setApprovingId(r.id);
-    setErrorMsg('');
-    try {
-      await dleService.updateAmcApproval('up', {
-        id: r.id,
-        approval_status: APPROVAL_APPROVED,
-        approval_remarks: '',
-      });
-      // list dobara load kiye bina row update
-      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, approval: 'Approved' } : x)));
-    } catch (e) {
-      setErrorMsg((e as Error).message || 'Approval failed.');
-    } finally {
-      setApprovingId(null);
-    }
-  };
-
-  const deferredQ = useDeferredValue(q);
-
   const filtered = useMemo(() => {
-    const term = deferredQ.trim().toLowerCase();
+    const term = q.trim().toLowerCase();
     const list = term
       ? rows.filter((r) =>
           [r.district, r.block, r.panchayat, r.sslId, r.beneficiary, r.contact, r.amcDate, r.nextAmcDate, r.approval]
@@ -484,7 +413,7 @@ export function UPAMCSSLViewSurveyLight() {
       DATE_KEYS.includes(sortKey)
         ? (parseDMY(a[sortKey]) - parseDMY(b[sortKey])) * dir
         : a[sortKey].localeCompare(b[sortKey], undefined, { numeric: true }) * dir);
-  }, [rows, deferredQ, sortKey, sortDir]);
+  }, [rows, q, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const curPage = Math.min(page, totalPages);
@@ -574,17 +503,15 @@ export function UPAMCSSLViewSurveyLight() {
       case 'images':
         return (
           <td key={key} className="ax-table__td">
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-              style={{ color: 'var(--ax-accent)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
-              onClick={() => navigate(`/dle/up/ssl/amc/view-verify-light/${r.id}`, { state: { row: r.raw || r } })}
-              title="View survey details"
-              aria-label={`View data for SSL ${r.sslId}`}
-            >
-              <span className="ax-btn__icon" style={{ display: 'inline-flex' }}>{ICON.eye}</span>
-              <span className="ax-btn__label" style={{ fontWeight: 600 }}>View Data</span>
-            </button>
+            {r.images.length ? (
+              <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
+                {r.images.slice(0, 2).map((im, k) => (
+                  <button key={im.raw + k} type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" style={{ color: 'var(--ax-accent)' }} onClick={() => setPreview(r)} aria-label={`View ${im.label}`}>
+                    <span className="ax-btn__icon">{ICON.photo}</span>
+                  </button>
+                ))}
+              </span>
+            ) : <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>}
           </td>
         );
       case 'approval':
@@ -596,23 +523,14 @@ export function UPAMCSSLViewSurveyLight() {
           </td>
         );
       case 'action':
-        return (
-          <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
-            <RowAction
-              approved={r.approval === 'Approved'}
-              busy={approvingId === r.id}
-              onApprove={() => handleApprove(r)}
-            />
-          </td>
-        );
+        return <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}><RowAction onView={() => setPreview(r)} /></td>;
       default:
         return <td key={key} className="ax-table__td">{cellText(r, key) || '—'}</td>;
     }
   };
 
   return (
-    <div className="ax-survey-light-page">
-      <style>{PAGE_CSS}</style>
+    <>
       <PageHead
         title="UP AMC Light"
         subtitle="Quarterly AMC visits with light status, complaints, photos and approval."
@@ -718,7 +636,7 @@ export function UPAMCSSLViewSurveyLight() {
       </div>
 
       <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
-    </div>
+    </>
   );
 }
 
