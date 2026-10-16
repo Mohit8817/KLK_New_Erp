@@ -76,6 +76,7 @@ const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SS
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
 const DLEAttendanceViewData = lazy(() => import('./components/DLE/Attendance/DLEAttendanceViewData'));
+const DLEAttendanceDetail = lazy(() => import('./components/DLE/Attendance/DLEAttendanceDetail'));
 
 const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'));
 const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
@@ -430,7 +431,9 @@ const shell: Record<string, PageComponent> = {
   'dle/users': DLEManagementViewData,
   'dle/users/:id': DleUserDetail,
   'dle/attendance': DLEAttendanceViewData,
+  'dle/attendance/:id': DLEAttendanceDetail,
   'attendance': DLEAttendanceViewData,
+  'attendance/:id': DLEAttendanceDetail,
 
   // 'assam': AssamDashboard,
   // 'assam/dashboard': AssamDashboard,
