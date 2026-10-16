@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type ReactElement } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef, } from '../../../../../common/TableExportToolbar';
@@ -614,7 +614,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
     try {
       await dleService.downloadUlaImagesZip(r.id); // /api/bihar/ula/:id/download-images
     } catch (e) {
-      setDlError((e as Error).message || 'Images download nahi ho paayi');
+      setDlError((e as Error).message || 'Failed to download images');
     } finally {
       setDownloadingId(null);
     }
@@ -648,7 +648,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       setRows([]);
-      setError((e as Error).message || 'Data load nahi ho paya');
+      setError((e as Error).message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -667,8 +667,10 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
   const dashboardActive = searchParams.get('active') === '1';
   const dashboardDate = searchParams.get('date') || '';
 
+  const deferredQ = useDeferredValue(q);
+
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = deferredQ.trim().toLowerCase();
     const now = new Date();
 
     const list = rows.filter((r) => {
@@ -724,7 +726,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
       sortKey === 'surveyDate'
         ? (parseDMY(a.surveyDate) - parseDMY(b.surveyDate)) * dir
         : a[sortKey].localeCompare(b[sortKey]) * dir);
-  }, [rows, q, sortKey, sortDir, dashboardDistrict, dashboardSurveyor, dashboardVisitStatus, dashboardToday, dashboardActive, dashboardDate]);
+  }, [rows, deferredQ, sortKey, sortDir, dashboardDistrict, dashboardSurveyor, dashboardVisitStatus, dashboardToday, dashboardActive, dashboardDate]);
 
   useEffect(() => {
     setPage(1);
@@ -877,7 +879,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
               className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={() => downloadImages(r)}
               disabled={busy || !r.images.length}
-              title={r.images.length ? 'Saari images ZIP mein download karo' : 'Is record mein images nahi hain'}
+              title={r.images.length ? 'Download all images as ZIP' : 'No images available for this record'}
             >
               <span className="ax-btn__icon">{ICON.download}</span>
               <span className="ax-btn__label">{busy ? 'Downloading…' : 'Download Images'}</span>
@@ -906,7 +908,7 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
         {error && !loading && (
           <div className="ax-col--12">
             <div className="ax-alert ax-alert--danger" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-              <span>Data load nahi ho paya ({error}).</span>
+              <span>Failed to load data ({error}).</span>
               <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => load()}>Retry</button>
             </div>
           </div>
@@ -1021,10 +1023,10 @@ export function BiharULAInstallationViewData({ id: idProp }: { id?: string }) {
               </h3>
               <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)', marginBottom: 'var(--ax-space-4)' }}>
                 {error
-                  ? 'Server se data nahi mil paya. Kuch der baad Retry karein.'
+                  ? 'Unable to retrieve data from server. Please retry shortly.'
                   : q
                     ? 'No rows match your search. Try a different term.'
-                    : 'Is company ke liye koi ULA installation record nahi mila.'}
+                    : 'No ULA installation records found for this company.'}
               </p>
               {error ? (
                 <button type="button" className="ax-btn ax-btn--secondary" onClick={() => load()}>Retry</button>

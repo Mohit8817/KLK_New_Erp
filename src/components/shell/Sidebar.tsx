@@ -131,7 +131,7 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 'var(--ax-space-2)',
-          background: 'var(--ax-surface-subtle)',
+          background: '#fff',
           marginTop: 'auto',
           flexShrink: 0,
         }}
@@ -186,36 +186,45 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
           title="Sign out of ERP"
           aria-label="Log out"
           style={{
+            width: 34,
+            height: 34,
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 6,
-            padding: '6px 10px',
             borderRadius: 'var(--ax-radius-md)',
             border: '1px solid var(--ax-border)',
             background: 'var(--ax-surface)',
-            color: 'var(--ax-danger-500, #ef4444)',
-            fontSize: '12px',
-            fontWeight: 600,
+            color: 'var(--ax-text-muted)',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
             flexShrink: 0,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            e.currentTarget.style.background = 'var(--ax-surface-hover, rgba(255, 255, 255, 0.1))';
+            e.currentTarget.style.color = 'var(--ax-text-strong)';
+            e.currentTarget.style.borderColor = 'var(--ax-border-strong, var(--ax-border))';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'var(--ax-surface)';
+            e.currentTarget.style.color = 'var(--ax-text-muted)';
             e.currentTarget.style.borderColor = 'var(--ax-border)';
           }}
         >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
+          <svg
+            width={16}
+            height={16}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2" />
+            <path d="M9 12h12l-3-3" />
+            <path d="M18 15l3-3" />
           </svg>
-          <span>Logout</span>
         </button>
       </div>
     </aside>
