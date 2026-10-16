@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type ReactElement } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
@@ -245,6 +246,7 @@ const ICON = {
   down: svg(<path d="M6 9l6 6l6 -6" />),
   close: svg([<path key="a" d="M18 6l-12 12" />, <path key="b" d="M6 6l12 12" />]),
   photo: svg([<path key="a" d="M15 8h.01" />, <path key="b" d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12" />, <path key="c" d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />, <path key="d" d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />]),
+  eye: svg([<circle key="a" cx="12" cy="12" r="2" />, <path key="b" d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />]),
   sortDef: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.4 }}><path d="M8 9l4 -4l4 4" /><path d="M16 15l-4 4l-4 -4" /></svg>,
   sortAsc: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>,
   sortDesc: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>,
@@ -262,7 +264,7 @@ const INITIAL_COLUMNS: ColumnDef[] = [
   { key: 'quarter', label: 'Quarter', visible: true },
   { key: 'lightWorking', label: 'Light Working', visible: true },
   { key: 'complaint', label: 'Complaint', visible: true },
-  { key: 'images', label: 'View Data', visible: true },
+  { key: 'images', label: 'View Detail', visible: true },
   { key: 'approval', label: 'Approval Status', visible: true },
   { key: 'action', label: 'Action', visible: true },
 ];
@@ -396,6 +398,7 @@ function RowAction({ onApprove, approved, busy }: { onApprove: () => void; appro
 
 /* ---------- Page ---------- */
 export function BiharAMCSSLViewSurveyLight() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -578,15 +581,17 @@ export function BiharAMCSSLViewSurveyLight() {
       case 'images':
         return (
           <td key={key} className="ax-table__td">
-            {r.images.length ? (
-              <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
-                {r.images.slice(0, 2).map((im, k) => (
-                  <button key={im.raw + k} type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" style={{ color: 'var(--ax-accent)' }} onClick={() => setPreview(r)} aria-label={`View ${im.label}`}>
-                    <span className="ax-btn__icon">{ICON.photo}</span>
-                  </button>
-                ))}
-              </span>
-            ) : <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>}
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ color: 'var(--ax-accent)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
+              onClick={() => navigate(`/dle/bihar/ssl/amc/view-verify-light/${r.id || r.sslId}`, { state: { row: r.raw || r } })}
+              title="View survey details"
+              aria-label={`View detail for SSL ${r.sslId}`}
+            >
+              <span className="ax-btn__icon" style={{ display: 'inline-flex' }}>{ICON.eye}</span>
+              <span className="ax-btn__label" style={{ fontWeight: 600 }}>View Detail</span>
+            </button>
           </td>
         );
       case 'approval':

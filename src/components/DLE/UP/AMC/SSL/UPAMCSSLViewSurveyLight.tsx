@@ -258,7 +258,7 @@ const INITIAL_COLUMNS: ColumnDef[] = [
   { key: 'quarter', label: 'Quarter', visible: true },
   { key: 'lightWorking', label: 'Light Working', visible: true },
   { key: 'complaint', label: 'Complaint', visible: true },
-  { key: 'images', label: 'View Data', visible: true },
+  { key: 'images', label: 'View Detail', visible: true },
   { key: 'approval', label: 'Approval Status', visible: true },
   { key: 'action', label: 'Action', visible: true },
 ];
@@ -578,12 +578,12 @@ export function UPAMCSSLViewSurveyLight() {
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--sm"
               style={{ color: 'var(--ax-accent)', gap: 6, display: 'inline-flex', alignItems: 'center' }}
-              onClick={() => navigate(`/dle/up/ssl/amc/view-verify-light/${r.id}`, { state: { row: r.raw || r } })}
+              onClick={() => navigate(`/dle/up/ssl/amc/view-verify-light/${r.id || r.sslId}`, { state: { row: r.raw || r } })}
               title="View survey details"
-              aria-label={`View data for SSL ${r.sslId}`}
+              aria-label={`View detail for SSL ${r.sslId}`}
             >
               <span className="ax-btn__icon" style={{ display: 'inline-flex' }}>{ICON.eye}</span>
-              <span className="ax-btn__label" style={{ fontWeight: 600 }}>View Data</span>
+              <span className="ax-btn__label" style={{ fontWeight: 600 }}>View Detail</span>
             </button>
           </td>
         );
