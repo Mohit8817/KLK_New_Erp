@@ -1,4 +1,4 @@
-﻿/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════════════
    DLE Modern Professional Sidebar Styles
    Buttery smooth accordion animations, elegant badge-style dashboard,
    and clean enterprise hierarchy.
@@ -338,6 +338,11 @@
 .dle-sb__icon-box--management {
   background: rgba(139, 92, 246, 0.08);
   color: #7c3aed;
+}
+
+.dle-sb__icon-box--attendance {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
 }
 
 .dle-sb__item-btn:hover .dle-sb__icon-box,

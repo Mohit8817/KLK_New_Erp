@@ -54,6 +54,7 @@ export const DLE_ENDPOINTS = {
   UP_AMC_LIGHT_APPROVAL_PENDING: `${DLE_BASE_URL}/api/up/amc/light/approval/pending`,
   BIHAR_AMC_LIGHT_APPROVAL_PENDING: `${DLE_BASE_URL}/api/bihar/amc/light/approval/pending`,
   DLE_DASHBOARD_INTEGRATION: `${DLE_BASE_URL}/api/portal/integration/dle-dashboard`,
+  ATTENDANCE_INTEGRATION_LIST: `${DLE_BASE_URL}/api/attendance/integration/list`,
 };
 
 export const getDleToken = (): string | null => {
@@ -649,6 +650,28 @@ export class DleService {
   async getDleDashboardIntegration(signal?: AbortSignal) {
     return this.request(DLE_ENDPOINTS.DLE_DASHBOARD_INTEGRATION, {
       method: 'GET',
+      signal,
+    });
+  }
+
+  /**
+   * Get Attendance Integration List
+   * Backend: GET /api/attendance/integration/list
+   */
+  async getAttendanceList(
+    params?: {
+      user_id?: string | number;
+      date_from?: string;
+      date_to?: string;
+      year?: string | number;
+      month?: string | number;
+    },
+    signal?: AbortSignal
+  ) {
+    const qs = params ? buildQuery(params) : '';
+    return this.request(`${DLE_ENDPOINTS.ATTENDANCE_INTEGRATION_LIST}${qs}`, {
+      method: 'GET',
+      cache: 'no-store',
       signal,
     });
   }

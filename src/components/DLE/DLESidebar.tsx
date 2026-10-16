@@ -21,7 +21,7 @@ interface NavSubGroup {
 interface NavGroup {
   id: string;
   title: string;
-  icon: 'dashboard' | 'amc' | 'installation' | 'management';
+  icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance';
   badge?: string;
   children: (NavLeaf | NavSubGroup)[];
 }
@@ -120,9 +120,22 @@ const DLE_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    section: 'ATTENDANCE',
+    items: [
+      {
+        id: 'grp.dle.attendance',
+        title: 'Attendance',
+        icon: 'attendance',
+        children: [
+          { id: 'dle.attendance', title: 'View Attendance', to: '/dle/attendance', iconType: 'view-data' },
+        ],
+      },
+    ],
+  },
 ];
 
-function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' }) {
+function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' }) {
   switch (icon) {
     case 'dashboard':
       return (
@@ -159,6 +172,18 @@ function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | '
             <circle cx="9" cy="7" r="4" />
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+      );
+    case 'attendance':
+      return (
+        <div className="dle-sb__icon-box dle-sb__icon-box--attendance">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+            <path d="M9 16l2 2 4-4" />
           </svg>
         </div>
       );

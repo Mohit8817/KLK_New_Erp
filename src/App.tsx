@@ -75,6 +75,7 @@ const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/U
 const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLSurveyLightDetails'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
+const DLEAttendanceViewData = lazy(() => import('./components/DLE/Attendance/DLEAttendanceViewData'));
 
 const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'));
 const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
@@ -428,6 +429,8 @@ const shell: Record<string, PageComponent> = {
   'dle/up/ssl/amc/view-verify-light/:id': UPAMCSSLSurveyLightDetails,
   'dle/users': DLEManagementViewData,
   'dle/users/:id': DleUserDetail,
+  'dle/attendance': DLEAttendanceViewData,
+  'attendance': DLEAttendanceViewData,
 
   // 'assam': AssamDashboard,
   // 'assam/dashboard': AssamDashboard,
