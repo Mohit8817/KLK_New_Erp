@@ -364,13 +364,6 @@ const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding:
 // Dashboard click-through target: make sure your router registers this component at /dle/users.
 const DLE_USERS_ROUTE = '/dle/users';
 
-const I_EYE = (
-  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="2" />
-    <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
-  </svg>
-);
-
 
 
 interface DleDashboardIntegration {
