@@ -237,7 +237,7 @@ export function DLEAttendanceDetail() {
   const dur = calculateDuration(record.punch_in_at, record.punch_out_at);
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 48 }}>
+    <div>
       {/* Page Header */}
       <PageHead
         title={`${record.user_name} — Attendance Details`}
