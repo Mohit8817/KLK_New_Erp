@@ -107,6 +107,21 @@ const DLE_SECTIONS: NavSection[] = [
       },
     ],
   },
+
+    {
+    section: 'ATTENDANCE',
+    items: [
+      {
+        id: 'grp.dle.attendance',
+        title: 'Attendance',
+        icon: 'attendance',
+        children: [
+          { id: 'dle.attendance', title: 'View Attendance', to: '/dle/attendance', iconType: 'view-data' },
+        ],
+      },
+    ],
+  },
+  
   {
     section: 'DLE MANAGEMENT',
     items: [
@@ -120,19 +135,7 @@ const DLE_SECTIONS: NavSection[] = [
       },
     ],
   },
-  {
-    section: 'ATTENDANCE',
-    items: [
-      {
-        id: 'grp.dle.attendance',
-        title: 'Attendance',
-        icon: 'attendance',
-        children: [
-          { id: 'dle.attendance', title: 'View Attendance', to: '/dle/attendance', iconType: 'view-data' },
-        ],
-      },
-    ],
-  },
+
 ];
 
 function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' }) {

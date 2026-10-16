@@ -382,7 +382,7 @@ export function DLEAttendanceViewData() {
   };
 
   return (
-    <div style={{ maxWidth: 1480, margin: '0 auto', paddingBottom: 40 }}>
+    <div>
       {/* Header */}
       <PageHead
         title="Attendance Monitoring"
