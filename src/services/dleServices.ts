@@ -77,10 +77,18 @@ export const getDleToken = (): string | null => {
  */
 export const getDleAuthHeaders = (
   extraHeaders?: Record<string, string>
-): Record<string, string> => ({
-  Accept: 'application/json',
-  ...(extraHeaders || {}),
-});
+): Record<string, string> => {
+  const env = (import.meta as any).env || {};
+  const apiKey = env.VITE_DLE_API_KEY || env.DLE_API_KEY;
+  const apiSecret = env.VITE_DLE_API_SECRET || env.DLE_API_SECRET;
+
+  return {
+    Accept: 'application/json',
+    ...(apiKey ? { 'X-Portal-Api-Key': apiKey } : {}),
+    ...(apiSecret ? { 'X-Portal-Api-Secret': apiSecret } : {}),
+    ...(extraHeaders || {}),
+  };
+};
 
 /**
  * Handles:

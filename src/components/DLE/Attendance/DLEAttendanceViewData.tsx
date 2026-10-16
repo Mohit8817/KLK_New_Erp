@@ -119,13 +119,17 @@ export function DLEAttendanceViewData() {
         : [];
 
       // 1. Company ID filter matching
-      const targetCompany = String(myCompanyId || '').trim().toLowerCase();
-      const companyFiltered = rawList.filter((item) => {
-        const itemComp = String(item.company_id || item.companyId || '').trim().toLowerCase();
-        if (!targetCompany) return true;
-        if (!itemComp || itemComp === 'null' || itemComp === 'undefined') return true;
-        return itemComp === targetCompany;
-      });
+      const targetCompany = String(myCompanyId || res?.meta?.company_id || '').trim().toLowerCase();
+      let companyFiltered = rawList;
+      if (targetCompany) {
+        const matched = rawList.filter((item) => {
+          const itemComp = String(item.company_id || item.companyId || '').trim().toLowerCase();
+          return !itemComp || itemComp === 'null' || itemComp === 'undefined' || itemComp === targetCompany;
+        });
+        if (matched.length > 0) {
+          companyFiltered = matched;
+        }
+      }
 
       // 2. Role-based State Access filter
       const stateFiltered = filterByState(companyFiltered);

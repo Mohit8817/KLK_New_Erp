@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
+        '/api/attendance': dleProxy,
         '/api/light-amc': dleProxy,
         '/api/bihar': dleProxy,
         '/api/up': dleProxy,
