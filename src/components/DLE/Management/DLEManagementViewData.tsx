@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'rea
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
-import { TableExportToolbar, type ColumnDef, Pagination, SearchInput } from '../../../common';
+import { TableExportToolbar, type ColumnDef, Pagination } from '../../../common';
 import { dleService, extractList, filterByCompany, getLoginCompanyId } from '../../../services/dleServices';
 
 /* ---------- Types ---------- */
@@ -55,32 +55,55 @@ const statusLabel = (v: unknown): string => {
   return s === '1' || s === 'active' || s === 'true' ? 'Active' : 'Inactive';
 };
 
-/*
- * Keep relative paths (/uploads/...) so requests go through the Vite proxy, which adds the API key.
- * API returns values like "r2:userdocuments/xxx.jpg" -> strip the "r2:" prefix.
- * NOTE: "/uploads/" is a guess — change it to whatever route your backend/proxy uses to serve R2 files.
- */
+const R2_FALLBACK = 'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev';
+const R2_BASE = String((import.meta as any).env?.VITE_R2_PUBLIC_URL || (import.meta as any).env?.R2_PUBLIC_URL || R2_FALLBACK).replace(/\/+$/, '');
+
 const fileUrl = (p: string): string => {
   if (!p) return '';
   if (/^https?:\/\//i.test(p)) return p;
-  if (p.startsWith('r2:')) return `/uploads/${p.slice(3)}`;
-  return p.startsWith('/') ? p : '/' + p;
+  if (p.startsWith('r2:')) return `${R2_BASE}/${p.slice(3).replace(/^\/+/, '')}`;
+  return p.startsWith('/') ? `${R2_BASE}${p}` : `${R2_BASE}/${p}`;
 };
-
-const DOC_FIELDS: [string, string][] = [
-  ['educational_document', 'Educational document'],
-  ['aadhaar_voter_id', 'Aadhaar / Voter ID'],
-  ['pan_card', 'PAN card'],
-  ['driving_license', 'Driving license'],
-  ['police_verification', 'Police verification'],
-  ['cancelled_cheque', 'Cancelled cheque'],
-  ['rent_agreement_electricity_bill', 'Rent agreement / Electricity bill'],
-  ['profile_image', 'Profile photo'],
-];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const normalize = (r: any, i: number): UserRow => {
   const ts = toTs(r?.created_at ?? r?.createdAt);
+  const docs: { label: string; url: string }[] = [];
+
+  if (Array.isArray(r?.documents) && r.documents.length > 0) {
+    for (const d of r.documents) {
+      const u = fileUrl(str(d?.url ?? d?.file_url ?? d?.path ?? d?.file ?? d));
+      if (u) {
+        docs.push({
+          label: str(d?.label ?? d?.name ?? d?.title ?? d?.type ?? 'Document'),
+          url: u,
+        });
+      }
+    }
+  }
+
+  const fieldDefs: [string[], string][] = [
+    [['educational_document', 'educational_doc', 'education_doc', 'education_document', 'qualification_doc'], 'Educational document'],
+    [['aadhaar_voter_id', 'aadhaar_card', 'aadhaar', 'voter_id', 'aadhar_card', 'aadhar'], 'Aadhaar / Voter ID'],
+    [['pan_card', 'pan', 'pancard'], 'PAN card'],
+    [['driving_license', 'dl', 'driving_licence'], 'Driving license'],
+    [['police_verification', 'police_doc', 'police_verification_doc', 'police'], 'Police verification'],
+    [['cancelled_cheque', 'cheque', 'passbook', 'bank_proof'], 'Cancelled cheque'],
+    [['rent_agreement_electricity_bill', 'rent_agreement', 'electricity_bill'], 'Rent agreement / Electricity bill'],
+    [['profile_image', 'profile_photo', 'photo', 'image', 'avatar'], 'Profile photo'],
+  ];
+
+  for (const [keys, label] of fieldDefs) {
+    if (docs.some((d) => d.label === label)) continue;
+    for (const k of keys) {
+      const raw = str(r?.[k]);
+      if (raw) {
+        docs.push({ label, url: fileUrl(raw) });
+        break;
+      }
+    }
+  }
+
   return {
     id: str(r?.id ?? r?._id ?? i),
     companyId: str(r?.company_id),
@@ -94,7 +117,7 @@ export const normalize = (r: any, i: number): UserRow => {
     panchayat: str(r?.panchayat),
     address: str(r?.address),
     police: str(r?.police_verification_validity),
-    documents: DOC_FIELDS.map(([k, label]) => ({ label, url: fileUrl(str(r?.[k])) })).filter((d) => d.url),
+    documents: docs,
     approval: approvalLabel(r?.approval_status),
     status: statusLabel(r?.status),
     createdAt: fmtDate(ts, str(r?.created_at)),
@@ -530,7 +553,32 @@ export function DleUsers() {
                 {!loading && paged.map((r, i) => (
                   <tr key={`${r.id}-${start + i}`} className="ax-table__row">
                     <td className="ax-table__td ax-table__td--num ax-num">{start + i + 1}</td>
-                    {vis('name') && <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>{r.name}</td>}
+                    {vis('name') && (
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/dle/users/${r.id}`, { state: { user: r } })}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            font: 'inherit',
+                            color: 'inherit',
+                            fontWeight: 'var(--ax-weight-medium)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--ax-primary, #2563eb)'; e.currentTarget.style.textDecoration = 'underline'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = 'inherit'; e.currentTarget.style.textDecoration = 'none'; }}
+                          title="View user details & documents"
+                        >
+                          {r.name || '—'}
+                        </button>
+                      </td>
+                    )}
                     {vis('email') && <td className="ax-table__td">{r.email}</td>}
                     {vis('contact') && <td className="ax-table__td ax-num" style={mono}>{r.contact}</td>}
                     {vis('district') && <td className="ax-table__td">{r.district}</td>}
@@ -538,15 +586,19 @@ export function DleUsers() {
                     {vis('approval') && <td className="ax-table__td"><span className={`ax-badge ax-badge--soft ${approvalClass(r.approval)}`}>{r.approval}</span></td>}
                     {vis('documents') && (
                       <td className="ax-table__td">
-                        {r.documents.length
-                          ? <button
-  type="button"
-  className="ax-btn ax-btn--ghost ax-btn--sm"
-  onClick={() => navigate(`/dle/users/${r.id}`, { state: { user: r } })}
->
-  {r.documents.length} files
-</button>
-                          : <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>}
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          onClick={() => navigate(`/dle/users/${r.id}`, { state: { user: r } })}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          title="View user details & documents"
+                        >
+                          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          <span>{r.documents.length ? `${r.documents.length} File${r.documents.length > 1 ? 's' : ''}` : 'View Details'}</span>
+                        </button>
                       </td>
                     )}
                     <td className="ax-table__td">
@@ -573,7 +625,7 @@ export function DleUsers() {
                               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6l6 -6" /></svg>
                             ) : null}
                           </button>
-                          {/* {locked ? (
+                          {locked ? (
                             <button
                               type="button"
                               className="ax-btn ax-btn--ghost ax-btn--sm"
@@ -583,7 +635,7 @@ export function DleUsers() {
                             >
                               Edit
                             </button>
-                          ) : null} */}
+                          ) : null}
                           </div>
                         );
                       })()}
@@ -648,6 +700,36 @@ export function DleUsers() {
                 boxShadow: '0 10px 30px rgb(0 0 0 / 0.2)',
               }}
             >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  navigate(`/dle/users/${u.id}`, { state: { user: u } });
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: 0,
+                  borderRadius: 6,
+                  background: 'transparent',
+                  color: 'var(--ax-text-strong, #111)',
+                  fontSize: 14,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgb(37 99 235 / 0.12)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                View Details
+              </button>
               <button
                 type="button"
                 role="menuitem"

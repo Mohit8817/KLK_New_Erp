@@ -12,9 +12,10 @@ import { type UserRow, normalize, approvalClass } from './DLEManagementViewData'
  *   VITE_R2_PUBLIC_URL=                   (optional: bucket public ho to direct R2 URL)
  */
 const env = (import.meta as any).env || {};
+const R2_FALLBACK = 'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev';
+const R2_BASE = String(env.VITE_R2_PUBLIC_URL || env.R2_PUBLIC_URL || R2_FALLBACK).replace(/\/+$/, '');
 const FILE_BASE = String(env.VITE_DLE_API_BASE_URL || env.VITE_FILE_BASE_URL || '').replace(/\/+$/, '');
 const FILE_PREFIX = '/' + String(env.VITE_FILE_PATH_PREFIX ?? '/api/uploads').replace(/^\/+|\/+$/g, '');
-const R2_BASE = String(env.VITE_R2_PUBLIC_URL || '').replace(/\/+$/, '');
 
 /** "r2:userpolice/x.pdf" / "/api/uploads/userpolice/x.pdf" / "userpolice/x.pdf" → full URL */
 const resolveUrl = (u: string): string => {
@@ -27,9 +28,7 @@ const resolveUrl = (u: string): string => {
   const r2 = raw.match(/r2:(.+)$/i);
   if (r2) key = r2[1];
   else if (/^(https?:)?\/\//i.test(raw)) {
-    const m = raw.match(/\/(?:api\/)?uploads\/(.+)$/i);
-    if (!m) return raw; // koi aur full URL (CDN etc.) — jaisa hai waisa
-    key = m[1];
+    return raw;
   } else {
     key = raw.replace(/^\/+/, '').replace(/^(?:api\/)?uploads\//i, '');
   }
@@ -83,8 +82,10 @@ export function DleUserDetail() {
     (async () => {
       try {
         const json = await dleService.getAdminUsers(ctrl.signal);
-        const list = filterByCompany(extractList(json)).map(normalize);
-        const found = list.find((x) => x.id === id) ?? null;
+        const list = extractList(json);
+        const mine = filterByCompany(list);
+        const candidates = (mine.length ? mine : list).map(normalize);
+        const found = candidates.find((x) => String(x.id) === String(id)) ?? null;
         setUser(found);
         setNotFound(!found);
       } catch (e) {

@@ -54,11 +54,17 @@ export const canAccessState = (state: string): boolean => {
   return allowed === 'ALL' || allowed.includes(normState(state));
 };
 
+const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh'];
+
 /** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam' */
 export const stateOfSlug = (slug: string): string | null => {
   const clean = slug.replace(/^\/+/, '');
   const mDle = clean.match(/^dle\/([^/]+)\//);
-  if (mDle) return normState(mDle[1]);
+  if (mDle) {
+    const candidate = normState(mDle[1]);
+    if (KNOWN_STATES.includes(candidate)) return candidate;
+    return null;
+  }
   const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir)\//);
   if (mV) return normState(mV[1]);
   return null;
