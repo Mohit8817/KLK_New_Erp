@@ -1,14 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
-
-// Code-split ApexCharts so DLE Dashboard shell and data tables render instantly
-const ApexChart = lazy(() => import('../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
+import { ApexChart } from '../charts/ApexChart';
 import { Pagination, usePagination,  TableExportToolbar, type ExportColumn } from '../../common';
 import { SearchInput } from '../../common/search/SearchInput';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
 import { dleService, extractList, filterByCompany } from '../../services/dleServices';
-import { canAccessState } from '../../services/stateAccess';
 
 
 const ACTIVE_WINDOW_DAYS = 30;
@@ -82,7 +79,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* ───── Card header (desktop): prioritize title width, condense actions ───── */
+  /* ───── Card header (desktop): title ko jagah, actions sikudenge ───── */
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -92,7 +89,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ax-card__titles {
     flex: 1 1 220px;
-    min-width: 220px;
+    min-width: 220px;          /* title kabhi iss se chhota nahi hoga */
     max-width: 100%;
   }
   .solar-erp-page .ax-card__title,
@@ -121,7 +118,7 @@ const PAGE_CSS = `
     justify-content: flex-end;
   }
 
-  /* Search: shrink when space is tight */
+  /* Search: jagah kam ho to chhota ho jaye */
   .solar-erp-page .ax-card__actions .ax-search,
   .solar-erp-page .ax-card__actions [class*="search"] {
     flex: 1 1 140px;
@@ -130,7 +127,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
 
-  /* Export toolbar: compact layout */
+  /* Export toolbar: compact + sikude */
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
   .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
     flex: 0 1 auto;
@@ -143,14 +140,8 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* Tables: responsive scroll container */
-  .solar-erp-page .ax-table-wrap,
-  .solar-erp-page .ax-table-wrapper {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+  /* Tables */
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .solar-erp-page .ax-table { min-width: 480px; }
   .solar-erp-page .ax-welcome__lede { max-width: 780px; }
 
@@ -161,11 +152,10 @@ const PAGE_CSS = `
   /* ───── Tablet (<=1100px) ───── */
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
-    .solar-erp-page .ax-col--6,
     .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
 
-    /* Export buttons: icon-only on tablet */
+    /* Export buttons: sirf icon (text hide) */
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 0;
       gap: 0;
@@ -181,19 +171,10 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
 
-  /* ───── Mobile (<=760px): Stack and full width ───── */
+  /* ───── Mobile (<=760px): header STACK ───── */
   @media (max-width: 760px) {
-    .solar-erp-page {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
-      box-sizing: border-box;
-    }
     .solar-erp-page .ax-welcome__stats {
       display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-    }
-    .solar-erp-page .ax-grid--2 {
-      grid-template-columns: 1fr !important;
     }
     .solar-erp-page .dle-filter-item { width: 100%; justify-content: space-between; }
     .solar-erp-page .dle-filter-item select { flex: 1; width: auto; max-width: 100%; }
@@ -228,7 +209,7 @@ const PAGE_CSS = `
       justify-content: flex-start;
       gap: 8px;
     }
-    /* Full width search on mobile */
+    /* Search poori width, export buttons uske neeche */
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] {
       flex: 1 1 100%;
@@ -243,7 +224,7 @@ const PAGE_CSS = `
       justify-content: flex-start;
       gap: 6px;
     }
-    /* Compact export toolbar buttons */
+    /* Mobile par text wapas dikhao, padding kam */
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 12px;
       gap: 4px;
@@ -254,15 +235,13 @@ const PAGE_CSS = `
 
   /* ───── Small phones (<=490px) ───── */
   @media (max-width: 490px) {
-    .solar-erp-page .ax-welcome__stats {
-      grid-template-columns: 1fr !important;
-    }
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 11px;
       height: 28px;
       padding: 0 6px !important;
     }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
@@ -345,9 +324,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
           </div>
           {spark && spark.length > 1 && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
-              <Suspense fallback={<div style={{ width: 68, height: 26 }} />}>
-                <ApexChart key={`${label}-${spark.join(',')}`} type="line" sparkline tooltip={false} height={26} color={t.apex} series={[{ name: label, data: spark }]} style={{ minHeight: 26, width: 68 }} />
-              </Suspense>
+              <ApexChart key={`${label}-${spark.join(',')}`} type="line" sparkline tooltip={false} height={26} color={t.apex} series={[{ name: label, data: spark }]} style={{ minHeight: 26, width: 68 }} />
             </div>
           )}
         </div>
@@ -364,6 +341,7 @@ const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding:
 // Dashboard click-through target: make sure your router registers this component at /dle/users.
 const DLE_USERS_ROUTE = '/dle/users';
 
+<<<<<<< HEAD
 
 
 interface DleDashboardIntegration {
@@ -489,11 +467,11 @@ interface DleDashboardIntegration {
 }
 
 
+=======
+>>>>>>> 741fb99253cf684f836f89b900f1ac20a90c4f48
 export function DleDashboard() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserRow[]>([]);
-const [integration, setIntegration] = useState<DleDashboardIntegration>({});
-  const [techQuery, setTechQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -510,27 +488,11 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
     setLoading(true);
     setErrors([]);
     try {
-      const [res, integRes] = await Promise.allSettled([
-        dleService.getAdminUsers(),
-        dleService.getDleDashboardIntegration(),
-      ]);
-
-      if (res.status === 'fulfilled') {
-        setUsers(toUsers(filterByCompany(extractList(res.value))));
-      } else {
-        setUsers([]);
-        setErrors((prev) => [...prev, `DLE Users: ${res.reason?.message ?? 'failed to load'}`]);
-      }
-
-      if (integRes.status === 'fulfilled' && integRes.value) {
-        const val = integRes.value?.data ?? integRes.value;
-        if (val && (val.bihar || val.up || val.ula || val.daily_work)) {
-          setIntegration(val);
-        }
-      }
+      const res = await dleService.getAdminUsers();
+      setUsers(toUsers(filterByCompany(extractList(res))));
     } catch (e: any) {
       setUsers([]);
-      setErrors([`DLE Dashboard: ${e?.message ?? 'failed to load'}`]);
+      setErrors([`DLE Users: ${e?.message ?? 'failed to load'}`]);
     }
     setUpdatedAt(new Date());
     setLoading(false);
@@ -676,13 +638,12 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
   }, [filteredUsers]);
 
   /* ───────── District table (search + pagination) ───────── */
-  const deferredQuery = useDeferredValue(query);
   const tableDistricts = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
     return districtStats.filter(
       (d) => !q || d.district.toLowerCase().includes(q) || d.state.toLowerCase().includes(q)
     );
-  }, [districtStats, deferredQuery]);
+  }, [districtStats, query]);
   const {
     paginatedData: pagedDistricts,
     currentPage,
@@ -813,39 +774,6 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
     { label: '4. Rejected', v: kpis.rejected, of: kpis.dles, color: 'var(--ax-viz-red)' },
     { label: `5. Active DLE (last ${ACTIVE_WINDOW_DAYS} days)`, v: kpis.activeDles, of: kpis.dles, color: 'var(--ax-viz-cyan)' },
   ];
-
-  const canBihar = canAccessState('bihar');
-  const canUP = canAccessState('up');
-
-  const biharAmc = integration.bihar?.field_amc;
-  const biharDoc = integration.bihar?.documentation;
-  const upAmc = integration.up?.field_amc;
-  const upDoc = integration.up?.documentation;
-  const ula = integration.ula;
-  const dailyWork = integration.daily_work;
-  const attendance = integration.attendance;
-
-  const totalAmcLights = (biharAmc?.total || 0) + (upAmc?.total || 0);
-  const totalWorkingLights = (biharAmc?.working || 0) + (upAmc?.working || 0);
-  const totalNotWorkingLights = (biharAmc?.not_working || 0) + (upAmc?.not_working || 0);
-
-
-
-
-  // Technicians search and pagination
-  const deferredTechQuery = useDeferredValue(techQuery);
-  const technicians = useMemo(() => {
-    const rawUsers = dailyWork?.users || [];
-    const term = deferredTechQuery.trim().toLowerCase();
-    if (!term) return rawUsers;
-    return rawUsers.filter(
-      (u) =>
-        u.name.toLowerCase().includes(term) ||
-        String(u.user_id).includes(term) ||
-        u.sites?.some((s) => s.place?.toLowerCase().includes(term) || s.detail?.toLowerCase().includes(term))
-    );
-  }, [dailyWork, deferredTechQuery]);
-
 
   return (
     <div className="solar-erp-page">
@@ -991,246 +919,57 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
         <KpiCard icon={I_X} tone="red" label="Rejected" value={dash(kpis.rejected)} unit="Nos." sub="Rejected DLEs" badge={`${pctRejected}%`} spark={daily.map((d) => d.rejected)} onClick={() => openApproval('Rejected')} />
         <KpiCard icon={I_PIN} tone="violet" label="Districts" value={dash(kpis.districts)} sub="With registered DLEs" onClick={() => openUsers()} />
 
-        {/* ══════════════════════════════════════════════════════════════
-            5. INTEGRATED FIELD OPERATIONS & STATE WORKFLOWS
-            ══════════════════════════════════════════════════════════════ */}
-        <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
-          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-            <div>
-              <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                Integrated Field Operations & AMC Tracker
-              </span>
-              <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', margin: 0 }}>
-                Field Operations, AMC & Workforce Integration
-              </h2>
+        {/* 5. Charts: DLE State Wise + Approval Donut */}
+        <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="DLE state wise">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Geographic Breakdown</span>
+              <h2 className="ax-card__title">DLE State Wise</h2>
+              <p className="ax-card__subtitle">{dash(kpis.dles)} DLE across {dash(kpis.states)} states</p>
             </div>
-            {integration.date && (
-              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 'var(--ax-text-xs)' }}>
-                Field Activity Date: <b>{integration.date}</b>
-              </span>
-            )}
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
+                {[
+                  { l: 'DLE', c: LIGHT_BLUE },
+                  { l: 'Active DLE', c: LIGHT_GREEN },
+                ].map((i) => (
+                  <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+                    <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c }} />
+                    <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{i.l}</small>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Operational Highlights KPIs */}
-        <KpiCard
-          icon={I_BOLT}
-          tone="emerald"
-          label="AMC Lights Inspected"
-          value={loading ? '…' : num(totalAmcLights)}
-          unit="Lights"
-          sub={`${num(totalWorkingLights)} Working · ${num(totalNotWorkingLights)} Faulty`}
-          badge={totalAmcLights ? `${pctOf(totalWorkingLights, totalAmcLights)}% Working` : undefined}
-          onClick={() => {
-            if (canBihar) navigate('/dle/bihar/ssl/amc/view-verify-light');
-            else if (canUP) navigate('/dle/up/ssl/amc/view-verify-light');
-          }}
-        />
-
-        <KpiCard
-          icon={I_USERS}
-          tone="cyan"
-          label="Field Workforce"
-          value={loading ? '…' : num(attendance?.records || dailyWork?.people || 0)}
-          unit="Techs"
-          sub={`${attendance?.still_open ?? 0} On Duty · ${attendance?.punched_out ?? 0} Checked Out`}
-          badge={dailyWork?.sites ? `${dailyWork.sites} Sites Visited` : undefined}
-        />
-
-        <KpiCard
-          icon={I_PIN}
-          tone="accent"
-          label="Field Travel Distance"
-          value={loading ? '…' : `${dailyWork?.distance_km ?? 0}`}
-          unit="km"
-          sub={`Covered across ${dailyWork?.sites ?? 0} inspection sites today`}
-        />
-
-        {canBihar && ula && (
-          <KpiCard
-            icon={I_LIST}
-            tone="violet"
-            label="Bihar ULA Total Installs"
-            value={loading ? '…' : num(ula.total || 0)}
-            unit="Sites"
-            sub={`${num(ula.visits_complete || 0)} Visits Done · ${num(ula.second_pending || 0)} 2nd Pending`}
-            badge={ula.total ? `${pctOf(ula.visits_complete || 0, ula.total)}% Completed` : undefined}
-            onClick={() => navigate('/dle/bihar/ula/installation/view')}
-          />
-        )}
-
-        {/* State AMC Operations Cards */}
-        {canBihar && biharAmc && (
-          <section className={`ax-card ${canUP && upAmc ? 'ax-col--6' : 'ax-col--12'}`} role="region" aria-label="Bihar Field AMC">
-            <div className="ax-card__header">
-              <div className="ax-card__titles">
-                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-viz-emerald)' }}>State Operations</span>
-                <h3 className="ax-card__title">Bihar · SSL & AMC Operations</h3>
-                <p className="ax-card__subtitle">{num(biharAmc.total)} lights inspected across {biharAmc.districts} districts</p>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--sm ax-btn--primary"
-                onClick={() => navigate('/dle/bihar/ssl/amc/view-verify-light')}
-              >
-                View Inspections →
-              </button>
-            </div>
-            <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-grid ax-grid--2" style={{ gap: 'var(--ax-space-2)' }}>
-                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Working Lights</small>
-                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-emerald)' }}>
-                    {num(biharAmc.working)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctOf(biharAmc.working, biharAmc.total)}%)</span>
-                  </div>
-                </div>
-                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Faulty / Not Working</small>
-                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-red)' }}>
-                    {num(biharAmc.not_working)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctOf(biharAmc.not_working, biharAmc.total)}%)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Working Efficiency</span>
-                  <b className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>
-                    {pctOf(biharAmc.working, biharAmc.total)}%
-                  </b>
-                </div>
-                <div className="ax-progress ax-progress--sm">
-                  <div className="ax-progress__track">
-                    <div className="ax-progress__fill" style={{ width: `${pctOf(biharAmc.working, biharAmc.total)}%`, background: 'var(--ax-viz-emerald)' }} />
-                  </div>
-                </div>
-              </div>
-
-              {biharDoc?.summary && (
-                <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  <b>Documentation:</b> {num(biharDoc.summary.total_lights)} lights in {biharDoc.summary.total_district} district ({biharDoc.districts?.[0]?.district || 'MUZAFFARPUR'}) · {biharDoc.summary.pending_panchayats} panchayats pending
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {canUP && upAmc && (
-          <section className={`ax-card ${canBihar && biharAmc ? 'ax-col--6' : 'ax-col--12'}`} role="region" aria-label="Uttar Pradesh Field AMC">
-            <div className="ax-card__header">
-              <div className="ax-card__titles">
-                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)' }}>State Operations</span>
-                <h3 className="ax-card__title">Uttar Pradesh · SSL & AMC Operations</h3>
-                <p className="ax-card__subtitle">{num(upAmc.total)} lights inspected across {upAmc.districts} districts</p>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--sm ax-btn--primary"
-                onClick={() => navigate('/dle/up/ssl/amc/view-verify-light')}
-              >
-                View Inspections →
-              </button>
-            </div>
-            <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
-              <div className="ax-grid ax-grid--2" style={{ gap: 'var(--ax-space-2)' }}>
-                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Working Lights</small>
-                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-emerald)' }}>
-                    {num(upAmc.working)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctOf(upAmc.working, upAmc.total)}%)</span>
-                  </div>
-                </div>
-                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Faulty / Not Working</small>
-                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-red)' }}>
-                    {num(upAmc.not_working)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctOf(upAmc.not_working, upAmc.total)}%)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Working Efficiency</span>
-                  <b className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>
-                    {pctOf(upAmc.working, upAmc.total)}%
-                  </b>
-                </div>
-                <div className="ax-progress ax-progress--sm">
-                  <div className="ax-progress__track">
-                    <div className="ax-progress__fill" style={{ width: `${pctOf(upAmc.working, upAmc.total)}%`, background: 'var(--ax-accent)' }} />
-                  </div>
-                </div>
-              </div>
-
-              {upDoc?.summary && (
-                <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  <b>Documentation:</b> {num(upDoc.summary.total_lights)} lights across {upDoc.summary.total_district} districts ({upDoc.districts?.map(d => d.district).join(', ')}) · {upDoc.summary.pending_panchayats} panchayats pending
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-  
-  
-
-        {/* 6. Charts: DLE State Wise + Approval Donut */}
-     <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="DLE state wise">
-  <div className="ax-card__header">
-    <div className="ax-card__titles">
-      <span className="ax-card__eyebrow">Geographic Breakdown</span>
-      <h2 className="ax-card__title">DLE State Wise</h2>
-      <p className="ax-card__subtitle">{dash(kpis.dles)} DLE across {dash(kpis.states)} states</p>
-    </div>
-    <div className="ax-card__actions">
-      <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-        {[
-          { l: 'DLE', c: LIGHT_BLUE },
-          { l: 'Active DLE', c: LIGHT_GREEN },
-        ].map((i) => (
-          <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-            <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c }} />
-            <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{i.l}</small>
-          </span>
-        ))}
-      </div>
-    </div>
-  </div>
-  <div className="ax-card__body" style={{ paddingTop: 0 }}>
-    <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-      <ApexChart
-        key={`state-${chartH}-${stateStats.map((s) => `${s.state}${s.dles}${s.activeDles}`).join('-')}`}
-        type="area"
-        height={chartH}
-        legend="none"
-        ariaLabel="DLE and Active DLE by state"
-        series={[
-          { name: 'DLE', data: stateStats.map((s) => s.dles) },
-          { name: 'Active DLE', data: stateStats.map((s) => s.activeDles) },
-        ]}
-        apex={{
-          colors: [LIGHT_BLUE, LIGHT_GREEN],
-          stroke: { curve: 'smooth', width: 1.5 },
-          fill: {
-            type: 'gradient',
-            gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
-          },
-          markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
-          dataLabels: { enabled: false },
-          xaxis: { categories: stateStats.map((s) => s.state) },
-          yaxis: { title: { text: 'Count', style: { color: 'var(--ax-text-muted)' } } },
-          chart: {
-            events: {
-              markerClick: (_event: unknown, _chart: unknown, opts: any) => {
-                const state = stateStats[opts?.dataPointIndex]?.state;
-                if (state) openState(state);
-              },
-            },
-          },
-        }}
-      />
-    </Suspense>
-  </div>
-</section>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <ApexChart
+              key={`state-${chartH}-${stateStats.map((s) => `${s.state}${s.dles}${s.activeDles}`).join('-')}`}
+              type="bar"
+              height={chartH}
+              legend="none"
+              ariaLabel="DLE and Active DLE by state"
+              series={[
+                { name: 'DLE', data: stateStats.map((s) => s.dles) },
+                { name: 'Active DLE', data: stateStats.map((s) => s.activeDles) },
+              ]}
+              apex={{
+                colors: [LIGHT_BLUE, LIGHT_GREEN],
+                plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+                xaxis: { categories: stateStats.map((s) => s.state) },
+                yaxis: { title: { text: 'Count', style: { color: 'var(--ax-text-muted)' } } },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const index = opts?.dataPointIndex;
+                      const state = stateStats[index]?.state;
+                      if (state) openState(state);
+                    },
+                  },
+                },
+              }}
+            />
+          </div>
+        </section>
 
         <section className="ax-card ax-col--4" role="region" aria-label="Approval split">
           <div className="ax-card__header">
@@ -1241,33 +980,31 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: donutH }} />}>
-              <ApexChart
-                key={`donut-${donutH}-${kpis.pending}-${kpis.approved}-${kpis.rejected}`}
-                type="donut"
-                height={donutH}
-                legend="none"
-                ariaLabel="Pending, approved and rejected DLEs"
-                series={[kpis.pending, kpis.approved, kpis.rejected]}
-                apex={{
-                  labels: ['Pending', 'Approved', 'Rejected'],
-                  colors: [cv('--ax-viz-amber'), cv('--ax-viz-emerald'), cv('--ax-viz-red')],
-                  stroke: { width: 0 },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const labels = ['Pending', 'Approved', 'Rejected'];
-                        const label = labels[opts?.dataPointIndex];
-                        if (label) openApproval(label);
-                      },
+            <ApexChart
+              key={`donut-${donutH}-${kpis.pending}-${kpis.approved}-${kpis.rejected}`}
+              type="donut"
+              height={donutH}
+              legend="none"
+              ariaLabel="Pending, approved and rejected DLEs"
+              series={[kpis.pending, kpis.approved, kpis.rejected]}
+              apex={{
+                labels: ['Pending', 'Approved', 'Rejected'],
+                colors: [cv('--ax-viz-amber'), cv('--ax-viz-emerald'), cv('--ax-viz-red')],
+                stroke: { width: 0 },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const labels = ['Pending', 'Approved', 'Rejected'];
+                      const label = labels[opts?.dataPointIndex];
+                      if (label) openApproval(label);
                     },
                   },
-                  plotOptions: {
-                    pie: { donut: { size: '72%', labels: { show: true, name: { fontFamily: cv('--ax-font-sans') }, value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 }, total: { show: true, label: 'DLEs', formatter: () => num(kpis.dles) } } } },
-                  },
-                }}
-              />
-            </Suspense>
+                },
+                plotOptions: {
+                  pie: { donut: { size: '72%', labels: { show: true, name: { fontFamily: cv('--ax-font-sans') }, value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 }, total: { show: true, label: 'DLEs', formatter: () => num(kpis.dles) } } } },
+                },
+              }}
+            />
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
                 { label: 'Pending', sub: 'Awaiting approval', v: kpis.pending, p: pctPending, color: 'var(--ax-viz-amber)' },
@@ -1300,33 +1037,31 @@ const [integration, setIntegration] = useState<DleDashboardIntegration>({});
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`dist-${chartH}-${chartDistricts.map((d) => `${d.district}${d.activeDles}${d.totalDles}`).join('-')}`}
-                type="bar"
-                height={chartH}
-                legend="top"
-                ariaLabel="Active DLE by district"
-                series={[
-                  { name: 'Active DLE', data: chartDistricts.map((d) => d.activeDles) },
-                  { name: 'Total DLE', data: chartDistricts.map((d) => d.totalDles) },
-                ]}
-                apex={{
-                  colors: [LIGHT_GREEN, LIGHT_BLUE],
-                  plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '30%' } },
-                  xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
-                  yaxis: { title: { text: 'DLE (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const district = chartDistricts[opts?.dataPointIndex];
-                        if (district) openDistrict(district.state, district.district);
-                      },
+            <ApexChart
+              key={`dist-${chartH}-${chartDistricts.map((d) => `${d.district}${d.activeDles}${d.totalDles}`).join('-')}`}
+              type="bar"
+              height={chartH}
+              legend="top"
+              ariaLabel="Active DLE by district"
+              series={[
+                { name: 'Active DLE', data: chartDistricts.map((d) => d.activeDles) },
+                { name: 'Total DLE', data: chartDistricts.map((d) => d.totalDles) },
+              ]}
+              apex={{
+                colors: [LIGHT_GREEN, LIGHT_BLUE],
+                plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '60%' } },
+                xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
+                yaxis: { title: { text: 'DLE (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const district = chartDistricts[opts?.dataPointIndex];
+                      if (district) openDistrict(district.state, district.district);
                     },
                   },
-                }}
-              />
-            </Suspense>
+                },
+              }}
+            />
           </div>
         </section>
 

@@ -72,7 +72,6 @@ const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/
 const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
-const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLSurveyLightDetails'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
 
@@ -425,7 +424,6 @@ const shell: Record<string, PageComponent> = {
   'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
-  'dle/up/ssl/amc/view-verify-light/:id': UPAMCSSLSurveyLightDetails,
   'dle/users': DLEManagementViewData,
   'dle/users/:id': DleUserDetail,
 

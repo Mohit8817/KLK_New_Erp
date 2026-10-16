@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, lazy, Suspense, useDeferredValue } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-// Code-split ApexCharts so ULA Dashboard shell and data tables render instantly
-const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
+import { ApexChart } from '../../../../charts/ApexChart';
 import {
   Pagination,
   usePagination,
@@ -355,9 +354,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, onClick }:
           </div>
           {spark && spark.length > 1 && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
-              <Suspense fallback={<div style={{ width: 68, height: 26 }} />}>
-                <ApexChart key={`${label}-${spark.join(',')}`} type="line" sparkline tooltip={false} height={26} color={t.apex} series={[{ name: label, data: spark }]} style={{ minHeight: 26, width: 68 }} />
-              </Suspense>
+              <ApexChart key={`${label}-${spark.join(',')}`} type="line" sparkline tooltip={false} height={26} color={t.apex} series={[{ name: label, data: spark }]} style={{ minHeight: 26, width: 68 }} />
             </div>
           )}
         </div>
@@ -441,7 +438,7 @@ export function BiharULAInstallationDashboard() {
     } catch (e: any) {
       if (e?.name !== 'AbortError') {
         const msg = e?.message || 'Failed to load data';
-        setError(e?.status === 401 ? `${msg} (Please check Vite proxy / DLE API key configuration)` : msg);
+        setError(e?.status === 401 ? `${msg} (Vite proxy / DLE API key check karo)` : msg);
       }
     } finally {
       setLoading(false);
@@ -548,17 +545,13 @@ export function BiharULAInstallationDashboard() {
   }, [filtered]);
 
   /* ───────── Search + pagination ───────── */
-  const deferredQVisits = useDeferredValue(qVisits);
-  const deferredQDistrict = useDeferredValue(qDistrict);
-  const deferredQSurveyor = useDeferredValue(qSurveyor);
-
   const match = (q: string, ...vals: string[]) => {
     const s = q.trim().toLowerCase();
     return !s || vals.some((v) => v.toLowerCase().includes(s));
   };
-  const fVisits = useMemo(() => visits.filter((v) => match(deferredQVisits, v.ca, v.name, v.surveyor, v.district)), [visits, deferredQVisits]);
-  const fDistricts = useMemo(() => districts.filter((d) => match(deferredQDistrict, d.name)), [districts, deferredQDistrict]);
-  const fSurveyors = useMemo(() => surveyors.filter((s) => match(deferredQSurveyor, s.name)), [surveyors, deferredQSurveyor]);
+  const fVisits = useMemo(() => visits.filter((v) => match(qVisits, v.ca, v.name, v.surveyor, v.district)), [visits, qVisits]);
+  const fDistricts = useMemo(() => districts.filter((d) => match(qDistrict, d.name)), [districts, qDistrict]);
+  const fSurveyors = useMemo(() => surveyors.filter((s) => match(qSurveyor, s.name)), [surveyors, qSurveyor]);
 
   const pV = usePagination({ data: fVisits, initialPageSize: 15 });
   const pD = usePagination({ data: fDistricts, initialPageSize: 15 });
@@ -871,38 +864,36 @@ export function BiharULAInstallationDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`daily-${chartH}-${daily.map((d) => `${d.first}.${d.second}`).join('-')}`}
-                type="bar"
-                height={chartH}
-                legend="none"
-                ariaLabel="Daily 1st and 2nd visit column chart"
-                series={[
-                  { name: '1st Visits', data: daily.map((d) => d.first) },
-                  { name: '2nd Visits', data: daily.map((d) => d.second) },
-                ]}
-                apex={{
-                  colors: [LIGHT_BLUE, LIGHT_GREEN],
-                  plotOptions: { bar: { borderRadius: 4, columnWidth: isMobile ? '70%' : '55%' } },
-                  xaxis: { categories: daily.map((d) => d.label), labels: { rotate: -45, hideOverlappingLabels: true, style: { fontSize: '11px' } } },
-                  yaxis: { title: { text: 'Visits (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const day = daily[opts?.dataPointIndex];
-                        if (day) {
-                          openUlaView({
-                            date: day.iso,
-                            visitStatus: opts?.seriesIndex === 0 ? 'firstCompleted' : 'secondCompleted',
-                          });
-                        }
-                      },
+            <ApexChart
+              key={`daily-${chartH}-${daily.map((d) => `${d.first}.${d.second}`).join('-')}`}
+              type="bar"
+              height={chartH}
+              legend="none"
+              ariaLabel="Daily 1st and 2nd visit column chart"
+              series={[
+                { name: '1st Visits', data: daily.map((d) => d.first) },
+                { name: '2nd Visits', data: daily.map((d) => d.second) },
+              ]}
+              apex={{
+                colors: [LIGHT_BLUE, LIGHT_GREEN],
+                plotOptions: { bar: { borderRadius: 4, columnWidth: isMobile ? '70%' : '55%' } },
+                xaxis: { categories: daily.map((d) => d.label), labels: { rotate: -45, hideOverlappingLabels: true, style: { fontSize: '11px' } } },
+                yaxis: { title: { text: 'Visits (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const day = daily[opts?.dataPointIndex];
+                      if (day) {
+                        openUlaView({
+                          date: day.iso,
+                          visitStatus: opts?.seriesIndex === 0 ? 'firstCompleted' : 'secondCompleted',
+                        });
+                      }
                     },
                   },
-                }}
-              />
-            </Suspense>
+                },
+              }}
+            />
           </div>
         </section>
 
@@ -915,28 +906,26 @@ export function BiharULAInstallationDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: donutH }} />}>
-              <ApexChart
-                key={`donut-${donutH}-${stats.second}-${stats.pending2}-${stats.pending1}`}
-                type="donut" height={donutH} legend="none"
-                ariaLabel="Donut chart of installations by visit status"
-                series={[stats.second, stats.pending2, stats.pending1]}
-                apex={{
-                  labels: ['Completed (2 visits)', '2nd Visit Pending', '1st Visit Pending'],
-                  colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
-                  stroke: { width: 0 },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const status = ['secondCompleted', 'secondPending', 'firstPending'][opts?.dataPointIndex];
-                        if (status) openVisitStatus(status);
-                      },
+            <ApexChart
+              key={`donut-${donutH}-${stats.second}-${stats.pending2}-${stats.pending1}`}
+              type="donut" height={donutH} legend="none"
+              ariaLabel="Donut chart of installations by visit status"
+              series={[stats.second, stats.pending2, stats.pending1]}
+              apex={{
+                labels: ['Completed (2 visits)', '2nd Visit Pending', '1st Visit Pending'],
+                colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
+                stroke: { width: 0 },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const status = ['secondCompleted', 'secondPending', 'firstPending'][opts?.dataPointIndex];
+                      if (status) openVisitStatus(status);
                     },
                   },
-                  plotOptions: { pie: { donut: { size: '72%', labels: { show: true, name: { fontFamily: cv('--ax-font-sans') }, value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 }, total: { show: true, label: 'Installations', formatter: () => n(stats.total) } } } } },
-                }}
-              />
-            </Suspense>
+                },
+                plotOptions: { pie: { donut: { size: '72%', labels: { show: true, name: { fontFamily: cv('--ax-font-sans') }, value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 }, total: { show: true, label: 'Installations', formatter: () => n(stats.total) } } } } },
+              }}
+            />
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
                 { label: 'Completed (2 visits)', sub: `${stats.pct2}% of total`, v: stats.second, color: LIGHT_GREEN },
@@ -969,32 +958,30 @@ export function BiharULAInstallationDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: districtChartH }} />}>
-              <ApexChart
-                key={`bar-${districtChartH}-${districts.length}-${stats.total}-${stats.second}`}
-                type="bar" height={districtChartH} legend="top" stacked
-                ariaLabel="Horizontal stacked bar of installations per district by visit progress"
-                series={[
-                  { name: 'Completed (2 visits)', data: districts.map((d) => d.second) },
-                  { name: '2nd visit pending', data: districts.map((d) => d.pending) },
-                  { name: '1st visit pending', data: districts.map((d) => d.total - d.first) },
-                ]}
-                apex={{
-                  colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
-                  plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '58%' } },
-                  xaxis: { categories: districts.map((d) => d.name), labels: { style: { fontSize: '11px' } } },
-                  yaxis: { labels: { maxWidth: isMobile ? 90 : 160, style: { fontSize: '11px' } } },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const district = districts[opts?.dataPointIndex]?.name;
-                        if (district) openDistrict(district);
-                      },
+            <ApexChart
+              key={`bar-${districtChartH}-${districts.length}-${stats.total}-${stats.second}`}
+              type="bar" height={districtChartH} legend="top" stacked
+              ariaLabel="Horizontal stacked bar of installations per district by visit progress"
+              series={[
+                { name: 'Completed (2 visits)', data: districts.map((d) => d.second) },
+                { name: '2nd visit pending', data: districts.map((d) => d.pending) },
+                { name: '1st visit pending', data: districts.map((d) => d.total - d.first) },
+              ]}
+              apex={{
+                colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_AMBER],
+                plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '58%' } },
+                xaxis: { categories: districts.map((d) => d.name), labels: { style: { fontSize: '11px' } } },
+                yaxis: { labels: { maxWidth: isMobile ? 90 : 160, style: { fontSize: '11px' } } },
+                chart: {
+                  events: {
+                    dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                      const district = districts[opts?.dataPointIndex]?.name;
+                      if (district) openDistrict(district);
                     },
                   },
-                }}
-              />
-            </Suspense>
+                },
+              }}
+            />
           </div>
         </section>
 

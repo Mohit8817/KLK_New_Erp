@@ -20,44 +20,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api/light-amc': dleProxy,
         '/api/bihar': dleProxy,
         '/api/up': dleProxy,
         '/api/portal': dleProxy,
         '/api/admin': dleProxy,
         '/api/admin/approval/status' : dleProxy,
         '/uploads': dleProxy, // UP AMC images: /uploads/light-amc/xxx.jpg  (<img> header nahi bhej sakta, isliye proxy key lagata hai)
-      },
-    },
-    build: {
-      target: 'es2020',
-      cssCodeSplit: true,
-      chunkSizeWarningLimit: 1200,
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            const normalized = id.replace(/\\/g, '/');
-            if (normalized.includes('node_modules')) {
-              if (normalized.includes('apexcharts')) return 'vendor-apexcharts';
-              if (normalized.includes('leaflet') || normalized.includes('react-leaflet') || normalized.includes('react-simple-maps')) {
-                return 'vendor-maps';
-              }
-              if (normalized.includes('react-router-dom') || normalized.includes('react-router')) {
-                return 'vendor-router';
-              }
-              if (normalized.includes('react') || normalized.includes('react-dom') || normalized.includes('scheduler')) {
-                return 'vendor-react';
-              }
-              return 'vendor-core';
-            }
-            // Code splitting for DLE features
-            if (normalized.includes('/src/components/DLE/Bihar/AMC/')) return 'chunk-dle-bihar-amc';
-            if (normalized.includes('/src/components/DLE/Bihar/Installation/')) return 'chunk-dle-bihar-ula';
-            if (normalized.includes('/src/components/DLE/UP/AMC/')) return 'chunk-dle-up-amc';
-            if (normalized.includes('/src/components/DLE/Management/')) return 'chunk-dle-management';
-            if (normalized.includes('/src/components/DLE/DLEDashboard')) return 'chunk-dle-dashboard';
-          },
-        },
       },
     },
   };

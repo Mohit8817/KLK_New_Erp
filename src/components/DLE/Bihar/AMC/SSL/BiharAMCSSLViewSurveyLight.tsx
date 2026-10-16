@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableExportToolbar';
 import { SearchInput } from '../../../../../common/search/SearchInput';
 import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { dleService, filterByCompanyStrict, APPROVAL_APPROVED } from '../../../../../services/dleServices';
+import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
 import { authService } from '../../../../../services/authService';
 
 
@@ -31,8 +32,6 @@ interface LightRow {
   lat: number | null;
   lng: number | null;
   images: ImageItem[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  raw?: any;
 }
 
 /* ---------- Helpers ---------- */
@@ -81,16 +80,10 @@ const normalize = (r: any, i: number): LightRow => {
             ? { label: `Photo ${k + 1}`, url: resolveImg(im), raw: im }
             : { label: str(im?.label) || `Photo ${k + 1}`, url: resolveImg(str(im?.url ?? im?.path)), raw: str(im?.url ?? im?.path) })
     : [];
-  // image_N_url (approval/list se) ho to wahi, warna image_N (r2:... path) resolve karo
-  const pick = (label: string, rawPath: unknown, publicUrl?: unknown): ImageItem => {
-    const raw = str(rawPath) || str(publicUrl);
-    return { label, url: str(publicUrl) ? resolveImg(str(publicUrl)) : resolveImg(str(rawPath)), raw };
-  };
   const single: ImageItem[] = [
-    pick('Image 1', r?.image_1 ?? r?.image1 ?? r?.light_image ?? r?.before_image, r?.image_1_url),
-    pick('Image 2', r?.image_2 ?? r?.image2 ?? r?.after_image ?? r?.image, r?.image_2_url),
-    pick('Image 3', r?.image_3 ?? r?.image3, r?.image_3_url),
-  ];
+    ['Image 1', r?.image_1 ?? r?.image1 ?? r?.light_image ?? r?.before_image],
+    ['Image 2', r?.image_2 ?? r?.image2 ?? r?.after_image ?? r?.image],
+  ].map(([label, u]) => ({ label: label as string, url: resolveImg(str(u)), raw: str(u) }));
   const lw = truthy(r?.light_working ?? r?.is_light_working ?? r?.lightWorking);
   const cpTruthy = truthy(r?.complaint_raised ?? r?.complaint ?? r?.complaint_status ?? r?.is_complaint);
   const num = (v: unknown): number | null => {
@@ -118,7 +111,6 @@ const normalize = (r: any, i: number): LightRow => {
     lat: num(r?.latitude ?? r?.lat),
     lng: num(r?.longitude ?? r?.lng),
     images: [...fromArray, ...single].filter((im) => im.raw),
-    raw: r,
   };
 };
 
@@ -198,42 +190,69 @@ const exportPdf = (rows: LightRow[], cols: ExpCol[], title: string) => {
   w.focus();
 };
 
+/* ───────── Responsive CSS ───────── */
 const PAGE_CSS = `
-  .ax-survey-light-page {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .amc-footer { border-top: 1px solid var(--ax-border); overflow-x: auto; }
+
+  .solar-erp-page .ax-card__header {
+    display: flex; flex-wrap: nowrap; align-items: flex-start;
+    justify-content: space-between; gap: 12px;
   }
-  .ax-survey-light-page .ax-table-wrap {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto; min-width: 0; margin-left: auto;
+    display: flex; align-items: center; justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
   }
-  @media (max-width: 768px) {
-    .ax-survey-light-page .ax-card__header {
-      flex-direction: column;
-      align-items: stretch !important;
-      gap: var(--ax-space-3) !important;
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 90px; max-width: 260px; }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
+
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .solar-erp-page .amc-table { min-width: 1700px; }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md);
     }
-    .ax-survey-light-page .ax-card__actions {
-      width: 100%;
-      flex-direction: column;
-      align-items: stretch !important;
-      gap: var(--ax-space-2) !important;
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
+
+    /* District column fixed rahe jab table sideways scroll ho */
+    .solar-erp-page .amc-sticky-first th:first-child,
+    .solar-erp-page .amc-sticky-first td:first-child {
+      position: sticky; left: 0; z-index: 1;
+      background: var(--ax-bg-surface);
+      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
     }
-    .ax-survey-light-page .ax-card__actions > * {
-      width: 100% !important;
-      max-width: 100% !important;
-      margin-left: 0 !important;
-    }
-    .ax-survey-light-page .ax-card__body,
-    .ax-survey-light-page .ax-card__header {
-      padding: var(--ax-space-3) !important;
-    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const mono = { fontFamily: 'var(--ax-font-mono)' } as const;
 
 /* ---------- Icons ---------- */
@@ -244,6 +263,7 @@ const ICON = {
   refresh: svg([<path key="a" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />, <path key="b" d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />]),
   down: svg(<path d="M6 9l6 6l6 -6" />),
   close: svg([<path key="a" d="M18 6l-12 12" />, <path key="b" d="M6 6l12 12" />]),
+  eye: svg([<path key="a" d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />, <path key="b" d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />]),
   photo: svg([<path key="a" d="M15 8h.01" />, <path key="b" d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12" />, <path key="c" d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />, <path key="d" d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />]),
   sortDef: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.4 }}><path d="M8 9l4 -4l4 4" /><path d="M16 15l-4 4l-4 -4" /></svg>,
   sortAsc: <svg className="ax-table__sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>,
@@ -262,7 +282,7 @@ const INITIAL_COLUMNS: ColumnDef[] = [
   { key: 'quarter', label: 'Quarter', visible: true },
   { key: 'lightWorking', label: 'Light Working', visible: true },
   { key: 'complaint', label: 'Complaint', visible: true },
-  { key: 'images', label: 'View Data', visible: true },
+  { key: 'images', label: 'Images', visible: true },
   { key: 'approval', label: 'Approval Status', visible: true },
   { key: 'action', label: 'Action', visible: true },
 ];
@@ -275,12 +295,12 @@ function ImageTile({ im }: { im: ImageItem }) {
     <div>
       {ok ? (
         <a href={im.url} target="_blank" rel="noreferrer">
-          <img src={im.url} alt={im.label} loading="lazy" onError={() => { console.warn('[Bihar AMC light] image load failed:', im.url); setFailed(true); }}
+          <img src={im.url} alt={im.label} loading="lazy" onError={() => { console.warn('[AMC light] image load failed:', im.url); setFailed(true); }}
             style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }} />
         </a>
       ) : (
         <div style={{ width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 'var(--ax-space-3)', background: 'var(--ax-surface-subtle)', border: '1px dashed var(--ax-border)', borderRadius: 'var(--ax-radius-md)', color: 'var(--ax-danger-500)', fontSize: 'var(--ax-text-xs)' }}>
-          {im.url ? 'Failed to load image' : 'Image URL not configured (.env: VITE_R2_PUBLIC_URL)'}
+          {im.url ? 'Image load nahi hui' : 'Image URL set nahi hai (.env: VITE_R2_PUBLIC_URL)'}
         </div>
       )}
       <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: 5 }}>{im.label}</div>
@@ -322,7 +342,7 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{ICON.close}</button>
         </div>
         <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 'var(--ax-space-3)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 'var(--ax-space-3)' }}>
             {label2.map(([k, v]) => (
               <div key={k} style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', background: 'var(--ax-surface-subtle)', border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)' }}>
                 <div style={cap}>{k}</div>
@@ -341,8 +361,8 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
           <div>
             <div style={{ ...cap, marginBottom: 8 }}>Images</div>
             {row.images.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 'var(--ax-space-3)' }}>
-                {row.images.map((im) => <ImageTile key={im.raw} im={im} />)}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 'var(--ax-space-3)' }}>
+                {row.images.map((im, k) => <ImageTile key={im.raw + k} im={im} />)}
               </div>
             ) : (
               <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>No images available for this record.</div>
@@ -358,8 +378,8 @@ function LightModal({ open, onClose, row }: { open: boolean; onClose: () => void
   );
 }
 
-/* ---------- Row action dropdown (Approve) ---------- */
-function RowAction({ onApprove, approved, busy }: { onApprove: () => void; approved: boolean; busy: boolean }) {
+/* ---------- Row action dropdown ---------- */
+function RowAction({ onView }: { onView: () => void }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -378,15 +398,9 @@ function RowAction({ onApprove, approved, busy }: { onApprove: () => void; appro
       </button>
       {open && (
         <div role="menu" style={{ position: 'absolute', insetInlineEnd: 0, top: 'calc(100% + 4px)', zIndex: 20, minWidth: 160, background: 'var(--ax-surface-solid)', border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)', padding: 'var(--ax-space-1)' }}>
-          <button
-            type="button"
-            role="menuitem"
-            className="ax-btn ax-btn--ghost ax-btn--sm"
-            style={{ width: '100%', justifyContent: 'flex-start' }}
-            disabled={approved || busy}
-            onClick={() => { setOpen(false); onApprove(); }}
-          >
-            <span className="ax-btn__label">{busy ? 'Approving…' : approved ? 'Approved' : 'Approve'}</span>
+          <button type="button" role="menuitem" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => { setOpen(false); onView(); }}>
+            <span className="ax-btn__icon">{ICON.eye}</span>
+            <span className="ax-btn__label">View details</span>
           </button>
         </div>
       )}
@@ -396,6 +410,7 @@ function RowAction({ onApprove, approved, busy }: { onApprove: () => void; appro
 
 /* ---------- Page ---------- */
 export function BiharAMCSSLViewSurveyLight() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<LightRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
@@ -405,7 +420,6 @@ export function BiharAMCSSLViewSurveyLight() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [preview, setPreview] = useState<LightRow | null>(null);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [columns, setColumns] = useState<ColumnDef[]>(INITIAL_COLUMNS);
   const visibleCols = columns.filter((c) => c.visible);
   const toggleColumn = (key: string) =>
@@ -415,7 +429,6 @@ export function BiharAMCSSLViewSurveyLight() {
     setLoading(true);
     setErrorMsg('');
     try {
-      // GET /api/bihar/amc/light/get
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await dleService.getBiharAmcLight(undefined, signal);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -431,7 +444,7 @@ export function BiharAMCSSLViewSurveyLight() {
         setRows([]);
         setErrorMsg('No records found from the server.');
       } else {
-        // company_id same ho (null wale hide)
+        // 1) company_id same ho (null wale hide)
         const allowed = filterByCompanyStrict(list);
 
         console.info('[Bihar AMC light] after filter:', allowed.length);
@@ -453,31 +466,8 @@ export function BiharAMCSSLViewSurveyLight() {
     return () => ctrl.abort();
   }, [load]);
 
-  /* Approve: POST /api/bihar/amc/light/approval/status */
-  const handleApprove = async (r: LightRow) => {
-    if (r.approval === 'Approved' || approvingId) return;
-    if (!window.confirm(`Approve AMC light ${r.sslId || r.id}?`)) return;
-    setApprovingId(r.id);
-    setErrorMsg('');
-    try {
-      await dleService.updateAmcLightApproval('bihar', {
-        id: r.id,
-        approval_status: APPROVAL_APPROVED,
-        approval_remarks: '',
-      });
-      // list dobara load kiye bina row update
-      setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, approval: 'Approved' } : x)));
-    } catch (e) {
-      setErrorMsg((e as Error).message || 'Approval failed.');
-    } finally {
-      setApprovingId(null);
-    }
-  };
-
-  const deferredQ = useDeferredValue(q);
-
   const filtered = useMemo(() => {
-    const term = deferredQ.trim().toLowerCase();
+    const term = q.trim().toLowerCase();
     const list = term
       ? rows.filter((r) =>
           [r.district, r.block, r.panchayat, r.sslId, r.beneficiary, r.contact, r.amcDate, r.nextAmcDate, r.approval]
@@ -488,7 +478,7 @@ export function BiharAMCSSLViewSurveyLight() {
       DATE_KEYS.includes(sortKey)
         ? (parseDMY(a[sortKey]) - parseDMY(b[sortKey])) * dir
         : a[sortKey].localeCompare(b[sortKey], undefined, { numeric: true }) * dir);
-  }, [rows, deferredQ, sortKey, sortDir]);
+  }, [rows, q, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const curPage = Math.min(page, totalPages);
@@ -513,6 +503,7 @@ export function BiharAMCSSLViewSurveyLight() {
       default: return String((r as unknown as Record<string, unknown>)[key] ?? '');
     }
   };
+
   const toolbarColumns = EXPORT_COLS.map((c) => ({
     key: c.key,
     label: c.header,
@@ -581,7 +572,14 @@ export function BiharAMCSSLViewSurveyLight() {
             {r.images.length ? (
               <span className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
                 {r.images.slice(0, 2).map((im, k) => (
-                  <button key={im.raw + k} type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" style={{ color: 'var(--ax-accent)' }} onClick={() => setPreview(r)} aria-label={`View ${im.label}`}>
+                  <button
+                    key={im.raw + k}
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
+                    style={{ color: 'var(--ax-accent)' }}
+                    onClick={() => navigate(`/dle/bihar/ssl/amc/view-verify-light/${r.id}`, { state: { row: r } })}
+                    aria-label={`View ${im.label}`}
+                  >
                     <span className="ax-btn__icon">{ICON.photo}</span>
                   </button>
                 ))}
@@ -600,11 +598,7 @@ export function BiharAMCSSLViewSurveyLight() {
       case 'action':
         return (
           <td key={key} className="ax-table__td" style={{ textAlign: 'center' }}>
-            <RowAction
-              approved={r.approval === 'Approved'}
-              busy={approvingId === r.id}
-              onApprove={() => handleApprove(r)}
-            />
+            <RowAction onView={() => navigate(`/dle/bihar/ssl/amc/view-verify-light/${r.id}`, { state: { row: r } })} />
           </td>
         );
       default:
@@ -613,8 +607,9 @@ export function BiharAMCSSLViewSurveyLight() {
   };
 
   return (
-    <div className="ax-survey-light-page">
+    <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+
       <PageHead
         title="Bihar AMC Light"
         subtitle="Quarterly AMC visits with light status, complaints, photos and approval."
@@ -636,33 +631,34 @@ export function BiharAMCSSLViewSurveyLight() {
         )}
 
         <section className="ax-card ax-col--12" role="region" aria-label="AMC light records">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 className="ax-card__title">AMC Light</h2>
               <p className="ax-card__subtitle ax-num" style={mono}>{filtered.length} results · {pendingCount}/{rows.length} pending approval</p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <SearchInput
-                value={q}
-                onChange={(v) => { setQ(v); setPage(1); }}
-                placeholder="Search records…"
-                ariaLabel="Search records"
-                size="sm"
-                style={{ width: 220, maxWidth: 260, flex: '1 1 180px', marginLeft: 'auto' }}
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-                columns={toolbarColumns}
-                onToggleColumn={toggleColumn}
-              />
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={q}
+                  onChange={(v) => { setQ(v); setPage(1); }}
+                  placeholder="Search records…"
+                  ariaLabel="Search records"
+                  size="sm"
+                />
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                  columns={toolbarColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              </div>
             </div>
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ minWidth: 1700 }}>
+            <table className="ax-table ax-table--hover amc-table amc-sticky-first">
               <caption className="ax-visually-hidden">AMC light records, sortable and searchable</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -701,7 +697,7 @@ export function BiharAMCSSLViewSurveyLight() {
           )}
 
           {!loading && !!filtered.length && (
-            <div style={{ borderTop: '1px solid var(--ax-border)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
+            <div className="amc-footer" style={{ padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
               <Pagination
                 currentPage={curPage}
                 totalItems={filtered.length}
@@ -719,11 +715,9 @@ export function BiharAMCSSLViewSurveyLight() {
         </section>
       </div>
 
-      <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />
+      {preview && <LightModal open={!!preview} row={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
 export default BiharAMCSSLViewSurveyLight;
-
-

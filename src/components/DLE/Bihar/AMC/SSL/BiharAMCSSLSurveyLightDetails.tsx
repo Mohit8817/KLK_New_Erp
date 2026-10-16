@@ -7,8 +7,6 @@ const RESPONSIVE_CSS = `
   .ax-detail-page {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
-    box-sizing: border-box;
   }
   .ax-detail-page .ax-card {
     overflow: hidden;
@@ -81,9 +79,6 @@ const RESPONSIVE_CSS = `
 
   /* Mobile Phone: <= 480px */
   @media (max-width: 480px) {
-    .ax-detail-page {
-      padding-inline: 0 !important;
-    }
     .ax-detail-page .ax-card__body {
       padding: var(--ax-space-3) !important;
     }
@@ -107,10 +102,6 @@ const RESPONSIVE_CSS = `
     .ax-detail-page .ax-detail-badges .ax-badge {
       font-size: 11px;
       padding: 3px 8px;
-    }
-    .ax-detail-page .ax-page-head .ax-btn {
-      width: 100%;
-      justify-content: center;
     }
   }
 `;
