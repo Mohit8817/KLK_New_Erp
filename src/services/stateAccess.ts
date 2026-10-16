@@ -79,7 +79,11 @@ export const canAccessSlug = (slug: string): boolean => {
 export const filterByState = <T = any>(list: T[]): T[] => {
   const allowed = getAllowedStates();
   if (allowed === 'ALL') return list;
-  return list.filter((u: any) => allowed.includes(normState(u?.state ?? u?.state_name)));
+  return list.filter((u: any) => {
+    const raw = u?.state ?? u?.state_name ?? u?.user_state;
+    if (!raw) return true;
+    return allowed.includes(normState(raw));
+  });
 };
 
 /** Sidebar / breadcrumb / command palette ke nodes filter */

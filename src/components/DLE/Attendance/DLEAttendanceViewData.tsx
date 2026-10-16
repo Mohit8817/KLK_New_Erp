@@ -47,7 +47,11 @@ const formatDate = (dateStr?: string | null): string => {
   try {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      const day = parts[2].padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const monthName = months[mIdx] || parts[1];
+      return `${day} ${monthName} ${parts[0]}`;
     }
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -79,14 +83,52 @@ const calculateDuration = (inIso?: string | null, outIso?: string | null): { tex
   return { text: `${hrs}h ${mins}m`, hours: hrs + mins / 60, isOngoing: false };
 };
 
-const getStatus = (r: AttendanceRecord): { label: string; badgeClass: string; color: string; bg: string } => {
+const getStatus = (r: AttendanceRecord): { label: string; color: string; bg: string; border: string; dotColor: string } => {
   if (!r.punch_out_at) {
-    return { label: 'Working (In)', badgeClass: 'ax-badge--success', color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' };
+    return {
+      label: 'On Duty',
+      color: '#047857',
+      bg: '#ecfdf5',
+      border: '#a7f3d0',
+      dotColor: '#10b981',
+    };
   }
   if (r.punch_out_auto) {
-    return { label: 'Auto Out', badgeClass: 'ax-badge--warning', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' };
+    return {
+      label: 'Auto Out',
+      color: '#b45309',
+      bg: '#fffbeb',
+      border: '#fde68a',
+      dotColor: '#f59e0b',
+    };
   }
-  return { label: 'Completed', badgeClass: 'ax-badge--neutral', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' };
+  return {
+    label: 'Completed',
+    color: '#1d4ed8',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
+    dotColor: '#3b82f6',
+  };
+};
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase() || 'U';
+};
+
+const getAvatarColor = (name: string) => {
+  const colors = [
+    { bg: '#dbeafe', color: '#1d4ed8' },
+    { bg: '#d1fae5', color: '#047857' },
+    { bg: '#ede9fe', color: '#6d28d9' },
+    { bg: '#fef3c7', color: '#b45309' },
+    { bg: '#fee2e2', color: '#b91c1c' },
+    { bg: '#e0f2fe', color: '#0369a1' },
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 };
 
 export function DLEAttendanceViewData() {
@@ -182,10 +224,10 @@ export function DLEAttendanceViewData() {
     return () => ctrl.abort();
   }, [loadData]);
 
-  // Distinct states & districts for dropdowns
+  // Distinct states & districts
   const availableStates = useMemo(() => {
     const s = new Set<string>();
-    records.forEach((r) => { if (r.user_state) s.add(r.user_state); });
+    records.forEach((r) => { if (r.user_state && r.user_state !== 'NA') s.add(r.user_state); });
     return ['All', ...Array.from(s).sort()];
   }, [records]);
 
@@ -193,7 +235,7 @@ export function DLEAttendanceViewData() {
     const d = new Set<string>();
     records.forEach((r) => {
       if (stateFilter === 'All' || r.user_state === stateFilter) {
-        if (r.user_district) d.add(r.user_district);
+        if (r.user_district && r.user_district !== 'NA') d.add(r.user_district);
       }
     });
     return ['All', ...Array.from(d).sort()];
@@ -201,7 +243,6 @@ export function DLEAttendanceViewData() {
 
   const deferredQuery = useDeferredValue(searchQuery);
 
-  // Today string YYYY-MM-DD
   const todayStr = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -238,10 +279,10 @@ export function DLEAttendanceViewData() {
       if (statusFilter === 'auto' && (!r.punch_out_at || !r.punch_out_auto)) return false;
 
       // State
-      if (stateFilter !== 'All' && r.user_state !== stateFilter) return false;
+      if (stateFilter !== 'All' && r.user_state.toLowerCase() !== stateFilter.toLowerCase()) return false;
 
       // District
-      if (districtFilter !== 'All' && r.user_district !== districtFilter) return false;
+      if (districtFilter !== 'All' && r.user_district.toLowerCase() !== districtFilter.toLowerCase()) return false;
 
       // Date preset
       if (dateFilter === 'today' && r.attendance_date !== todayStr) return false;
@@ -299,13 +340,11 @@ export function DLEAttendanceViewData() {
       'Panchayat',
       'Date',
       'Punch In Time',
-      'Punch In Latitude',
-      'Punch In Longitude',
+      'Punch In GPS',
       'Punch Out Time',
-      'Punch Out Latitude',
-      'Punch Out Longitude',
+      'Punch Out GPS',
       'Auto Punched Out',
-      'Duration Hours',
+      'Duration',
       'Status',
     ];
 
@@ -323,11 +362,9 @@ export function DLEAttendanceViewData() {
         `"${r.user_panchayat}"`,
         `"${r.attendance_date}"`,
         `"${formatTime(r.punch_in_at)}"`,
-        `"${r.punch_in_latitude || ''}"`,
-        `"${r.punch_in_longitude || ''}"`,
+        `"${r.punch_in_latitude && r.punch_in_longitude ? `${r.punch_in_latitude}, ${r.punch_in_longitude}` : ''}"`,
         `"${formatTime(r.punch_out_at)}"`,
-        `"${r.punch_out_latitude || ''}"`,
-        `"${r.punch_out_longitude || ''}"`,
+        `"${r.punch_out_latitude && r.punch_out_longitude ? `${r.punch_out_latitude}, ${r.punch_out_longitude}` : ''}"`,
         `"${r.punch_out_auto ? 'Yes' : 'No'}"`,
         `"${dur.text}"`,
         `"${st.label}"`,
@@ -338,19 +375,20 @@ export function DLEAttendanceViewData() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Attendance_Report_${myCompanyId || 'KLK'}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `Attendance_${myCompanyId || 'KLK'}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <>
+    <div style={{ maxWidth: 1480, margin: '0 auto', paddingBottom: 40 }}>
+      {/* Header */}
       <PageHead
-        title="Attendance Records"
-        subtitle={`Live biometric & GPS field punch log for company ${myCompanyId || 'KLK Ventures'}`}
+        title="Attendance Monitoring"
+        subtitle={`Field technician punch in/out & GPS tracking log · Company ID: ${myCompanyId || 'KLK19022025'}`}
         breadcrumbs={[
-          { label: 'DLE', href: '/dle/dashboard' },
+          { label: 'DLE Portal', href: '/dle/dashboard' },
           { label: 'Attendance' },
         ]}
         actions={
@@ -360,10 +398,10 @@ export function DLEAttendanceViewData() {
               className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={() => loadData()}
               disabled={loading}
-              title="Refresh attendance records"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Refresh attendance"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
             >
-              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}>
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
               </svg>
               <span>Refresh</span>
@@ -373,9 +411,9 @@ export function DLEAttendanceViewData() {
               className="ax-btn ax-btn--primary ax-btn--sm"
               onClick={handleExportCsv}
               disabled={loading || !filtered.length}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
             >
-              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
@@ -386,101 +424,386 @@ export function DLEAttendanceViewData() {
         }
       />
 
-      <div className="ax-dash-grid">
-        {/* KPI Cards Row */}
-        <div className="ax-col--12">
+      {/* KPI Cards Row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: 14,
+        marginBottom: 16,
+      }}>
+        {/* Card 1: Total Records */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 'var(--ax-space-3, 12px)',
-            marginBottom: 'var(--ax-space-2, 8px)',
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            color: '#2563eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
           }}>
-            {/* Card 1: Total Records */}
-            <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #2563eb' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Total Records
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 4 }}>
-                {loading ? '…' : metrics.total.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                {metrics.uniqueUsers} Unique Employees
-              </div>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', letterSpacing: '0.04em' }}>
+              Total Records
             </div>
-
-            {/* Card 2: Today's Punches */}
-            <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #8b5cf6' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Today's Punches
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 4 }}>
-                {loading ? '…' : metrics.todayCount.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: '#8b5cf6', marginTop: 4, fontWeight: 500 }}>
-                {formatDate(todayStr)}
-              </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', lineHeight: 1.2, marginTop: 2 }}>
+              {loading ? '…' : metrics.total.toLocaleString()}
             </div>
-
-            {/* Card 3: Active Working */}
-            <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #10b981' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Currently Working
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#10b981', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{loading ? '…' : metrics.working.toLocaleString()}</span>
-                {!loading && metrics.working > 0 && (
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.3)' }} />
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                Punch Out Pending
-              </div>
-            </div>
-
-            {/* Card 4: Completed */}
-            <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #3b82f6' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Punched Out
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 4 }}>
-                {loading ? '…' : metrics.completed.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                Full Day Completed
-              </div>
-            </div>
-
-            {/* Card 5: Auto Out */}
-            <div className="ax-card" style={{ padding: '16px 20px', borderLeft: '4px solid #f59e0b' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Auto Closed
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#f59e0b', marginTop: 4 }}>
-                {loading ? '…' : metrics.auto.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                System Punch Out
-              </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+              {metrics.uniqueUsers} Technicians
             </div>
           </div>
         </div>
 
-        {/* Filters and Search Bar */}
-        <section className="ax-card ax-col--12" style={{ padding: 0 }}>
+        {/* Card 2: Today's Punches */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
           <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
+            color: '#7c3aed',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', letterSpacing: '0.04em' }}>
+              Today's Punches
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#7c3aed', lineHeight: 1.2, marginTop: 2 }}>
+              {loading ? '…' : metrics.todayCount.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+              {formatDate(todayStr)}
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Active Working */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+            color: '#059669',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            position: 'relative',
+          }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', letterSpacing: '0.04em' }}>
+              On Duty (In Field)
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#059669', lineHeight: 1.2, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>{loading ? '…' : metrics.working.toLocaleString()}</span>
+              {!loading && metrics.working > 0 && (
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.3)' }} />
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+              Punch Out Pending
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Completed */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            color: '#1d4ed8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', letterSpacing: '0.04em' }}>
+              Shift Completed
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', lineHeight: 1.2, marginTop: 2 }}>
+              {loading ? '…' : metrics.completed.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+              Full Day Logged
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: Auto Closed */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 14,
+          padding: '16px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+            color: '#d97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 14 14" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', letterSpacing: '0.04em' }}>
+              Auto Closed
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706', lineHeight: 1.2, marginTop: 2 }}>
+              {loading ? '…' : metrics.auto.toLocaleString()}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+              System Closure
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Container Card */}
+      <div style={{
+        background: 'var(--ax-surface-solid, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        borderRadius: 14,
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+      }}>
+        {/* Top Control Bar: Status Tabs + Filters */}
+        <div style={{
+          padding: '14px 18px',
+          borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}>
+          {/* Row 1: Status Segment Pills */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            overflowX: 'auto',
+            paddingBottom: 2,
+          }}>
+            <button
+              type="button"
+              onClick={() => { setStatusFilter('all'); setPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: statusFilter === 'all' ? '#2563eb' : 'var(--ax-border, #e2e8f0)',
+                background: statusFilter === 'all' ? '#eff6ff' : 'transparent',
+                color: statusFilter === 'all' ? '#2563eb' : 'var(--ax-text-strong)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>All Records</span>
+              <span style={{
+                background: statusFilter === 'all' ? '#2563eb' : 'var(--ax-surface-subtle, #f1f5f9)',
+                color: statusFilter === 'all' ? '#ffffff' : 'var(--ax-text-muted)',
+                padding: '1px 7px',
+                borderRadius: 10,
+                fontSize: 11,
+              }}>
+                {metrics.total}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setStatusFilter('working'); setPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: statusFilter === 'working' ? '#10b981' : 'var(--ax-border, #e2e8f0)',
+                background: statusFilter === 'working' ? '#ecfdf5' : 'transparent',
+                color: statusFilter === 'working' ? '#047857' : 'var(--ax-text-strong)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981' }} />
+              <span>On Duty (Working)</span>
+              <span style={{
+                background: statusFilter === 'working' ? '#10b981' : 'var(--ax-surface-subtle, #f1f5f9)',
+                color: statusFilter === 'working' ? '#ffffff' : 'var(--ax-text-muted)',
+                padding: '1px 7px',
+                borderRadius: 10,
+                fontSize: 11,
+              }}>
+                {metrics.working}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setStatusFilter('completed'); setPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: statusFilter === 'completed' ? '#3b82f6' : 'var(--ax-border, #e2e8f0)',
+                background: statusFilter === 'completed' ? '#eff6ff' : 'transparent',
+                color: statusFilter === 'completed' ? '#1d4ed8' : 'var(--ax-text-strong)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Shift Completed</span>
+              <span style={{
+                background: statusFilter === 'completed' ? '#3b82f6' : 'var(--ax-surface-subtle, #f1f5f9)',
+                color: statusFilter === 'completed' ? '#ffffff' : 'var(--ax-text-muted)',
+                padding: '1px 7px',
+                borderRadius: 10,
+                fontSize: 11,
+              }}>
+                {metrics.completed}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setStatusFilter('auto'); setPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: statusFilter === 'auto' ? '#f59e0b' : 'var(--ax-border, #e2e8f0)',
+                background: statusFilter === 'auto' ? '#fffbeb' : 'transparent',
+                color: statusFilter === 'auto' ? '#b45309' : 'var(--ax-text-strong)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Auto Closed</span>
+              <span style={{
+                background: statusFilter === 'auto' ? '#f59e0b' : 'var(--ax-surface-subtle, #f1f5f9)',
+                color: statusFilter === 'auto' ? '#ffffff' : 'var(--ax-text-muted)',
+                padding: '1px 7px',
+                borderRadius: 10,
+                fontSize: 11,
+              }}>
+                {metrics.auto}
+              </span>
+            </button>
+          </div>
+
+          {/* Row 2: Search + Dropdowns in single row */}
+          <div style={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: 12,
             alignItems: 'center',
+            gap: 10,
             justifyContent: 'space-between',
           }}>
-            {/* Search */}
-            <div style={{ position: 'relative', minWidth: 260, flex: '1 1 280px' }}>
+            {/* Search Input */}
+            <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
               <svg
-                width={16}
-                height={16}
+                width={15}
+                height={15}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -495,80 +818,70 @@ export function DLEAttendanceViewData() {
               <input
                 type="search"
                 className="ax-input ax-input--sm"
-                placeholder="Search name, phone, email, district, block…"
+                placeholder="Search by technician name, phone, district, panchayat…"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setPage(1);
                 }}
-                style={{ paddingLeft: 36, width: '100%' }}
+                style={{ paddingLeft: 36, width: '100%', borderRadius: 8, height: 36 }}
               />
             </div>
 
-            {/* Filter Group */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-              {/* Status Filter */}
-              <select
-                className="ax-input ax-input--sm"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as any);
-                  setPage(1);
-                }}
-                style={{ minWidth: 140 }}
-              >
-                <option value="all">All Statuses</option>
-                <option value="working">🟢 Working (In)</option>
-                <option value="completed">🔵 Punched Out</option>
-                <option value="auto">🟠 Auto Closed</option>
-              </select>
+            {/* Filter Dropdowns Row */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              {/* State */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <select
+                  className="ax-input ax-input--sm"
+                  value={stateFilter}
+                  onChange={(e) => {
+                    setStateFilter(e.target.value);
+                    setDistrictFilter('All');
+                    setPage(1);
+                  }}
+                  style={{ minWidth: 120, height: 36, borderRadius: 8 }}
+                >
+                  {availableStates.map((s) => (
+                    <option key={s} value={s}>{s === 'All' ? 'All States' : s}</option>
+                  ))}
+                </select>
+              </div>
 
-              {/* State Filter */}
-              <select
-                className="ax-input ax-input--sm"
-                value={stateFilter}
-                onChange={(e) => {
-                  setStateFilter(e.target.value);
-                  setDistrictFilter('All');
-                  setPage(1);
-                }}
-                style={{ minWidth: 120 }}
-              >
-                {availableStates.map((s) => (
-                  <option key={s} value={s}>{s === 'All' ? 'All States' : s}</option>
-                ))}
-              </select>
+              {/* District */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <select
+                  className="ax-input ax-input--sm"
+                  value={districtFilter}
+                  onChange={(e) => {
+                    setDistrictFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{ minWidth: 130, height: 36, borderRadius: 8 }}
+                >
+                  {availableDistricts.map((d) => (
+                    <option key={d} value={d}>{d === 'All' ? 'All Districts' : d}</option>
+                  ))}
+                </select>
+              </div>
 
-              {/* District Filter */}
-              <select
-                className="ax-input ax-input--sm"
-                value={districtFilter}
-                onChange={(e) => {
-                  setDistrictFilter(e.target.value);
-                  setPage(1);
-                }}
-                style={{ minWidth: 130 }}
-              >
-                {availableDistricts.map((d) => (
-                  <option key={d} value={d}>{d === 'All' ? 'All Districts' : d}</option>
-                ))}
-              </select>
-
-              {/* Date Filter */}
-              <select
-                className="ax-input ax-input--sm"
-                value={dateFilter}
-                onChange={(e) => {
-                  setDateFilter(e.target.value);
-                  setPage(1);
-                }}
-                style={{ minWidth: 120 }}
-              >
-                <option value="All">All Dates</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="custom">Custom Date</option>
-              </select>
+              {/* Date */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <select
+                  className="ax-input ax-input--sm"
+                  value={dateFilter}
+                  onChange={(e) => {
+                    setDateFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{ minWidth: 120, height: 36, borderRadius: 8 }}
+                >
+                  <option value="All">All Dates</option>
+                  <option value="today">Today ({formatDate(todayStr)})</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="custom">Custom Date…</option>
+                </select>
+              </div>
 
               {dateFilter === 'custom' && (
                 <input
@@ -579,11 +892,11 @@ export function DLEAttendanceViewData() {
                     setCustomDate(e.target.value);
                     setPage(1);
                   }}
-                  style={{ minWidth: 140 }}
+                  style={{ minWidth: 140, height: 36, borderRadius: 8 }}
                 />
               )}
 
-              {/* Clear filters */}
+              {/* Clear filters button */}
               {(searchQuery || statusFilter !== 'all' || stateFilter !== 'All' || districtFilter !== 'All' || dateFilter !== 'All') && (
                 <button
                   type="button"
@@ -597,230 +910,332 @@ export function DLEAttendanceViewData() {
                     setCustomDate('');
                     setPage(1);
                   }}
-                  style={{ color: '#ef4444' }}
+                  style={{ color: '#ef4444', height: 36, fontSize: 12 }}
                 >
-                  Clear Filters
+                  Reset
                 </button>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Table Container */}
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ minWidth: 980 }} aria-busy={loading}>
-              <caption className="ax-visually-hidden">Attendance Records</caption>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th ax-table__th--num" style={{ width: 60 }}>Sr.</th>
-                  <th className="ax-table__th">Employee</th>
-                  <th className="ax-table__th">Location (State / District)</th>
-                  <th className="ax-table__th">Date</th>
-                  <th className="ax-table__th">Punch In</th>
-                  <th className="ax-table__th">Punch Out</th>
-                  <th className="ax-table__th">Duration</th>
-                  <th className="ax-table__th">Status</th>
-                  <th className="ax-table__th" style={{ textAlign: 'center', width: 90 }}>Action</th>
+        {/* Data Table */}
+        <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
+          <table className="ax-table" style={{ minWidth: 1000, width: '100%', borderCollapse: 'collapse' }} aria-busy={loading}>
+            <thead>
+              <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left', width: 50 }}>#</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left', minWidth: 220 }}>Technician</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Location</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Date</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Punch In</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Punch Out</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Duration</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Status</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center', width: 100 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && Array.from({ length: 8 }).map((_, i) => (
+                <tr key={`skel-${i}`} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
+                  {Array.from({ length: 9 }).map((__, j) => (
+                    <td key={j} style={{ padding: '14px 16px' }}>
+                      <span className={`block h-4 animate-pulse rounded bg-current opacity-10 ${j === 1 ? 'w-44' : j === 2 ? 'w-28' : 'w-16'}`} />
+                    </td>
+                  ))}
                 </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={`skel-${i}`} className="ax-table__row" aria-hidden="true">
-                      {Array.from({ length: 9 }).map((__, j) => (
-                        <td key={j} className="ax-table__td">
-                          <span className={`block h-3.5 animate-pulse rounded bg-current opacity-10 ${j === 1 ? 'w-36' : 'w-16'}`} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
+              ))}
 
-                {!loading && pagedRecords.length === 0 && (
-                  <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 24px' }}>
-                      <div style={{ color: 'var(--ax-text-subtle)', marginBottom: 8 }}>
-                        <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 8px auto', opacity: 0.5 }}>
+              {!loading && pagedRecords.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '60px 24px' }}>
+                    <div style={{ maxWidth: 360, margin: '0 auto', textAlign: 'center' }}>
+                      <div style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 16,
+                        background: '#f1f5f9',
+                        color: '#64748b',
+                        display: 'grid',
+                        placeItems: 'center',
+                        margin: '0 auto 14px auto',
+                      }}>
+                        <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                           <line x1="16" y1="2" x2="16" y2="6" />
                           <line x1="8" y1="2" x2="8" y2="6" />
                           <line x1="3" y1="10" x2="21" y2="10" />
                         </svg>
-                        <h4 style={{ margin: 0, fontWeight: 600, color: 'var(--ax-text-strong)' }}>No Attendance Records Found</h4>
-                        <p style={{ margin: '4px 0 0 0', fontSize: 13 }}>No records match your active search or filters.</p>
+                      </div>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                        No Records Found
+                      </h4>
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)', lineHeight: 1.5 }}>
+                        There are no attendance records matching your active filters. Try changing or resetting filters.
+                      </p>
+                      {(searchQuery || statusFilter !== 'all' || stateFilter !== 'All' || districtFilter !== 'All' || dateFilter !== 'All') && (
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--secondary ax-btn--sm"
+                          style={{ marginTop: 14 }}
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('all');
+                            setStateFilter('All');
+                            setDistrictFilter('All');
+                            setDateFilter('All');
+                            setCustomDate('');
+                            setPage(1);
+                          }}
+                        >
+                          Clear All Filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && pagedRecords.map((r, idx) => {
+                const status = getStatus(r);
+                const dur = calculateDuration(r.punch_in_at, r.punch_out_at);
+                const avatar = getAvatarColor(r.user_name);
+                const inGps = r.punch_in_latitude && r.punch_in_longitude;
+                const outGps = r.punch_out_latitude && r.punch_out_longitude;
+
+                return (
+                  <tr
+                    key={r.id}
+                    style={{
+                      borderBottom: '1px solid var(--ax-border, #f1f5f9)',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--ax-surface-subtle, #f8fafc)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    {/* Index */}
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--ax-text-subtle)' }}>
+                      {startIdx + idx + 1}
+                    </td>
+
+                    {/* Technician Name & Avatar */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: avatar.bg,
+                          color: avatar.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          flexShrink: 0,
+                          letterSpacing: '0.02em',
+                        }}>
+                          {getInitials(r.user_name)}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/dle/users/${r.user_id}`)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              font: 'inherit',
+                              fontWeight: 700,
+                              fontSize: 13.5,
+                              color: 'var(--ax-text-strong)',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              display: 'block',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: 200,
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.textDecoration = 'underline'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--ax-text-strong)'; e.currentTarget.style.textDecoration = 'none'; }}
+                            title="Click to view technician profile"
+                          >
+                            {r.user_name}
+                          </button>
+                          <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                            <span>{r.user_contact_no || r.user_email || '—'}</span>
+                            <span style={{ color: 'var(--ax-border, #cbd5e1)' }}>•</span>
+                            <span style={{ fontSize: 11, color: 'var(--ax-text-subtle)' }}>#{r.user_id}</span>
+                          </div>
+                        </div>
                       </div>
                     </td>
-                  </tr>
-                )}
 
-                {!loading && pagedRecords.map((r, idx) => {
-                  const status = getStatus(r);
-                  const dur = calculateDuration(r.punch_in_at, r.punch_out_at);
-                  const inGps = r.punch_in_latitude && r.punch_in_longitude;
-                  const outGps = r.punch_out_latitude && r.punch_out_longitude;
+                    {/* Location */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--ax-text-strong)' }}>
+                        {r.user_district || '—'}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 1 }}>
+                        {[r.user_block, r.user_state].filter(Boolean).join(', ') || '—'}
+                      </div>
+                    </td>
 
-                  return (
-                    <tr key={r.id} className="ax-table__row">
-                      {/* Sr */}
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-subtle)' }}>
-                        {startIdx + idx + 1}
-                      </td>
+                    {/* Date */}
+                    <td style={{ padding: '12px 16px', fontSize: 12.5, fontWeight: 500, color: 'var(--ax-text-strong)', whiteSpace: 'nowrap' }}>
+                      {formatDate(r.attendance_date)}
+                    </td>
 
-                      {/* Employee */}
-                      <td className="ax-table__td">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            background: 'rgba(37, 99, 235, 0.1)',
-                            color: '#2563eb',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: 13,
-                            flexShrink: 0,
-                          }}>
-                            {r.user_name.charAt(0).toUpperCase() || 'U'}
-                          </div>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/dle/users/${r.user_id}`)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: 0,
-                                font: 'inherit',
-                                fontWeight: 600,
-                                color: 'var(--ax-text-strong)',
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.textDecoration = 'underline'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--ax-text-strong)'; e.currentTarget.style.textDecoration = 'none'; }}
-                              title="Click to view profile & documents"
-                            >
-                              {r.user_name}
-                            </button>
-                            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                              {r.user_contact_no || r.user_email || '—'}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
+                    {/* Punch In */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--ax-text-strong)' }}>
+                          {formatTime(r.punch_in_at)}
+                        </span>
+                        {inGps && (
+                          <a
+                            href={`https://www.google.com/maps?q=${r.punch_in_latitude},${r.punch_in_longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Punch In GPS (${r.punch_in_latitude}, ${r.punch_in_longitude}) - View on Google Maps`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 22,
+                              height: 22,
+                              borderRadius: 6,
+                              background: '#ecfdf5',
+                              color: '#059669',
+                              border: '1px solid #a7f3d0',
+                            }}
+                          >
+                            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                              <circle cx="12" cy="10" r="3" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </td>
 
-                      {/* Location */}
-                      <td className="ax-table__td">
-                        <div style={{ fontWeight: 500, color: 'var(--ax-text-strong)' }}>
-                          {r.user_district || '—'}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                          {[r.user_block, r.user_state].filter(Boolean).join(', ')}
-                        </div>
-                      </td>
-
-                      {/* Date */}
-                      <td className="ax-table__td ax-num" style={{ whiteSpace: 'nowrap' }}>
-                        {formatDate(r.attendance_date)}
-                      </td>
-
-                      {/* Punch In */}
-                      <td className="ax-table__td">
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                            {formatTime(r.punch_in_at)}
+                    {/* Punch Out */}
+                    <td style={{ padding: '12px 16px' }}>
+                      {r.punch_out_at ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--ax-text-strong)' }}>
+                            {formatTime(r.punch_out_at)}
                           </span>
-                          {inGps && (
+                          {outGps && (
                             <a
-                              href={`https://www.google.com/maps?q=${r.punch_in_latitude},${r.punch_in_longitude}`}
+                              href={`https://www.google.com/maps?q=${r.punch_out_latitude},${r.punch_out_longitude}`}
                               target="_blank"
                               rel="noreferrer"
-                              title={`View In GPS (${r.punch_in_latitude}, ${r.punch_in_longitude}) on Google Maps`}
-                              style={{ color: '#2563eb', display: 'inline-flex' }}
+                              title={`Punch Out GPS (${r.punch_out_latitude}, ${r.punch_out_longitude}) - View on Google Maps`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 22,
+                                height: 22,
+                                borderRadius: 6,
+                                background: '#eff6ff',
+                                color: '#2563eb',
+                                border: '1px solid #bfdbfe',
+                              }}
                             >
-                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                                 <circle cx="12" cy="10" r="3" />
                               </svg>
                             </a>
                           )}
                         </div>
-                      </td>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          background: '#ecfdf5',
+                          border: '1px solid #a7f3d0',
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          color: '#047857',
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                          <span>On Duty</span>
+                        </div>
+                      )}
+                    </td>
 
-                      {/* Punch Out */}
-                      <td className="ax-table__td">
-                        {r.punch_out_at ? (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                              {formatTime(r.punch_out_at)}
-                            </span>
-                            {outGps && (
-                              <a
-                                href={`https://www.google.com/maps?q=${r.punch_out_latitude},${r.punch_out_longitude}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={`View Out GPS (${r.punch_out_latitude}, ${r.punch_out_longitude}) on Google Maps`}
-                                style={{ color: '#2563eb', display: 'inline-flex' }}
-                              >
-                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                                  <circle cx="12" cy="10" r="3" />
-                                </svg>
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#10b981', fontWeight: 600 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-                            Working
-                          </span>
-                        )}
-                      </td>
+                    {/* Duration */}
+                    <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                      <span style={{
+                        fontWeight: 600,
+                        color: dur.isOngoing ? '#059669' : 'var(--ax-text-strong)',
+                      }}>
+                        {dur.text}
+                      </span>
+                    </td>
 
-                      {/* Duration */}
-                      <td className="ax-table__td ax-num" style={{ whiteSpace: 'nowrap' }}>
-                        <span style={{ fontWeight: 500, color: dur.isOngoing ? '#10b981' : 'var(--ax-text-strong)' }}>
-                          {dur.text}
-                        </span>
-                      </td>
+                    {/* Status Badge */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        background: status.bg,
+                        border: `1px solid ${status.border}`,
+                        color: status.color,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.dotColor }} />
+                        <span>{status.label}</span>
+                      </div>
+                    </td>
 
-                      {/* Status */}
-                      <td className="ax-table__td">
-                        <span
-                          className={`ax-badge ax-badge--soft ${status.badgeClass}`}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                        >
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.color }} />
-                          {status.label}
-                        </span>
-                      </td>
+                    {/* Action */}
+                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost ax-btn--sm"
+                        onClick={() => setSelectedRecord(r)}
+                        title="View Full Attendance & GPS Details"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '5px 10px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: '#2563eb',
+                        }}
+                      >
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>Details</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-                      {/* Action */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--sm"
-                          onClick={() => setSelectedRecord(r)}
-                          title="View Attendance Details"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px' }}
-                        >
-                          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                          <span style={{ fontSize: 12 }}>View</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {!loading && totalItems > 0 && (
+        {/* Pagination Toolbar */}
+        {!loading && totalItems > 0 && (
+          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--ax-border, #e2e8f0)', background: 'var(--ax-surface-subtle, #f8fafc)' }}>
             <Pagination
               currentPage={page}
               totalItems={totalItems}
@@ -835,8 +1250,8 @@ export function DLEAttendanceViewData() {
               rangeStart={startIdx + 1}
               rangeEnd={Math.min(startIdx + pageSize, totalItems)}
             />
-          )}
-        </section>
+          </div>
+        )}
       </div>
 
       {/* Detailed Modal */}
@@ -849,8 +1264,8 @@ export function DLEAttendanceViewData() {
             position: 'fixed',
             inset: 0,
             zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
-            backdropFilter: 'blur(3px)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
             display: 'grid',
             placeItems: 'center',
             padding: 16,
@@ -858,21 +1273,23 @@ export function DLEAttendanceViewData() {
           onClick={() => setSelectedRecord(null)}
         >
           <div
-            className="ax-card"
             style={{
               width: '100%',
-              maxWidth: 580,
-              maxHeight: '90vh',
+              maxWidth: 620,
+              maxHeight: '92vh',
               overflowY: 'auto',
-              borderRadius: 12,
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
-              padding: 0,
+              borderRadius: 16,
+              background: 'var(--ax-surface-solid, #ffffff)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              display: 'flex',
+              flexDirection: 'column',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div style={{
-              padding: '16px 20px',
+              padding: '18px 24px',
               borderBottom: '1px solid var(--ax-border, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
@@ -880,19 +1297,19 @@ export function DLEAttendanceViewData() {
               background: 'var(--ax-surface-subtle, #f8fafc)',
             }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-                  Attendance Session Details
-                </h3>
-                <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                  Record ID #{selectedRecord.id} · Date: {formatDate(selectedRecord.attendance_date)}
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.04em' }}>
+                  Field Session Verification
                 </div>
+                <h3 style={{ margin: '2px 0 0 0', fontSize: 17, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
+                  Attendance Record #{selectedRecord.id}
+                </h3>
               </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--ghost ax-btn--sm"
                 onClick={() => setSelectedRecord(null)}
-                style={{ padding: 4 }}
-                aria-label="Close modal"
+                style={{ padding: 6, borderRadius: 8 }}
+                aria-label="Close"
               >
                 <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <line x1={18} y1={6} x2={6} y2={18} />
@@ -902,41 +1319,41 @@ export function DLEAttendanceViewData() {
             </div>
 
             {/* Modal Body */}
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Employee Summary Card */}
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Technician Header Card */}
               <div style={{
-                padding: '12px 16px',
-                borderRadius: 8,
-                background: 'var(--ax-surface-subtle, #f8fafc)',
-                border: '1px solid var(--ax-border, #e2e8f0)',
+                padding: '16px 18px',
+                borderRadius: 12,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: 14,
               }}>
                 <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: 'rgba(37, 99, 235, 0.1)',
-                  color: '#2563eb',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: '#dbeafe',
+                  color: '#1d4ed8',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: 18,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   flexShrink: 0,
                 }}>
-                  {selectedRecord.user_name.charAt(0).toUpperCase()}
+                  {getInitials(selectedRecord.user_name)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ax-text-strong)' }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--ax-text-strong)' }}>
                     {selectedRecord.user_name}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                    {selectedRecord.user_email} · {selectedRecord.user_contact_no}
+                  <div style={{ fontSize: 12.5, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                    {selectedRecord.user_contact_no} · {selectedRecord.user_email || 'No email registered'}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ax-text-subtle)', marginTop: 2 }}>
-                    Company: <strong>{selectedRecord.company_id}</strong> · User ID: #{selectedRecord.user_id}
+                  <div style={{ fontSize: 12, color: 'var(--ax-text-subtle)', marginTop: 3 }}>
+                    Company: <strong style={{ color: '#2563eb' }}>{selectedRecord.company_id}</strong> · User ID: #{selectedRecord.user_id}
                   </div>
                 </div>
                 <button
@@ -945,140 +1362,186 @@ export function DLEAttendanceViewData() {
                   onClick={() => {
                     navigate(`/dle/users/${selectedRecord.user_id}`);
                   }}
-                  style={{ fontSize: 12 }}
+                  style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}
                 >
                   View Profile
                 </button>
               </div>
 
-              {/* Status and Duration Pill */}
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 600 }}>Status</div>
-                  <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: getStatus(selectedRecord).color }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: getStatus(selectedRecord).color }} />
+              {/* Status and Duration Metrics */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                <div style={{ padding: 12, borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Attendance Date</div>
+                  <div style={{ marginTop: 4, fontWeight: 700, fontSize: 14, color: 'var(--ax-text-strong)' }}>
+                    {formatDate(selectedRecord.attendance_date)}
+                  </div>
+                </div>
+
+                <div style={{ padding: 12, borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Session Status</div>
+                  <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 14, color: getStatus(selectedRecord).color }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: getStatus(selectedRecord).dotColor }} />
                     {getStatus(selectedRecord).label}
                   </div>
                 </div>
-                <div style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 600 }}>Total Duration</div>
-                  <div style={{ marginTop: 4, fontWeight: 700, fontSize: 16, color: 'var(--ax-text-strong)' }}>
+
+                <div style={{ padding: 12, borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff' }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Total Duration</div>
+                  <div style={{ marginTop: 4, fontWeight: 800, fontSize: 15, color: '#059669' }}>
                     {calculateDuration(selectedRecord.punch_in_at, selectedRecord.punch_out_at).text}
                   </div>
                 </div>
               </div>
 
-              {/* Punch In Details */}
-              <div style={{
-                padding: '14px 16px',
-                borderRadius: 8,
-                border: '1px solid #10b98133',
-                background: 'rgba(16, 185, 129, 0.04)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, color: '#059669', fontSize: 13, textTransform: 'uppercase' }}>
-                    Punch In
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ax-text-strong)' }}>
-                    {formatTime(selectedRecord.punch_in_at)}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                  Timestamp: {selectedRecord.punch_in_at || '—'}
-                </div>
-                {selectedRecord.punch_in_latitude && selectedRecord.punch_in_longitude ? (
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: 'var(--ax-text-subtle)' }}>
-                      GPS: {selectedRecord.punch_in_latitude}, {selectedRecord.punch_in_longitude}
+              {/* Punch In & Punch Out Comparison Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {/* Punch In Box */}
+                <div style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  border: '1px solid #a7f3d0',
+                  background: '#f0fdf4',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 800, color: '#047857', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      🟢 Punch In
                     </span>
-                    <a
-                      href={`https://www.google.com/maps?q=${selectedRecord.punch_in_latitude},${selectedRecord.punch_in_longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ax-btn ax-btn--ghost ax-btn--sm"
-                      style={{ color: '#2563eb', padding: '2px 8px', fontSize: 12 }}
-                    >
-                      Open Map ↗
-                    </a>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: '#065f46' }}>
+                      {formatTime(selectedRecord.punch_in_at)}
+                    </span>
                   </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: 'var(--ax-text-subtle)', marginTop: 4 }}>GPS not recorded</div>
-                )}
+                  <div style={{ fontSize: 11.5, color: '#065f46', opacity: 0.85 }}>
+                    Timestamp: {selectedRecord.punch_in_at || '—'}
+                  </div>
+
+                  {selectedRecord.punch_in_latitude && selectedRecord.punch_in_longitude ? (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(4, 120, 87, 0.15)' }}>
+                      <div style={{ fontSize: 11.5, color: '#065f46', marginBottom: 6 }}>
+                        GPS: <strong>{selectedRecord.punch_in_latitude}, {selectedRecord.punch_in_longitude}</strong>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps?q=${selectedRecord.punch_in_latitude},${selectedRecord.punch_in_longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ax-btn ax-btn--sm"
+                        style={{
+                          width: '100%',
+                          background: '#ffffff',
+                          color: '#047857',
+                          border: '1px solid #a7f3d0',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <span>📍 Open in Google Maps</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 10 }}>GPS not recorded</div>
+                  )}
+                </div>
+
+                {/* Punch Out Box */}
+                <div style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  border: '1px solid #bfdbfe',
+                  background: '#eff6ff',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 800, color: '#1d4ed8', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      🔵 Punch Out
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: '#1e40af' }}>
+                      {selectedRecord.punch_out_at ? formatTime(selectedRecord.punch_out_at) : 'Still Open'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#1e40af', opacity: 0.85 }}>
+                    Timestamp: {selectedRecord.punch_out_at || 'Shift in progress'}
+                  </div>
+
+                  {selectedRecord.punch_out_latitude && selectedRecord.punch_out_longitude ? (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(29, 78, 216, 0.15)' }}>
+                      <div style={{ fontSize: 11.5, color: '#1e40af', marginBottom: 6 }}>
+                        GPS: <strong>{selectedRecord.punch_out_latitude}, {selectedRecord.punch_out_longitude}</strong>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps?q=${selectedRecord.punch_out_latitude},${selectedRecord.punch_out_longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ax-btn ax-btn--sm"
+                        style={{
+                          width: '100%',
+                          background: '#ffffff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <span>📍 Open in Google Maps</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 10 }}>
+                      {selectedRecord.punch_out_at ? 'GPS not recorded' : 'Awaiting technician punch out'}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Punch Out Details */}
+              {/* Geographic Details Card */}
               <div style={{
-                padding: '14px 16px',
-                borderRadius: 8,
-                border: '1px solid #3b82f633',
-                background: 'rgba(59, 130, 246, 0.04)',
+                borderRadius: 12,
+                border: '1px solid #e2e8f0',
+                overflow: 'hidden',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, color: '#2563eb', fontSize: 13, textTransform: 'uppercase' }}>
-                    Punch Out
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ax-text-strong)' }}>
-                    {selectedRecord.punch_out_at ? formatTime(selectedRecord.punch_out_at) : 'Still Open'}
-                  </span>
+                <div style={{ padding: '10px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>
+                  Assigned Region & Hierarchy
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>
-                  Timestamp: {selectedRecord.punch_out_at || 'In progress'}
-                </div>
-                {selectedRecord.punch_out_latitude && selectedRecord.punch_out_longitude ? (
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: 'var(--ax-text-subtle)' }}>
-                      GPS: {selectedRecord.punch_out_latitude}, {selectedRecord.punch_out_longitude}
-                    </span>
-                    <a
-                      href={`https://www.google.com/maps?q=${selectedRecord.punch_out_latitude},${selectedRecord.punch_out_longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ax-btn ax-btn--ghost ax-btn--sm"
-                      style={{ color: '#2563eb', padding: '2px 8px', fontSize: 12 }}
-                    >
-                      Open Map ↗
-                    </a>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 1,
+                  background: '#e2e8f0',
+                }}>
+                  <div style={{ padding: '10px 14px', background: '#ffffff' }}>
+                    <div style={{ fontSize: 11, color: 'var(--ax-text-subtle)' }}>State</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>{selectedRecord.user_state || '—'}</div>
                   </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: 'var(--ax-text-subtle)', marginTop: 4 }}>
-                    {selectedRecord.punch_out_at ? 'GPS not recorded' : 'Awaiting punch out'}
+                  <div style={{ padding: '10px 14px', background: '#ffffff' }}>
+                    <div style={{ fontSize: 11, color: 'var(--ax-text-subtle)' }}>District</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>{selectedRecord.user_district || '—'}</div>
                   </div>
-                )}
-              </div>
-
-              {/* Location details */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 10,
-                fontSize: 12,
-              }}>
-                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <span style={{ color: 'var(--ax-text-subtle)' }}>State: </span>
-                  <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedRecord.user_state || '—'}</strong>
-                </div>
-                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <span style={{ color: 'var(--ax-text-subtle)' }}>District: </span>
-                  <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedRecord.user_district || '—'}</strong>
-                </div>
-                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <span style={{ color: 'var(--ax-text-subtle)' }}>Block: </span>
-                  <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedRecord.user_block || '—'}</strong>
-                </div>
-                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <span style={{ color: 'var(--ax-text-subtle)' }}>Panchayat: </span>
-                  <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedRecord.user_panchayat || '—'}</strong>
+                  <div style={{ padding: '10px 14px', background: '#ffffff' }}>
+                    <div style={{ fontSize: 11, color: 'var(--ax-text-subtle)' }}>Block</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>{selectedRecord.user_block || '—'}</div>
+                  </div>
+                  <div style={{ padding: '10px 14px', background: '#ffffff' }}>
+                    <div style={{ fontSize: 11, color: 'var(--ax-text-subtle)' }}>Panchayat</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>{selectedRecord.user_panchayat || '—'}</div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
             <div style={{
-              padding: '12px 20px',
+              padding: '14px 24px',
               borderTop: '1px solid var(--ax-border, #e2e8f0)',
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 8,
+              gap: 10,
               background: 'var(--ax-surface-subtle, #f8fafc)',
             }}>
               <button
@@ -1092,7 +1555,7 @@ export function DLEAttendanceViewData() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
