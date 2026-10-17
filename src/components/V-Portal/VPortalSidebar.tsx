@@ -277,7 +277,7 @@ export function VPortalSidebar({
   return (
     <div className="vp-sidebar">
       {/* ── Top Portal Switcher Card ── */}
-      <div className="vp-sb__top-card">
+      {/* <div className="vp-sb__top-card">
         <div className="vp-sb__portal-info">
           <div className="vp-sb__portal-badge-icon" title="V-Portal (Vendor Operations)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
@@ -305,7 +305,7 @@ export function VPortalSidebar({
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </Link>
-      </div>
+      </div> */}
 
       {/* ── Primary V-Portal Dashboard Link ── */}
       <div className="vp-sb__item-wrapper" style={{ marginBottom: 8 }}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, GeoJSON, Marker } from 'react-leaflet';
@@ -12,6 +12,23 @@ import { ApexChart } from '../../components/charts/ApexChart';
 import { dleService } from '../../services/dleServices';
 
 const num = (x: number) => x.toLocaleString('en-IN');
+const dash = (v: number) => num(v);
+
+const LIGHT_BLUE = '#2f7df2';
+const LIGHT_GREEN = '#86DDB2';
+const LIGHT_AMBER = '#f5b841';
+
+// Responsive chart height
+const useChartHeight = (desktop: number, mobile: number) => {
+  const pick = () => (typeof window !== 'undefined' && window.innerWidth < 640 ? mobile : desktop);
+  const [h, setH] = useState(pick);
+  useEffect(() => {
+    const onResize = () => setH(pick());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [desktop, mobile]);
+  return h;
+};
 
 type Region = 'North' | 'East' | 'West' | 'South' | 'North-East';
 
@@ -408,10 +425,11 @@ export function ErpMainDashboard() {
   const [accessFilter, setAccessFilter] = useState<AccessFilter>('all');
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | undefined>(undefined);
-  const [selectedComplaintState, setSelectedComplaintState] = useState<string>('all');
+  const chartH = useChartHeight(320, 260);
 
   /* total users (from /api/admin/users) */
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState(false);
 
@@ -436,7 +454,12 @@ export function ErpMainDashboard() {
 
     dleService
       .getCompanyAdminUsers(ctrl.signal) // login user ki company_id ke hisaab se filtered array
-      .then((list) => { if (alive) setTotalUsers(list.length); })
+      .then((list) => {
+        if (alive) {
+          setAdminUsers(list || []);
+          setTotalUsers(list.length);
+        }
+      })
       .catch((err) => {
         if (err?.name === 'AbortError') return;
         if (alive) setUsersError(true);
@@ -516,7 +539,19 @@ export function ErpMainDashboard() {
     return () => { alive = false; };
   }, []);
 
-  const openState = useCallback((s: StateItem) => {
+  const openState = useCallback((itemOrName: StateItem | string) => {
+    let s: StateItem | undefined;
+    if (typeof itemOrName === 'string') {
+      const q = itemOrName.trim().toLowerCase();
+      s = STATES_DATA.find((x) => x.name.toLowerCase() === q || x.code.toLowerCase() === q || x.id.toLowerCase() === q);
+      if (!s) {
+        navigate('/dle/dashboard');
+        return;
+      }
+    } else {
+      s = itemOrName;
+    }
+
     if (!hasStateAccess(s.id)) {
       notify(`${s.name}: Access restricted. Contact system administrator.`);
       return;
@@ -663,33 +698,48 @@ export function ErpMainDashboard() {
     [chartDleSeries, chartVendorSeries, chartUserSeries]
   );
 
-  const waveSeries = useMemo(() => {
-    if (selectedComplaintState === 'all') {
-      return sortedChartStates.slice(0, 6).map((s) => ({
-        name: s.name,
-        data: MONTHLY_COMPLAINTS[s.id] ?? Array(10).fill(0),
+  const stateStats = useMemo(() => {
+    if (adminUsers.length > 0) {
+      const cutoff = Date.now() - 30 * 86400000;
+      const stateMap = new Map<string, { state: string; dles: number; activeDles: number }>();
+
+      adminUsers.forEach((u: any) => {
+        const rawState = (u.state || '').trim();
+        const stateName = rawState ? (rawState.charAt(0).toUpperCase() + rawState.slice(1).toLowerCase()) : 'Unknown';
+        let s = stateMap.get(stateName);
+        if (!s) {
+          s = { state: stateName, dles: 0, activeDles: 0 };
+          stateMap.set(stateName, s);
+        }
+        s.dles += 1;
+        const t = Date.parse(u.updated_at || u.created_at);
+        if (!Number.isNaN(t) && t >= cutoff) {
+          s.activeDles += 1;
+        }
+      });
+
+      const list = [...stateMap.values()].sort((a, b) => b.dles - a.dles);
+      if (list.length > 0) return list;
+    }
+
+    // Fallback: derived from STATES_DATA
+    return [...STATES_DATA]
+      .sort((a, b) => b.dles - a.dles)
+      .map((s) => ({
+        state: s.name,
+        dles: s.dles,
+        activeDles: Math.max(1, Math.round(s.dles * 0.75)),
       }));
-    }
-    if (selectedComplaintState === 'all-13') {
-      return sortedChartStates.map((s) => ({
-        name: s.name,
-        data: MONTHLY_COMPLAINTS[s.id] ?? Array(10).fill(0),
-      }));
-    }
-    if (selectedComplaintState === 'total') {
-      const totalPerMonth = COMPLAINT_MONTHS.map((_, i) =>
-        Object.values(MONTHLY_COMPLAINTS).reduce((acc, arr) => acc + (arr[i] ?? 0), 0)
-      );
-      return [{ name: 'National Total Complaints', data: totalPerMonth }];
-    }
-    const stateObj = STATES_DATA.find((s) => s.id === selectedComplaintState);
-    return [
-      {
-        name: stateObj ? stateObj.name : 'Complaints',
-        data: MONTHLY_COMPLAINTS[selectedComplaintState] ?? Array(10).fill(0),
-      },
-    ];
-  }, [selectedComplaintState, sortedChartStates]);
+  }, [adminUsers]);
+
+const kpis = useMemo(() => ({
+  states: sortedChartStates.length,
+  dles: chartDleSeries.reduce((a, n) => a + n, 0),
+  vendors: chartVendorSeries.reduce((a, n) => a + n, 0),
+  users: chartUserSeries.reduce((a, n) => a + n, 0),
+}), [sortedChartStates, chartDleSeries, chartVendorSeries, chartUserSeries]);
+
+const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sortedChartStates]);
 
   return (
     <>
@@ -1542,157 +1592,73 @@ export function ErpMainDashboard() {
           </div>
         </section>
 
-        {/* ═══════ 6. MONTHLY COMPLAINTS WAVE / AREA CHART (Full Width: col-12) ═══════ */}
-        <section className="ax-card ax-card--chart ax-col--12" role="region" aria-label="Monthly Complaints Wave Analytics">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Month-by-Month State Trend (Wave Curve)</span>
-              <h2 className="ax-card__title">Monthly Complaints by State (Wave Trend)</h2>
-              <p className="ax-card__subtitle">
-                Inspect how complaints trend across months for each state with smooth wave curves.
-              </p>
-            </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <label htmlFor="complaint-state-select" style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-muted)' }}>
-                  State:
-                </label>
-                <select
-                  id="complaint-state-select"
-                  className="ax-select ax-select--sm"
-                  value={selectedComplaintState}
-                  onChange={(e) => setSelectedComplaintState(e.target.value)}
-                  style={{ minWidth: 180, fontWeight: 600 }}
-                >
-                  <option value="all">Top 6 States (Comparison)</option>
-                  <option value="all-13">All 13 States</option>
-                  <option value="total">National Total (Combined)</option>
-                  <optgroup label="Select Specific State">
-                    {sortedChartStates.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.code}) — {COMPLAINTS_BY_STATE[s.id] ?? 0} total
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              <span className="ax-badge ax-badge--soft ax-badge--danger ax-badge--pill">
-                <Icon size={13} style={{ marginRight: 4 }}>{I_CHART}</Icon> Wave Chart
-              </span>
-            </div>
-          </div>
-
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            {/* Quick KPI stats strip */}
-            <div className="ax-erp-wave-kpis">
-              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Annual Complaints</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#e11d48', marginTop: 2 }}>
-                  {Object.values(COMPLAINTS_BY_STATE).reduce((a, b) => a + b, 0)}
-                </div>
-              </div>
-              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Highest Volume</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>
-                  UP (95)
-                </div>
-              </div>
-              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Active Tracking</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#0284c7', marginTop: 2 }}>
-                  10 Months (Jan–Oct)
-                </div>
-              </div>
-              <div className="ax-erp-wave-kpi-item" style={{ background: 'var(--ax-surface-subtle)', padding: '10px 14px', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)' }}>
-                <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Selected View</div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#8b5cf6', marginTop: 4, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {selectedComplaintState === 'all'
-                    ? 'Top 6 States'
-                    : selectedComplaintState === 'all-13'
-                    ? 'All 13 States'
-                    : selectedComplaintState === 'total'
-                    ? 'National Total'
-                    : STATES_DATA.find((s) => s.id === selectedComplaintState)?.name || selectedComplaintState}
-                </div>
-              </div>
-            </div>
-
-            <ApexChart
-              type="area"
-              height={320}
-              series={waveSeries}
-              apex={{
-                chart: {
-                  type: 'area',
-                  toolbar: { show: false },
-                  fontFamily: 'inherit',
-                  zoom: { enabled: false },
-                },
-                dataLabels: { enabled: false },
-                stroke: {
-                  curve: 'smooth',
-                  width: selectedComplaintState !== 'all' && selectedComplaintState !== 'all-13' ? 3 : 2,
-                },
-                fill: {
-                  type: 'gradient',
-                  gradient: {
-                    shadeIntensity: 1,
-                    opacityFrom: 0.45,
-                    opacityTo: 0.05,
-                    stops: [0, 90, 100],
-                  },
-                },
-                xaxis: {
-                  categories: COMPLAINT_MONTHS,
-                  labels: { style: { fontSize: '12px', fontWeight: 600 } },
-                  axisBorder: { show: false },
-                },
-                yaxis: {
-                  title: { text: 'Monthly Complaints', style: { fontSize: '11px', fontWeight: 600 } },
-                  labels: { formatter: (v: number) => Math.round(v).toString() },
-                },
-                tooltip: {
-                  shared: true,
-                  intersect: false,
-                  y: {
-                    formatter: (val: number) => `${val} complaints`,
-                  },
-                },
-                legend: {
-                  position: 'top',
-                  horizontalAlign: 'left',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  itemMargin: { horizontal: 10, vertical: 4 },
-                },
-                grid: { borderColor: 'var(--ax-border)', strokeDashArray: 4 },
-                colors: [
-                  '#e11d48', '#2563eb', '#8b5cf6', '#d97706', '#059669',
-                  '#0891b2', '#ea580c', '#4f46e5', '#db2777', '#16a34a',
-                  '#6366f1', '#a855f7', '#64748b',
-                ],
-                responsive: [
-                  {
-                    breakpoint: 1024,
-                    options: {
-                      chart: { height: 310 },
-                      legend: { position: 'top', horizontalAlign: 'left', fontSize: '11px' },
-                    },
-                  },
-                  {
-                    breakpoint: 640,
-                    options: {
-                      chart: { height: 260 },
-                      xaxis: { labels: { style: { fontSize: '10px' } } },
-                      legend: { position: 'bottom', horizontalAlign: 'center', fontSize: '10px', itemMargin: { horizontal: 5, vertical: 2 } },
-                    },
-                  },
-                ],
-              }}
-            />
-          </div>
-        </section>
+        {/* ═══════ 6. DLE STATE WISE AREA CHART ═══════ */}
+  {/* ═══════ 6. USERS / DLE / VENDORS STATE WISE AREA CHART ═══════ */}
+<section className="ax-card ax-card--chart ax-col--12" role="region" aria-label="Users, DLE and Vendors state wise">
+  <div className="ax-card__header">
+    <div className="ax-card__titles">
+      <span className="ax-card__eyebrow">Geographic Breakdown</span>
+      <h2 className="ax-card__title">Users, DLE &amp; Vendors State Wise</h2>
+      <p className="ax-card__subtitle">
+        {dash(kpis.users)} Users · {dash(kpis.dles)} DLE · {dash(kpis.vendors)} Vendors across {dash(kpis.states)} states
+      </p>
+    </div>
+    <div className="ax-card__actions">
+      <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
+        {[
+          { l: 'Users', c: LIGHT_AMBER },
+          { l: 'DLE', c: LIGHT_BLUE },
+          { l: 'Vendors', c: LIGHT_GREEN },
+        ].map((i) => (
+          <span key={i.l} className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+            <i style={{ width: 10, height: 10, borderRadius: 2, background: i.c }} />
+            <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{i.l}</small>
+          </span>
+        ))}
+      </div>
+    </div>
+  </div>
+  <div className="ax-card__body" style={{ paddingTop: 0 }}>
+    <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+      <ApexChart
+        key={`state-${chartH}-${areaStateNames.join('-')}-${chartUserSeries.join('-')}`}
+        type="area"
+        height={chartH}
+        legend="none"
+        ariaLabel="Users, DLE and Vendors by state"
+        series={[
+          { name: 'Users', data: chartUserSeries },
+          { name: 'DLE', data: chartDleSeries },
+          { name: 'Vendors', data: chartVendorSeries },
+        ]}
+        apex={{
+          colors: [LIGHT_AMBER, LIGHT_BLUE, LIGHT_GREEN],
+          stroke: { curve: 'smooth', width: 1.5 },
+          fill: {
+            type: 'gradient',
+            gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] },
+          },
+          markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+          dataLabels: { enabled: false },
+          xaxis: {
+            categories: areaStateNames,
+            labels: { rotate: -35, style: { fontSize: '11px' } },
+          },
+          yaxis: { title: { text: 'Count', style: { color: 'var(--ax-text-muted)' } } },
+          tooltip: { shared: true, intersect: false },
+          chart: {
+            events: {
+              markerClick: (_event: unknown, _chart: unknown, opts: any) => {
+                const state = areaStateNames[opts?.dataPointIndex];
+                if (state) openState(state);
+              },
+            },
+          },
+        }}
+      />
+    </Suspense>
+  </div>
+</section>
 
         {/* ═══════ 7. CONSOLIDATED STATE-WISE SUMMARY TABLE (Full Width: col-12) ═══════ */}
         <section className="ax-card ax-col--12" role="region" aria-label="State-wise Network Summary">
