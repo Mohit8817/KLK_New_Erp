@@ -130,6 +130,47 @@ const InfoCard = ({ label, value, sub, icon }: { label: string; value: string; s
   </div>
 );
 
+const MapPill = ({ href, label, color, bg, border, dot, badge }: {
+  href: string; label: string; color: string; bg: string; border: string; dot: string; badge: string;
+}) => (
+  <a
+    href={href}
+    target="_blank"
+    rel="noreferrer"
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '6px 6px 6px 14px',
+      borderRadius: 999,
+      background: bg,
+      border: `1px solid ${border}`,
+      color,
+      fontSize: 13,
+      fontWeight: 700,
+      textDecoration: 'none',
+      cursor: 'pointer',
+    }}
+  >
+    <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot }} />
+    <span>{label}</span>
+    <span style={{
+      width: 24,
+      height: 24,
+      borderRadius: '50%',
+      background: badge,
+      color: '#ffffff',
+      display: 'grid',
+      placeItems: 'center',
+    }}>
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+    </span>
+  </a>
+);
+
 export function DLEAttendanceDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -440,13 +481,15 @@ export function DLEAttendanceDetail() {
         </div>
       </div>
 
-      {/* TWO EQUAL BALANCED COLUMNS (6 COLS & 6 COLS) */}
+      {/* TOP ROW: Punch cards (left, stacked) + Session Analytics (right) in ONE div */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
         gap: 20,
+        alignItems: 'stretch',
+        marginBottom: 20,
       }}>
-        {/* COLUMN 1: PUNCH TIME & GPS VERIFICATION */}
+        {/* LEFT: Punch In + Punch Out */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Card 1: Punch In Verification */}
           <div style={{
@@ -459,12 +502,7 @@ export function DLEAttendanceDetail() {
             overflow: 'hidden',
           }}>
             <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: 'linear-gradient(90deg, #10b981, #059669)',
+          
             }} />
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -515,34 +553,11 @@ export function DLEAttendanceDetail() {
             </div>
 
             {record.punch_in_latitude && record.punch_in_longitude && (
-              <a
+              <MapPill
                 href={`https://www.google.com/maps?q=${record.punch_in_latitude},${record.punch_in_longitude}`}
-                target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--sm"
-                style={{
-                  width: '100%',
-                  background: '#10b981',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '9px 16px',
-                  borderRadius: 8,
-                  textDecoration: 'none',
-                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)',
-                }}
-              >
-                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-                <span>Open Punch In Location on Google Maps ↗</span>
-              </a>
+                label="Open Punch In Location"
+                color="#047857" bg="#ecfdf5" border="#a7f3d0" dot="#10b981" badge="#10b981"
+              />
             )}
           </div>
 
@@ -556,14 +571,7 @@ export function DLEAttendanceDetail() {
             position: 'relative',
             overflow: 'hidden',
           }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 4,
-              background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
-            }} />
+            <div />
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -615,34 +623,11 @@ export function DLEAttendanceDetail() {
             </div>
 
             {record.punch_out_latitude && record.punch_out_longitude ? (
-              <a
+              <MapPill
                 href={`https://www.google.com/maps?q=${record.punch_out_latitude},${record.punch_out_longitude}`}
-                target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--sm"
-                style={{
-                  width: '100%',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '9px 16px',
-                  borderRadius: 8,
-                  textDecoration: 'none',
-                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
-                }}
-              >
-                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-                <span>Open Punch Out Location on Google Maps ↗</span>
-              </a>
+                label="Open Punch Out Location"
+                color="#1d4ed8" bg="#eff6ff" border="#bfdbfe" dot="#3b82f6" badge="#2563eb"
+              />
             ) : (
               <div style={{
                 textAlign: 'center',
@@ -658,126 +643,112 @@ export function DLEAttendanceDetail() {
           </div>
         </div>
 
-        {/* COLUMN 2: SESSION INFORMATION & FIELD HIERARCHY */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Card 3: Session & Shift Information */}
-          <div style={{
-            background: 'var(--ax-surface-solid, #ffffff)',
-            border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 16,
-            padding: 22,
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
-          }}>
-            <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
-              Shift & Session Analytics
-            </h4>
+        {/* RIGHT: Shift & Session Analytics */}
+        <div style={{
+          background: 'var(--ax-surface-solid, #ffffff)',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          borderRadius: 16,
+          padding: 22,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+        }}>
+          <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
+            Shift & Session Analytics
+          </h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <InfoCard
-                label="Attendance Date"
-                value={formatDate(record.attendance_date)}
-                sub={`Raw date: ${record.attendance_date}`}
-              />
-              <InfoCard
-                label="Total Duration"
-                value={dur.text}
-                sub={dur.isOngoing ? 'Currently ongoing live' : 'Full recorded shift'}
-              />
-              <InfoCard
-                label="Punch In Time"
-                value={formatTime(record.punch_in_at)}
-                sub="Field shift start"
-              />
-              <InfoCard
-                label="Punch Out Time"
-                value={formatTime(record.punch_out_at)}
-                sub={record.punch_out_at ? 'Field shift exit' : 'Pending punch out'}
-              />
-              <InfoCard
-                label="Auto Closed"
-                value={record.punch_out_auto ? 'Yes (System Auto)' : 'No (Manual User Punch)'}
-                sub="Closure mechanism"
-              />
-              <InfoCard
-                label="Record ID"
-                value={`#${record.id}`}
-                sub={`User #${record.user_id}`}
-              />
-              <InfoCard
-                label="Record Created At"
-                value={record.created_at ? new Date(record.created_at).toLocaleString('en-IN') : '—'}
-                sub="Server creation timestamp"
-              />
-              <InfoCard
-                label="Record Updated At"
-                value={record.updated_at ? new Date(record.updated_at).toLocaleString('en-IN') : '—'}
-                sub="Last modification time"
-              />
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <InfoCard
+              label="Attendance Date"
+              value={formatDate(record.attendance_date)}
+              sub={`Raw date: ${record.attendance_date}`}
+            />
+            <InfoCard
+              label="Total Duration"
+              value={dur.text}
+              sub={dur.isOngoing ? 'Currently ongoing live' : 'Full recorded shift'}
+            />
+            <InfoCard
+              label="Punch In Time"
+              value={formatTime(record.punch_in_at)}
+              sub="Field shift start"
+            />
+            <InfoCard
+              label="Punch Out Time"
+              value={formatTime(record.punch_out_at)}
+              sub={record.punch_out_at ? 'Field shift exit' : 'Pending punch out'}
+            />
+            <InfoCard
+              label="Auto Closed"
+              value={record.punch_out_auto ? 'Yes (System Auto)' : 'No (Manual User Punch)'}
+              sub="Closure mechanism"
+            />
+            <InfoCard
+              label="Record ID"
+              value={`#${record.id}`}
+              sub={`User #${record.user_id}`}
+            />
+            <InfoCard
+              label="Record Created At"
+              value={record.created_at ? new Date(record.created_at).toLocaleString('en-IN') : '—'}
+              sub="Server creation timestamp"
+            />
+            <InfoCard
+              label="Record Updated At"
+              value={record.updated_at ? new Date(record.updated_at).toLocaleString('en-IN') : '—'}
+              sub="Last modification time"
+            />
           </div>
+        </div>
+      </div>
 
-          {/* Card 4: Assigned Field Location Hierarchy */}
-          <div style={{
-            width:'100%',
-            background: 'var(--ax-surface-solid, #ffffff)',
-            border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 16,
-            padding: 22,
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+      {/* BOTTOM: Assigned Field Location Hierarchy — FULL WIDTH */}
+      <div style={{
+        width: '100%',
+        background: 'var(--ax-surface-solid, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        borderRadius: 16,
+        padding: 22,
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+        boxSizing: 'border-box',
+      }}>
+        <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
+          Assigned Field Location Hierarchy
+        </h4>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 12,
+        }}>
+          <InfoCard label="State" value={record.user_state} sub="Provincial jurisdiction" />
+          <InfoCard label="District" value={record.user_district} sub="District headquarters" />
+          <InfoCard label="Block" value={record.user_block} sub="Sub-district block" />
+          <InfoCard label="Panchayat" value={record.user_panchayat} sub="Local gram panchayat" />
+        </div>
+
+        <div style={{
+          marginTop: 14,
+          padding: '12px 14px',
+          borderRadius: 10,
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 12.5,
+        }}>
+          <span style={{ color: 'var(--ax-text-subtle)' }}>
+            Field Assignment: <strong>{[record.user_panchayat, record.user_block, record.user_district, record.user_state].filter(Boolean).join(', ')}</strong>
+          </span>
+          <span style={{
+            background: '#e0f2fe',
+            color: '#0369a1',
+            padding: '2px 8px',
+            borderRadius: 6,
+            fontWeight: 700,
+            fontSize: 11,
           }}>
-            <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
-              Assigned Field Location Hierarchy
-            </h4>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              <InfoCard
-                label="State"
-                value={record.user_state}
-                sub="Provincial jurisdiction"
-              />
-              <InfoCard
-                label="District"
-                value={record.user_district}
-                sub="District headquarters"
-              />
-              <InfoCard
-                label="Block"
-                value={record.user_block}
-                sub="Sub-district block"
-              />
-              <InfoCard
-                label="Panchayat"
-                value={record.user_panchayat}
-                sub="Local gram panchayat"
-              />
-            </div>
-
-            <div style={{
-              marginTop: 14,
-              padding: '12px 14px',
-              borderRadius: 10,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 12.5,
-            }}>
-              <span style={{ color: 'var(--ax-text-subtle)' }}>
-                Field Assignment: <strong>{[record.user_panchayat, record.user_block, record.user_district, record.user_state].filter(Boolean).join(', ')}</strong>
-              </span>
-              <span style={{
-                background: '#e0f2fe',
-                color: '#0369a1',
-                padding: '2px 8px',
-                borderRadius: 6,
-                fontWeight: 700,
-                fontSize: 11,
-              }}>
-                Verified Zone
-              </span>
-            </div>
-          </div>
+            Verified Zone
+          </span>
         </div>
       </div>
     </div>
