@@ -92,33 +92,38 @@ const getInitials = (name: string) => {
   return name.slice(0, 2).toUpperCase() || 'U';
 };
 
-const InfoItem = ({ label, value, sub }: { label: string; value: string; sub?: string }) => (
+const InfoCard = ({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: React.ReactNode }) => (
   <div style={{
     padding: '14px 16px',
     background: 'var(--ax-surface-subtle, #f8fafc)',
     border: '1px solid var(--ax-border, #e2e8f0)',
     borderRadius: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
   }}>
-    <div style={{
-      fontSize: 11,
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      color: 'var(--ax-text-subtle)',
-      fontWeight: 700,
-      marginBottom: 4,
-    }}>
-      {label}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+      <span style={{
+        fontSize: 11,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        color: 'var(--ax-text-subtle)',
+        fontWeight: 700,
+      }}>
+        {label}
+      </span>
+      {icon && <span style={{ color: 'var(--ax-text-subtle)' }}>{icon}</span>}
     </div>
     <div style={{
       color: 'var(--ax-text-strong)',
-      fontSize: 14.5,
+      fontSize: 15,
       fontWeight: 700,
       overflowWrap: 'anywhere',
     }}>
       {value || '—'}
     </div>
     {sub && (
-      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 4 }}>
         {sub}
       </div>
     )}
@@ -238,14 +243,14 @@ export function DLEAttendanceDetail() {
 
   return (
     <div>
-      {/* Page Header */}
+      {/* Top Page Breadcrumb & Quick Actions */}
       <PageHead
-        title={`${record.user_name} — Attendance Details`}
-        subtitle={`Session Date: ${formatDate(record.attendance_date)} · Record ID #${record.id}`}
+        title="Attendance Session Details"
+        subtitle={`Technician: ${record.user_name} · Date: ${formatDate(record.attendance_date)} · Record ID #${record.id}`}
         breadcrumbs={[
           { label: 'DLE Portal', href: '/dle/dashboard' },
           { label: 'Attendance', href: '/dle/attendance' },
-          { label: `Record #${record.id}` },
+          { label: `${record.user_name} (#${record.id})` },
         ]}
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -261,145 +266,11 @@ export function DLEAttendanceDetail() {
               </svg>
               <span>Back to List</span>
             </button>
-          </div>
-        }
-      />
-
-      {/* Status Bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 12,
-        marginBottom: 20,
-        padding: '12px 18px',
-        borderRadius: 12,
-        background: 'var(--ax-surface-solid, #ffffff)',
-        border: '1px solid var(--ax-border, #e2e8f0)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '5px 12px',
-            borderRadius: 20,
-            background: status.bg,
-            border: `1px solid ${status.border}`,
-            color: status.color,
-            fontSize: 13,
-            fontWeight: 700,
-          }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: status.dotColor }} />
-            <span>{status.label}</span>
-          </div>
-
-          <div style={{
-            padding: '5px 12px',
-            borderRadius: 20,
-            background: '#f1f5f9',
-            color: '#334155',
-            fontSize: 12.5,
-            fontWeight: 600,
-          }}>
-            Total Duration: <strong style={{ color: '#0f172a' }}>{dur.text}</strong>
-          </div>
-
-          {record.punch_out_auto && (
-            <div style={{
-              padding: '5px 12px',
-              borderRadius: 20,
-              background: '#fffbeb',
-              color: '#b45309',
-              fontSize: 12.5,
-              fontWeight: 600,
-              border: '1px solid #fde68a',
-            }}>
-              ⚠️ System Auto Closed
-            </div>
-          )}
-        </div>
-
-        <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-          Company ID: <strong style={{ color: 'var(--ax-text-strong)' }}>{record.company_id}</strong>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 20 }}>
-        {/* Left Column: Technician Profile Card (4 cols) */}
-        <div style={{ gridColumn: 'span 4' }}>
-          <div style={{
-            background: 'var(--ax-surface-solid, #ffffff)',
-            border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 14,
-            padding: 24,
-            textAlign: 'center',
-            position: 'sticky',
-            top: 20,
-          }}>
-            {/* Avatar */}
-            <div style={{
-              width: 72,
-              height: 72,
-              borderRadius: 20,
-              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-              color: '#1d4ed8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 26,
-              fontWeight: 800,
-              margin: '0 auto 16px auto',
-              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.15)',
-            }}>
-              {getInitials(record.user_name)}
-            </div>
-
-            <h3 style={{ margin: '0 0 4px 0', fontSize: 18, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
-              {record.user_name}
-            </h3>
-            <div style={{ fontSize: 13, color: 'var(--ax-text-muted)', marginBottom: 16 }}>
-              User ID #{record.user_id}
-            </div>
-
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              textAlign: 'left',
-              padding: '16px 0',
-              borderTop: '1px solid var(--ax-border, #e2e8f0)',
-              borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-              marginBottom: 18,
-            }}>
-              <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Contact Number</div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ax-text-strong)', marginTop: 2 }}>
-                  {record.user_contact_no || '—'}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Email Address</div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ax-text-strong)', marginTop: 2, overflowWrap: 'anywhere' }}>
-                  {record.user_email || '—'}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', fontWeight: 700 }}>Assigned Region</div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ax-text-strong)', marginTop: 2 }}>
-                  {[record.user_district, record.user_state].filter(Boolean).join(', ') || '—'}
-                </div>
-              </div>
-            </div>
-
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
               onClick={() => navigate(`/dle/users/${record.user_id}`)}
-              style={{ width: '100%', justifyContent: 'center', gap: 6, fontWeight: 600 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
             >
               <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -408,187 +279,503 @@ export function DLEAttendanceDetail() {
               <span>View User Profile & Docs</span>
             </button>
           </div>
+        }
+      />
+
+      {/* FULL-WIDTH HERO PROFILE & SHIFT BANNER */}
+      <div style={{
+        background: 'var(--ax-surface-solid, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        borderRadius: 16,
+        padding: '20px 24px',
+        marginBottom: 20,
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)',
+      }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          paddingBottom: 18,
+          borderBottom: '1px solid var(--ax-border, #f1f5f9)',
+        }}>
+          {/* Technician Identity */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+              color: '#1d4ed8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 800,
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)',
+            }}>
+              {getInitials(record.user_name)}
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
+                  {record.user_name}
+                </h2>
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                }}>
+                  User #{record.user_id}
+                </span>
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: '#eff6ff',
+                  color: '#2563eb',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                }}>
+                  Company: {record.company_id}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ax-text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span>📞 {record.user_contact_no || 'No contact'}</span>
+                <span style={{ color: 'var(--ax-border, #cbd5e1)' }}>•</span>
+                <span>✉️ {record.user_email || 'No email registered'}</span>
+                <span style={{ color: 'var(--ax-border, #cbd5e1)' }}>•</span>
+                <span>📍 {[record.user_district, record.user_state].filter(Boolean).join(', ') || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Status & Live Shift Counter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              borderRadius: 20,
+              background: status.bg,
+              border: `1px solid ${status.border}`,
+              color: status.color,
+              fontSize: 13,
+              fontWeight: 700,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: status.dotColor }} />
+              <span>{status.label}</span>
+            </div>
+
+            <div style={{
+              padding: '6px 14px',
+              borderRadius: 20,
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              color: '#0f172a',
+              fontSize: 13,
+              fontWeight: 700,
+            }}>
+              Duration: <span style={{ color: dur.isOngoing ? '#059669' : '#2563eb' }}>{dur.text}</span>
+            </div>
+
+            {record.punch_out_auto && (
+              <div style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                background: '#fffbeb',
+                color: '#b45309',
+                fontSize: 12.5,
+                fontWeight: 700,
+                border: '1px solid #fde68a',
+              }}>
+                ⚠️ Auto Closed by System
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right Column: Attendance & GPS Details (8 cols) */}
-        <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Punch In & Punch Out Comparison Grid */}
+        {/* Quick Horizontal Metrics Row */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 14,
+          paddingTop: 16,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>Attendance Date</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>{formatDate(record.attendance_date)}</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>Punch In Time</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#047857', marginTop: 2 }}>{formatTime(record.punch_in_at)}</div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>Punch Out Time</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: record.punch_out_at ? '#1d4ed8' : '#64748b', marginTop: 2 }}>
+              {record.punch_out_at ? formatTime(record.punch_out_at) : 'Still Open'}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>Field Region</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>
+              {[record.user_block, record.user_district].filter(Boolean).join(', ') || '—'}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)' }}>Panchayat</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2 }}>
+              {record.user_panchayat || '—'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TWO EQUAL BALANCED COLUMNS (6 COLS & 6 COLS) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
+        gap: 20,
+      }}>
+        {/* COLUMN 1: PUNCH TIME & GPS VERIFICATION */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Card 1: Punch In Verification */}
           <div style={{
             background: 'var(--ax-surface-solid, #ffffff)',
-            border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 14,
+            border: '1px solid #a7f3d0',
+            borderRadius: 16,
             padding: 22,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+            position: 'relative',
+            overflow: 'hidden',
           }}>
-            <h4 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-              Punch Time & Location Verification
-            </h4>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: 'linear-gradient(90deg, #10b981, #059669)',
+            }} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-              {/* Punch In Box */}
-              <div style={{
-                borderRadius: 12,
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#065f46' }}>
+                  Punch In Verification
+                </h4>
+              </div>
+              <span style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: '#047857',
+                background: '#ecfdf5',
+                padding: '4px 10px',
+                borderRadius: 8,
                 border: '1px solid #a7f3d0',
-                background: '#f0fdf4',
-                padding: 18,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
               }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontWeight: 800, color: '#047857', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      🟢 Punch In
-                    </span>
-                    <span style={{ fontWeight: 800, fontSize: 18, color: '#065f46' }}>
-                      {formatTime(record.punch_in_at)}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#065f46', opacity: 0.85 }}>
-                    Timestamp: <strong>{record.punch_in_at || '—'}</strong>
-                  </div>
-                </div>
+                {formatTime(record.punch_in_at)}
+              </span>
+            </div>
 
-                {record.punch_in_latitude && record.punch_in_longitude ? (
-                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(4, 120, 87, 0.15)' }}>
-                    <div style={{ fontSize: 12, color: '#065f46', marginBottom: 8 }}>
-                      GPS: <strong>{record.punch_in_latitude}, {record.punch_in_longitude}</strong>
-                    </div>
-                    <a
-                      href={`https://www.google.com/maps?q=${record.punch_in_latitude},${record.punch_in_longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ax-btn ax-btn--sm"
-                      style={{
-                        width: '100%',
-                        background: '#ffffff',
-                        color: '#047857',
-                        border: '1px solid #a7f3d0',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                        textDecoration: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                      }}
-                    >
-                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      <span>Open Punch In Map ↗</span>
-                    </a>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 14 }}>
-                    GPS coordinates not available
-                  </div>
-                )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: '#065f46' }}>
+                <span style={{ color: 'var(--ax-text-subtle)' }}>Exact Timestamp: </span>
+                <strong>{record.punch_in_at || '—'}</strong>
               </div>
 
-              {/* Punch Out Box */}
               <div style={{
-                borderRadius: 12,
-                border: '1px solid #bfdbfe',
-                background: '#eff6ff',
-                padding: 18,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: '#f0fdf4',
+                border: '1px solid #d1fae5',
+                fontSize: 13,
+                color: '#065f46',
               }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontWeight: 800, color: '#1d4ed8', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      🔵 Punch Out
-                    </span>
-                    <span style={{ fontWeight: 800, fontSize: 18, color: '#1e40af' }}>
-                      {record.punch_out_at ? formatTime(record.punch_out_at) : 'Still Open'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#1e40af', opacity: 0.85 }}>
-                    Timestamp: <strong>{record.punch_out_at || 'Shift in progress (Pending)'}</strong>
-                  </div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#059669', marginBottom: 2 }}>
+                  GPS Coordinates
                 </div>
-
-                {record.punch_out_latitude && record.punch_out_longitude ? (
-                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(29, 78, 216, 0.15)' }}>
-                    <div style={{ fontSize: 12, color: '#1e40af', marginBottom: 8 }}>
-                      GPS: <strong>{record.punch_out_latitude}, {record.punch_out_longitude}</strong>
-                    </div>
-                    <a
-                      href={`https://www.google.com/maps?q=${record.punch_out_latitude},${record.punch_out_longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ax-btn ax-btn--sm"
-                      style={{
-                        width: '100%',
-                        background: '#ffffff',
-                        color: '#1d4ed8',
-                        border: '1px solid #bfdbfe',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                        textDecoration: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                      }}
-                    >
-                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      <span>Open Punch Out Map ↗</span>
-                    </a>
+                {record.punch_in_latitude && record.punch_in_longitude ? (
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                    Latitude: {record.punch_in_latitude} · Longitude: {record.punch_in_longitude}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 14 }}>
-                    {record.punch_out_at ? 'GPS coordinates not available' : 'Awaiting punch out from field'}
+                  <div style={{ color: '#64748b' }}>GPS coordinates not recorded for this punch</div>
+                )}
+              </div>
+            </div>
+
+            {record.punch_in_latitude && record.punch_in_longitude && (
+              <a
+                href={`https://www.google.com/maps?q=${record.punch_in_latitude},${record.punch_in_longitude}`}
+                target="_blank"
+                rel="noreferrer"
+                className="ax-btn ax-btn--sm"
+                style={{
+                  width: '100%',
+                  background: '#10b981',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)',
+                }}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>Open Punch In Location on Google Maps ↗</span>
+              </a>
+            )}
+          </div>
+
+          {/* Card 2: Punch Out Verification */}
+          <div style={{
+            background: 'var(--ax-surface-solid, #ffffff)',
+            border: '1px solid #bfdbfe',
+            borderRadius: 16,
+            padding: 22,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: 'linear-gradient(90deg, #3b82f6, #1d4ed8)',
+            }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#3b82f6' }} />
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e40af' }}>
+                  Punch Out Verification
+                </h4>
+              </div>
+              <span style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: record.punch_out_at ? '#1d4ed8' : '#047857',
+                background: record.punch_out_at ? '#eff6ff' : '#ecfdf5',
+                padding: '4px 10px',
+                borderRadius: 8,
+                border: `1px solid ${record.punch_out_at ? '#bfdbfe' : '#a7f3d0'}`,
+              }}>
+                {record.punch_out_at ? formatTime(record.punch_out_at) : 'Still On Duty'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: '#1e40af' }}>
+                <span style={{ color: 'var(--ax-text-subtle)' }}>Exact Timestamp: </span>
+                <strong>{record.punch_out_at || 'Shift in progress (Pending)'}</strong>
+              </div>
+
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: '#eff6ff',
+                border: '1px solid #dbeafe',
+                fontSize: 13,
+                color: '#1e40af',
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 2 }}>
+                  GPS Coordinates
+                </div>
+                {record.punch_out_latitude && record.punch_out_longitude ? (
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                    Latitude: {record.punch_out_latitude} · Longitude: {record.punch_out_longitude}
+                  </div>
+                ) : (
+                  <div style={{ color: '#64748b' }}>
+                    {record.punch_out_at ? 'GPS coordinates not recorded' : 'Awaiting technician punch out'}
                   </div>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Shift Details Grid */}
+            {record.punch_out_latitude && record.punch_out_longitude ? (
+              <a
+                href={`https://www.google.com/maps?q=${record.punch_out_latitude},${record.punch_out_longitude}`}
+                target="_blank"
+                rel="noreferrer"
+                className="ax-btn ax-btn--sm"
+                style={{
+                  width: '100%',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span>Open Punch Out Location on Google Maps ↗</span>
+              </a>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '8px',
+                fontSize: 12,
+                color: 'var(--ax-text-muted)',
+                background: '#f8fafc',
+                borderRadius: 8,
+              }}>
+                {record.punch_out_at ? 'No GPS location available' : 'Active shift — technician has not yet punched out'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* COLUMN 2: SESSION INFORMATION & FIELD HIERARCHY */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Card 3: Session & Shift Information */}
           <div style={{
             background: 'var(--ax-surface-solid, #ffffff)',
             border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 14,
+            borderRadius: 16,
             padding: 22,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
           }}>
-            <h4 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-              Session Information
+            <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
+              Shift & Session Analytics
             </h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              <InfoItem label="Attendance Date" value={formatDate(record.attendance_date)} sub={record.attendance_date} />
-              <InfoItem label="Shift Duration" value={dur.text} sub={dur.isOngoing ? 'Currently ongoing' : 'Total hours logged'} />
-              <InfoItem label="Punch In Time" value={formatTime(record.punch_in_at)} sub="Field start time" />
-              <InfoItem label="Punch Out Time" value={formatTime(record.punch_out_at)} sub={record.punch_out_at ? 'Field exit time' : 'Pending'} />
-              <InfoItem label="Auto Punched Out" value={record.punch_out_auto ? 'Yes (System Auto)' : 'No (Manual User Punch)'} />
-              <InfoItem label="Created At" value={record.created_at ? new Date(record.created_at).toLocaleString('en-IN') : '—'} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <InfoCard
+                label="Attendance Date"
+                value={formatDate(record.attendance_date)}
+                sub={`Raw date: ${record.attendance_date}`}
+              />
+              <InfoCard
+                label="Total Duration"
+                value={dur.text}
+                sub={dur.isOngoing ? 'Currently ongoing live' : 'Full recorded shift'}
+              />
+              <InfoCard
+                label="Punch In Time"
+                value={formatTime(record.punch_in_at)}
+                sub="Field shift start"
+              />
+              <InfoCard
+                label="Punch Out Time"
+                value={formatTime(record.punch_out_at)}
+                sub={record.punch_out_at ? 'Field shift exit' : 'Pending punch out'}
+              />
+              <InfoCard
+                label="Auto Closed"
+                value={record.punch_out_auto ? 'Yes (System Auto)' : 'No (Manual User Punch)'}
+                sub="Closure mechanism"
+              />
+              <InfoCard
+                label="Record ID"
+                value={`#${record.id}`}
+                sub={`User #${record.user_id}`}
+              />
+              <InfoCard
+                label="Record Created At"
+                value={record.created_at ? new Date(record.created_at).toLocaleString('en-IN') : '—'}
+                sub="Server creation timestamp"
+              />
+              <InfoCard
+                label="Record Updated At"
+                value={record.updated_at ? new Date(record.updated_at).toLocaleString('en-IN') : '—'}
+                sub="Last modification time"
+              />
             </div>
           </div>
 
-          {/* Field Location Hierarchy */}
+          {/* Card 4: Assigned Field Location Hierarchy */}
           <div style={{
+            width:'100%',
             background: 'var(--ax-surface-solid, #ffffff)',
             border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 14,
+            borderRadius: 16,
             padding: 22,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.02)',
           }}>
-            <h4 style={{ margin: '0 0 16px 0', fontSize: 15, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+            <h4 style={{ margin: '0 0 14px 0', fontSize: 16, fontWeight: 800, color: 'var(--ax-text-strong)' }}>
               Assigned Field Location Hierarchy
             </h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              <InfoItem label="State" value={record.user_state} />
-              <InfoItem label="District" value={record.user_district} />
-              <InfoItem label="Block" value={record.user_block} />
-              <InfoItem label="Panchayat" value={record.user_panchayat} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <InfoCard
+                label="State"
+                value={record.user_state}
+                sub="Provincial jurisdiction"
+              />
+              <InfoCard
+                label="District"
+                value={record.user_district}
+                sub="District headquarters"
+              />
+              <InfoCard
+                label="Block"
+                value={record.user_block}
+                sub="Sub-district block"
+              />
+              <InfoCard
+                label="Panchayat"
+                value={record.user_panchayat}
+                sub="Local gram panchayat"
+              />
+            </div>
+
+            <div style={{
+              marginTop: 14,
+              padding: '12px 14px',
+              borderRadius: 10,
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: 12.5,
+            }}>
+              <span style={{ color: 'var(--ax-text-subtle)' }}>
+                Field Assignment: <strong>{[record.user_panchayat, record.user_block, record.user_district, record.user_state].filter(Boolean).join(', ')}</strong>
+              </span>
+              <span style={{
+                background: '#e0f2fe',
+                color: '#0369a1',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontWeight: 700,
+                fontSize: 11,
+              }}>
+                Verified Zone
+              </span>
             </div>
           </div>
         </div>
