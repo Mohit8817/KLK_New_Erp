@@ -549,3 +549,396 @@
   opacity: 1;
   color: #2563eb;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FLYOUT POPOVER BASE (Hidden by default in expanded view)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dle-sb__flyout {
+  display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE: COLLAPSED RAIL MODE (Header toggle & Compact behavior on Desktop)
+   ═══════════════════════════════════════════════════════════════════════════ */
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sidebar {
+  padding: 8px 4px 16px 4px;
+  align-items: center;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .ax-sidebar,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .ax-sidebar__nav {
+  overflow: visible !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__top-card {
+  width: 44px;
+  padding: 6px 4px;
+  margin: 0 auto 10px auto;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__portal-info {
+  justify-content: center;
+  width: 100%;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__portal-text {
+  display: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__portal-badge-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__back-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__back-btn-text {
+  display: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__section-group {
+  width: 100%;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__section {
+  block-size: 1px;
+  height: 1px;
+  margin: 10px 4px;
+  padding: 0;
+  background: var(--ax-border, #e2e8f0);
+  text-indent: -9999px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__section-title {
+  display: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__item-wrapper,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__group {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__item-link--dashboard,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__item-btn--group {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  margin: 0 auto;
+  gap: 0;
+  transform: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__label,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__badge-pill,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__caret {
+  display: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__collapse-wrapper {
+  display: none !important;
+}
+
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__item-link--dashboard.is-active::before {
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+}
+
+/* Tooltip for Dashboard item in collapsed mode */
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__item-link--dashboard:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: 10000;
+  animation: dleTooltipFade 0.14s ease-out;
+}
+
+@keyframes dleTooltipFade {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* Floating Flyout Popover on Hover in Collapsed Mode */
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__group:hover .dle-sb__flyout,
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__group:focus-within .dle-sb__flyout {
+  display: flex !important;
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  z-index: 9999;
+  min-width: 210px;
+  max-width: 260px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  padding: 10px;
+  flex-direction: column;
+  gap: 4px;
+  animation: dleFlyoutFade 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+/* Invisible bridge so mouse hover doesn't drop across the gap */
+:is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__flyout::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+}
+
+[data-ax-theme='dark'] :is([data-ax-collapsed]:not([data-ax-sidebar-style]), [data-ax-sidebar-behavior='compact'], [data-ax-sidebar-style='compact'], [data-ax-sidebar-style='icon-overlay']) .dle-sb__flyout {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes dleFlyoutFade {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.dle-sb__flyout-header {
+  padding: 4px 8px 8px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-header {
+  border-bottom-color: #334155;
+}
+
+.dle-sb__flyout-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #2563eb;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-title {
+  color: #60a5fa;
+}
+
+.dle-sb__flyout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.dle-sb__flyout-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.14s ease;
+}
+
+.dle-sb__flyout-link:hover {
+  background: #f1f5f9;
+  color: #2563eb;
+  transform: translateX(2px);
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-link {
+  color: #cbd5e1;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-link:hover {
+  background: #334155;
+  color: #60a5fa;
+}
+
+.dle-sb__flyout-link.is-active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-link.is-active {
+  background: rgba(37, 99, 235, 0.2);
+  color: #60a5fa;
+}
+
+.dle-sb__flyout-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-subgroup {
+  border-top-color: #334155;
+}
+
+.dle-sb__flyout-subgroup-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+[data-ax-theme='dark'] .dle-sb__flyout-subgroup-title {
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE: MOBILE & TABLET DRAWER (< 768px)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767.98px) {
+  .dle-sidebar {
+    padding: 6px 10px calc(24px + env(safe-area-inset-bottom, 16px)) 10px;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dle-sb__top-card {
+    margin: 0 0 12px 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  [data-ax-theme='dark'] .dle-sb__top-card {
+    background: #1e293b;
+  }
+
+  .dle-sb__portal-info {
+    gap: 10px;
+  }
+
+  .dle-sb__portal-badge-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .dle-sb__portal-title {
+    font-size: 13.5px;
+  }
+
+  .dle-sb__portal-sub {
+    font-size: 11.5px;
+  }
+
+  .dle-sb__back-btn {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+
+  /* Full-width touch friendly items (44px target) */
+  .dle-sb__item-btn,
+  .dle-sb__item-link {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    border-radius: 10px;
+    gap: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dle-sb__item-btn:active,
+  .dle-sb__item-link:active,
+  .dle-sb__leaf-link:active,
+  .dle-sb__subgroup-btn:active {
+    transform: scale(0.985);
+  }
+
+  .dle-sb__icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .dle-sb__subgroup-btn {
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .dle-sb__leaf-link {
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+
+  .dle-sb__leaf-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .dle-sb__children-tree {
+    margin: 4px 0 6px 12px;
+    padding-left: 10px;
+  }
+
+  .dle-sb__sub-tree {
+    margin: 3px 0 5px 8px;
+    padding-left: 10px;
+  }
+}

@@ -13,7 +13,13 @@ import { DLESidebar } from '../DLE/DLESidebar';
 import { VPortalSidebar } from '../V-Portal/VPortalSidebar';
 import { MainErpSidebar } from './MainErpSidebar';
 
-export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
+export function Sidebar({
+  drawerOpen = false,
+  onCloseDrawer,
+}: {
+  drawerOpen?: boolean;
+  onCloseDrawer?: () => void;
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -41,8 +47,8 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>
       {/* ===== BRAND ===== */}
-      <div className="ax-sidebar__brand">
-        <Link className="ax-sidebar__logo" to="/" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }}>
+      <div className="ax-sidebar__brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <Link className="ax-sidebar__logo" to="/" aria-label="KLK Solar ERP home" style={{ textDecoration: 'none' }} onClick={onCloseDrawer}>
           <img
             src="/logo-abbr.png"
             alt="KLK"
@@ -56,6 +62,34 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
             style={{ maxHeight: 38, maxWidth: 155, objectFit: 'contain' }}
           />
         </Link>
+        {drawerOpen && (
+          <button
+            type="button"
+            className="ax-sidebar__drawer-close"
+            onClick={onCloseDrawer}
+            aria-label="Close navigation menu"
+            title="Close menu"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              background: 'var(--ax-surface, #f8fafc)',
+              color: 'var(--ax-text-muted, #64748b)',
+              cursor: 'pointer',
+              marginLeft: 'auto',
+              flexShrink: 0,
+            }}
+          >
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* ===== MENU FILTER ===== */}
@@ -113,7 +147,7 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
       {/* ===== NAV TREE ===== */}
       <nav className="ax-sidebar__nav" role="tree" aria-label="Main menu">
         {isDlePortal ? (
-          <DLESidebar filter={filter} />
+          <DLESidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : isVPortal ? (
           <VPortalSidebar filter={filter} />
         ) : (
@@ -153,7 +187,7 @@ export function Sidebar({ drawerOpen = false }: { drawerOpen?: boolean }) {
           >
             {user?.name ? user.name[0].toUpperCase() : 'U'}
           </div>
-          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+          <div className="ax-sidebar__user-meta" style={{ minWidth: 0, overflow: 'hidden' }}>
             <div
               style={{
                 fontSize: '13px',

@@ -257,7 +257,13 @@ const hasVisibleGroupChildren = (group: NavGroup, filterText: string): boolean =
   });
 };
 
-export function DLESidebar({ filter = '' }: { filter?: string }) {
+export function DLESidebar({
+  filter = '',
+  onNavigate,
+}: {
+  filter?: string;
+  onNavigate?: () => void;
+}) {
   const location = useLocation();
   const currentPath = location.pathname;
 
@@ -268,7 +274,7 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
       {/* ── Top Portal Switcher Card ── */}
       <div className="dle-sb__top-card">
         <div className="dle-sb__portal-info">
-          <div className="dle-sb__portal-badge-icon">
+          <div className="dle-sb__portal-badge-icon" title="DLE Portal (Solar Street Lights)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2" />
@@ -290,9 +296,14 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
           </div>
         </div>
 
-        <Link to="/" className="dle-sb__back-btn" title="Back to Main ERP Dashboard">
-          <span>← Back to ERP</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <Link
+          to="/"
+          className="dle-sb__back-btn"
+          title="Back to Main ERP Dashboard"
+          onClick={onNavigate}
+        >
+          <span className="dle-sb__back-btn-text">← Back to ERP</span>
+          <svg className="dle-sb__back-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </Link>
@@ -314,15 +325,19 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
               if (filter && !item.title.toLowerCase().includes(filter.toLowerCase())) return null;
               const active = isLeafActive(item.to);
               return (
-                <Link
-                  key={item.id}
-                  to={item.to}
-                  className={`dle-sb__item-link dle-sb__item-link--dashboard ${active ? 'is-active' : ''}`}
-                >
-                  <GroupIconBox icon="dashboard" />
-                  <span className="dle-sb__label">{item.title}</span>
-                  <span className="dle-sb__badge-pill">Overview</span>
-                </Link>
+                <div key={item.id} className="dle-sb__item-wrapper">
+                  <Link
+                    to={item.to}
+                    className={`dle-sb__item-link dle-sb__item-link--dashboard ${active ? 'is-active' : ''}`}
+                    onClick={onNavigate}
+                    title={item.title}
+                    data-tooltip={item.title}
+                  >
+                    <GroupIconBox icon="dashboard" />
+                    <span className="dle-sb__label">{item.title}</span>
+                    <span className="dle-sb__badge-pill">Overview</span>
+                  </Link>
+                </div>
               );
             }
 
@@ -332,7 +347,13 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
             }
 
             return (
-              <DLEGroupItem key={item.id} group={item} currentPath={currentPath} filter={filter} />
+              <DLEGroupItem
+                key={item.id}
+                group={item}
+                currentPath={currentPath}
+                filter={filter}
+                onNavigate={onNavigate}
+              />
             );
           })
           .filter(Boolean);
@@ -340,7 +361,7 @@ export function DLESidebar({ filter = '' }: { filter?: string }) {
         if (!renderedItems.length) return null;
 
         return (
-          <div key={sec.section} className="dle-sb__group">
+          <div key={sec.section} className="dle-sb__section-group">
             <div className="dle-sb__section">
               <span className="dle-sb__section-title">{sec.section}</span>
             </div>
@@ -356,10 +377,12 @@ function DLEGroupItem({
   group,
   currentPath,
   filter,
+  onNavigate,
 }: {
   group: NavGroup;
   currentPath: string;
   filter: string;
+  onNavigate?: () => void;
 }) {
   if (!hasVisibleGroupChildren(group, filter)) {
     return null;
@@ -380,6 +403,8 @@ function DLEGroupItem({
         type="button"
         className={`dle-sb__item-btn dle-sb__item-btn--group ${hasActiveChild ? 'is-trail' : ''}`}
         onClick={() => setOpen((o) => !o)}
+        title={group.title}
+        data-tooltip={group.title}
       >
         <GroupIconBox icon={group.icon} />
         <span className="dle-sb__label">{group.title}</span>
@@ -398,7 +423,59 @@ function DLEGroupItem({
         </svg>
       </button>
 
-      {/* Smooth CSS Grid Accordion Collapse */}
+      {/* ── Collapsed Flyout Popover (Active only when rail is collapsed) ── */}
+      <div className="dle-sb__flyout" role="menu" aria-label={group.title}>
+        <div className="dle-sb__flyout-header">
+          <span className="dle-sb__flyout-title">{group.title}</span>
+        </div>
+        <div className="dle-sb__flyout-list">
+          {group.children.map((child) => {
+            if ('to' in child) {
+              if (!canAccessSlug(child.to.replace(/^\//, ''))) return null;
+              const cActive = isLeafActive(child.to);
+              return (
+                <Link
+                  key={child.id}
+                  to={child.to}
+                  className={`dle-sb__flyout-link ${cActive ? 'is-active' : ''}`}
+                  onClick={onNavigate}
+                >
+                  <LeafIcon type={child.iconType} />
+                  <span>{child.title}</span>
+                </Link>
+              );
+            }
+
+            // SubGroup inside flyout
+            const subChildren = child.children.filter((sc) =>
+              canAccessSlug(sc.to.replace(/^\//, ''))
+            );
+            if (!subChildren.length) return null;
+
+            return (
+              <div key={child.id} className="dle-sb__flyout-subgroup">
+                <div className="dle-sb__flyout-subgroup-title">
+                  <span>{child.title}</span>
+                  {child.tag && <span className="dle-sb__subgroup-tag">{child.tag}</span>}
+                </div>
+                {subChildren.map((sc) => (
+                  <Link
+                    key={sc.id}
+                    to={sc.to}
+                    className={`dle-sb__flyout-link ${isLeafActive(sc.to) ? 'is-active' : ''}`}
+                    onClick={onNavigate}
+                  >
+                    <LeafIcon type={sc.iconType} />
+                    <span>{sc.title}</span>
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Smooth CSS Grid Accordion Collapse for Expanded/Mobile view */}
       <div className={`dle-sb__collapse-wrapper ${isOpen ? 'is-open' : ''}`}>
         <div className="dle-sb__collapse-inner">
           <div className="dle-sb__children-tree">
@@ -412,6 +489,7 @@ function DLEGroupItem({
                     key={child.id}
                     to={child.to}
                     className={`dle-sb__leaf-link ${cActive ? 'is-active' : ''}`}
+                    onClick={onNavigate}
                   >
                     <LeafIcon type={child.iconType} />
                     <span className="dle-sb__label">{child.title}</span>
@@ -426,6 +504,7 @@ function DLEGroupItem({
                   subGroup={child}
                   currentPath={currentPath}
                   filter={filter}
+                  onNavigate={onNavigate}
                 />
               );
             })}
@@ -440,10 +519,12 @@ function DLESubGroupItem({
   subGroup,
   currentPath,
   filter,
+  onNavigate,
 }: {
   subGroup: NavSubGroup;
   currentPath: string;
   filter: string;
+  onNavigate?: () => void;
 }) {
   const isLeafActive = (to: string) => currentPath === to;
   const hasActiveChild = subGroup.children.some((c) => isLeafActive(c.to));
@@ -460,7 +541,7 @@ function DLESubGroupItem({
   if (!visibleChildren.length) return null;
 
   return (
-    <div style={{ margin: '2px 0' }}>
+    <div className="dle-sb__subgroup-wrapper">
       <button
         type="button"
         className={`dle-sb__item-btn dle-sb__subgroup-btn ${hasActiveChild ? 'is-trail' : ''}`}
@@ -494,6 +575,7 @@ function DLESubGroupItem({
                   key={c.id}
                   to={c.to}
                   className={`dle-sb__leaf-link ${cActive ? 'is-active' : ''}`}
+                  onClick={onNavigate}
                 >
                   <LeafIcon type={c.iconType} />
                   <span className="dle-sb__label">{c.title}</span>
