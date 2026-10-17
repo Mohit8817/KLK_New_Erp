@@ -267,7 +267,7 @@ const LOGIN_CSS = `
 export function SolarLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { loginUser, loginVendor, isAuthenticated } = useAuth();
+  const { user, loginUser, loginVendor, isAuthenticated } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'user' | 'vendor'>('user');
   const [email, setEmail] = useState('');
@@ -277,6 +277,9 @@ export function SolarLoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
 
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
   // Check URL params for ?type=vendor or ?portal=vendor to pre-select vendor tab
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -298,8 +301,12 @@ export function SolarLoginPage() {
   // Auto redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const isVendor = user?.role === 'vendor' || !!user?.vendor_id || activeTab === 'vendor';
-      navigate(redirectTo(isVendor ? 'vendor' : 'user'), { replace: true });
+      const isVendorUser =
+        user?.role === 'vendor' ||
+        !!user?.vendor_id ||
+        (user?.user_type && String(user.user_type).toLowerCase() === 'vendor') ||
+        activeTab === 'vendor';
+      navigate(redirectTo(isVendorUser ? 'vendor' : 'user'), { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, navigate, location, user]);
