@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   // Show full dashboard skeleton instead of any spinner while verifying session
@@ -18,6 +18,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If a vendor visits DLE routes, redirect directly to /v-dashboard
+  const isVendor =
+    user?.role === 'vendor' ||
+    !!user?.vendor_id ||
+    (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
+
+  if (isVendor && location.pathname.startsWith('/dle')) {
+    return <Navigate to="/v-dashboard" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

@@ -290,12 +290,33 @@ export function SolarLoginPage() {
   }, [location.search]);
 
   const redirectTo = (type?: 'user' | 'vendor') => {
+    const isVendor =
+      type === 'vendor' ||
+      activeTab === 'vendor' ||
+      user?.role === 'vendor' ||
+      !!user?.vendor_id ||
+      (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
+
+    if (isVendor) {
+      const fromPath = (location.state as any)?.from?.pathname;
+      if (
+        fromPath &&
+        (fromPath.startsWith('/v-dashboard') ||
+         fromPath.startsWith('/vendor') ||
+         fromPath.startsWith('/assam') ||
+         fromPath.startsWith('/jammu') ||
+         fromPath.startsWith('/up'))
+      ) {
+        return fromPath;
+      }
+      return '/v-dashboard';
+    }
+
     const fromPath = (location.state as any)?.from?.pathname;
-    if (fromPath && fromPath !== '/login' && fromPath !== '/') {
+    if (fromPath && fromPath !== '/login' && fromPath !== '/' && !fromPath.startsWith('/v-dashboard') && !fromPath.startsWith('/vendor')) {
       return fromPath;
     }
-    const isVendor = type === 'vendor' || activeTab === 'vendor';
-    return isVendor ? '/v-dashboard' : '/';
+    return '/';
   };
 
   // Auto redirect if already authenticated
@@ -306,7 +327,7 @@ export function SolarLoginPage() {
         !!user?.vendor_id ||
         (user?.user_type && String(user.user_type).toLowerCase() === 'vendor') ||
         activeTab === 'vendor';
-      navigate(redirectTo(isVendorUser ? 'vendor' : 'user'), { replace: true });
+      navigate(isVendorUser ? '/v-dashboard' : redirectTo('user'), { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, navigate, location, user]);
@@ -331,7 +352,7 @@ export function SolarLoginPage() {
         const res = await loginUser(email, password, rememberMe);
         if (res.success) {
           setSuccessMessage(res.message || 'Login successful! Redirecting to ERP...');
-          setTimeout(() => navigate(redirectTo('user'), { replace: true }), 600);
+          setTimeout(() => navigate(redirectTo('user'), { replace: true }), 500);
         } else {
           setErrorMessage(res.message || 'Credentials do not match.');
         }
@@ -349,7 +370,7 @@ export function SolarLoginPage() {
         const res = await loginVendor(vendorId, password, rememberMe);
         if (res.success) {
           setSuccessMessage(res.message || 'Vendor login successful! Redirecting to V-Portal...');
-          setTimeout(() => navigate(redirectTo('vendor'), { replace: true }), 600);
+          setTimeout(() => navigate('/v-dashboard', { replace: true }), 500);
         } else {
           setErrorMessage(res.message || 'Invalid Vendor ID or password.');
         }
