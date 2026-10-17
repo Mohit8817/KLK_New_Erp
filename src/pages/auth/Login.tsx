@@ -277,18 +277,32 @@ export function SolarLoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
 
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // Check URL params for ?type=vendor or ?portal=vendor to pre-select vendor tab
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('type') || params.get('tab') || params.get('portal');
+    if (tabParam === 'vendor') {
+      setActiveTab('vendor');
+    }
+  }, [location.search]);
 
-  const redirectTo = () => (location.state as any)?.from?.pathname || '/';
+  const redirectTo = (type?: 'user' | 'vendor') => {
+    const fromPath = (location.state as any)?.from?.pathname;
+    if (fromPath && fromPath !== '/login' && fromPath !== '/') {
+      return fromPath;
+    }
+    const isVendor = type === 'vendor' || activeTab === 'vendor';
+    return isVendor ? '/v-dashboard' : '/';
+  };
 
   // Auto redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(redirectTo(), { replace: true });
+      const isVendor = user?.role === 'vendor' || !!user?.vendor_id || activeTab === 'vendor';
+      navigate(redirectTo(isVendor ? 'vendor' : 'user'), { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, navigate, location, user]);
 
   const handleTabChange = (tab: 'user' | 'vendor') => {
     setActiveTab(tab);
@@ -310,7 +324,7 @@ export function SolarLoginPage() {
         const res = await loginUser(email, password, rememberMe);
         if (res.success) {
           setSuccessMessage(res.message || 'Login successful! Redirecting to ERP...');
-          setTimeout(() => navigate(redirectTo(), { replace: true }), 600);
+          setTimeout(() => navigate(redirectTo('user'), { replace: true }), 600);
         } else {
           setErrorMessage(res.message || 'Credentials do not match.');
         }
@@ -327,8 +341,8 @@ export function SolarLoginPage() {
       try {
         const res = await loginVendor(vendorId, password, rememberMe);
         if (res.success) {
-          setSuccessMessage(res.message || 'Vendor login successful! Redirecting to ERP...');
-          setTimeout(() => navigate(redirectTo(), { replace: true }), 600);
+          setSuccessMessage(res.message || 'Vendor login successful! Redirecting to V-Portal...');
+          setTimeout(() => navigate(redirectTo('vendor'), { replace: true }), 600);
         } else {
           setErrorMessage(res.message || 'Invalid Vendor ID or password.');
         }

@@ -82,6 +82,7 @@ const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'
 const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
 const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 const MapsLeaflet = lazy(() => import('./pages/maps/Leaflet'));
+const VPortalDashboard = lazy(() => import('./components/V-Portal/VPortalDashboard'));
 
 // const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
 // const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
@@ -434,6 +435,9 @@ const shell: Record<string, PageComponent> = {
   'dle/attendance/:id': DLEAttendanceDetail,
   'attendance': DLEAttendanceViewData,
   'attendance/:id': DLEAttendanceDetail,
+  'v-dashboard': VPortalDashboard,
+  'v-portal': VPortalDashboard,
+  'vendor/dashboard': VPortalDashboard,
 
   // 'assam': AssamDashboard,
   // 'assam/dashboard': AssamDashboard,
@@ -745,8 +749,10 @@ export function App() {
               <Route index element={wrap(ErpMainDashboard)} />
               <Route path="dashboard" element={wrap(ErpMainDashboard)} />
               <Route path="erp-dashboard" element={wrap(ErpMainDashboard)} />
-              <Route path="vendor/dashboard" element={wrap(ModulePlaceholder)} />
-              <Route path="vendor" element={wrap(ModulePlaceholder)} />
+              <Route path="vendor/dashboard" element={wrap(VPortalDashboard)} />
+              <Route path="vendor" element={wrap(VPortalDashboard)} />
+              <Route path="v-dashboard" element={wrap(VPortalDashboard)} />
+              <Route path="v-portal" element={wrap(VPortalDashboard)} />
               <Route path="gallery" element={wrap(AppsGallery)} />
               <Route path="complaints" element={wrap(ModulePlaceholder)} />
               <Route path="reports/analytics" element={wrap(DashboardsAnalytics)} />

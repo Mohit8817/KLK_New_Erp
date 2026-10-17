@@ -40,6 +40,7 @@ export function Sidebar({
   const isVPortal =
     pathname.startsWith('/vendor') ||
     pathname.startsWith('/v-portal') ||
+    pathname.startsWith('/v-dashboard') ||
     pathname.startsWith('/assam') ||
     pathname.startsWith('/jammu') ||
     pathname.startsWith('/up');
@@ -149,7 +150,7 @@ export function Sidebar({
         {isDlePortal ? (
           <DLESidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : isVPortal ? (
-          <VPortalSidebar filter={filter} />
+          <VPortalSidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : (
           <MainErpSidebar filter={filter} />
         )}

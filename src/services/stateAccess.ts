@@ -29,6 +29,9 @@ export const getAllowedStates = (): string[] | 'ALL' => {
 
   const u = loginUser();
   const session = authService.getSession();
+  if (session?.role === 'vendor' || u?.role === 'vendor' || session?.vendor_id || u?.vendor_id) {
+    return 'ALL';
+  }
 
   let list: any =
     u?.state_access ??
