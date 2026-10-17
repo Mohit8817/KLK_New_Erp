@@ -61,7 +61,10 @@ const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', '
 
 /** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam' */
 export const stateOfSlug = (slug: string): string | null => {
-  const clean = slug.replace(/^\/+/, '');
+  let clean = slug.replace(/^\/+/, '');
+  if (clean.startsWith('v/')) {
+    clean = clean.slice(2);
+  }
   const mDle = clean.match(/^dle\/([^/]+)\//);
   if (mDle) {
     const candidate = normState(mDle[1]);
@@ -70,6 +73,10 @@ export const stateOfSlug = (slug: string): string | null => {
   }
   const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir)\//);
   if (mV) return normState(mV[1]);
+  if (clean.startsWith('up-') || clean.includes('/up/')) return 'up';
+  if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
+  if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
+  if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
   return null;
 };
 

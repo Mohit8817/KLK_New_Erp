@@ -41,6 +41,8 @@ export function Sidebar({
     pathname.startsWith('/vendor') ||
     pathname.startsWith('/v-portal') ||
     pathname.startsWith('/v-dashboard') ||
+    pathname.startsWith('/v/') ||
+    pathname === '/v' ||
     pathname.startsWith('/assam') ||
     pathname.startsWith('/jammu') ||
     pathname.startsWith('/up');

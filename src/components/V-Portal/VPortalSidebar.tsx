@@ -1,148 +1,542 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { canAccessSlug, canAccessState } from '../../services/stateAccess';
+import { canAccessState } from '../../services/stateAccess';
 import './v-portal-sidebar.css';
 
 interface VPortalItem {
   title: string;
   to: string;
-  iconType?: 'survey' | 'install' | 'amc' | 'expense' | 'complaint' | 'view';
 }
 
 interface VPortalSubGroup {
   id: string;
   title: string;
-  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints';
   items: VPortalItem[];
+}
+
+interface VPortalCategory {
+  id: string;
+  title: string;
+  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints';
+  subgroups: VPortalSubGroup[];
 }
 
 interface VPortalSection {
   section: string;
-  state?: string;
-  groups: VPortalSubGroup[];
+  state: string;
+  categories: VPortalCategory[];
 }
 
 const V_PORTAL_NAVIGATION: VPortalSection[] = [
+  /* ═══════════════════ UTTAR PRADESH ═══════════════════ */
   {
-    section: 'Assam Operations',
-    state: 'assam',
-    groups: [
+    section: 'Uttar Pradesh',
+    state: 'up',
+    categories: [
       {
-        id: 'assam.installation',
-        title: 'Installation (SWP)',
+        id: 'up.survey',
+        title: 'Survey',
+        icon: 'survey',
+        subgroups: [
+          {
+            id: 'up.survey.srt',
+            title: 'SRT',
+            items: [
+              { title: 'Add Survey', to: '/v/up/srt-surveys/create' },
+              { title: 'View Survey', to: '/v/up/srt-surveys/view' },
+            ],
+          },
+          {
+            id: 'up.survey.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Assigned Survey', to: '/v/up/view-assigned-resco-survey' },
+              { title: 'Add Resco', to: '/v/up/resco-survey' },
+              { title: 'View Resco', to: '/v/up/view-resco-survey' },
+            ],
+          },
+          {
+            id: 'up.survey.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Survey', to: '/v/edit-ssl' },
+              { title: 'View Data', to: '/v/view-upssl' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'up.installation',
+        title: 'Installation',
         icon: 'installation',
-        items: [
-          { title: 'SWP Dashboard', to: '/assam/swp/dashboard', iconType: 'view' },
-          { title: 'Installation Request', to: '/assam/swp/installation-request', iconType: 'install' },
-          { title: 'Installation Site', to: '/assam/swp/installation-site', iconType: 'install' },
-          { title: 'View Installation', to: '/assam/swp/view-installation', iconType: 'view' },
-          { title: 'View Payment', to: '/assam/swp/view-payment', iconType: 'expense' },
+        subgroups: [
+          {
+            id: 'up.installation.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Dashboard', to: '/v/up/resco-installation-dashboard' },
+              { title: 'Assigned Sites', to: '/v/up/resco-view-assign-installation-sites' },
+              { title: 'Install Site', to: '/v/up/resco-install-site' },
+              { title: 'Installation Detail', to: '/v/up/resco-view-install-site' },
+              { title: 'Claim Request', to: '/v/up/resco-installation-claim' },
+              { title: 'Monthly Bill', to: '/v/up/resco-view-install' },
+            ],
+          },
+          {
+            id: 'up.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/up/ssl-18w-installation-dashboard' },
+              { title: 'Assigned Lights', to: '/v/up/view-18w-assign-installation-sites' },
+              { title: 'Install Light', to: '/v/up/ssl-install-18w-light' },
+              { title: 'Installation Detail', to: '/v/up/ssl-view-installed-18w-light' },
+              { title: 'Claim Request', to: '/v/up/ssl-view-installation-18w-claim' },
+            ],
+          },
+          {
+            id: 'up.installation.kusum-c',
+            title: 'Kusum C',
+            items: [
+              { title: 'Dashboard', to: '/v/up/kusum-c-installation-dashboard' },
+              { title: 'Installation Request', to: '/v/up/view-kusum-c-assign-installation-sites' },
+              { title: 'Install Site', to: '/v/up/install-kusum-c-site' },
+              { title: 'View Installation', to: '/v/up/view-kusum-c-install-site' },
+              { title: 'View Payment', to: '/v/up/kusum-c-installation-claim' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'up.amc',
+        title: 'AMC',
+        icon: 'amc',
+        subgroups: [
+          {
+            id: 'up.amc.resco',
+            title: 'Resco',
+            items: [
+              { title: 'View Assign Site', to: '/v/up-resco-amc-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up-resco-amc-create-site' },
+              { title: 'Completed AMC', to: '/v/up-resco-amc-view-site' },
+              { title: 'Payment', to: '/v/up-resco-amc-claim-site' },
+            ],
+          },
+          {
+            id: 'up.amc.kusum-c',
+            title: 'Kusum C',
+            items: [
+              { title: 'View Assign AMC', to: '/v/up/kusumc/amc/fetch-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up/kusumc/amc/assign-site' },
+              { title: 'Completed AMC', to: '/v/up/kusumc/amc/completed-details' },
+            ],
+          },
+          {
+            id: 'up.amc.kusum-b',
+            title: 'Kusum B',
+            items: [
+              { title: 'View Assign AMC', to: '/v/up/kusumb/amc/amc/fetch-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up/kusumb/amc/assign-site' },
+              { title: 'Completed AMC', to: '/v/up/kusumb/amc/completed-details' },
+            ],
+          },
+          {
+            id: 'up.amc.powerpack',
+            title: 'Power Pack',
+            items: [
+              { title: 'View Assign AMC', to: '/v/up/powerpack/amc/amc/fetch-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up/powerpack/amc/assign-site' },
+              { title: 'Completed AMC', to: '/v/up/powerpack/amc/completed-details' },
+            ],
+          },
+          {
+            id: 'up.amc.ongrid',
+            title: 'Ongrid',
+            items: [
+              { title: 'View Assign AMC', to: '/v/up/ongrid/amc/amc/fetch-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up/ongrid/amc/assign-site' },
+              { title: 'Completed AMC', to: '/v/up/ongrid/amc/completed-details' },
+            ],
+          },
+          {
+            id: 'up.amc.offgrid',
+            title: 'Offgrid',
+            items: [
+              { title: 'View Assign AMC', to: '/v/up/offgrid/amc/amc/fetch-view-assign-site' },
+              { title: 'Pending AMC', to: '/v/up/offgrid/amc/assign-site' },
+              { title: 'Completed AMC', to: '/v/up/offgrid/amc/completed-details' },
+            ],
+          },
+          {
+            id: 'up.amc.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'View Assign Light', to: '/v/up-ssl-amc-view-assign-light' },
+              { title: 'Pending AMC', to: '/v/up-ssl-amc-create-light' },
+              { title: 'Completed AMC', to: '/v/up-ssl-amc-view-light' },
+              { title: 'Payment', to: '/v/up-ssl-amc-claim-light' },
+            ],
+          },
+          {
+            id: 'up.amc.ssl-18w',
+            title: 'SSL 18W',
+            items: [
+              { title: 'View Assign Light', to: '/v/up-ssl18w-amc-view-assign-light' },
+              { title: 'Pending AMC', to: '/v/up-ssl18w-amc-create-light' },
+              { title: 'Completed AMC', to: '/v/up-ssl18w-amc-view-light' },
+              { title: 'Payment', to: '/v/up-ssl18w-amc-claim-light' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'up.complaint',
+        title: 'Complaint',
+        icon: 'complaints',
+        subgroups: [
+          {
+            id: 'up.complaint.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/resco-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/resco-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/resco-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/ssl-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/ssl-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/ssl-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.kusum-c',
+            title: 'Kusum C',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/swp-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/swp-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/swp-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.kusum-b',
+            title: 'Kusum B',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/kusumb-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/kusumb-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/kusumb-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.ongrid',
+            title: 'Ongrid',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/ongrid-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/ongrid-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/ongrid-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.offgrid',
+            title: 'Offgrid',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/offgrid-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/offgrid-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/offgrid-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.powerpack',
+            title: 'Power Pack',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/powerpack/add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/powerpack-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/powerpack-assign-complaint' },
+            ],
+          },
+          {
+            id: 'up.complaint.srlmsrt',
+            title: 'SRLMSRT',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/up/srlmsrt/add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/up/srlmsrt/view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/up/srlmsrt/assign-complaint' },
+            ],
+          },
         ],
       },
     ],
   },
+
+  /* ═══════════════════ BIHAR ═══════════════════ */
+  {
+    section: 'Bihar',
+    state: 'bihar',
+    categories: [
+      {
+        id: 'bihar.survey',
+        title: 'Survey',
+        icon: 'survey',
+        subgroups: [
+          {
+            id: 'bihar.survey.srt200mw',
+            title: 'SRT200MW',
+            items: [
+              { title: 'Add Data', to: '/v/bihar/srt200mw-survey' },
+              { title: 'View Data', to: '/v/bihar/view-srt200mw-survey' },
+            ],
+          },
+          {
+            id: 'bihar.survey.ula',
+            title: 'ULA',
+            items: [
+              { title: 'Add Data', to: '/v/bihar/ula-surveys/create' },
+              { title: 'View Data', to: '/v/bihar/ula-surveys/view' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bihar.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'bihar.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/ssl/installation-dashboard' },
+              { title: 'Assigned Lights', to: '/v/ssl/view-assigned-ssl-site' },
+              { title: 'Install Light', to: '/v/ssl/update-ssl-site-deatils' },
+              { title: 'Installation Detail', to: '/v/ssl/view-ssl-complete-site' },
+              { title: 'Claim Request', to: '/v/ssl/view-claim-request-deatils' },
+              { title: 'Supply Inspection', to: '/v/bihar/ssl-light-supply-inspection' },
+              { title: 'Installation Inspection', to: '/v/bihar/ssl-light-installation-inspection' },
+            ],
+          },
+          {
+            id: 'bihar.installation.srt',
+            title: 'SRT',
+            items: [
+              { title: 'Dashboard', to: '/v/bihar/vendor-srt-installation-dashboard' },
+              { title: 'Request Accept', to: '/v/srt/viewassignsite' },
+              { title: 'Installation Details', to: '/v/srt/installationsite' },
+              { title: 'View Installation', to: '/v/srt/allassignsite' },
+              { title: 'Claim Request', to: '/v/srt/paymentsrtVendor' },
+            ],
+          },
+          {
+            id: 'bihar.installation.ula',
+            title: 'ULA',
+            items: [
+              { title: 'Dashboard', to: '/v/bihar/ula-installation-dashboard' },
+              { title: 'Request Accept', to: '/v/bihar/ula-installation-view-assign-site' },
+              { title: 'Installation Details', to: '/v/bihar/ula-installation-pending-structure-site' },
+              { title: 'View Installation', to: '/v/bihar/ula-installation-view-site' },
+              { title: 'Add Payment', to: '/v/bihar/ula-installation-claim' },
+              { title: 'Payment', to: '/v/bihar/ula-installation-view-payment' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bihar.amc',
+        title: 'AMC',
+        icon: 'amc',
+        subgroups: [
+          {
+            id: 'bihar.amc.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Add Data', to: '/v/edit-biharssl' },
+              { title: 'View Data', to: '/v/view-biharssl' },
+              { title: 'Complaint Raised', to: '/v/ssl/view-bihar-ssl-complaint' },
+            ],
+          },
+          {
+            id: 'bihar.amc.srt',
+            title: 'SRT',
+            items: [
+              { title: 'Add Data', to: '/v/bihar-add-srt-amc' },
+              { title: 'View Data', to: '/v/bihar-view-srt-amc' },
+              { title: 'Complaint Raised', to: '/v/bihar-view-srt-amc-complaint' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bihar.complaints',
+        title: 'Complaints',
+        icon: 'complaints',
+        subgroups: [
+          {
+            id: 'bihar.complaints.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/bihar/ssl-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/bihar/ssl-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/bihar/ssl-assign-complaint' },
+            ],
+          },
+          {
+            id: 'bihar.complaints.srt',
+            title: 'SRT',
+            items: [
+              { title: 'Add Complaint', to: '/v/complaint/bihar/srt-add-complaint' },
+              { title: 'View Complaint', to: '/v/complaint/bihar/srt-view-complaint' },
+              { title: 'Assigned Complaint', to: '/v/complaint/bihar/srt-assign-complaint' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ═══════════════════ ASSAM ═══════════════════ */
+  {
+    section: 'Assam',
+    state: 'assam',
+    categories: [
+      {
+        id: 'assam.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'assam.installation.swp',
+            title: 'SWP',
+            items: [
+              { title: 'Dashboard', to: '/v/assam/installation/swp/dashboard' },
+              { title: 'Installation Request', to: '/v/assam/installation/swp/request' },
+              { title: 'Installation Site', to: '/v/assam/installation/swp/site' },
+              { title: 'View Installation', to: '/v/assam/installation/swp/view' },
+              { title: 'View Payment', to: '/v/assam/installation/swp/payment' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ═══════════════════ JAMMU & KASHMIR ═══════════════════ */
   {
     section: 'Jammu & Kashmir',
     state: 'jammu',
-    groups: [
+    categories: [
       {
         id: 'jammu.survey',
-        title: 'Survey Operations',
+        title: 'Survey',
         icon: 'survey',
-        items: [
-          { title: 'Assign Survey (Resco)', to: '/jammu/survey/resco/assign-survey', iconType: 'survey' },
-          { title: 'Pending Survey (Resco)', to: '/jammu/survey/resco/pending-survey', iconType: 'survey' },
-          { title: 'View Survey (Resco)', to: '/jammu/survey/resco/view-survey', iconType: 'view' },
-          { title: 'Add 70MW SRT', to: '/jammu/survey/srt-70mw/add-srt', iconType: 'survey' },
-          { title: 'View 70MW SRT', to: '/jammu/survey/srt-70mw/view-data', iconType: 'view' },
+        subgroups: [
+          {
+            id: 'jammu.survey.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Assign Survey', to: '/v/jammu/survey/resco/assign-survey' },
+              { title: 'Pending Survey', to: '/v/jammu/survey/resco/pending-survey' },
+              { title: 'View Survey', to: '/v/jammu/survey/resco/view-survey' },
+            ],
+          },
+          {
+            id: 'jammu.survey.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Add 70MW SRT', to: '/v/jammu/survey/srt-70mw/add-srt' },
+              { title: 'View 70MW SRT', to: '/v/jammu/survey/srt-70mw/view-data' },
+            ],
+          },
         ],
       },
       {
         id: 'jammu.installation',
-        title: 'Installation System',
+        title: 'Installation',
         icon: 'installation',
-        items: [
-          { title: '70MW SRT Dashboard', to: '/jammu/installation/srt-70mw/dashboard', iconType: 'view' },
-          { title: 'Assign Site (70MW)', to: '/jammu/installation/srt-70mw/assign-site', iconType: 'install' },
-          { title: 'Install Site (70MW)', to: '/jammu/installation/srt-70mw/install-sites', iconType: 'install' },
-          { title: 'Installation Details (70MW)', to: '/jammu/installation/srt-70mw/installation-details', iconType: 'view' },
-          { title: 'Claim Request (70MW)', to: '/jammu/installation/srt-70mw/claim-request', iconType: 'expense' },
-          { title: 'Resco Dashboard', to: '/jammu/installation/resco/dashboard', iconType: 'view' },
-          { title: 'SSL Dashboard', to: '/jammu/installation/ssl/dashboard', iconType: 'view' },
-          { title: 'SWP Dashboard', to: '/jammu/installation/swp/dashboard', iconType: 'view' },
+        subgroups: [
+          {
+            id: 'jammu.installation.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/resco/dashboard' },
+              { title: 'Assigned Sites', to: '/v/jammu/installation/resco/assigned-sites' },
+              { title: 'Install Site', to: '/v/jammu/installation/resco/install-site' },
+              { title: 'Installation Details', to: '/v/jammu/installation/resco/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/resco/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/srt-70mw/dashboard' },
+              { title: 'Assign Site', to: '/v/jammu/installation/srt-70mw/assign-site' },
+              { title: 'Install Sites', to: '/v/jammu/installation/srt-70mw/install-sites' },
+              { title: 'Installation Details', to: '/v/jammu/installation/srt-70mw/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/srt-70mw/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/ssl/dashboard' },
+              { title: 'Assign Lights', to: '/v/jammu/installation/ssl/assign-lights' },
+              { title: 'Install Lights', to: '/v/jammu/installation/ssl/install-lights' },
+              { title: 'Installation Details', to: '/v/jammu/installation/ssl/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/ssl/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.swp',
+            title: 'SWP',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/swp/dashboard' },
+              { title: 'Installation Request', to: '/v/jammu/installation/swp/installation-request' },
+              { title: 'Installation Site', to: '/v/jammu/installation/swp/installation-site' },
+              { title: 'View Installation', to: '/v/jammu/installation/swp/view-installation' },
+              { title: 'View Payment', to: '/v/jammu/installation/swp/view-payment' },
+            ],
+          },
         ],
       },
       {
         id: 'jammu.expenses',
         title: 'Installation Expenses',
         icon: 'expenses',
-        items: [
-          { title: 'Request Expenses (70MW)', to: '/jammu/installation-expenses/srt-70mw/request-expenses', iconType: 'expense' },
-          { title: 'View Expenses (70MW)', to: '/jammu/installation-expenses/srt-70mw/view-expenses', iconType: 'view' },
-          { title: 'View Payments (70MW)', to: '/jammu/installation-expenses/srt-70mw/view-payments', iconType: 'expense' },
+        subgroups: [
+          {
+            id: 'jammu.expenses.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Request Expenses', to: '/v/jammu/installation-expenses/srt-70mw/request-expenses' },
+              { title: 'View Expenses', to: '/v/jammu/installation-expenses/srt-70mw/view-expenses' },
+              { title: 'View Payments', to: '/v/jammu/installation-expenses/srt-70mw/view-payments' },
+            ],
+          },
         ],
       },
       {
         id: 'jammu.amc',
-        title: 'AMC Maintenance',
+        title: 'AMC',
         icon: 'amc',
-        items: [
-          { title: 'Assign Survey (Resco)', to: '/jammu/amc/resco/assign-survey', iconType: 'amc' },
-          { title: 'Pending Survey (Resco)', to: '/jammu/amc/resco/pending-survey', iconType: 'amc' },
-          { title: 'View Survey (Resco)', to: '/jammu/amc/resco/view-survey', iconType: 'view' },
-          { title: 'View Assign Light (SSL)', to: '/jammu/amc/ssl/view-assign-amc', iconType: 'amc' },
-        ],
-      },
-    ],
-  },
-  {
-    section: 'Uttar Pradesh',
-    state: 'up',
-    groups: [
-      {
-        id: 'up.survey',
-        title: 'Survey Operations',
-        icon: 'survey',
-        items: [
-          { title: 'Assigned Survey (Resco)', to: '/up/survey/resco/assigned-survey', iconType: 'survey' },
-          { title: 'Add Resco', to: '/up/survey/resco/add-resco', iconType: 'survey' },
-          { title: 'View Resco', to: '/up/survey/resco/view-resco', iconType: 'view' },
-          { title: 'Survey (SSL)', to: '/up/survey/ssl/survey', iconType: 'survey' },
-          { title: 'View Data (SSL)', to: '/up/survey/ssl/view-data', iconType: 'view' },
-        ],
-      },
-      {
-        id: 'up.installation',
-        title: 'Installation System',
-        icon: 'installation',
-        items: [
-          { title: 'Resco Dashboard', to: '/up/installation/resco/dashboard', iconType: 'view' },
-          { title: 'SSL Dashboard', to: '/up/installation/ssl/dashboard', iconType: 'view' },
-          { title: 'Kusum C Dashboard', to: '/up/installation/kusum-c/dashboard', iconType: 'view' },
-        ],
-      },
-      {
-        id: 'up.amc',
-        title: 'AMC Maintenance',
-        icon: 'amc',
-        items: [
-          { title: 'View Assign Site (Resco)', to: '/up/amc/resco/view-assign-site', iconType: 'amc' },
-          { title: 'View Assign AMC (Kusum C)', to: '/up/amc/kusum-c/view-assign-amc', iconType: 'amc' },
-          { title: 'View Assign Light (SSL)', to: '/up/amc/ssl/view-assign-light', iconType: 'amc' },
-          { title: 'View Assign Light (SSL 18W)', to: '/up/amc/ssl-18w/view-assign-light', iconType: 'amc' },
-        ],
-      },
-      {
-        id: 'up.complaint',
-        title: 'Complaints & Claims',
-        icon: 'complaints',
-        items: [
-          { title: 'Add Complaint (Resco)', to: '/up/complaint/resco/add-complaint', iconType: 'complaint' },
-          { title: 'View Complaint (Resco)', to: '/up/complaint/resco/view-complaint', iconType: 'view' },
-          { title: 'Add Complaint (SSL)', to: '/up/complaint/ssl/add-complaint', iconType: 'complaint' },
-          { title: 'View Complaint (SSL)', to: '/up/complaint/ssl/view-complaint', iconType: 'view' },
-          { title: 'Add Complaint (Kusum C)', to: '/up/complaint/kusum-c/add-complaint', iconType: 'complaint' },
-          { title: 'Add Complaint (SRLM SRT)', to: '/up/complaint/srlmsrt/add-complaint', iconType: 'complaint' },
+        subgroups: [
+          {
+            id: 'jammu.amc.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Assign Survey', to: '/v/jammu/amc/resco/assign-survey' },
+              { title: 'Pending Survey', to: '/v/jammu/amc/resco/pending-survey' },
+              { title: 'View Survey', to: '/v/jammu/amc/resco/view-survey' },
+            ],
+          },
+          {
+            id: 'jammu.amc.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'View Assign AMC', to: '/v/jammu/amc/ssl/view-assign-amc' },
+            ],
+          },
         ],
       },
     ],
@@ -176,7 +570,7 @@ function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'a
       return (
         <div className="vp-sb__icon-box vp-sb__icon-box--installation">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
           </svg>
         </div>
       );
@@ -193,7 +587,7 @@ function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'a
       return (
         <div className="vp-sb__icon-box vp-sb__icon-box--amc">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
         </div>
       );
@@ -206,54 +600,6 @@ function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'a
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-      );
-  }
-}
-
-function VPLeafIcon({ type }: { type?: VPortalItem['iconType'] }) {
-  switch (type) {
-    case 'survey':
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-          <rect x="9" y="3" width="6" height="4" rx="1" />
-        </svg>
-      );
-    case 'install':
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <line x1="12" y1="8" x2="12" y2="16" />
-          <line x1="8" y1="12" x2="16" y2="12" />
-        </svg>
-      );
-    case 'expense':
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="1" x2="12" y2="23" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      );
-    case 'amc':
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      );
-    case 'complaint':
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      );
-    case 'view':
-    default:
-      return (
-        <svg className="vp-sb__leaf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
       );
   }
 }
@@ -276,39 +622,8 @@ export function VPortalSidebar({
 
   return (
     <div className="vp-sidebar">
-      {/* ── Top Portal Switcher Card ── */}
-      {/* <div className="vp-sb__top-card">
-        <div className="vp-sb__portal-info">
-          <div className="vp-sb__portal-badge-icon" title="V-Portal (Vendor Operations)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          <div className="vp-sb__portal-text">
-            <span className="vp-sb__portal-title">
-              V-Portal
-              <span className="vp-sb__live-dot" title="Vendor Mode Active" />
-            </span>
-            <span className="vp-sb__portal-sub">Vendor Operations</span>
-          </div>
-        </div>
-
-        <Link
-          to="/"
-          className="vp-sb__back-btn"
-          title="Back to Main ERP Dashboard"
-          onClick={onNavigate}
-        >
-          <span className="vp-sb__back-btn-text">← Back to ERP</span>
-          <svg className="vp-sb__back-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </Link>
-      </div> */}
-
       {/* ── Primary V-Portal Dashboard Link ── */}
-      <div className="vp-sb__item-wrapper" style={{ marginBottom: 8 }}>
+      <div className="vp-sb__item-wrapper" style={{ marginBottom: 10 }}>
         <Link
           to="/v-dashboard"
           className={`vp-sb__item-link vp-sb__item-link--dashboard ${isDashboardActive ? 'is-active' : ''}`}
@@ -328,36 +643,41 @@ export function VPortalSidebar({
           return null;
         }
 
-        const renderedGroups = sec.groups
-          .map((group) => {
-            const matchingItems = group.items.filter(
-              (item) =>
-                canAccessSlug(item.to.replace(/^\//, '')) &&
-                (!filter || item.title.toLowerCase().includes(filter.toLowerCase()))
-            );
+        const filteredCategories = sec.categories
+          .map((cat) => {
+            const filteredSubgroups = cat.subgroups
+              .map((sub) => {
+                const matchingItems = sub.items.filter(
+                  (item) =>
+                    !filter ||
+                    item.title.toLowerCase().includes(filter.toLowerCase()) ||
+                    sub.title.toLowerCase().includes(filter.toLowerCase()) ||
+                    cat.title.toLowerCase().includes(filter.toLowerCase())
+                );
+                return matchingItems.length ? { ...sub, items: matchingItems } : null;
+              })
+              .filter(Boolean) as VPortalSubGroup[];
 
-            if (!matchingItems.length) return null;
-
-            return (
-              <VPortalGroupItem
-                key={group.id}
-                group={{ ...group, items: matchingItems }}
-                currentPath={currentPath}
-                filter={filter}
-                onNavigate={onNavigate}
-              />
-            );
+            return filteredSubgroups.length ? { ...cat, subgroups: filteredSubgroups } : null;
           })
-          .filter(Boolean);
+          .filter(Boolean) as VPortalCategory[];
 
-        if (!renderedGroups.length) return null;
+        if (!filteredCategories.length) return null;
 
         return (
           <div key={sec.section} className="vp-sb__section-group">
             <div className="vp-sb__section">
               <span className="vp-sb__section-title">{sec.section}</span>
             </div>
-            {renderedGroups}
+            {filteredCategories.map((cat) => (
+              <VPortalCategoryItem
+                key={cat.id}
+                category={cat}
+                currentPath={currentPath}
+                filter={filter}
+                onNavigate={onNavigate}
+              />
+            ))}
           </div>
         );
       })}
@@ -365,19 +685,21 @@ export function VPortalSidebar({
   );
 }
 
-function VPortalGroupItem({
-  group,
+/** Level 1: Category (e.g. Installation, Survey, AMC, Complaint) */
+function VPortalCategoryItem({
+  category,
   currentPath,
   filter,
   onNavigate,
 }: {
-  group: VPortalSubGroup;
+  category: VPortalCategory;
   currentPath: string;
   filter: string;
   onNavigate?: () => void;
 }) {
-  const isItemActive = (to: string) => currentPath === to;
-  const hasActiveChild = group.items.some((item) => isItemActive(item.to));
+  const hasActiveChild = category.subgroups.some((sub) =>
+    sub.items.some((item) => currentPath === item.to || currentPath.replace(/^\/v\//, '/') === item.to.replace(/^\/v\//, '/'))
+  );
 
   const [open, setOpen] = useState(true);
   const isOpen = filter ? true : open || hasActiveChild;
@@ -388,11 +710,11 @@ function VPortalGroupItem({
         type="button"
         className={`vp-sb__item-btn vp-sb__item-btn--group ${hasActiveChild ? 'is-trail' : ''}`}
         onClick={() => setOpen((o) => !o)}
-        title={group.title}
-        data-tooltip={group.title}
+        title={category.title}
+        data-tooltip={category.title}
       >
-        <VPIconBox icon={group.icon} />
-        <span className="vp-sb__label">{group.title}</span>
+        <VPIconBox icon={category.icon} />
+        <span className="vp-sb__label">{category.title}</span>
         <svg
           className={`vp-sb__caret ${isOpen ? 'is-open' : ''}`}
           width="15"
@@ -409,42 +731,118 @@ function VPortalGroupItem({
       </button>
 
       {/* ── Collapsed Flyout Popover (Active only when rail is collapsed) ── */}
-      <div className="vp-sb__flyout" role="menu" aria-label={group.title}>
+      <div className="vp-sb__flyout" role="menu" aria-label={category.title}>
         <div className="vp-sb__flyout-header">
-          <span className="vp-sb__flyout-title">{group.title}</span>
+          <span className="vp-sb__flyout-title">{category.title}</span>
         </div>
         <div className="vp-sb__flyout-list">
-          {group.items.map((item) => {
-            const active = isItemActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`vp-sb__flyout-link ${active ? 'is-active' : ''}`}
-                onClick={onNavigate}
-              >
-                <VPLeafIcon type={item.iconType} />
-                <span>{item.title}</span>
-              </Link>
-            );
-          })}
+          {category.subgroups.map((sub) => (
+            <div key={sub.id} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-text-muted)', padding: '2px 8px' }}>
+                {sub.title}
+              </div>
+              {sub.items.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`vp-sb__flyout-link ${currentPath === item.to ? 'is-active' : ''}`}
+                  onClick={onNavigate}
+                >
+                  <svg className="vp-sb__leaf-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="6" />
+                  </svg>
+                  <span>{item.title}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ── Smooth CSS Grid Accordion Collapse for Expanded/Mobile view ── */}
+      {/* ── Smooth CSS Grid Accordion for Expanded/Mobile view ── */}
       <div className={`vp-sb__collapse-wrapper ${isOpen ? 'is-open' : ''}`}>
         <div className="vp-sb__collapse-inner">
           <div className="vp-sb__children-tree">
-            {group.items.map((item) => {
-              const itemActive = isItemActive(item.to);
+            {category.subgroups.map((sub) => (
+              <VPortalSubgroupItem
+                key={sub.id}
+                subgroup={sub}
+                currentPath={currentPath}
+                filter={filter}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Level 2: Sub-group (e.g. SWP, Resco, SSL, Kusum C) */
+function VPortalSubgroupItem({
+  subgroup,
+  currentPath,
+  filter,
+  onNavigate,
+}: {
+  subgroup: VPortalSubGroup;
+  currentPath: string;
+  filter: string;
+  onNavigate?: () => void;
+}) {
+  const hasActiveLeaf = subgroup.items.some(
+    (item) => currentPath === item.to || currentPath.replace(/^\/v\//, '/') === item.to.replace(/^\/v\//, '/')
+  );
+
+  const [open, setOpen] = useState(true);
+  const isOpen = filter ? true : open || hasActiveLeaf;
+
+  return (
+    <div className="vp-sb__subgroup-block" style={{ marginBottom: 4 }}>
+      <button
+        type="button"
+        className={`vp-sb__sub-btn ${hasActiveLeaf ? 'is-trail' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        title={subgroup.title}
+      >
+        {/* Bullseye / target icon matching user image */}
+        <svg className="vp-sb__sub-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="3.5" fill="currentColor" />
+        </svg>
+        <span className="vp-sb__label" style={{ fontWeight: 600 }}>{subgroup.title}</span>
+        <svg
+          className={`vp-sb__caret ${isOpen ? 'is-open' : ''}`}
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Level 3: Leaf links container */}
+      <div className={`vp-sb__collapse-wrapper ${isOpen ? 'is-open' : ''}`}>
+        <div className="vp-sb__collapse-inner">
+          <div className="vp-sb__leaf-tree">
+            {subgroup.items.map((item) => {
+              const active = currentPath === item.to || currentPath.replace(/^\/v\//, '/') === item.to.replace(/^\/v\//, '/');
               return (
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`vp-sb__leaf-link ${itemActive ? 'is-active' : ''}`}
+                  className={`vp-sb__leaf-link ${active ? 'is-active' : ''}`}
                   onClick={onNavigate}
                 >
-                  <VPLeafIcon type={item.iconType} />
+                  <svg className="vp-sb__leaf-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="6" />
+                  </svg>
                   <span className="vp-sb__label">{item.title}</span>
                 </Link>
               );

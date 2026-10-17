@@ -84,134 +84,180 @@ const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 const MapsLeaflet = lazy(() => import('./pages/maps/Leaflet'));
 const VPortalDashboard = lazy(() => import('./components/V-Portal/VPortalDashboard'));
 
-// const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
-// const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
-// const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
-// const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
-// const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
-// const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
+const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
+const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
+const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
+const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
+const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
+const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 
-// const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
-// const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
+const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
+const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
 
 // ── Uttar Pradesh: Survey ──
-// const UPSurveyRescoAssignedSurvey = lazy(() => import('./components/V-Portal/up/Survey/Resco/AssignedSurvey'));
-// const UPSurveyRescoAddResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/AddResco'));
-// const UPSurveyRescoViewResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/ViewResco'));
-// const UPSurveySSLSurvey = lazy(() => import('./components/V-Portal/up/Survey/SSL/Survey'));
-// const UPSurveySSLViewData = lazy(() => import('./components/V-Portal/up/Survey/SSL/ViewData'));
+const UPSurveySRTAdd = lazy(() => import('./components/V-Portal/up/Survey/SRT/AddSurvey'));
+const UPSurveySRTView = lazy(() => import('./components/V-Portal/up/Survey/SRT/ViewSurvey'));
+const UPSurveyRescoAssignedSurvey = lazy(() => import('./components/V-Portal/up/Survey/Resco/AssignedSurvey'));
+const UPSurveyRescoAddResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/AddResco'));
+const UPSurveyRescoViewResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/ViewResco'));
+const UPSurveySSLSurvey = lazy(() => import('./components/V-Portal/up/Survey/SSL/Survey'));
+const UPSurveySSLViewData = lazy(() => import('./components/V-Portal/up/Survey/SSL/ViewData'));
 
 // ── Uttar Pradesh: Installation ──
-// const UPInstRescoDb = lazy(() => import('./components/V-Portal/up/Installation/Resco/Dashboard'));
-// const UPInstRescoAssigned = lazy(() => import('./components/V-Portal/up/Installation/Resco/AssignedSites'));
-// const UPInstRescoInstall = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallSite'));
-// const UPInstRescoDetail = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallationDetail'));
-// const UPInstRescoClaim = lazy(() => import('./components/V-Portal/up/Installation/Resco/ClaimRequest'));
-// const UPInstRescoBill = lazy(() => import('./components/V-Portal/up/Installation/Resco/MonthlyBill'));
-// const UPInstSSLDb = lazy(() => import('./components/V-Portal/up/Installation/SSL/Dashboard'));
-// const UPInstSSLAssigned = lazy(() => import('./components/V-Portal/up/Installation/SSL/AssignedLights'));
-// const UPInstSSLInstall = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallLight'));
-// const UPInstSSLDetail = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallationDetail'));
-// const UPInstSSLClaim = lazy(() => import('./components/V-Portal/up/Installation/SSL/ClaimRequest'));
-// const UPInstKCDb = lazy(() => import('./components/V-Portal/up/Installation/KusumC/Dashboard'));
-// const UPInstKCReq = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallationRequest'));
-// const UPInstKCInstall = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallSite'));
-// const UPInstKCView = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewInstallation'));
-// const UPInstKCPay = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewPayment'));
+const UPInstRescoDb = lazy(() => import('./components/V-Portal/up/Installation/Resco/Dashboard'));
+const UPInstRescoAssigned = lazy(() => import('./components/V-Portal/up/Installation/Resco/AssignedSites'));
+const UPInstRescoInstall = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallSite'));
+const UPInstRescoDetail = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallationDetail'));
+const UPInstRescoClaim = lazy(() => import('./components/V-Portal/up/Installation/Resco/ClaimRequest'));
+const UPInstRescoBill = lazy(() => import('./components/V-Portal/up/Installation/Resco/MonthlyBill'));
+const UPInstSSLDb = lazy(() => import('./components/V-Portal/up/Installation/SSL/Dashboard'));
+const UPInstSSLAssigned = lazy(() => import('./components/V-Portal/up/Installation/SSL/AssignedLights'));
+const UPInstSSLInstall = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallLight'));
+const UPInstSSLDetail = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallationDetail'));
+const UPInstSSLClaim = lazy(() => import('./components/V-Portal/up/Installation/SSL/ClaimRequest'));
+const UPInstKCDb = lazy(() => import('./components/V-Portal/up/Installation/KusumC/Dashboard'));
+const UPInstKCReq = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallationRequest'));
+const UPInstKCInstall = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallSite'));
+const UPInstKCView = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewInstallation'));
+const UPInstKCPay = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewPayment'));
 
-// // ── Uttar Pradesh: AMC ──
-// const UPAMCRescoViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Resco/ViewAssignSite'));
-// const UPAMCRescoPending = lazy(() => import('./components/V-Portal/up/AMC/Resco/PendingAMC'));
-// const UPAMCRescoCompleted = lazy(() => import('./components/V-Portal/up/AMC/Resco/CompletedAMC'));
-// const UPAMCRescoPay = lazy(() => import('./components/V-Portal/up/AMC/Resco/Payment'));
-// const UPAMCKCViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumC/ViewAssignAMC'));
-// const UPAMCKCPending = lazy(() => import('./components/V-Portal/up/AMC/KusumC/PendingAMC'));
-// const UPAMCKCCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumC/CompletedAMC'));
-// const UPAMCKBViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumB/ViewAssignAMC'));
-// const UPAMCKBPending = lazy(() => import('./components/V-Portal/up/AMC/KusumB/PendingAMC'));
-// const UPAMCKBCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumB/CompletedAMC'));
-// const UPAMCPPViewAssign = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/ViewAssignAMC'));
-// const UPAMCPPPending = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/PendingAMC'));
-// const UPAMCPPCompleted = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/CompletedAMC'));
-// const UPAMCOngridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/ViewAssignAMC'));
-// const UPAMCOngridPending = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/PendingAMC'));
-// const UPAMCOngridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/CompletedAMC'));
-// const UPAMCOffgridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/ViewAssignAMC'));
-// const UPAMCOffgridPending = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/PendingAMC'));
-// const UPAMCOffgridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/CompletedAMC'));
-// const UPAMCSSLViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL/ViewAssignLight'));
-// const UPAMCSSLPending = lazy(() => import('./components/V-Portal/up/AMC/SSL/PendingAMC'));
-// const UPAMCSSLCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL/CompletedAMC'));
-// const UPAMCSSLPay = lazy(() => import('./components/V-Portal/up/AMC/SSL/Payment'));
-// const UPAMCSSL18WViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/ViewAssignLight'));
-// const UPAMCSSL18WPending = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/PendingAMC'));
-// const UPAMCSSL18WCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/CompletedAMC'));
-// const UPAMCSSL18WPay = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/Payment'));
+// ── Uttar Pradesh: AMC ──
+const UPAMCRescoViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Resco/ViewAssignSite'));
+const UPAMCRescoPending = lazy(() => import('./components/V-Portal/up/AMC/Resco/PendingAMC'));
+const UPAMCRescoCompleted = lazy(() => import('./components/V-Portal/up/AMC/Resco/CompletedAMC'));
+const UPAMCRescoPay = lazy(() => import('./components/V-Portal/up/AMC/Resco/Payment'));
+const UPAMCKCViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumC/ViewAssignAMC'));
+const UPAMCKCPending = lazy(() => import('./components/V-Portal/up/AMC/KusumC/PendingAMC'));
+const UPAMCKCCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumC/CompletedAMC'));
+const UPAMCKBViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumB/ViewAssignAMC'));
+const UPAMCKBPending = lazy(() => import('./components/V-Portal/up/AMC/KusumB/PendingAMC'));
+const UPAMCKBCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumB/CompletedAMC'));
+const UPAMCPPViewAssign = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/ViewAssignAMC'));
+const UPAMCPPPending = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/PendingAMC'));
+const UPAMCPPCompleted = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/CompletedAMC'));
+const UPAMCOngridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/ViewAssignAMC'));
+const UPAMCOngridPending = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/PendingAMC'));
+const UPAMCOngridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/CompletedAMC'));
+const UPAMCOffgridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/ViewAssignAMC'));
+const UPAMCOffgridPending = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/PendingAMC'));
+const UPAMCOffgridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/CompletedAMC'));
+const UPAMCSSLViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL/ViewAssignLight'));
+const UPAMCSSLPending = lazy(() => import('./components/V-Portal/up/AMC/SSL/PendingAMC'));
+const UPAMCSSLCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL/CompletedAMC'));
+const UPAMCSSLPay = lazy(() => import('./components/V-Portal/up/AMC/SSL/Payment'));
+const UPAMCSSL18WViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/ViewAssignLight'));
+const UPAMCSSL18WPending = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/PendingAMC'));
+const UPAMCSSL18WCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/CompletedAMC'));
+const UPAMCSSL18WPay = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/Payment'));
 
-// // ── Uttar Pradesh: Complaint ──
-// const UPComplaintRescoAdd = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AddComplaint'));
-// const UPComplaintRescoView = lazy(() => import('./components/V-Portal/up/Complaint/Resco/ViewComplaint'));
-// const UPComplaintRescoAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AssignedComplaint'));
-// const UPComplaintSSLAdd = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AddComplaint'));
-// const UPComplaintSSLView = lazy(() => import('./components/V-Portal/up/Complaint/SSL/ViewComplaint'));
-// const UPComplaintSSLAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AssignedComplaint'));
-// const UPComplaintKCAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AddComplaint'));
-// const UPComplaintKCView = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/ViewComplaint'));
-// const UPComplaintKCAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AssignedComplaint'));
-// const UPComplaintKBAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AddComplaint'));
-// const UPComplaintKBView = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/ViewComplaint'));
-// const UPComplaintKBAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AssignedComplaint'));
-// const UPComplaintOngridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AddComplaint'));
-// const UPComplaintOngridView = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/ViewComplaint'));
-// const UPComplaintOngridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AssignedComplaint'));
-// const UPComplaintOffgridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AddComplaint'));
-// const UPComplaintOffgridView = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/ViewComplaint'));
-// const UPComplaintOffgridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AssignedComplaint'));
-// const UPComplaintPPAdd = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AddComplaint'));
-// const UPComplaintPPView = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/ViewComplaint'));
-// const UPComplaintPPAssigned = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AssignedComplaint'));
-// const UPComplaintSRLMAdd = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AddComplaint'));
-// const UPComplaintSRLMView = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/ViewComplaint'));
-// const UPComplaintSRLMAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AssignedComplaint'));
+// ── Uttar Pradesh: Complaint ──
+const UPComplaintRescoAdd = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AddComplaint'));
+const UPComplaintRescoView = lazy(() => import('./components/V-Portal/up/Complaint/Resco/ViewComplaint'));
+const UPComplaintRescoAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AssignedComplaint'));
+const UPComplaintSSLAdd = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AddComplaint'));
+const UPComplaintSSLView = lazy(() => import('./components/V-Portal/up/Complaint/SSL/ViewComplaint'));
+const UPComplaintSSLAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AssignedComplaint'));
+const UPComplaintKCAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AddComplaint'));
+const UPComplaintKCView = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/ViewComplaint'));
+const UPComplaintKCAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AssignedComplaint'));
+const UPComplaintKBAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AddComplaint'));
+const UPComplaintKBView = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/ViewComplaint'));
+const UPComplaintKBAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AssignedComplaint'));
+const UPComplaintOngridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AddComplaint'));
+const UPComplaintOngridView = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/ViewComplaint'));
+const UPComplaintOngridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AssignedComplaint'));
+const UPComplaintOffgridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AddComplaint'));
+const UPComplaintOffgridView = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/ViewComplaint'));
+const UPComplaintOffgridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AssignedComplaint'));
+const UPComplaintPPAdd = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AddComplaint'));
+const UPComplaintPPView = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/ViewComplaint'));
+const UPComplaintPPAssigned = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AssignedComplaint'));
+const UPComplaintSRLMAdd = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AddComplaint'));
+const UPComplaintSRLMView = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/ViewComplaint'));
+const UPComplaintSRLMAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AssignedComplaint'));
 
+// ── Jammu ──
+const JMSurveyRescoAssign = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Assign_Survey'));
+const JMSurveyRescoPending = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Pending_Survey'));
+const JMSurveyRescoView = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/View_Survey'));
+const JMSurveySRTView = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/ViewData'));
 
-// // ── Jammu ──
-// const JMSurveyRescoAssign = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Assign_Survey'));
-// const JMSurveyRescoPending = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Pending_Survey'));
-// const JMSurveyRescoView = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/View_Survey'));
-// const JMSurveySRTView = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/ViewData'));
+const JMInstRescoDb = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoDashboard'));
+const JMInstRescoAssigned = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoAssignedSites'));
+const JMInstRescoInstall = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallSite'));
+const JMInstRescoDetail = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallationDetails'));
+const JMInstRescoClaim = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoClaimRequest'));
 
-// const JMInstRescoDb = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoDashboard'));
-// const JMInstRescoAssigned = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoAssignedSites'));
-// const JMInstRescoInstall = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallSite'));
-// const JMInstRescoDetail = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallationDetails'));
-// const JMInstRescoClaim = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoClaimRequest'));
+const JMInstSRTAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/AssignSite'));
+const JMInstSRTInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallSites'));
+const JMInstSRTDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallationDetails'));
+const JMInstSRTClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/ClaimRequest'));
 
-// const JMInstSRTAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/AssignSite'));
-// const JMInstSRTInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallSites'));
-// const JMInstSRTDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallationDetails'));
-// const JMInstSRTClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/ClaimRequest'));
+const JMInstSSLDb = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLDashboard'));
+const JMInstSSLAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/AssignLights'));
+const JMInstSSLInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/InstallLights'));
+const JMInstSSLDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLInstallationDetails'));
+const JMInstSSLClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLClaimRequest'));
 
-// const JMInstSSLDb = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLDashboard'));
-// const JMInstSSLAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/AssignLights'));
-// const JMInstSSLInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/InstallLights'));
-// const JMInstSSLDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLInstallationDetails'));
-// const JMInstSSLClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLClaimRequest'));
+const JMInstSWPDb = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPDashboard'));
+const JMInstSWPReq = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationRequest'));
+const JMInstSWPSite = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationSite'));
+const JMInstSWPView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewInstallation'));
+const JMInstSWPPay = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewPayment'));
 
-// const JMInstSWPDb = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPDashboard'));
-// const JMInstSWPReq = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationRequest'));
-// const JMInstSWPSite = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationSite'));
-// const JMInstSWPView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewInstallation'));
-// const JMInstSWPPay = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewPayment'));
+const JMExpRequest = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/RequestExpenses'));
+const JMExpView = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewExpenses'));
+const JMExpPay = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewPayments'));
 
-// const JMExpRequest = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/RequestExpenses'));
-// const JMExpView = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewExpenses'));
-// const JMExpPay = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewPayments'));
+const JMAMCRescoAssign = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoAssignSurvey'));
+const JMAMCRescoPending = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoPendingSurvey'));
+const JMAMCRescoView = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoViewSurvey'));
+const JMAMCSSLViewAssign = lazy(() => import('./components/V-Portal/jammu/AMC/SSL/ViewAssignAMC'));
 
-// const JMAMCRescoAssign = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoAssignSurvey'));
-// const JMAMCRescoPending = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoPendingSurvey'));
-// const JMAMCRescoView = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoViewSurvey'));
-// const JMAMCSSLViewAssign = lazy(() => import('./components/V-Portal/jammu/AMC/SSL/ViewAssignAMC'));
+// ── Bihar: Survey ──
+const BiharSurveySRT200MWAdd = lazy(() => import('./components/V-Portal/bihar/Survey/SRT200MW/AddData'));
+const BiharSurveySRT200MWView = lazy(() => import('./components/V-Portal/bihar/Survey/SRT200MW/ViewData'));
+const BiharSurveyULAAdd = lazy(() => import('./components/V-Portal/bihar/Survey/ULA/AddData'));
+const BiharSurveyULAView = lazy(() => import('./components/V-Portal/bihar/Survey/ULA/ViewData'));
+
+// ── Bihar: Installation ──
+const BiharInstSSLDb = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/Dashboard'));
+const BiharInstSSLAssign = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/AssignedLights'));
+const BiharInstSSLInstall = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallLight'));
+const BiharInstSSLDetail = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallationDetail'));
+const BiharInstSSLClaim = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/ClaimRequest'));
+const BiharInstSSLSupplyInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/SupplyInspection'));
+const BiharInstSSLInstallInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallationInspection'));
+
+const BiharInstSRTDb = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/Dashboard'));
+const BiharInstSRTRequest = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/RequestAccept'));
+const BiharInstSRTDetails = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/InstallationDetails'));
+const BiharInstSRTView = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/ViewInstallation'));
+const BiharInstSRTClaim = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/ClaimRequest'));
+
+const BiharInstULADb = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/Dashboard'));
+const BiharInstULARequest = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/RequestAccept'));
+const BiharInstULADetails = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/InstallationDetails'));
+const BiharInstULAView = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/ViewInstallation'));
+const BiharInstULAAddPay = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/AddPayment'));
+const BiharInstULAPay = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/Payment'));
+
+// ── Bihar: AMC ──
+const BiharAMCSSLAdd = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/AddData'));
+const BiharAMCSSLView = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/ViewData'));
+const BiharAMCSSLComplaint = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/ComplaintRaised'));
+const BiharAMCSRTAdd = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/AddData'));
+const BiharAMCSRTView = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/ViewData'));
+const BiharAMCSRTComplaint = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/ComplaintRaised'));
+
+// ── Bihar: Complaints ──
+const BiharComplaintSSLAdd = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/AddComplaint'));
+const BiharComplaintSSLView = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/ViewComplaint'));
+const BiharComplaintSSLAssign = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/AssignedComplaint'));
+const BiharComplaintSRTAdd = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AddComplaint'));
+const BiharComplaintSRTView = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/ViewComplaint'));
+const BiharComplaintSRTAssign = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AssignedComplaint'));
+
 
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 // const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
@@ -439,142 +485,460 @@ const shell: Record<string, PageComponent> = {
   'v-portal': VPortalDashboard,
   'vendor/dashboard': VPortalDashboard,
 
-  // 'assam': AssamDashboard,
-  // 'assam/dashboard': AssamDashboard,
-  // 'assam/installation': AssamInstallation,
-  // 'assam/swp': AssamDashboard,
-  // 'assam/swp/dashboard': AssamDashboard,
-  // 'assam/swp/installation-request': AssamInstallationRequest,
-  // 'assam/installation-request': AssamInstallationRequest,
-  // 'assam/swp/installation-site': AssamInstallationSite,
-  // 'assam/installation-site': AssamInstallationSite,
-  // 'assam/swp/add-installation': AssamInstallationSite,
-  // 'assam/add-installation': AssamInstallationSite,
-  // 'assam/swp/view-installation': AssamViewInstallation,
-  // 'assam/view-installation': AssamViewInstallation,
-  // 'assam/swp/view-payment': AssamViewPayment,
-  // 'assam/view-payment': AssamViewPayment,
+  // ══════════════ V-PORTAL: ASSAM ══════════════
+  'v/assam/installation/swp/dashboard': AssamDashboard,
+  'v/assam/installation/swp/request': AssamInstallationRequest,
+  'v/assam/installation/swp/site': AssamInstallationSite,
+  'v/assam/installation/swp/view': AssamViewInstallation,
+  'v/assam/installation/swp/payment': AssamViewPayment,
+  'assam': AssamDashboard,
+  'assam/dashboard': AssamDashboard,
+  'assam/installation': AssamInstallation,
+  'assam/swp': AssamDashboard,
+  'assam/swp/dashboard': AssamDashboard,
+  'assam/swp/installation-request': AssamInstallationRequest,
+  'assam/installation-request': AssamInstallationRequest,
+  'assam/swp/installation-site': AssamInstallationSite,
+  'assam/installation-site': AssamInstallationSite,
+  'assam/swp/add-installation': AssamInstallationSite,
+  'assam/add-installation': AssamInstallationSite,
+  'assam/swp/view-installation': AssamViewInstallation,
+  'assam/view-installation': AssamViewInstallation,
+  'assam/swp/view-payment': AssamViewPayment,
+  'assam/view-payment': AssamViewPayment,
 
-  // ── Uttar Pradesh: Survey ──
-  // 'up/survey/resco/assigned-survey': UPSurveyRescoAssignedSurvey,
-  // 'up/survey/resco/add-resco': UPSurveyRescoAddResco,
-  // 'up/survey/resco/view-resco': UPSurveyRescoViewResco,
-  // 'up/survey/ssl/survey': UPSurveySSLSurvey,
-  // 'up/survey/ssl/view-data': UPSurveySSLViewData,
+  // ══════════════ V-PORTAL: UTTAR PRADESH: SURVEY ══════════════
+  'v/up/srt-surveys/create': UPSurveySRTAdd,
+  'v/up/srt-surveys/view': UPSurveySRTView,
+  'up/srt-surveys/create': UPSurveySRTAdd,
+  'up/srt-surveys/view': UPSurveySRTView,
+  'v/up/view-assigned-resco-survey': UPSurveyRescoAssignedSurvey,
+  'v/up/resco-survey': UPSurveyRescoAddResco,
+  'v/up/view-resco-survey': UPSurveyRescoViewResco,
+  'up/view-assigned-resco-survey': UPSurveyRescoAssignedSurvey,
+  'up/resco-survey': UPSurveyRescoAddResco,
+  'up/view-resco-survey': UPSurveyRescoViewResco,
+  'up/survey/resco/assigned-survey': UPSurveyRescoAssignedSurvey,
+  'up/survey/resco/add-resco': UPSurveyRescoAddResco,
+  'up/survey/resco/view-resco': UPSurveyRescoViewResco,
+  'v/edit-ssl': UPSurveySSLSurvey,
+  'v/view-upssl': UPSurveySSLViewData,
+  'edit-ssl': UPSurveySSLSurvey,
+  'view-upssl': UPSurveySSLViewData,
+  'up/survey/ssl/survey': UPSurveySSLSurvey,
+  'up/survey/ssl/view-data': UPSurveySSLViewData,
 
-  // ── Uttar Pradesh: Installation ──
-  // 'up/installation/resco/dashboard': UPInstRescoDb,
-  // 'up/installation/resco/assigned-sites': UPInstRescoAssigned,
-  // 'up/installation/resco/install-site': UPInstRescoInstall,
-  // 'up/installation/resco/installation-detail': UPInstRescoDetail,
-  // 'up/installation/resco/claim-request': UPInstRescoClaim,
-  // 'up/installation/resco/monthly-bill': UPInstRescoBill,
-  // 'up/installation/ssl/dashboard': UPInstSSLDb,
-  // 'up/installation/ssl/assigned-lights': UPInstSSLAssigned,
-  // 'up/installation/ssl/install-light': UPInstSSLInstall,
-  // 'up/installation/ssl/installation-detail': UPInstSSLDetail,
-  // 'up/installation/ssl/claim-request': UPInstSSLClaim,
-  // 'up/installation/kusum-c/dashboard': UPInstKCDb,
-  // 'up/installation/kusum-c/installation-request': UPInstKCReq,
-  // 'up/installation/kusum-c/install-site': UPInstKCInstall,
-  // 'up/installation/kusum-c/view-installation': UPInstKCView,
-  // 'up/installation/kusum-c/view-payment': UPInstKCPay,
+  // ══════════════ V-PORTAL: UTTAR PRADESH: INSTALLATION ══════════════
+  'v/up/resco-installation-dashboard': UPInstRescoDb,
+  'v/up/resco-view-assign-installation-sites': UPInstRescoAssigned,
+  'v/up/resco-install-site': UPInstRescoInstall,
+  'v/up/resco-view-install-site': UPInstRescoDetail,
+  'v/up/resco-installation-claim': UPInstRescoClaim,
+  'v/up/resco-view-install': UPInstRescoBill,
+  'up/resco-installation-dashboard': UPInstRescoDb,
+  'up/resco-view-assign-installation-sites': UPInstRescoAssigned,
+  'up/resco-install-site': UPInstRescoInstall,
+  'up/resco-view-install-site': UPInstRescoDetail,
+  'up/resco-installation-claim': UPInstRescoClaim,
+  'up/resco-view-install': UPInstRescoBill,
+  'up/installation/resco/dashboard': UPInstRescoDb,
+  'up/installation/resco/assigned-sites': UPInstRescoAssigned,
+  'up/installation/resco/install-site': UPInstRescoInstall,
+  'up/installation/resco/installation-detail': UPInstRescoDetail,
+  'up/installation/resco/claim-request': UPInstRescoClaim,
+  'up/installation/resco/monthly-bill': UPInstRescoBill,
 
-  // ── Uttar Pradesh: AMC ──
-  // 'up/amc/resco/view-assign-site': UPAMCRescoViewAssign,
-  // 'up/amc/resco/pending-amc': UPAMCRescoPending,
-  // 'up/amc/resco/completed-amc': UPAMCRescoCompleted,
-  // 'up/amc/resco/payment': UPAMCRescoPay,
-  // 'up/amc/kusum-c/view-assign-amc': UPAMCKCViewAssign,
-  // 'up/amc/kusum-c/pending-amc': UPAMCKCPending,
-  // 'up/amc/kusum-c/completed-amc': UPAMCKCCompleted,
-  // 'up/amc/kusum-b/view-assign-amc': UPAMCKBViewAssign,
-  // 'up/amc/kusum-b/pending-amc': UPAMCKBPending,
-  // 'up/amc/kusum-b/completed-amc': UPAMCKBCompleted,
-  // 'up/amc/powerpack/view-assign-amc': UPAMCPPViewAssign,
-  // 'up/amc/powerpack/pending-amc': UPAMCPPPending,
-  // 'up/amc/powerpack/completed-amc': UPAMCPPCompleted,
-  // 'up/amc/ongrid/view-assign-amc': UPAMCOngridViewAssign,
-  // 'up/amc/ongrid/pending-amc': UPAMCOngridPending,
-  // 'up/amc/ongrid/completed-amc': UPAMCOngridCompleted,
-  // 'up/amc/offgrid/view-assign-amc': UPAMCOffgridViewAssign,
-  // 'up/amc/offgrid/pending-amc': UPAMCOffgridPending,
-  // 'up/amc/offgrid/completed-amc': UPAMCOffgridCompleted,
-  // 'up/amc/ssl/view-assign-light': UPAMCSSLViewAssign,
-  // 'up/amc/ssl/pending-amc': UPAMCSSLPending,
-  // 'up/amc/ssl/completed-amc': UPAMCSSLCompleted,
-  // 'up/amc/ssl/payment': UPAMCSSLPay,
-  // 'up/amc/ssl-18w/view-assign-light': UPAMCSSL18WViewAssign,
-  // 'up/amc/ssl-18w/pending-amc': UPAMCSSL18WPending,
-  // 'up/amc/ssl-18w/completed-amc': UPAMCSSL18WCompleted,
-  // 'up/amc/ssl-18w/payment': UPAMCSSL18WPay,
+  'v/up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'v/up/view-18w-assign-installation-sites': UPInstSSLAssigned,
+  'v/up/ssl-install-18w-light': UPInstSSLInstall,
+  'v/up/ssl-view-installed-18w-light': UPInstSSLDetail,
+  'v/up/ssl-view-installation-18w-claim': UPInstSSLClaim,
+  'up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'up/view-18w-assign-installation-sites': UPInstSSLAssigned,
+  'up/ssl-install-18w-light': UPInstSSLInstall,
+  'up/ssl-view-installed-18w-light': UPInstSSLDetail,
+  'up/ssl-view-installation-18w-claim': UPInstSSLClaim,
+  'up/installation/ssl/dashboard': UPInstSSLDb,
+  'up/installation/ssl/assigned-lights': UPInstSSLAssigned,
+  'up/installation/ssl/install-light': UPInstSSLInstall,
+  'up/installation/ssl/installation-detail': UPInstSSLDetail,
+  'up/installation/ssl/claim-request': UPInstSSLClaim,
 
-  // // ── Uttar Pradesh: Complaint ──
-  // 'up/complaint/resco/add-complaint': UPComplaintRescoAdd,
-  // 'up/complaint/resco/view-complaint': UPComplaintRescoView,
-  // 'up/complaint/resco/assigned-complaint': UPComplaintRescoAssigned,
-  // 'up/complaint/ssl/add-complaint': UPComplaintSSLAdd,
-  // 'up/complaint/ssl/view-complaint': UPComplaintSSLView,
-  // 'up/complaint/ssl/assigned-complaint': UPComplaintSSLAssigned,
-  // 'up/complaint/kusum-c/add-complaint': UPComplaintKCAdd,
-  // 'up/complaint/kusum-c/view-complaint': UPComplaintKCView,
-  // 'up/complaint/kusum-c/assigned-complaint': UPComplaintKCAssigned,
-  // 'up/complaint/kusum-b/add-complaint': UPComplaintKBAdd,
-  // 'up/complaint/kusum-b/view-complaint': UPComplaintKBView,
-  // 'up/complaint/kusum-b/assigned-complaint': UPComplaintKBAssigned,
-  // 'up/complaint/ongrid/add-complaint': UPComplaintOngridAdd,
-  // 'up/complaint/ongrid/view-complaint': UPComplaintOngridView,
-  // 'up/complaint/ongrid/assigned-complaint': UPComplaintOngridAssigned,
-  // 'up/complaint/offgrid/add-complaint': UPComplaintOffgridAdd,
-  // 'up/complaint/offgrid/view-complaint': UPComplaintOffgridView,
-  // 'up/complaint/offgrid/assigned-complaint': UPComplaintOffgridAssigned,
-  // 'up/complaint/powerpack/add-complaint': UPComplaintPPAdd,
-  // 'up/complaint/powerpack/view-complaint': UPComplaintPPView,
-  // 'up/complaint/powerpack/assigned-complaint': UPComplaintPPAssigned,
-  // 'up/complaint/srlmsrt/add-complaint': UPComplaintSRLMAdd,
-  // 'up/complaint/srlmsrt/view-complaint': UPComplaintSRLMView,
-  // 'up/complaint/srlmsrt/assigned-complaint': UPComplaintSRLMAssigned,
+  'v/up/kusum-c-installation-dashboard': UPInstKCDb,
+  'v/up/view-kusum-c-assign-installation-sites': UPInstKCReq,
+  'v/up/install-kusum-c-site': UPInstKCInstall,
+  'v/up/view-kusum-c-install-site': UPInstKCView,
+  'v/up/kusum-c-installation-claim': UPInstKCPay,
+  'up/kusum-c-installation-dashboard': UPInstKCDb,
+  'up/view-kusum-c-assign-installation-sites': UPInstKCReq,
+  'up/install-kusum-c-site': UPInstKCInstall,
+  'up/view-kusum-c-install-site': UPInstKCView,
+  'up/kusum-c-installation-claim': UPInstKCPay,
+  'up/installation/kusum-c/dashboard': UPInstKCDb,
+  'up/installation/kusum-c/installation-request': UPInstKCReq,
+  'up/installation/kusum-c/install-site': UPInstKCInstall,
+  'up/installation/kusum-c/view-installation': UPInstKCView,
+  'up/installation/kusum-c/view-payment': UPInstKCPay,
 
+  // ══════════════ V-PORTAL: UTTAR PRADESH: AMC ══════════════
+  'v/up-resco-amc-view-assign-site': UPAMCRescoViewAssign,
+  'v/up-resco-amc-create-site': UPAMCRescoPending,
+  'v/up-resco-amc-view-site': UPAMCRescoCompleted,
+  'v/up-resco-amc-claim-site': UPAMCRescoPay,
+  'up-resco-amc-view-assign-site': UPAMCRescoViewAssign,
+  'up-resco-amc-create-site': UPAMCRescoPending,
+  'up-resco-amc-view-site': UPAMCRescoCompleted,
+  'up-resco-amc-claim-site': UPAMCRescoPay,
+  'up/amc/resco/view-assign-site': UPAMCRescoViewAssign,
+  'up/amc/resco/pending-amc': UPAMCRescoPending,
+  'up/amc/resco/completed-amc': UPAMCRescoCompleted,
+  'up/amc/resco/payment': UPAMCRescoPay,
 
-  //   // ── Jammu ──
-  // 'jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
-  // 'jammu/survey/resco/pending-survey': JMSurveyRescoPending,
-  // 'jammu/survey/resco/view-survey': JMSurveyRescoView,
-  // 'jammu/survey/srt-70mw/add-srt': JammuAddSRT70MWSingleCard,
-  // 'jammu/survey/srt-70mw/view-data': JMSurveySRTView,
+  'v/up/kusumc/amc/fetch-view-assign-site': UPAMCKCViewAssign,
+  'v/up/kusumc/amc/assign-site': UPAMCKCPending,
+  'v/up/kusumc/amc/completed-details': UPAMCKCCompleted,
+  'up/kusumc/amc/fetch-view-assign-site': UPAMCKCViewAssign,
+  'up/kusumc/amc/assign-site': UPAMCKCPending,
+  'up/kusumc/amc/completed-details': UPAMCKCCompleted,
+  'up/amc/kusum-c/view-assign-amc': UPAMCKCViewAssign,
+  'up/amc/kusum-c/pending-amc': UPAMCKCPending,
+  'up/amc/kusum-c/completed-amc': UPAMCKCCompleted,
 
-  // 'jammu/installation/resco/dashboard': JMInstRescoDb,
-  // 'jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
-  // 'jammu/installation/resco/install-site': JMInstRescoInstall,
-  // 'jammu/installation/resco/installation-details': JMInstRescoDetail,
-  // 'jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'v/up/kusumb/amc/amc/fetch-view-assign-site': UPAMCKBViewAssign,
+  'v/up/kusumb/amc/assign-site': UPAMCKBPending,
+  'v/up/kusumb/amc/completed-details': UPAMCKBCompleted,
+  'up/kusumb/amc/amc/fetch-view-assign-site': UPAMCKBViewAssign,
+  'up/kusumb/amc/assign-site': UPAMCKBPending,
+  'up/kusumb/amc/completed-details': UPAMCKBCompleted,
+  'up/amc/kusum-b/view-assign-amc': UPAMCKBViewAssign,
+  'up/amc/kusum-b/pending-amc': UPAMCKBPending,
+  'up/amc/kusum-b/completed-amc': UPAMCKBCompleted,
 
-  // 'jammu/installation/srt-70mw/dashboard': JammuDashboard,
-  // 'jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
-  // 'jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
-  // 'jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
-  // 'jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'v/up/powerpack/amc/amc/fetch-view-assign-site': UPAMCPPViewAssign,
+  'v/up/powerpack/amc/assign-site': UPAMCPPPending,
+  'v/up/powerpack/amc/completed-details': UPAMCPPCompleted,
+  'up/powerpack/amc/amc/fetch-view-assign-site': UPAMCPPViewAssign,
+  'up/powerpack/amc/assign-site': UPAMCPPPending,
+  'up/powerpack/amc/completed-details': UPAMCPPCompleted,
+  'up/amc/powerpack/view-assign-amc': UPAMCPPViewAssign,
+  'up/amc/powerpack/pending-amc': UPAMCPPPending,
+  'up/amc/powerpack/completed-amc': UPAMCPPCompleted,
 
-  // 'jammu/installation/ssl/dashboard': JMInstSSLDb,
-  // 'jammu/installation/ssl/assign-lights': JMInstSSLAssign,
-  // 'jammu/installation/ssl/install-lights': JMInstSSLInstall,
-  // 'jammu/installation/ssl/installation-details': JMInstSSLDetail,
-  // 'jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'v/up/ongrid/amc/amc/fetch-view-assign-site': UPAMCOngridViewAssign,
+  'v/up/ongrid/amc/assign-site': UPAMCOngridPending,
+  'v/up/ongrid/amc/completed-details': UPAMCOngridCompleted,
+  'up/ongrid/amc/amc/fetch-view-assign-site': UPAMCOngridViewAssign,
+  'up/ongrid/amc/assign-site': UPAMCOngridPending,
+  'up/ongrid/amc/completed-details': UPAMCOngridCompleted,
+  'up/amc/ongrid/view-assign-amc': UPAMCOngridViewAssign,
+  'up/amc/ongrid/pending-amc': UPAMCOngridPending,
+  'up/amc/ongrid/completed-amc': UPAMCOngridCompleted,
 
-  // 'jammu/installation/swp/dashboard': JMInstSWPDb,
-  // 'jammu/installation/swp/installation-request': JMInstSWPReq,
-  // 'jammu/installation/swp/installation-site': JMInstSWPSite,
-  // 'jammu/installation/swp/view-installation': JMInstSWPView,
-  // 'jammu/installation/swp/view-payment': JMInstSWPPay,
+  'v/up/offgrid/amc/amc/fetch-view-assign-site': UPAMCOffgridViewAssign,
+  'v/up/offgrid/amc/assign-site': UPAMCOffgridPending,
+  'v/up/offgrid/amc/completed-details': UPAMCOffgridCompleted,
+  'up/offgrid/amc/amc/fetch-view-assign-site': UPAMCOffgridViewAssign,
+  'up/offgrid/amc/assign-site': UPAMCOffgridPending,
+  'up/offgrid/amc/completed-details': UPAMCOffgridCompleted,
+  'up/amc/offgrid/view-assign-amc': UPAMCOffgridViewAssign,
+  'up/amc/offgrid/pending-amc': UPAMCOffgridPending,
+  'up/amc/offgrid/completed-amc': UPAMCOffgridCompleted,
 
-  // 'jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
-  // 'jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
-  // 'jammu/installation-expenses/srt-70mw/view-payments': JMExpPay,
+  'v/up-ssl-amc-view-assign-light': UPAMCSSLViewAssign,
+  'v/up-ssl-amc-create-light': UPAMCSSLPending,
+  'v/up-ssl-amc-view-light': UPAMCSSLCompleted,
+  'v/up-ssl-amc-claim-light': UPAMCSSLPay,
+  'up-ssl-amc-view-assign-light': UPAMCSSLViewAssign,
+  'up-ssl-amc-create-light': UPAMCSSLPending,
+  'up-ssl-amc-view-light': UPAMCSSLCompleted,
+  'up-ssl-amc-claim-light': UPAMCSSLPay,
+  'up/amc/ssl/view-assign-light': UPAMCSSLViewAssign,
+  'up/amc/ssl/pending-amc': UPAMCSSLPending,
+  'up/amc/ssl/completed-amc': UPAMCSSLCompleted,
+  'up/amc/ssl/payment': UPAMCSSLPay,
 
-  // 'jammu/amc/resco/assign-survey': JMAMCRescoAssign,
-  // 'jammu/amc/resco/pending-survey': JMAMCRescoPending,
-  // 'jammu/amc/resco/view-survey': JMAMCRescoView,
-  // 'jammu/amc/ssl/view-assign-amc': JMAMCSSLViewAssign,
+  'v/up-ssl18w-amc-view-assign-light': UPAMCSSL18WViewAssign,
+  'v/up-ssl18w-amc-create-light': UPAMCSSL18WPending,
+  'v/up-ssl18w-amc-view-light': UPAMCSSL18WCompleted,
+  'v/up-ssl18w-amc-claim-light': UPAMCSSL18WPay,
+  'up-ssl18w-amc-view-assign-light': UPAMCSSL18WViewAssign,
+  'up-ssl18w-amc-create-light': UPAMCSSL18WPending,
+  'up-ssl18w-amc-view-light': UPAMCSSL18WCompleted,
+  'up-ssl18w-amc-claim-light': UPAMCSSL18WPay,
+  'up/amc/ssl-18w/view-assign-light': UPAMCSSL18WViewAssign,
+  'up/amc/ssl-18w/pending-amc': UPAMCSSL18WPending,
+  'up/amc/ssl-18w/completed-amc': UPAMCSSL18WCompleted,
+  'up/amc/ssl-18w/payment': UPAMCSSL18WPay,
+
+  // ══════════════ V-PORTAL: UTTAR PRADESH: COMPLAINT ══════════════
+  'v/complaint/up/resco-add-complaint': UPComplaintRescoAdd,
+  'v/complaint/up/resco-view-complaint': UPComplaintRescoView,
+  'v/complaint/up/resco-assign-complaint': UPComplaintRescoAssigned,
+  'complaint/up/resco-add-complaint': UPComplaintRescoAdd,
+  'complaint/up/resco-view-complaint': UPComplaintRescoView,
+  'complaint/up/resco-assign-complaint': UPComplaintRescoAssigned,
+  'up/complaint/resco/add-complaint': UPComplaintRescoAdd,
+  'up/complaint/resco/view-complaint': UPComplaintRescoView,
+  'up/complaint/resco/assigned-complaint': UPComplaintRescoAssigned,
+
+  'v/complaint/up/ssl-add-complaint': UPComplaintSSLAdd,
+  'v/complaint/up/ssl-view-complaint': UPComplaintSSLView,
+  'v/complaint/up/ssl-assign-complaint': UPComplaintSSLAssigned,
+  'complaint/up/ssl-add-complaint': UPComplaintSSLAdd,
+  'complaint/up/ssl-view-complaint': UPComplaintSSLView,
+  'complaint/up/ssl-assign-complaint': UPComplaintSSLAssigned,
+  'up/complaint/ssl/add-complaint': UPComplaintSSLAdd,
+  'up/complaint/ssl/view-complaint': UPComplaintSSLView,
+  'up/complaint/ssl/assigned-complaint': UPComplaintSSLAssigned,
+
+  'v/complaint/up/swp-add-complaint': UPComplaintKCAdd,
+  'v/complaint/up/swp-view-complaint': UPComplaintKCView,
+  'v/complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
+  'complaint/up/swp-add-complaint': UPComplaintKCAdd,
+  'complaint/up/swp-view-complaint': UPComplaintKCView,
+  'complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
+  'up/complaint/kusum-c/add-complaint': UPComplaintKCAdd,
+  'up/complaint/kusum-c/view-complaint': UPComplaintKCView,
+  'up/complaint/kusum-c/assigned-complaint': UPComplaintKCAssigned,
+
+  'v/complaint/up/kusumb-add-complaint': UPComplaintKBAdd,
+  'v/complaint/up/kusumb-view-complaint': UPComplaintKBView,
+  'v/complaint/up/kusumb-assign-complaint': UPComplaintKBAssigned,
+  'complaint/up/kusumb-add-complaint': UPComplaintKBAdd,
+  'complaint/up/kusumb-view-complaint': UPComplaintKBView,
+  'complaint/up/kusumb-assign-complaint': UPComplaintKBAssigned,
+  'up/complaint/kusum-b/add-complaint': UPComplaintKBAdd,
+  'up/complaint/kusum-b/view-complaint': UPComplaintKBView,
+  'up/complaint/kusum-b/assigned-complaint': UPComplaintKBAssigned,
+
+  'v/complaint/up/ongrid-add-complaint': UPComplaintOngridAdd,
+  'v/complaint/up/ongrid-view-complaint': UPComplaintOngridView,
+  'v/complaint/up/ongrid-assign-complaint': UPComplaintOngridAssigned,
+  'complaint/up/ongrid-add-complaint': UPComplaintOngridAdd,
+  'complaint/up/ongrid-view-complaint': UPComplaintOngridView,
+  'complaint/up/ongrid-assign-complaint': UPComplaintOngridAssigned,
+  'up/complaint/ongrid/add-complaint': UPComplaintOngridAdd,
+  'up/complaint/ongrid/view-complaint': UPComplaintOngridView,
+  'up/complaint/ongrid/assigned-complaint': UPComplaintOngridAssigned,
+
+  'v/complaint/up/offgrid-add-complaint': UPComplaintOffgridAdd,
+  'v/complaint/up/offgrid-view-complaint': UPComplaintOffgridView,
+  'v/complaint/up/offgrid-assign-complaint': UPComplaintOffgridAssigned,
+  'complaint/up/offgrid-add-complaint': UPComplaintOffgridAdd,
+  'complaint/up/offgrid-view-complaint': UPComplaintOffgridView,
+  'complaint/up/offgrid-assign-complaint': UPComplaintOffgridAssigned,
+  'up/complaint/offgrid/add-complaint': UPComplaintOffgridAdd,
+  'up/complaint/offgrid/view-complaint': UPComplaintOffgridView,
+  'up/complaint/offgrid/assigned-complaint': UPComplaintOffgridAssigned,
+
+  'v/complaint/up/powerpack/add-complaint': UPComplaintPPAdd,
+  'v/complaint/up/powerpack-view-complaint': UPComplaintPPView,
+  'v/complaint/up/powerpack-assign-complaint': UPComplaintPPAssigned,
+  'complaint/up/powerpack/add-complaint': UPComplaintPPAdd,
+  'complaint/up/powerpack-view-complaint': UPComplaintPPView,
+  'complaint/up/powerpack-assign-complaint': UPComplaintPPAssigned,
+  'up/complaint/powerpack/add-complaint': UPComplaintPPAdd,
+  'up/complaint/powerpack/view-complaint': UPComplaintPPView,
+  'up/complaint/powerpack/assigned-complaint': UPComplaintPPAssigned,
+
+  'v/complaint/up/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'v/complaint/up/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'v/complaint/up/srlmsrt/assign-complaint': UPComplaintSRLMAssigned,
+  'complaint/up/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'complaint/up/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'complaint/up/srlmsrt/assign-complaint': UPComplaintSRLMAssigned,
+  'up/complaint/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'up/complaint/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'up/complaint/srlmsrt/assigned-complaint': UPComplaintSRLMAssigned,
+
+  // ══════════════ V-PORTAL: JAMMU & KASHMIR ══════════════
+  'v/jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
+  'v/jammu/survey/resco/pending-survey': JMSurveyRescoPending,
+  'v/jammu/survey/resco/view-survey': JMSurveyRescoView,
+  'v/jammu/survey/srt-70mw/add-srt': JammuAddSRT70MWSingleCard,
+  'v/jammu/survey/srt-70mw/view-data': JMSurveySRTView,
+  'jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
+  'jammu/survey/resco/pending-survey': JMSurveyRescoPending,
+  'jammu/survey/resco/view-survey': JMSurveyRescoView,
+  'jammu/survey/srt-70mw/add-srt': JammuAddSRT70MWSingleCard,
+  'jammu/survey/srt-70mw/view-data': JMSurveySRTView,
+
+  'v/jammu/installation/resco/dashboard': JMInstRescoDb,
+  'v/jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
+  'v/jammu/installation/resco/install-site': JMInstRescoInstall,
+  'v/jammu/installation/resco/installation-details': JMInstRescoDetail,
+  'v/jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'jammu/installation/resco/dashboard': JMInstRescoDb,
+  'jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
+  'jammu/installation/resco/install-site': JMInstRescoInstall,
+  'jammu/installation/resco/installation-details': JMInstRescoDetail,
+  'jammu/installation/resco/claim-request': JMInstRescoClaim,
+
+  'v/jammu/installation/srt-70mw/dashboard': JammuDashboard,
+  'v/jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
+  'v/jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
+  'v/jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
+  'v/jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'jammu/installation/srt-70mw/dashboard': JammuDashboard,
+  'jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
+  'jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
+  'jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
+  'jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'jammu/dashboard': JammuDashboard,
+
+  'v/jammu/installation/ssl/dashboard': JMInstSSLDb,
+  'v/jammu/installation/ssl/assign-lights': JMInstSSLAssign,
+  'v/jammu/installation/ssl/install-lights': JMInstSSLInstall,
+  'v/jammu/installation/ssl/installation-details': JMInstSSLDetail,
+  'v/jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'jammu/installation/ssl/dashboard': JMInstSSLDb,
+  'jammu/installation/ssl/assign-lights': JMInstSSLAssign,
+  'jammu/installation/ssl/install-lights': JMInstSSLInstall,
+  'jammu/installation/ssl/installation-details': JMInstSSLDetail,
+  'jammu/installation/ssl/claim-request': JMInstSSLClaim,
+
+  'v/jammu/installation/swp/dashboard': JMInstSWPDb,
+  'v/jammu/installation/swp/installation-request': JMInstSWPReq,
+  'v/jammu/installation/swp/installation-site': JMInstSWPSite,
+  'v/jammu/installation/swp/view-installation': JMInstSWPView,
+  'v/jammu/installation/swp/view-payment': JMInstSWPPay,
+  'jammu/installation/swp/dashboard': JMInstSWPDb,
+  'jammu/installation/swp/installation-request': JMInstSWPReq,
+  'jammu/installation/swp/installation-site': JMInstSWPSite,
+  'jammu/installation/swp/view-installation': JMInstSWPView,
+  'jammu/installation/swp/view-payment': JMInstSWPPay,
+
+  'v/jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
+  'v/jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
+  'v/jammu/installation-expenses/srt-70mw/view-payments': JMExpPay,
+  'jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
+  'jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
+  'jammu/installation-expenses/srt-70mw/view-payments': JMExpPay,
+
+  'v/jammu/amc/resco/assign-survey': JMAMCRescoAssign,
+  'v/jammu/amc/resco/pending-survey': JMAMCRescoPending,
+  'v/jammu/amc/resco/view-survey': JMAMCRescoView,
+  'v/jammu/amc/ssl/view-assign-amc': JMAMCSSLViewAssign,
+  'jammu/amc/resco/assign-survey': JMAMCRescoAssign,
+  'jammu/amc/resco/pending-survey': JMAMCRescoPending,
+  'jammu/amc/resco/view-survey': JMAMCRescoView,
+  'jammu/amc/ssl/view-assign-amc': JMAMCSSLViewAssign,
+
+  // ══════════════ V-PORTAL: BIHAR ══════════════
+  // Survey
+  'v/bihar/srt200mw-survey': BiharSurveySRT200MWAdd,
+  'bihar/srt200mw-survey': BiharSurveySRT200MWAdd,
+  'v/bihar/view-srt200mw-survey': BiharSurveySRT200MWView,
+  'bihar/view-srt200mw-survey': BiharSurveySRT200MWView,
+  'v/bihar/ula-surveys/create': BiharSurveyULAAdd,
+  'bihar/ula-surveys/create': BiharSurveyULAAdd,
+  'v/bihar/ula-surveys/view': BiharSurveyULAView,
+  'bihar/ula-surveys/view': BiharSurveyULAView,
+
+  // Installation - SSL
+  'v/ssl/installation-dashboard': BiharInstSSLDb,
+  'ssl/installation-dashboard': BiharInstSSLDb,
+  'v/bihar/ssl/installation-dashboard': BiharInstSSLDb,
+  'bihar/ssl/installation-dashboard': BiharInstSSLDb,
+  'v/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'v/bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'v/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'v/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'v/bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'v/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'v/bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'v/bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'v/bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+
+  // Installation - SRT
+  'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'v/srt/viewassignsite': BiharInstSRTRequest,
+  'srt/viewassignsite': BiharInstSRTRequest,
+  'v/bihar/srt/viewassignsite': BiharInstSRTRequest,
+  'bihar/srt/viewassignsite': BiharInstSRTRequest,
+  'v/srt/installationsite': BiharInstSRTDetails,
+  'srt/installationsite': BiharInstSRTDetails,
+  'v/bihar/srt/installationsite': BiharInstSRTDetails,
+  'bihar/srt/installationsite': BiharInstSRTDetails,
+  'v/srt/allassignsite': BiharInstSRTView,
+  'srt/allassignsite': BiharInstSRTView,
+  'v/bihar/srt/allassignsite': BiharInstSRTView,
+  'bihar/srt/allassignsite': BiharInstSRTView,
+  'v/srt/paymentsrtVendor': BiharInstSRTClaim,
+  'srt/paymentsrtVendor': BiharInstSRTClaim,
+  'v/bihar/srt/paymentsrtVendor': BiharInstSRTClaim,
+  'bihar/srt/paymentsrtVendor': BiharInstSRTClaim,
+
+  // Installation - ULA
+  'v/bihar/ula-installation-dashboard': BiharInstULADb,
+  'bihar/ula-installation-dashboard': BiharInstULADb,
+  'v/bihar/ula-installation-view-assign-site': BiharInstULARequest,
+  'bihar/ula-installation-view-assign-site': BiharInstULARequest,
+  'v/bihar/ula-installation-pending-structure-site': BiharInstULADetails,
+  'bihar/ula-installation-pending-structure-site': BiharInstULADetails,
+  'v/bihar/ula-installation-view-site': BiharInstULAView,
+  'bihar/ula-installation-view-site': BiharInstULAView,
+  'v/bihar/ula-installation-claim': BiharInstULAAddPay,
+  'bihar/ula-installation-claim': BiharInstULAAddPay,
+  'v/bihar/ula-installation-view-payment': BiharInstULAPay,
+  'bihar/ula-installation-view-payment': BiharInstULAPay,
+
+  // AMC - SSL
+  'v/edit-biharssl': BiharAMCSSLAdd,
+  'edit-biharssl': BiharAMCSSLAdd,
+  'v/bihar/edit-ssl': BiharAMCSSLAdd,
+  'bihar/edit-ssl': BiharAMCSSLAdd,
+  'v/view-biharssl': BiharAMCSSLView,
+  'view-biharssl': BiharAMCSSLView,
+  'v/bihar/view-ssl': BiharAMCSSLView,
+  'bihar/view-ssl': BiharAMCSSLView,
+  'v/ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar/ssl/view-complaint': BiharAMCSSLComplaint,
+  'bihar/ssl/view-complaint': BiharAMCSSLComplaint,
+
+  // AMC - SRT
+  'v/bihar-add-srt-amc': BiharAMCSRTAdd,
+  'bihar-add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar/add-srt-amc': BiharAMCSRTAdd,
+  'bihar/add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar-view-srt-amc': BiharAMCSRTView,
+  'bihar-view-srt-amc': BiharAMCSRTView,
+  'v/bihar/view-srt-amc': BiharAMCSRTView,
+  'bihar/view-srt-amc': BiharAMCSRTView,
+  'v/bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'v/bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
+
+  // Complaints - SSL
+  'v/complaint/bihar/ssl-add-complaint': BiharComplaintSSLAdd,
+  'complaint/bihar/ssl-add-complaint': BiharComplaintSSLAdd,
+  'v/complaint/bihar/ssl-view-complaint': BiharComplaintSSLView,
+  'complaint/bihar/ssl-view-complaint': BiharComplaintSSLView,
+  'v/complaint/bihar/ssl-assign-complaint': BiharComplaintSSLAssign,
+  'complaint/bihar/ssl-assign-complaint': BiharComplaintSSLAssign,
+
+  // Complaints - SRT
+  'v/complaint/bihar/srt-add-complaint': BiharComplaintSRTAdd,
+  'complaint/bihar/srt-add-complaint': BiharComplaintSRTAdd,
+  'v/complaint/bihar/srt-view-complaint': BiharComplaintSRTView,
+  'complaint/bihar/srt-view-complaint': BiharComplaintSRTView,
+  'v/complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
+  'complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
+
 
   // 'dashboards/solar-erp': JammuDashboard,
   // 'dashboards/erp': JammuDashboard,
