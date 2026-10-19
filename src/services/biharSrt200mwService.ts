@@ -91,29 +91,51 @@ class BiharSrt200mwService {
 
   /**
    * 1. GET /bihar/srt200mw-survey
-   * Fetches pending sites for survey (survey_status != 1)
+   * Fetches pending sites for survey (survey_vendor = parent_id aur survey_status != 1)
+   * Note: Backend returns 404 with {"success": false, "message": "No sites available for survey"}
+   * when there are no pending sites for the vendor.
    */
-  async getSurveyPendingSites(): Promise<BiharSrtSiteItem[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/bihar/srt200mw-survey`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      if (res.status === 404) {
-        return [];
+  async getSurveyPendingSites(): Promise<{ sites: BiharSrtSiteItem[]; message?: string }> {
+    const urlsToTry = [
+      `${API_BASE_URL}/bihar/srt200mw-survey`,
+      API_BASE_URL.replace(/\/api$/, '') + '/bihar/srt200mw-survey',
+      `${API_BASE_URL}/v/bihar/srt200mw-survey`,
+    ];
+
+    for (const url of urlsToTry) {
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        });
+
+        const json = await res.json().catch(() => null);
+
+        if (res.status === 404) {
+          // Check if this is the expected 404 from VendorBiharSrt200mwSurveyController
+          if (json && (json.message === 'No sites available for survey' || json.success === false)) {
+            return {
+              sites: [],
+              message: json.message || 'No sites available for survey',
+            };
+          }
+          continue; // Try next URL if it was an actual routing 404
+        }
+
+        if (res.ok && json) {
+          if (Array.isArray(json.data)) {
+            return { sites: json.data };
+          }
+          if (Array.isArray(json)) {
+            return { sites: json };
+          }
+        }
+      } catch (err) {
+        console.warn(`[biharSrt200mw] getSurveyPendingSites error trying ${url}:`, err);
       }
-      const json = await res.json();
-      if (json && (json.success || json.status) && Array.isArray(json.data)) {
-        return json.data;
-      }
-      if (Array.isArray(json)) {
-        return json;
-      }
-      return [];
-    } catch (err) {
-      console.warn('[biharSrt200mw] getSurveyPendingSites error:', err);
-      return [];
     }
+
+    return { sites: [], message: 'No sites available for survey' };
   }
 
   /**

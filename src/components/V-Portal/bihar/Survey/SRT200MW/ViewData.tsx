@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSrt200mwService,
   type BiharSrtSiteItem,
   type SurveyDetailKpis,
 } from '../../../../../services/biharSrt200mwService';
 import {
+  TableExportToolbar,
+  SearchInput,
+  Pagination,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
   printTableData,
   type ExportColumn,
+  type ColumnDef,
 } from '../../../../../common';
-import '../../bihar-srt200mw.css';
 
 const DEFAULT_KPIS: SurveyDetailKpis = {
   total: 0,
@@ -26,6 +30,7 @@ const DEFAULT_KPIS: SurveyDetailKpis = {
 export function Bihar_Survey_SRT200MW_ViewData() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [kpis, setKpis] = useState<SurveyDetailKpis>(DEFAULT_KPIS);
   const [sites, setSites] = useState<BiharSrtSiteItem[]>([]);
   const [search, setSearch] = useState('');
@@ -33,30 +38,30 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const [pageSize, setPageSize] = useState(10);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
 
-  // Column Visibility state
+  // Column Visibility
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
-  const [colMenuOpen, setColMenuOpen] = useState(false);
 
-  // Fetch API data on load
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const resp = await biharSrt200mwService.getViewSurveyData();
-        if (mounted) {
-          setKpis(resp.data.survey_detail || DEFAULT_KPIS);
-          setSites(resp.data.srt200mw || []);
-        }
-      } catch (err) {
-        console.error('[Bihar SRT 200MW] Failed to load survey data:', err);
-      } finally {
-        if (mounted) setLoading(false);
+  // Load survey view data
+  const loadData = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const resp = await biharSrt200mwService.getViewSurveyData();
+      setKpis(resp.data.survey_detail || DEFAULT_KPIS);
+      setSites(resp.data.srt200mw || []);
+      if (!resp.data.srt200mw?.length) {
+        setErrorMsg('No survey records found from server.');
       }
-    })();
-    return () => {
-      mounted = false;
-    };
+    } catch (err: any) {
+      console.error('[Bihar SRT 200MW] Failed to load data:', err);
+      setErrorMsg(err?.message || 'Failed to load survey records from server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   // Filtered sites based on search string
@@ -71,7 +76,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   }, [sites, search]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredSites.length / pageSize) || 1;
   const pagedSites = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredSites.slice(start, start + pageSize);
@@ -137,622 +141,493 @@ export function Bihar_Survey_SRT200MW_ViewData() {
     [exportCols, hiddenCols]
   );
 
-  const toggleCol = (header: string) => {
+  const toolbarColumns: ColumnDef[] = useMemo(
+    () =>
+      exportCols.map((c) => ({
+        key: c.header,
+        label: c.header,
+        visible: !hiddenCols.includes(c.header),
+      })),
+    [exportCols, hiddenCols]
+  );
+
+  const toggleColumn = (key: string) => {
     setHiddenCols((prev) =>
-      prev.includes(header) ? prev.filter((c) => c !== header) : [...prev, header]
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
     );
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handleCopy = () => copyTableDataToClipboard(filteredSites, activeExportCols);
+  const handleCsv = () => exportDataToCSV('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols);
+  const handleExcel = () => exportDataToExcel('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols);
+  const handlePdf = () => printTableData('Bihar SRT 200MW Survey', filteredSites, activeExportCols);
 
   return (
-    <div className="bihar-srt-page">
-      {/* ── Top Header matching screenshot ── */}
-      <div className="bihar-srt-head">
-        <div className="bihar-srt-head__titles">
-          <span className="bihar-srt-head__eyebrow">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            Welcome to,
-          </span>
-          <h1 className="bihar-srt-head__title">Bihar SRT 200 MW Survey</h1>
-        </div>
-        <div className="bihar-srt-head__breadcrumbs">
-          <Link to="/v-dashboard">Home</Link> / <span>View Bihar SRT 200 MW Survey</span>
-        </div>
-      </div>
-
-      {/* ── 3 KPI Cards matching screenshot ── */}
-      <div className="bihar-srt-kpis">
-        {/* Card 1: Blue - Total Assign */}
-        <div className="bihar-kpi-card bihar-kpi-card--blue">
-          <div className="bihar-kpi-card__icon-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="2" y1="12" x2="22" y2="12" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-          </div>
-          <div className="bihar-kpi-card__content">
-            <span className="bihar-kpi-card__label">Total Assign</span>
-            <span className="bihar-kpi-card__val">{kpis.total}</span>
-          </div>
-        </div>
-
-        {/* Card 2: Pink/Magenta - Survey Status */}
-        <div className="bihar-kpi-card bihar-kpi-card--pink">
-          <div className="bihar-kpi-card__icon-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="4" y="2" width="16" height="20" rx="2" />
-              <path d="M9 22v-4h6v4" />
-              <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
-            </svg>
-          </div>
-          <div className="bihar-kpi-card__content">
-            <span className="bihar-kpi-card__label">Survey Status</span>
-            <span className="bihar-kpi-card__val">
-              {kpis.complete} / {kpis.pending}
-            </span>
-            <span className="bihar-kpi-card__sub">Complete / Pending</span>
-          </div>
-        </div>
-
-        {/* Card 3: Green - Survey Verify Status */}
-        <div className="bihar-kpi-card bihar-kpi-card--green">
-          <div className="bihar-kpi-card__icon-badge">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-          </div>
-          <div className="bihar-kpi-card__content">
-            <span className="bihar-kpi-card__label">Survey Verify Status</span>
-            <span className="bihar-kpi-card__val">
-              {kpis.verify_pending} / {kpis.verify_complete} / {kpis.verify_reject}
-            </span>
-            <span className="bihar-kpi-card__sub">Pending / Verify / Reject</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Purple Header Table Card ── */}
-      <div className="bihar-table-card">
-        {/* Banner header */}
-        <div className="bihar-table-card__header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="3" y1="9" x2="21" y2="9" />
-            <line x1="3" y1="15" x2="21" y2="15" />
-            <line x1="9" y1="3" x2="9" y2="21" />
-            <line x1="15" y1="3" x2="15" y2="21" />
-          </svg>
-          <span>View Bihar SRT 200 MW Survey Information</span>
-        </div>
-
-        {/* Toolbar */}
-        <div className="bihar-table-card__toolbar">
-          <div className="bihar-table-card__export-group">
-            {/* Copy */}
+    <div className="ax-page">
+      {/* ── Page Head ── */}
+      <PageHead
+        title="Bihar SRT 200 MW Survey"
+        subtitle="View and manage Bihar 200MW Solar Rooftop site survey information"
+        breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Bihar' },
+          { label: 'Survey' },
+          { label: 'SRT 200MW' },
+        ]}
+        actions={
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button
               type="button"
-              className="bihar-export-btn"
-              title="Copy to clipboard"
-              onClick={() => copyTableDataToClipboard(filteredSites, activeExportCols)}
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadData}
+              disabled={loading}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
+              ↻ Refresh
             </button>
-            {/* CSV */}
             <button
               type="button"
-              className="bihar-export-btn"
-              title="Export CSV"
-              onClick={() => exportDataToCSV('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols)}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-            </button>
-            {/* Excel */}
-            <button
-              type="button"
-              className="bihar-export-btn"
-              title="Export Excel"
-              onClick={() => exportDataToExcel('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols)}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M8 13l3 4" />
-                <path d="M11 13l-3 4" />
-                <path d="M14 13h3v4h-3z" />
-              </svg>
-            </button>
-            {/* PDF */}
-            <button
-              type="button"
-              className="bihar-export-btn"
-              title="Export PDF"
-              onClick={() => printTableData('Bihar SRT 200MW Survey', filteredSites, activeExportCols)}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M9 15h2a1.5 1.5 0 0 0 0-3H9v6" />
-                <path d="M17 12h-3v6" />
-              </svg>
-            </button>
-            {/* Print */}
-            <button
-              type="button"
-              className="bihar-export-btn"
-              title="Print"
-              onClick={() => printTableData('Bihar SRT 200MW Survey', filteredSites, activeExportCols)}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" strokeWidth="2">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-            </button>
-            {/* Column visibility dropdown */}
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="bihar-export-btn"
-                title="Column visibility"
-                onClick={() => setColMenuOpen(!colMenuOpen)}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9333ea" strokeWidth="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-              {colMenuOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    zIndex: 40,
-                    marginTop: 4,
-                    background: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: 8,
-                    boxShadow: '0 6px 18px rgba(0,0,0,0.15)',
-                    padding: '8px 12px',
-                    maxHeight: 280,
-                    overflowY: 'auto',
-                    minWidth: 220,
-                  }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 6, color: '#334155' }}>
-                    Toggle Columns
-                  </div>
-                  {exportCols.map((col) => (
-                    <label
-                      key={col.header}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: '0.78rem',
-                        cursor: 'pointer',
-                        padding: '3px 0',
-                        color: '#475569',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!hiddenCols.includes(col.header)}
-                        onChange={() => toggleCol(col.header)}
-                      />
-                      {col.header}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Link to Add Survey */}
-            <button
-              type="button"
-              className="bihar-btn bihar-btn--primary"
-              style={{ padding: '0.35rem 0.85rem', fontSize: '0.8rem', marginLeft: '0.5rem' }}
+              className="ax-btn ax-btn--primary ax-btn--sm"
               onClick={() => navigate('/v/bihar/srt200mw-survey')}
             >
               + Add Survey
             </button>
           </div>
+        }
+      />
 
-          {/* Search Input */}
-          <div className="bihar-table-card__search-wrap">
-            <label htmlFor="survey-search">Search:</label>
-            <input
-              id="survey-search"
-              type="text"
-              className="bihar-table-card__search-input"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
+      <div className="ax-dash-grid">
+        {/* ── 3 KPI Cards matching template structure ── */}
+        {/* Card 1: Total Assign */}
+        <section
+          className="ax-card ax-col--4"
+          style={{
+            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+            color: '#ffffff',
+            border: 'none',
+          }}
+        >
+          <div
+            className="ax-card__body"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--ax-space-4)',
+              padding: 'var(--ax-space-5)',
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
-              placeholder="Search in records..."
-            />
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 'var(--ax-text-xs)', opacity: 0.9, fontWeight: 500 }}>Total Assign</div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.2 }}>{kpis.total}</div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* ── Table with 51 columns ── */}
-        <div className="bihar-table-wrap">
-          <table className="bihar-table">
-            <thead>
-              <tr>
-                <th>Sr. No.</th>
-                <th>Unique ID</th>
-                <th>State</th>
-                <th>District</th>
-                <th>Division</th>
-                <th>Sub Division</th>
-                <th>Department</th>
-                <th>Site Name</th>
-                <th>Site Address</th>
-                <th>CA No.</th>
-                <th>Survey Address</th>
-                <th>Nearest Landmark</th>
-                <th>Agency Contact Person Name</th>
-                <th>Agency Contact Number</th>
-                <th>Nodal Person</th>
-                <th>Nodal Person Contact</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Load Type</th>
-                <th>Connection Phase</th>
-                <th>Meter Connection Type</th>
-                <th>Meter Number</th>
-                <th>Meter Type</th>
-                <th>Sanction Load (KW/KVA)</th>
-                <th>Connected Load (KW)</th>
-                <th>Grid Power Availability</th>
-                <th>Three-Phase Availability</th>
-                <th>Missing Phase</th>
-                <th>LTDB Present</th>
-                <th>Roof Condition</th>
-                <th>Total Roof Area (Sq.Feet)</th>
-                <th>Free Space Solar (Sq.Feet)</th>
-                <th>Free Space Inverter (Sq.Feet)</th>
-                <th>Earth Pit Position</th>
-                <th>Age of Building</th>
-                <th>Access to Roof</th>
-                <th>Rooftop Height (Feet)</th>
-                <th>Parapet Height (Feet)</th>
-                <th>No. of Floors (G+...)</th>
-                <th>Water Source for Cleaning</th>
-                <th>Access to Site</th>
-                <th>Distance of Site from Main Road (km)</th>
-                <th>Building Image</th>
-                <th>Roof Image</th>
-                <th>Control Room</th>
-                <th>Other Image</th>
-                <th>PDF</th>
-                <th>Survey Status</th>
-                <th>Verify Status</th>
-                <th>Verify Remarks</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={51} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span className="ax-spinner" style={{ width: 18, height: 18 }} />
-                      Loading Bihar SRT 200MW Survey records...
-                    </div>
-                  </td>
-                </tr>
-              ) : pagedSites.length === 0 ? (
-                <tr>
-                  <td colSpan={51} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
-                    No survey records found.
-                  </td>
-                </tr>
-              ) : (
-                pagedSites.map((item, idx) => {
-                  const srNo = (currentPage - 1) * pageSize + idx + 1;
-                  return (
-                    <tr key={item.id || idx}>
-                      <td>{srNo}</td>
-                      <td style={{ fontWeight: 600, color: '#1e293b' }}>{item.uid || '-'}</td>
-                      <td>{item.state || 'Bihar'}</td>
-                      <td>{item.district || '-'}</td>
-                      <td>{item.division || '-'}</td>
-                      <td>{item.sub_division || '-'}</td>
-                      <td>{item.department || '-'}</td>
-                      <td style={{ fontWeight: 600 }}>{item.site_name || '-'}</td>
-                      <td>{item.address || '-'}</td>
-                      <td>{item.ca_no || '-'}</td>
-                      <td>{item.survey_address || '-'}</td>
-                      <td>{item.near_landmark || '-'}</td>
-                      <td>{item.agency_person_name || '-'}</td>
-                      <td>{item.agency_person_contact || '-'}</td>
-                      <td>{item.nodal_person || '-'}</td>
-                      <td>{item.contact_nodal || '-'}</td>
-                      <td>{item.latitude || '-'}</td>
-                      <td>{item.longitude || '-'}</td>
-                      <td>{item.load_type || '-'}</td>
-                      <td>{item.connection_phase || '-'}</td>
-                      <td>{item.meter_connection || '-'}</td>
-                      <td>{item.meter_number || '-'}</td>
-                      <td>{item.meter_type || '-'}</td>
-                      <td>{item.sanction_load || '-'}</td>
-                      <td>{item.connected_load || '-'}</td>
-                      <td>{item.grid_power || '-'}</td>
-                      <td>{item.all_3_phase_ltdb || '-'}</td>
-                      <td>{item.missing_phase || '-'}</td>
-                      <td>{item.ltdb_present || '-'}</td>
-                      <td>{item.roof_condition || '-'}</td>
-                      <td>{item.area_roof || '-'}</td>
-                      <td>{item.free_space_solar || '-'}</td>
-                      <td>{item.free_space_inverter || '-'}</td>
-                      <td>{item.earth_pit || '-'}</td>
-                      <td>{item.building_age || '-'}</td>
-                      <td>{item.roof_access || '-'}</td>
-                      <td>{item.rooftop_height || '-'}</td>
-                      <td>{item.parapet_height || '-'}</td>
-                      <td>{item.floors_number || '-'}</td>
-                      <td>{item.water_source || '-'}</td>
-                      <td>{item.site_access || '-'}</td>
-                      <td>{item.site_distance || '-'}</td>
-
-                      {/* Building Image */}
-                      <td>
-                        {item.image1 ? (
-                          <img
-                            src={item.image1.startsWith('http') ? item.image1 : `/${item.image1}`}
-                            alt="Building"
-                            className="bihar-thumb"
-                            onClick={() =>
-                              setPreviewImg(item.image1!.startsWith('http') ? item.image1! : `/${item.image1}`)
-                            }
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-
-                      {/* Roof Image */}
-                      <td>
-                        {item.image2 ? (
-                          <img
-                            src={item.image2.startsWith('http') ? item.image2 : `/${item.image2}`}
-                            alt="Roof"
-                            className="bihar-thumb"
-                            onClick={() =>
-                              setPreviewImg(item.image2!.startsWith('http') ? item.image2! : `/${item.image2}`)
-                            }
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-
-                      {/* Control Room Image */}
-                      <td>
-                        {item.image3 ? (
-                          <img
-                            src={item.image3.startsWith('http') ? item.image3 : `/${item.image3}`}
-                            alt="Control Room"
-                            className="bihar-thumb"
-                            onClick={() =>
-                              setPreviewImg(item.image3!.startsWith('http') ? item.image3! : `/${item.image3}`)
-                            }
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-
-                      {/* Other Image */}
-                      <td>
-                        {item.image4 ? (
-                          <img
-                            src={item.image4.startsWith('http') ? item.image4 : `/${item.image4}`}
-                            alt="Other"
-                            className="bihar-thumb"
-                            onClick={() =>
-                              setPreviewImg(item.image4!.startsWith('http') ? item.image4! : `/${item.image4}`)
-                            }
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-
-                      {/* PDF */}
-                      <td>
-                        {item.pdf_file ? (
-                          <a
-                            href={item.pdf_file.startsWith('http') ? item.pdf_file : `/${item.pdf_file}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              color: '#dc2626',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontWeight: 600,
-                              textDecoration: 'none',
-                            }}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                            </svg>
-                            PDF
-                          </a>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-
-                      {/* Survey Status */}
-                      <td>
-                        {item.survey_status === 1 ? (
-                          <span className="bihar-badge bihar-badge--green">Complete</span>
-                        ) : (
-                          <span className="bihar-badge bihar-badge--amber">Pending</span>
-                        )}
-                      </td>
-
-                      {/* Verify Status */}
-                      <td>
-                        {item.survey_verify_status === 1 ? (
-                          <span className="bihar-badge bihar-badge--green">Approved</span>
-                        ) : item.survey_verify_status === 2 ? (
-                          <span className="bihar-badge bihar-badge--red">Rejected</span>
-                        ) : (
-                          <span className="bihar-badge bihar-badge--amber">Pending</span>
-                        )}
-                      </td>
-
-                      {/* Verify Remarks */}
-                      <td>{item.verify_remarks || '-'}</td>
-
-                      {/* Action */}
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="bihar-btn bihar-btn--secondary"
-                          style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem' }}
-                          title="Edit Survey"
-                          onClick={() => navigate(`/v/bihar/srt200mw-survey?id=${item.id}`)}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th>Sr. No.</th>
-                <th>Unique ID</th>
-                <th>State</th>
-                <th>District</th>
-                <th>Division</th>
-                <th>Sub Division</th>
-                <th>Department</th>
-                <th>Site Name</th>
-                <th>Site Address</th>
-                <th>CA No.</th>
-                <th>Survey Address</th>
-                <th>Nearest Landmark</th>
-                <th>Agency Contact Person Name</th>
-                <th>Agency Contact Number</th>
-                <th>Nodal Person</th>
-                <th>Nodal Person Contact</th>
-                <th>Latitude</th>
-                <th>Longitude</th>
-                <th>Load Type</th>
-                <th>Connection Phase</th>
-                <th>Meter Connection Type</th>
-                <th>Meter Number</th>
-                <th>Meter Type</th>
-                <th>Sanction Load (KW/KVA)</th>
-                <th>Connected Load (KW)</th>
-                <th>Grid Power Availability</th>
-                <th>Three-Phase Availability</th>
-                <th>Missing Phase</th>
-                <th>LTDB Present</th>
-                <th>Roof Condition</th>
-                <th>Total Roof Area (Sq.Feet)</th>
-                <th>Free Space Solar (Sq.Feet)</th>
-                <th>Free Space Inverter (Sq.Feet)</th>
-                <th>Earth Pit Position</th>
-                <th>Age of Building</th>
-                <th>Access to Roof</th>
-                <th>Rooftop Height (Feet)</th>
-                <th>Parapet Height (Feet)</th>
-                <th>No. of Floors (G+...)</th>
-                <th>Water Source for Cleaning</th>
-                <th>Access to Site</th>
-                <th>Distance of Site from Main Road (km)</th>
-                <th>Building Image</th>
-                <th>Roof Image</th>
-                <th>Control Room</th>
-                <th>Other Image</th>
-                <th>PDF</th>
-                <th>Survey Status</th>
-                <th>Verify Status</th>
-                <th>Verify Remarks</th>
-                <th style={{ textAlign: 'center' }}>Action</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Footer info & pagination */}
-        <div className="bihar-table-footer">
-          <div>
-            Showing {filteredSites.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-            {Math.min(currentPage * pageSize, filteredSites.length)} of {filteredSites.length} entries
+        {/* Card 2: Survey Status */}
+        <section
+          className="ax-card ax-col--4"
+          style={{
+            background: 'linear-gradient(135deg, #d81b60 0%, #c2185b 100%)',
+            color: '#ffffff',
+            border: 'none',
+          }}
+        >
+          <div
+            className="ax-card__body"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--ax-space-4)',
+              padding: 'var(--ax-space-5)',
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <path d="M9 22v-4h6v4" />
+                <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 'var(--ax-text-xs)', opacity: 0.9, fontWeight: 500 }}>Survey Status</div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.2 }}>
+                {kpis.complete} / {kpis.pending}
+              </div>
+              <div style={{ fontSize: 'var(--ax-text-2xs)', opacity: 0.85, marginTop: 2 }}>Complete / Pending</div>
+            </div>
           </div>
+        </section>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span>Show:</span>
-              <select
-                className="bihar-select"
-                style={{ width: 'auto', padding: '0.2rem 0.5rem' }}
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
+        {/* Card 3: Survey Verify Status */}
+        <section
+          className="ax-card ax-col--4"
+          style={{
+            background: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
+            color: '#ffffff',
+            border: 'none',
+          }}
+        >
+          <div
+            className="ax-card__body"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--ax-space-4)',
+              padding: 'var(--ax-space-5)',
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 'var(--ax-text-xs)', opacity: 0.9, fontWeight: 500 }}>Survey Verify Status</div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 700, lineHeight: 1.2 }}>
+                {kpis.verify_pending} / {kpis.verify_complete} / {kpis.verify_reject}
+              </div>
+              <div style={{ fontSize: 'var(--ax-text-2xs)', opacity: 0.85, marginTop: 2 }}>Pending / Verify / Reject</div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Main Table Card ── */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
+          {/* Card Header matching screenshot color */}
+          <div
+            className="ax-card__header"
+            style={{
+              background: '#3b0764',
+              color: '#ffffff',
+              flexWrap: 'wrap',
+              gap: 'var(--ax-space-3)',
+              borderRadius: 'var(--ax-radius-xl) var(--ax-radius-xl) 0 0',
+            }}
+          >
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="3" y1="15" x2="21" y2="15" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+                View Bihar SRT 200 MW Survey Information
+              </h2>
+              <p className="ax-card__subtitle" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                {filteredSites.length} total records
+              </p>
+            </div>
+            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+              <SearchInput
+                value={search}
+                onChange={(val) => {
+                  setSearch(val);
                   setCurrentPage(1);
                 }}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'inline-flex', gap: 4 }}>
-              <button
-                type="button"
-                className="bihar-btn bihar-btn--secondary"
-                style={{ padding: '0.25rem 0.65rem' }}
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className="bihar-btn bihar-btn--secondary"
-                style={{ padding: '0.25rem 0.65rem' }}
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </button>
+                placeholder="Search records…"
+                ariaLabel="Search records"
+              />
+              <TableExportToolbar
+                onCopy={handleCopy}
+                onExportCSV={handleCsv}
+                onExportExcel={handleExcel}
+                onExportPDF={handlePdf}
+                columns={toolbarColumns}
+                onToggleColumn={toggleColumn}
+              />
             </div>
           </div>
-        </div>
+
+          {/* Table Container */}
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+              <thead className="ax-table__head" style={{ background: '#3b0764' }}>
+                <tr>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Sr. No.</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Unique ID</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>State</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>District</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Division</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Sub Division</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Department</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Site Name</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Site Address</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>CA No.</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Survey Address</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Nearest Landmark</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Agency Contact Person Name</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Agency Contact Number</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Nodal Person</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Nodal Person Contact</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Latitude</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Longitude</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Load Type</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Connection Phase</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Meter Connection Type</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Meter Number</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Meter Type</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Sanction Load (KW/KVA)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Connected Load (KW)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Grid Power Availability</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Three-Phase Availability</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Missing Phase</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>LTDB Present</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Roof Condition</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Total Roof Area (Sq.Feet)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Free Space Solar (Sq.Feet)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Free Space Inverter (Sq.Feet)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Earth Pit Position</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Age of Building</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Access to Roof</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Rooftop Height (Feet)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Parapet Height (Feet)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>No. of Floors (G+...)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Water Source for Cleaning</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Access to Site</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Distance of Site from Main Road (km)</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Building Image</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Roof Image</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Control Room</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Other Image</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>PDF</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Survey Status</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Verify Status</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff' }}>Verify Remarks</th>
+                  <th className="ax-table__th" style={{ color: '#ffffff', textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={51} className="ax-table__td" style={{ textAlign: 'center', padding: 'var(--ax-space-8)', color: 'var(--ax-text-muted)' }}>
+                      <span className="ax-spinner" style={{ width: 18, height: 18, marginRight: 8 }} />
+                      Loading Bihar SRT 200MW Survey records...
+                    </td>
+                  </tr>
+                ) : pagedSites.length === 0 ? (
+                  <tr>
+                    <td colSpan={51} className="ax-table__td" style={{ textAlign: 'center', padding: 'var(--ax-space-8)', color: 'var(--ax-text-muted)' }}>
+                      No survey records available.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedSites.map((item, idx) => {
+                    const srNo = (currentPage - 1) * pageSize + idx + 1;
+                    return (
+                      <tr key={item.id || idx} className="ax-table__row">
+                        <td className="ax-table__td">{srNo}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{item.uid || '—'}</td>
+                        <td className="ax-table__td">{item.state || 'Bihar'}</td>
+                        <td className="ax-table__td">{item.district || '—'}</td>
+                        <td className="ax-table__td">{item.division || '—'}</td>
+                        <td className="ax-table__td">{item.sub_division || '—'}</td>
+                        <td className="ax-table__td">{item.department || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{item.site_name || '—'}</td>
+                        <td className="ax-table__td">{item.address || '—'}</td>
+                        <td className="ax-table__td">{item.ca_no || '—'}</td>
+                        <td className="ax-table__td">{item.survey_address || '—'}</td>
+                        <td className="ax-table__td">{item.near_landmark || '—'}</td>
+                        <td className="ax-table__td">{item.agency_person_name || '—'}</td>
+                        <td className="ax-table__td">{item.agency_person_contact || '—'}</td>
+                        <td className="ax-table__td">{item.nodal_person || '—'}</td>
+                        <td className="ax-table__td">{item.contact_nodal || '—'}</td>
+                        <td className="ax-table__td">{item.latitude || '—'}</td>
+                        <td className="ax-table__td">{item.longitude || '—'}</td>
+                        <td className="ax-table__td">{item.load_type || '—'}</td>
+                        <td className="ax-table__td">{item.connection_phase || '—'}</td>
+                        <td className="ax-table__td">{item.meter_connection || '—'}</td>
+                        <td className="ax-table__td">{item.meter_number || '—'}</td>
+                        <td className="ax-table__td">{item.meter_type || '—'}</td>
+                        <td className="ax-table__td">{item.sanction_load || '—'}</td>
+                        <td className="ax-table__td">{item.connected_load || '—'}</td>
+                        <td className="ax-table__td">{item.grid_power || '—'}</td>
+                        <td className="ax-table__td">{item.all_3_phase_ltdb || '—'}</td>
+                        <td className="ax-table__td">{item.missing_phase || '—'}</td>
+                        <td className="ax-table__td">{item.ltdb_present || '—'}</td>
+                        <td className="ax-table__td">{item.roof_condition || '—'}</td>
+                        <td className="ax-table__td">{item.area_roof || '—'}</td>
+                        <td className="ax-table__td">{item.free_space_solar || '—'}</td>
+                        <td className="ax-table__td">{item.free_space_inverter || '—'}</td>
+                        <td className="ax-table__td">{item.earth_pit || '—'}</td>
+                        <td className="ax-table__td">{item.building_age || '—'}</td>
+                        <td className="ax-table__td">{item.roof_access || '—'}</td>
+                        <td className="ax-table__td">{item.rooftop_height || '—'}</td>
+                        <td className="ax-table__td">{item.parapet_height || '—'}</td>
+                        <td className="ax-table__td">{item.floors_number || '—'}</td>
+                        <td className="ax-table__td">{item.water_source || '—'}</td>
+                        <td className="ax-table__td">{item.site_access || '—'}</td>
+                        <td className="ax-table__td">{item.site_distance || '—'}</td>
+
+                        {/* Building Image */}
+                        <td className="ax-table__td">
+                          {item.image1 ? (
+                            <img
+                              src={item.image1.startsWith('http') ? item.image1 : `/${item.image1}`}
+                              alt="Building"
+                              style={{ width: 34, height: 34, borderRadius: 4, objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
+                              onClick={() => setPreviewImg(item.image1!.startsWith('http') ? item.image1! : `/${item.image1}`)}
+                            />
+                          ) : '—'}
+                        </td>
+
+                        {/* Roof Image */}
+                        <td className="ax-table__td">
+                          {item.image2 ? (
+                            <img
+                              src={item.image2.startsWith('http') ? item.image2 : `/${item.image2}`}
+                              alt="Roof"
+                              style={{ width: 34, height: 34, borderRadius: 4, objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
+                              onClick={() => setPreviewImg(item.image2!.startsWith('http') ? item.image2! : `/${item.image2}`)}
+                            />
+                          ) : '—'}
+                        </td>
+
+                        {/* Control Room Image */}
+                        <td className="ax-table__td">
+                          {item.image3 ? (
+                            <img
+                              src={item.image3.startsWith('http') ? item.image3 : `/${item.image3}`}
+                              alt="Control Room"
+                              style={{ width: 34, height: 34, borderRadius: 4, objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
+                              onClick={() => setPreviewImg(item.image3!.startsWith('http') ? item.image3! : `/${item.image3}`)}
+                            />
+                          ) : '—'}
+                        </td>
+
+                        {/* Other Image */}
+                        <td className="ax-table__td">
+                          {item.image4 ? (
+                            <img
+                              src={item.image4.startsWith('http') ? item.image4 : `/${item.image4}`}
+                              alt="Other"
+                              style={{ width: 34, height: 34, borderRadius: 4, objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
+                              onClick={() => setPreviewImg(item.image4!.startsWith('http') ? item.image4! : `/${item.image4}`)}
+                            />
+                          ) : '—'}
+                        </td>
+
+                        {/* PDF */}
+                        <td className="ax-table__td">
+                          {item.pdf_file ? (
+                            <a
+                              href={item.pdf_file.startsWith('http') ? item.pdf_file : `/${item.pdf_file}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ax-badge ax-badge--soft ax-badge--danger"
+                              style={{ textDecoration: 'none', cursor: 'pointer' }}
+                            >
+                              PDF ↗
+                            </a>
+                          ) : '—'}
+                        </td>
+
+                        {/* Survey Status */}
+                        <td className="ax-table__td">
+                          <span
+                            className={`ax-badge ax-badge--soft ax-badge--pill ${
+                              item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'
+                            }`}
+                          >
+                            <span className="ax-badge__dot" />
+                            {item.survey_status === 1 ? 'Complete' : 'Pending'}
+                          </span>
+                        </td>
+
+                        {/* Verify Status */}
+                        <td className="ax-table__td">
+                          <span
+                            className={`ax-badge ax-badge--soft ax-badge--pill ${
+                              item.survey_verify_status === 1
+                                ? 'ax-badge--success'
+                                : item.survey_verify_status === 2
+                                ? 'ax-badge--danger'
+                                : 'ax-badge--warning'
+                            }`}
+                          >
+                            <span className="ax-badge__dot" />
+                            {item.survey_verify_status === 1
+                              ? 'Approved'
+                              : item.survey_verify_status === 2
+                              ? 'Rejected'
+                              : 'Pending'}
+                          </span>
+                        </td>
+
+                        {/* Verify Remarks */}
+                        <td className="ax-table__td">{item.verify_remarks || '—'}</td>
+
+                        {/* Action */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            onClick={() => navigate(`/v/bihar/srt200mw-survey?id=${item.id}`)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <Pagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={filteredSites.length}
+            onChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
+        </section>
       </div>
 
       {/* ── Image Preview Modal ── */}
@@ -761,52 +636,38 @@ export function Bihar_Survey_SRT200MW_ViewData() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.75)',
-            zIndex: 1000,
+            background: 'rgba(0,0,0,0.7)',
+            zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '2rem',
+            padding: 'var(--ax-space-4)',
           }}
           onClick={() => setPreviewImg(null)}
         >
           <div
             style={{
               position: 'relative',
-              background: '#ffffff',
-              borderRadius: 12,
-              padding: 12,
+              background: 'var(--ax-surface)',
+              borderRadius: 'var(--ax-radius-xl)',
+              padding: 'var(--ax-space-3)',
               maxWidth: '90vw',
               maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
               type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}
               onClick={() => setPreviewImg(null)}
-              style={{
-                position: 'absolute',
-                top: -12,
-                right: -12,
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: '#dc2626',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: 700,
-              }}
             >
               ✕
             </button>
             <img
               src={previewImg}
               alt="Survey Preview"
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }}
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }}
             />
           </div>
         </div>
