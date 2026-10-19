@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessState } from '../../services/stateAccess';
 import './v-portal-sidebar.css';
@@ -701,8 +701,15 @@ function VPortalCategoryItem({
     sub.items.some((item) => currentPath === item.to || currentPath.replace(/^\/v\//, '/') === item.to.replace(/^\/v\//, '/'))
   );
 
-  const [open, setOpen] = useState(true);
-  const isOpen = filter ? true : open || hasActiveChild;
+  const [open, setOpen] = useState(hasActiveChild);
+
+  useEffect(() => {
+    if (hasActiveChild) {
+      setOpen(true);
+    }
+  }, [hasActiveChild]);
+
+  const isOpen = filter ? true : open;
 
   return (
     <div className="vp-sb__group">
@@ -795,8 +802,15 @@ function VPortalSubgroupItem({
     (item) => currentPath === item.to || currentPath.replace(/^\/v\//, '/') === item.to.replace(/^\/v\//, '/')
   );
 
-  const [open, setOpen] = useState(true);
-  const isOpen = filter ? true : open || hasActiveLeaf;
+  const [open, setOpen] = useState(hasActiveLeaf);
+
+  useEffect(() => {
+    if (hasActiveLeaf) {
+      setOpen(true);
+    }
+  }, [hasActiveLeaf]);
+
+  const isOpen = filter ? true : open;
 
   return (
     <div className="vp-sb__subgroup-block" style={{ marginBottom: 4 }}>
