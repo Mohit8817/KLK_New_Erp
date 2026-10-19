@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -27,6 +27,145 @@ const DEFAULT_KPIS: SurveyDetailKpis = {
   verify_complete: 0,
   verify_reject: 0,
 };
+
+/* ── Styles: professional KPI cards + light table polish ── */
+const VIEW_CSS = `
+.bsv-kpi { position: relative; overflow: hidden; border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); }
+.bsv-kpi:hover { box-shadow: var(--ax-shadow-md); transform: translateY(-1px); }
+.bsv-kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--bsv-accent); }
+.bsv-kpi__body { padding: var(--ax-space-5) var(--ax-space-5) var(--ax-space-4); display: flex; flex-direction: column; gap: var(--ax-space-4); }
+.bsv-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: var(--ax-space-3); }
+.bsv-kpi__title-wrap { display: flex; align-items: center; gap: var(--ax-space-3); min-width: 0; }
+.bsv-kpi__icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--ax-radius-lg); display: inline-flex; align-items: center; justify-content: center; color: var(--bsv-accent); background: color-mix(in srgb, var(--bsv-accent) 12%, var(--ax-surface-solid)); }
+.bsv-kpi__icon svg { width: 20px; height: 20px; }
+.bsv-kpi__label { font-size: var(--ax-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); }
+.bsv-kpi__caption { font-size: var(--ax-text-xs); color: var(--ax-text-subtle); margin-top: 2px; }
+.bsv-kpi__value-row { display: flex; align-items: baseline; gap: var(--ax-space-2); flex-wrap: wrap; }
+.bsv-kpi__value { font-size: 2rem; line-height: 1.1; font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
+.bsv-kpi__unit { font-size: var(--ax-text-sm); color: var(--ax-text-muted); }
+.bsv-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--ax-surface-subtle); border: 1px solid var(--ax-border-subtle); }
+.bsv-bar__seg { height: 100%; transition: width .4s var(--ax-ease-standard); }
+.bsv-legend { display: flex; flex-wrap: wrap; gap: var(--ax-space-2) var(--ax-space-4); padding-top: var(--ax-space-3); border-top: 1px dashed var(--ax-border); }
+.bsv-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ax-text-xs); color: var(--ax-text-muted); }
+.bsv-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.bsv-legend__num { font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
+
+.bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
+.bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
+.bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
+`;
+
+const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+
+interface Segment { label: string; count: number; color: string }
+
+function KpiCard({
+  accent, icon, label, caption, value, unit, badge, segments,
+}: {
+  accent: string; icon: ReactNode; label: string; caption: string;
+  value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
+}) {
+  const sum = (segments || []).reduce((a, s) => a + s.count, 0);
+  return (
+    <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
+      <div className="bsv-kpi__body">
+        <div className="bsv-kpi__head">
+          <div className="bsv-kpi__title-wrap">
+            <span className="bsv-kpi__icon"><svg {...ICON_PROPS}>{icon}</svg></span>
+            <div>
+              <div className="bsv-kpi__label">{label}</div>
+              <div className="bsv-kpi__caption">{caption}</div>
+            </div>
+          </div>
+          {badge}
+        </div>
+
+        <div className="bsv-kpi__value-row">
+          <span className="bsv-kpi__value">{value}</span>
+          {unit && <span className="bsv-kpi__unit">{unit}</span>}
+        </div>
+
+        {segments && (
+          <>
+            <div className="bsv-bar" role="img" aria-label={segments.map((s) => `${s.label}: ${s.count}`).join(', ')}>
+              {sum > 0 && segments.map((s) => (
+                <div key={s.label} className="bsv-bar__seg" style={{ width: `${(s.count / sum) * 100}%`, background: s.color }} />
+              ))}
+            </div>
+            <div className="bsv-legend">
+              {segments.map((s) => (
+                <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
+                  <span className="bsv-legend__dot" />
+                  {s.label} <span className="bsv-legend__num">{s.count}</span>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Table column config (same columns / order as before) ── */
+type Row = BiharSrtSiteItem;
+interface TextCol { key: string; th: string; get: (r: Row) => ReactNode; style?: CSSProperties }
+
+const DASH = '—';
+const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
+
+const TEXT_COLS_BEFORE_MEDIA: TextCol[] = [
+  { key: 'Unique ID', th: 'Unique ID', get: (r) => txt(r.uid), style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' } },
+  { key: 'State', th: 'State', get: (r) => r.state || 'Bihar' },
+  { key: 'District', th: 'District', get: (r) => txt(r.district) },
+  { key: 'Division', th: 'Division', get: (r) => txt(r.division) },
+  { key: 'Sub Division', th: 'Sub Division', get: (r) => txt(r.sub_division) },
+  { key: 'Department', th: 'Department', get: (r) => txt(r.department) },
+  { key: 'Site Name', th: 'Site Name', get: (r) => txt(r.site_name), style: { fontWeight: 'var(--ax-weight-medium)' as any } },
+  { key: 'Site Address', th: 'Site Address', get: (r) => txt(r.address) },
+  { key: 'CA No.', th: 'CA No.', get: (r) => txt(r.ca_no) },
+  { key: 'Survey Address', th: 'Survey Address', get: (r) => txt(r.survey_address) },
+  { key: 'Nearest Landmark', th: 'Nearest Landmark', get: (r) => txt(r.near_landmark) },
+  { key: 'Agency Contact Person', th: 'Agency Contact Person', get: (r) => txt(r.agency_person_name) },
+  { key: 'Agency Contact Number', th: 'Agency Contact Number', get: (r) => txt(r.agency_person_contact) },
+  { key: 'Nodal Person', th: 'Nodal Person', get: (r) => txt(r.nodal_person) },
+  { key: 'Nodal Contact', th: 'Nodal Person Contact', get: (r) => txt(r.contact_nodal) },
+  { key: 'Latitude', th: 'Latitude', get: (r) => txt(r.latitude) },
+  { key: 'Longitude', th: 'Longitude', get: (r) => txt(r.longitude) },
+  { key: 'Load Type', th: 'Load Type', get: (r) => txt(r.load_type) },
+  { key: 'Connection Phase', th: 'Connection Phase', get: (r) => txt(r.connection_phase) },
+  { key: 'Meter Connection Type', th: 'Meter Connection Type', get: (r) => txt(r.meter_connection) },
+  { key: 'Meter Number', th: 'Meter Number', get: (r) => txt(r.meter_number) },
+  { key: 'Meter Type', th: 'Meter Type', get: (r) => txt(r.meter_type) },
+  { key: 'Sanction Load', th: 'Sanction Load (KW/KVA)', get: (r) => txt(r.sanction_load) },
+  { key: 'Connected Load', th: 'Connected Load (KW)', get: (r) => txt(r.connected_load) },
+  { key: 'Grid Power Availability', th: 'Grid Power Availability', get: (r) => txt(r.grid_power) },
+  { key: 'Three-Phase Availability', th: 'Three-Phase Availability', get: (r) => txt(r.all_3_phase_ltdb) },
+  { key: 'Missing Phase', th: 'Missing Phase', get: (r) => txt(r.missing_phase) },
+  { key: 'LTDB Present', th: 'LTDB Present', get: (r) => txt(r.ltdb_present) },
+  { key: 'Roof Condition', th: 'Roof Condition', get: (r) => txt(r.roof_condition) },
+  { key: 'Total Roof Area (Sq.Ft)', th: 'Total Roof Area (Sq.Ft)', get: (r) => txt(r.area_roof) },
+  { key: 'Free Space Solar (Sq.Ft)', th: 'Free Space Solar (Sq.Ft)', get: (r) => txt(r.free_space_solar) },
+  { key: 'Free Space Inverter (Sq.Ft)', th: 'Free Space Inverter (Sq.Ft)', get: (r) => txt(r.free_space_inverter) },
+  { key: 'Earth Pit Position', th: 'Earth Pit Position', get: (r) => txt(r.earth_pit) },
+  { key: 'Age of Building', th: 'Age of Building', get: (r) => txt(r.building_age) },
+  { key: 'Roof Access', th: 'Access to Roof', get: (r) => txt(r.roof_access) },
+  { key: 'Rooftop Height', th: 'Rooftop Height (Feet)', get: (r) => txt(r.rooftop_height) },
+  { key: 'Parapet Height', th: 'Parapet Height (Feet)', get: (r) => txt(r.parapet_height) },
+  { key: 'No. of Floors', th: 'No. of Floors (G+...)', get: (r) => txt(r.floors_number) },
+  { key: 'Water Source', th: 'Water Source for Cleaning', get: (r) => txt(r.water_source) },
+  { key: 'Access to Site', th: 'Access to Site', get: (r) => txt(r.site_access) },
+  { key: 'Distance from Road', th: 'Distance from Main Road (km)', get: (r) => txt(r.site_distance) },
+];
+
+const MEDIA_COLS: { th: string; alt: string; field: 'image1' | 'image2' | 'image3' | 'image4' }[] = [
+  { th: 'Building Image', alt: 'Building', field: 'image1' },
+  { th: 'Roof Image', alt: 'Roof', field: 'image2' },
+  { th: 'Control Room', alt: 'Control Room', field: 'image3' },
+  { th: 'Other Image', alt: 'Other', field: 'image4' },
+];
+
+const fileUrl = (p: string) => (p.startsWith('http') ? p : `/${p}`);
 
 export function Bihar_Survey_SRT200MW_ViewData() {
   const navigate = useNavigate();
@@ -164,8 +303,19 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const handleExcel = () => exportDataToExcel('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols);
   const handlePdf = () => printTableData('Bihar SRT 200MW Survey', filteredSites, activeExportCols);
 
+  const visibleTextCols = TEXT_COLS_BEFORE_MEDIA.filter((c) => isVisible(c.key));
+  const surveyDonePct = kpis.total > 0 ? Math.round((kpis.complete / kpis.total) * 100) : 0;
+  const verifyDonePct = kpis.total > 0 ? Math.round((kpis.verify_complete / kpis.total) * 100) : 0;
+
+  const warn = 'var(--ax-warning-500, #f59e0b)';
+  const ok = 'var(--ax-success-500)';
+  const bad = 'var(--ax-danger-500)';
+  const accent = 'var(--ax-accent)';
+
   return (
-    <div className="ax-page">
+    <div className="ax-page bsv-page">
+      <style>{VIEW_CSS}</style>
+
       {/* ── Page Head ── */}
       <PageHead
         title="Bihar SRT 200 MW Survey"
@@ -178,23 +328,14 @@ export function Bihar_Survey_SRT200MW_ViewData() {
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadData}
-              disabled={loading}
-            >
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
                 <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
               </svg>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={() => navigate('/v/bihar/srt200mw-survey')}
-            >
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/srt200mw-survey')}>
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 5l0 14" />
                 <path d="M5 12l14 0" />
@@ -206,81 +347,53 @@ export function Bihar_Survey_SRT200MW_ViewData() {
       />
 
       <div className="ax-dash-grid">
-        {/* ── KPI Box 1: Total Assign ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Total Assigned Sites">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </span>
-              <span className="ax-badge ax-badge--soft ax-badge--neutral">Assigned</span>
-            </div>
-            <div className="ax-kpi__label">Total Assign</div>
-            <div className="ax-kpi__value ax-num">{kpis.total}</div>
-            <div className="ax-kpi__caption">Assigned survey sites</div>
-          </div>
-        </div>
+        {/* ── KPI 1: Total Assigned ── */}
+        <KpiCard
+          accent={accent}
+          label="Total Assigned"
+          caption="Assigned survey sites"
+          value={kpis.total}
+          unit="sites"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Sites</span>}
+          icon={<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>}
+          segments={[
+            { label: 'Surveyed', count: kpis.complete, color: ok },
+            { label: 'Remaining', count: kpis.pending, color: warn },
+          ]}
+        />
 
-        {/* ── KPI Box 2: Survey Status ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Survey Status">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                  <path d="M9 22v-4h6v4" />
-                  <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
-                </svg>
-              </span>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
-                <span className="ax-badge ax-badge--soft ax-badge--success">Complete: {kpis.complete}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--warning">Pending: {kpis.pending}</span>
-              </div>
-            </div>
-            <div className="ax-kpi__label">Survey Status</div>
-            <div className="ax-kpi__value ax-num">
-              {kpis.complete}{' '}
-              <span style={{ fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-muted)', fontWeight: 'var(--ax-weight-normal)' }}>
-                / {kpis.pending}
-              </span>
-            </div>
-            <div className="ax-kpi__caption">Complete / Pending</div>
-          </div>
-        </div>
+        {/* ── KPI 2: Survey Status ── */}
+        <KpiCard
+          accent={ok}
+          label="Survey Status"
+          caption="Complete vs Pending"
+          value={`${surveyDonePct}%`}
+          unit="completed"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{kpis.complete} / {kpis.total}</span>}
+          icon={<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>}
+          segments={[
+            { label: 'Complete', count: kpis.complete, color: ok },
+            { label: 'Pending', count: kpis.pending, color: warn },
+          ]}
+        />
 
-        {/* ── KPI Box 3: Survey Verify Status ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Survey Verify Status">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c3">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <path d="M9 15l2 2 4-4" />
-                </svg>
-              </span>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
-                <span className="ax-badge ax-badge--soft ax-badge--success">Verify: {kpis.verify_complete}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--warning">Pending: {kpis.verify_pending}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--danger">Reject: {kpis.verify_reject}</span>
-              </div>
-            </div>
-            <div className="ax-kpi__label">Survey Verify Status</div>
-            <div className="ax-kpi__value ax-num">
-              {kpis.verify_complete}{' '}
-              <span style={{ fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-muted)', fontWeight: 'var(--ax-weight-normal)' }}>
-                / {kpis.verify_pending} / {kpis.verify_reject}
-              </span>
-            </div>
-            <div className="ax-kpi__caption">Verify / Pending / Reject</div>
-          </div>
-        </div>
+        {/* ── KPI 3: Verify Status ── */}
+        <KpiCard
+          accent={warn}
+          label="Survey Verification"
+          caption="Approved / Pending / Rejected"
+          value={`${verifyDonePct}%`}
+          unit="verified"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">{kpis.verify_pending} pending</span>}
+          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
+          segments={[
+            { label: 'Approved', count: kpis.verify_complete, color: ok },
+            { label: 'Pending', count: kpis.verify_pending, color: warn },
+            { label: 'Rejected', count: kpis.verify_reject, color: bad },
+          ]}
+        />
 
-        {/* ── Main Table Card (Template DataTables pattern) ── */}
+        {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
           <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
             <div className="ax-card__titles">
@@ -336,51 +449,12 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                   <thead className="ax-table__head">
                     <tr>
                       <th className="ax-table__th" scope="col">Sr. No.</th>
-                      {isVisible('Unique ID') && <th className="ax-table__th" scope="col">Unique ID</th>}
-                      {isVisible('State') && <th className="ax-table__th" scope="col">State</th>}
-                      {isVisible('District') && <th className="ax-table__th" scope="col">District</th>}
-                      {isVisible('Division') && <th className="ax-table__th" scope="col">Division</th>}
-                      {isVisible('Sub Division') && <th className="ax-table__th" scope="col">Sub Division</th>}
-                      {isVisible('Department') && <th className="ax-table__th" scope="col">Department</th>}
-                      {isVisible('Site Name') && <th className="ax-table__th" scope="col">Site Name</th>}
-                      {isVisible('Site Address') && <th className="ax-table__th" scope="col">Site Address</th>}
-                      {isVisible('CA No.') && <th className="ax-table__th" scope="col">CA No.</th>}
-                      {isVisible('Survey Address') && <th className="ax-table__th" scope="col">Survey Address</th>}
-                      {isVisible('Nearest Landmark') && <th className="ax-table__th" scope="col">Nearest Landmark</th>}
-                      {isVisible('Agency Contact Person') && <th className="ax-table__th" scope="col">Agency Contact Person</th>}
-                      {isVisible('Agency Contact Number') && <th className="ax-table__th" scope="col">Agency Contact Number</th>}
-                      {isVisible('Nodal Person') && <th className="ax-table__th" scope="col">Nodal Person</th>}
-                      {isVisible('Nodal Contact') && <th className="ax-table__th" scope="col">Nodal Person Contact</th>}
-                      {isVisible('Latitude') && <th className="ax-table__th" scope="col">Latitude</th>}
-                      {isVisible('Longitude') && <th className="ax-table__th" scope="col">Longitude</th>}
-                      {isVisible('Load Type') && <th className="ax-table__th" scope="col">Load Type</th>}
-                      {isVisible('Connection Phase') && <th className="ax-table__th" scope="col">Connection Phase</th>}
-                      {isVisible('Meter Connection Type') && <th className="ax-table__th" scope="col">Meter Connection Type</th>}
-                      {isVisible('Meter Number') && <th className="ax-table__th" scope="col">Meter Number</th>}
-                      {isVisible('Meter Type') && <th className="ax-table__th" scope="col">Meter Type</th>}
-                      {isVisible('Sanction Load') && <th className="ax-table__th" scope="col">Sanction Load (KW/KVA)</th>}
-                      {isVisible('Connected Load') && <th className="ax-table__th" scope="col">Connected Load (KW)</th>}
-                      {isVisible('Grid Power Availability') && <th className="ax-table__th" scope="col">Grid Power Availability</th>}
-                      {isVisible('Three-Phase Availability') && <th className="ax-table__th" scope="col">Three-Phase Availability</th>}
-                      {isVisible('Missing Phase') && <th className="ax-table__th" scope="col">Missing Phase</th>}
-                      {isVisible('LTDB Present') && <th className="ax-table__th" scope="col">LTDB Present</th>}
-                      {isVisible('Roof Condition') && <th className="ax-table__th" scope="col">Roof Condition</th>}
-                      {isVisible('Total Roof Area (Sq.Ft)') && <th className="ax-table__th" scope="col">Total Roof Area (Sq.Ft)</th>}
-                      {isVisible('Free Space Solar (Sq.Ft)') && <th className="ax-table__th" scope="col">Free Space Solar (Sq.Ft)</th>}
-                      {isVisible('Free Space Inverter (Sq.Ft)') && <th className="ax-table__th" scope="col">Free Space Inverter (Sq.Ft)</th>}
-                      {isVisible('Earth Pit Position') && <th className="ax-table__th" scope="col">Earth Pit Position</th>}
-                      {isVisible('Age of Building') && <th className="ax-table__th" scope="col">Age of Building</th>}
-                      {isVisible('Roof Access') && <th className="ax-table__th" scope="col">Access to Roof</th>}
-                      {isVisible('Rooftop Height') && <th className="ax-table__th" scope="col">Rooftop Height (Feet)</th>}
-                      {isVisible('Parapet Height') && <th className="ax-table__th" scope="col">Parapet Height (Feet)</th>}
-                      {isVisible('No. of Floors') && <th className="ax-table__th" scope="col">No. of Floors (G+...)</th>}
-                      {isVisible('Water Source') && <th className="ax-table__th" scope="col">Water Source for Cleaning</th>}
-                      {isVisible('Access to Site') && <th className="ax-table__th" scope="col">Access to Site</th>}
-                      {isVisible('Distance from Road') && <th className="ax-table__th" scope="col">Distance from Main Road (km)</th>}
-                      <th className="ax-table__th" scope="col">Building Image</th>
-                      <th className="ax-table__th" scope="col">Roof Image</th>
-                      <th className="ax-table__th" scope="col">Control Room</th>
-                      <th className="ax-table__th" scope="col">Other Image</th>
+                      {visibleTextCols.map((c) => (
+                        <th key={c.key} className="ax-table__th" scope="col">{c.th}</th>
+                      ))}
+                      {MEDIA_COLS.map((m) => (
+                        <th key={m.field} className="ax-table__th" scope="col">{m.th}</th>
+                      ))}
                       <th className="ax-table__th" scope="col">PDF</th>
                       {isVisible('Survey Status') && <th className="ax-table__th" scope="col">Survey Status</th>}
                       {isVisible('Verify Status') && <th className="ax-table__th" scope="col">Verify Status</th>}
@@ -394,117 +468,35 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                       return (
                         <tr key={item.id || idx} className="ax-table__row">
                           <td className="ax-table__td">{srNo}</td>
-                          {isVisible('Unique ID') && (
-                            <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                              {item.uid || '—'}
-                            </td>
-                          )}
-                          {isVisible('State') && <td className="ax-table__td">{item.state || 'Bihar'}</td>}
-                          {isVisible('District') && <td className="ax-table__td">{item.district || '—'}</td>}
-                          {isVisible('Division') && <td className="ax-table__td">{item.division || '—'}</td>}
-                          {isVisible('Sub Division') && <td className="ax-table__td">{item.sub_division || '—'}</td>}
-                          {isVisible('Department') && <td className="ax-table__td">{item.department || '—'}</td>}
-                          {isVisible('Site Name') && (
-                            <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' }}>
-                              {item.site_name || '—'}
-                            </td>
-                          )}
-                          {isVisible('Site Address') && <td className="ax-table__td">{item.address || '—'}</td>}
-                          {isVisible('CA No.') && <td className="ax-table__td">{item.ca_no || '—'}</td>}
-                          {isVisible('Survey Address') && <td className="ax-table__td">{item.survey_address || '—'}</td>}
-                          {isVisible('Nearest Landmark') && <td className="ax-table__td">{item.near_landmark || '—'}</td>}
-                          {isVisible('Agency Contact Person') && <td className="ax-table__td">{item.agency_person_name || '—'}</td>}
-                          {isVisible('Agency Contact Number') && <td className="ax-table__td">{item.agency_person_contact || '—'}</td>}
-                          {isVisible('Nodal Person') && <td className="ax-table__td">{item.nodal_person || '—'}</td>}
-                          {isVisible('Nodal Contact') && <td className="ax-table__td">{item.contact_nodal || '—'}</td>}
-                          {isVisible('Latitude') && <td className="ax-table__td">{item.latitude || '—'}</td>}
-                          {isVisible('Longitude') && <td className="ax-table__td">{item.longitude || '—'}</td>}
-                          {isVisible('Load Type') && <td className="ax-table__td">{item.load_type || '—'}</td>}
-                          {isVisible('Connection Phase') && <td className="ax-table__td">{item.connection_phase || '—'}</td>}
-                          {isVisible('Meter Connection Type') && <td className="ax-table__td">{item.meter_connection || '—'}</td>}
-                          {isVisible('Meter Number') && <td className="ax-table__td">{item.meter_number || '—'}</td>}
-                          {isVisible('Meter Type') && <td className="ax-table__td">{item.meter_type || '—'}</td>}
-                          {isVisible('Sanction Load') && <td className="ax-table__td">{item.sanction_load || '—'}</td>}
-                          {isVisible('Connected Load') && <td className="ax-table__td">{item.connected_load || '—'}</td>}
-                          {isVisible('Grid Power Availability') && <td className="ax-table__td">{item.grid_power || '—'}</td>}
-                          {isVisible('Three-Phase Availability') && <td className="ax-table__td">{item.all_3_phase_ltdb || '—'}</td>}
-                          {isVisible('Missing Phase') && <td className="ax-table__td">{item.missing_phase || '—'}</td>}
-                          {isVisible('LTDB Present') && <td className="ax-table__td">{item.ltdb_present || '—'}</td>}
-                          {isVisible('Roof Condition') && <td className="ax-table__td">{item.roof_condition || '—'}</td>}
-                          {isVisible('Total Roof Area (Sq.Ft)') && <td className="ax-table__td">{item.area_roof || '—'}</td>}
-                          {isVisible('Free Space Solar (Sq.Ft)') && <td className="ax-table__td">{item.free_space_solar || '—'}</td>}
-                          {isVisible('Free Space Inverter (Sq.Ft)') && <td className="ax-table__td">{item.free_space_inverter || '—'}</td>}
-                          {isVisible('Earth Pit Position') && <td className="ax-table__td">{item.earth_pit || '—'}</td>}
-                          {isVisible('Age of Building') && <td className="ax-table__td">{item.building_age || '—'}</td>}
-                          {isVisible('Roof Access') && <td className="ax-table__td">{item.roof_access || '—'}</td>}
-                          {isVisible('Rooftop Height') && <td className="ax-table__td">{item.rooftop_height || '—'}</td>}
-                          {isVisible('Parapet Height') && <td className="ax-table__td">{item.parapet_height || '—'}</td>}
-                          {isVisible('No. of Floors') && <td className="ax-table__td">{item.floors_number || '—'}</td>}
-                          {isVisible('Water Source') && <td className="ax-table__td">{item.water_source || '—'}</td>}
-                          {isVisible('Access to Site') && <td className="ax-table__td">{item.site_access || '—'}</td>}
-                          {isVisible('Distance from Road') && <td className="ax-table__td">{item.site_distance || '—'}</td>}
 
-                          {/* Building Image */}
-                          <td className="ax-table__td">
-                            {item.image1 ? (
-                              <img
-                                src={item.image1.startsWith('http') ? item.image1 : `/${item.image1}`}
-                                alt="Building"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() => setPreviewImg(item.image1!.startsWith('http') ? item.image1! : `/${item.image1}`)}
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
-                          </td>
+                          {visibleTextCols.map((c) => (
+                            <td key={c.key} className="ax-table__td" style={c.style}>{c.get(item)}</td>
+                          ))}
 
-                          {/* Roof Image */}
-                          <td className="ax-table__td">
-                            {item.image2 ? (
-                              <img
-                                src={item.image2.startsWith('http') ? item.image2 : `/${item.image2}`}
-                                alt="Roof"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() => setPreviewImg(item.image2!.startsWith('http') ? item.image2! : `/${item.image2}`)}
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
-                          </td>
-
-                          {/* Control Room Image */}
-                          <td className="ax-table__td">
-                            {item.image3 ? (
-                              <img
-                                src={item.image3.startsWith('http') ? item.image3 : `/${item.image3}`}
-                                alt="Control Room"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() => setPreviewImg(item.image3!.startsWith('http') ? item.image3! : `/${item.image3}`)}
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
-                          </td>
-
-                          {/* Other Image */}
-                          <td className="ax-table__td">
-                            {item.image4 ? (
-                              <img
-                                src={item.image4.startsWith('http') ? item.image4 : `/${item.image4}`}
-                                alt="Other"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() => setPreviewImg(item.image4!.startsWith('http') ? item.image4! : `/${item.image4}`)}
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
-                          </td>
+                          {/* Images */}
+                          {MEDIA_COLS.map((m) => {
+                            const path = item[m.field];
+                            return (
+                              <td key={m.field} className="ax-table__td">
+                                {path ? (
+                                  <img
+                                    src={fileUrl(path)}
+                                    alt={m.alt}
+                                    style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
+                                    onClick={() => setPreviewImg(fileUrl(path))}
+                                  />
+                                ) : (
+                                  <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
+                                )}
+                              </td>
+                            );
+                          })}
 
                           {/* PDF */}
                           <td className="ax-table__td">
                             {item.pdf_file ? (
                               <a
-                                href={item.pdf_file.startsWith('http') ? item.pdf_file : `/${item.pdf_file}`}
+                                href={fileUrl(item.pdf_file)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="ax-badge ax-badge--soft ax-badge--neutral"
@@ -520,11 +512,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                           {/* Survey Status */}
                           {isVisible('Survey Status') && (
                             <td className="ax-table__td">
-                              <span
-                                className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                  item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'
-                                }`}
-                              >
+                              <span className={`ax-badge ax-badge--soft ax-badge--pill ${item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
                                 <span className="ax-badge__dot" />
                                 {item.survey_status === 1 ? 'Complete' : 'Pending'}
                               </span>
@@ -544,19 +532,13 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                                 }`}
                               >
                                 <span className="ax-badge__dot" />
-                                {item.survey_verify_status === 1
-                                  ? 'Approved'
-                                  : item.survey_verify_status === 2
-                                  ? 'Rejected'
-                                  : 'Pending'}
+                                {item.survey_verify_status === 1 ? 'Approved' : item.survey_verify_status === 2 ? 'Rejected' : 'Pending'}
                               </span>
                             </td>
                           )}
 
                           {/* Verify Remarks */}
-                          {isVisible('Verify Remarks') && (
-                            <td className="ax-table__td">{item.verify_remarks || '—'}</td>
-                          )}
+                          {isVisible('Verify Remarks') && <td className="ax-table__td">{item.verify_remarks || '—'}</td>}
 
                           {/* Action */}
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
@@ -575,7 +557,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                 </table>
               </div>
 
-              {/* Template Pagination */}
               <Pagination
                 page={currentPage}
                 pageSize={pageSize}
@@ -588,51 +569,22 @@ export function Bihar_Survey_SRT200MW_ViewData() {
         </section>
       </div>
 
-      {/* ── Image Preview Modal (Professional Template Style) ── */}
+      {/* ── Image Preview Modal ── */}
       {previewImg && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 'var(--ax-space-4)',
-          }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--ax-space-4)' }}
           onClick={() => setPreviewImg(null)}
         >
-          <div
-            className="ax-card"
-            style={{
-              position: 'relative',
-              padding: 'var(--ax-space-4)',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="ax-card" style={{ position: 'relative', padding: 'var(--ax-space-4)', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-3)' }}>
               <h4 style={{ margin: 0, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 'var(--ax-weight-semibold)' }}>
                 Document Preview
               </h4>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
-                onClick={() => setPreviewImg(null)}
-                aria-label="Close preview"
-              >
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setPreviewImg(null)} aria-label="Close preview">
                 ✕
               </button>
             </div>
-            <img
-              src={previewImg}
-              alt="Survey Preview"
-              style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }}
-            />
+            <img src={previewImg} alt="Survey Preview" style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }} />
           </div>
         </div>
       )}
