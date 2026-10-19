@@ -40,7 +40,6 @@ const SOCIAL = [
   { name: 'X', icon: (<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="12" fill="#111" /><path fill="#fff" transform="translate(5.6 5.6) scale(.6)" d="M17.53 3H20.4l-6.27 7.17L21.5 21h-5.77l-4.52-5.91L6.04 21H3.17l6.71-7.67L2.8 3h5.92l4.08 5.4L17.53 3zm-1.01 16.3h1.59L7.85 4.62H6.15L16.52 19.3z" /></svg>) },
 ];
 
-/* ───────────── Styles ───────────── */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 .ag-root, .ag-root * { box-sizing: border-box; }
