@@ -158,6 +158,44 @@ const PAGE_CSS = `
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
+  /* District Breakdown Table Styling */
+  .solar-erp-page .ula-dist-card {
+    border-radius: var(--ax-radius-lg);
+    border: 1px solid var(--ax-border-subtle);
+    background: var(--ax-bg-surface);
+  }
+  .solar-erp-page .ula-dist-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+  .solar-erp-page .ula-dist-table th {
+    background: var(--ax-surface-subtle, #f8fafc);
+    font-size: var(--ax-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ax-text-muted);
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    padding: 12px 14px;
+    white-space: nowrap;
+  }
+  .solar-erp-page .ula-dist-table td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    font-size: var(--ax-text-sm);
+    border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+  }
+  .solar-erp-page .ula-dist-table tr:hover td {
+    background: var(--ax-bg-subtle, rgba(0,0,0,0.015));
+  }
+  .solar-erp-page .ula-dist-table tfoot td {
+    background: var(--ax-surface-subtle, #f8fafc);
+    font-weight: 700;
+    border-top: 2px solid var(--ax-border, #cbd5e1);
+    padding: 12px 14px;
+  }
+
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8, .solar-erp-page .ax-col--6, .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
@@ -192,6 +230,13 @@ const ICON_PLUS = (
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
+const ICON_EYE = (
+  <svg style={{ width: 13, height: 13 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="2" />
+    <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
+  </svg>
+);
+
 const svg = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
@@ -316,7 +361,6 @@ export function Bihar_Installation_ULA_Dashboard() {
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
   // Status drill-down modal
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -442,6 +486,36 @@ export function Bihar_Installation_ULA_Dashboard() {
     [districtwise, selectedDistrict, filtersActive]
   );
 
+  // Totals for table footer
+  const districtTotals = useMemo(() => {
+    return filteredDistrictRows.reduce(
+      (acc, d) => ({
+        site_count: acc.site_count + n(d.site_count),
+        structure_complete: acc.structure_complete + n(d.structure_complete),
+        structure_pending: acc.structure_pending + n(d.structure_pending),
+        inst_complete: acc.inst_complete + n(d.inst_complete),
+        inst_pending: acc.inst_pending + n(d.inst_pending),
+        verify_approved: acc.verify_approved + n(d.verify_approved),
+        verify_pending: acc.verify_pending + n(d.verify_pending),
+        verify_reject: acc.verify_reject + n(d.verify_reject),
+        inst_doc_complete: acc.inst_doc_complete + n(d.inst_doc_complete),
+        inst_doc_pending: acc.inst_doc_pending + n(d.inst_doc_pending),
+      }),
+      {
+        site_count: 0,
+        structure_complete: 0,
+        structure_pending: 0,
+        inst_complete: 0,
+        inst_pending: 0,
+        verify_approved: 0,
+        verify_pending: 0,
+        verify_reject: 0,
+        inst_doc_complete: 0,
+        inst_doc_pending: 0,
+      }
+    );
+  }, [filteredDistrictRows]);
+
   const deferredQuery = useDeferredValue(searchQuery);
   const tableDistricts = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -477,14 +551,15 @@ export function Bihar_Installation_ULA_Dashboard() {
   const stamp = new Date().toISOString().slice(0, 10);
 
   /* ───────── Drill-down Modal ───────── */
-  const handleOpenStatusDrill = async (statusKey: string, title: string) => {
+  const handleOpenStatusDrill = async (statusKey: string, title: string, districtParam?: string) => {
+    const targetDistrict = districtParam || (filtersActive ? selectedDistrict : undefined);
     setStatusModalTitle(title);
     setStatusModalOpen(true);
     setStatusModalLoading(true);
     try {
       let sites = [];
-      if (filtersActive) {
-        sites = await biharUlaInstallationService.getDashboardSitesByDistrict(statusKey, selectedDistrict);
+      if (targetDistrict && targetDistrict !== 'All') {
+        sites = await biharUlaInstallationService.getDashboardSitesByDistrict(statusKey, targetDistrict);
       } else {
         sites = await biharUlaInstallationService.getDashboardSitesByStatus(statusKey);
       }
@@ -512,10 +587,10 @@ export function Bihar_Installation_ULA_Dashboard() {
       { header: 'Verify Rejected', accessor: (r) => n(r.verify_reject) },
       { header: 'Doc Complete', accessor: (r) => n(r.inst_doc_complete) },
       { header: 'Doc Pending', accessor: (r) => n(r.inst_doc_pending) },
+      { header: 'Completion %', accessor: (r) => `${pctOf(n(r.inst_complete), n(r.site_count))}%` },
     ],
     []
   );
-  const exportCols = districtCols.filter((c, i) => !hiddenColumns.includes(`${c.header}-${i}`));
 
   /* ───────── Chart Options ───────── */
   const instStatusSeries = [ula.verify_approved, ula.verify_pending, ula.verify_reject, ula.pending];
@@ -666,17 +741,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           </div>
         </div>
 
-        {/* 1. Total Sites */}
-        <KpiCard
-          icon={I_PIN}
-          tone="accent"
-          label="Total Sites"
-          value={loading && !data ? '…' : `${ula.site_count}`}
-          sub="Allocated Sites"
-          badge="Allocated"
-          spark={spk((d) => n(d.site_count))}
-          onClick={drill('total', 'Total Allocated Sites')}
-        />
+   
 
         {/* 2. Structure Status: Installed / Pending */}
         <KpiCard
@@ -822,7 +887,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           onClick={drill('pay30_paid', '30% Payment Completed Sites')}
         />
 
-        {/* 5. Monthly trend + Installation status donut */}
+        {/* 5. Monthly Trend Area Chart + Donut Split */}
         <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="Monthly installation trend">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -903,13 +968,13 @@ export function Bihar_Installation_ULA_Dashboard() {
           </div>
         </section>
 
-        {/* 6. District Chart & Milestones */}
+        {/* 6. District Wise Progress (Chart) + Today's Activity */}
         <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="District wise progress">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
               <h2 className="ax-card__title">District Wise Progress</h2>
-              <p className="ax-card__subtitle">Top 15 districts by allocated sites · full list below</p>
+              <p className="ax-card__subtitle">Top 15 districts by allocated sites · click any bar to filter</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
@@ -959,99 +1024,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           </div>
         </section>
 
-        <section className="ax-card ax-col--4" role="region" aria-label="ULA milestones">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Workflow Lifecycle</span>
-              <h2 className="ax-card__title">ULA Milestones</h2>
-              <p className="ax-card__subtitle">Progress from allocation to documents</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
-            {milestones.map((m) => <ProgressRow key={m.label} {...m} />)}
-          </div>
-        </section>
-
-        {/* 7. District Table + Today's Activity */}
-        <section className="ax-card ax-col--8" role="region" aria-label="District wise installation breakdown">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Geographic Detail</span>
-              <h2 className="ax-card__title">District Wise Installation Breakdown</h2>
-              <p className="ax-card__subtitle">Structure, installation, verification and documents per district</p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
-                <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search district…" ariaLabel="Search districts" />
-                <TableExportToolbar
-                  onCopy={() => copyTableDataToClipboard(tableDistricts, exportCols)}
-                  onExportCSV={() => exportDataToCSV(tableDistricts, exportCols, `bihar_ula_districtwise_${stamp}.csv`)}
-                  onExportExcel={() => exportDataToExcel(tableDistricts, exportCols, `bihar_ula_districtwise_${stamp}.xlsx`)}
-                  onPrint={() => printTableData(tableDistricts, exportCols, 'Bihar ULA Installation District Breakdown')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div className="ax-table-wrap">
-              <table className="ax-table ax-table--hover" aria-label="District wise installation counts">
-                <thead>
-                  <tr>
-                    <th>District</th>
-                    <th style={{ textAlign: 'right' }}>Total Sites</th>
-                    <th style={{ textAlign: 'right' }}>Structure Done</th>
-                    <th style={{ textAlign: 'right' }}>Structure Pending</th>
-                    <th style={{ textAlign: 'right' }}>Install Done</th>
-                    <th style={{ textAlign: 'right' }}>Install Pending</th>
-                    <th style={{ textAlign: 'right' }}>Approved</th>
-                    <th style={{ textAlign: 'right' }}>Verify Pending</th>
-                    <th style={{ textAlign: 'right' }}>Verify Rejected</th>
-                    <th style={{ textAlign: 'right' }}>Doc Complete</th>
-                    <th style={{ textAlign: 'right' }}>Doc Pending</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && !data ? (
-                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}><span className="ax-spinner" /> Loading district records…</td></tr>
-                  ) : pagedDistricts.length === 0 ? (
-                    <tr><td colSpan={11}><TableEmptyState title="No district records" message="Try resetting your search query or filter." /></td></tr>
-                  ) : (
-                    pagedDistricts.map((d) => (
-                      <tr key={d.district} style={{ cursor: 'pointer' }} onClick={() => setSelectedDistrict(d.district)}>
-                        <td style={{ fontWeight: 600 }}>{d.district}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{num(d.site_count)}</td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--info">{num(d.structure_complete)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--warning">{num(d.structure_pending)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--success">{num(d.inst_complete)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--warning">{num(d.inst_pending)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--success">{num(d.verify_approved)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--warning">{num(d.verify_pending)}</span></td>
-                        <td style={{ textAlign: 'right' }}><span className="ax-badge ax-badge--soft ax-badge--danger">{num(d.verify_reject)}</span></td>
-                        <td style={{ textAlign: 'right' }}>{num(d.inst_doc_complete)}</td>
-                        <td style={{ textAlign: 'right' }}>{num(d.inst_doc_pending)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="ax-card__footer" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
-            <div className="ula-pagination-left">
-              <Pagination
-                currentPage={currentPage}
-                totalCount={tableDistricts.length}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 8. Today's Installation Activity */}
+        {/* Today's Installation Activity (Clean 4-column card) */}
         <section className="ax-card ax-col--4" role="region" aria-label="Today's installations">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -1087,6 +1060,303 @@ export function Bihar_Installation_ULA_Dashboard() {
             )}
           </div>
         </section>
+
+        {/* ══════════════════════════════════════════════════════════════
+            7. DISTRICT WISE INSTALLATION BREAKDOWN (FULL WIDTH, PREMIUM TABLE)
+            ══════════════════════════════════════════════════════════════ */}
+        <section className="ax-card ax-col--12 ula-dist-card" role="region" aria-label="District wise installation breakdown">
+          <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--ax-border-subtle)', background: 'var(--ax-surface-subtle, #f8fafc)', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-accent)', fontWeight: 700 }}>
+                Geographic Execution &amp; Verification Matrix
+              </span>
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', marginTop: 2 }}>
+                District Wise Installation Breakdown
+              </h2>
+              <p className="ax-card__subtitle" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                Comprehensive progress across structure erection, electrical commissioning, physical verification, and document submissions
+              </p>
+            </div>
+
+            {/* Quick summary chips in table header */}
+            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
+              <div className="ax-cluster" style={{ gap: '6px', flexWrap: 'wrap' }}>
+                <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ padding: '4px 10px', fontSize: '12px' }}>
+                  Districts: <b>{filteredDistrictRows.length}</b>
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ padding: '4px 10px', fontSize: '12px' }}>
+                  Allocated: <b>{num(districtTotals.site_count)}</b>
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ padding: '4px 10px', fontSize: '12px' }}>
+                  Installed: <b>{num(districtTotals.inst_complete)}</b>
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--emerald ax-badge--pill" style={{ padding: '4px 10px', fontSize: '12px' }}>
+                  Approved: <b>{num(districtTotals.verify_approved)}</b>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Toolbar */}
+          <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)', background: 'var(--ax-bg-surface)' }}>
+            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ width: 240 }}>
+                <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search district name…" ariaLabel="Search districts" />
+              </div>
+              {filtersActive && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  style={{ height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  onClick={() => setSelectedDistrict('All')}
+                >
+                  Clear filter ({selectedDistrict})
+                </button>
+              )}
+            </div>
+
+            <TableExportToolbar
+              onCopy={() => copyTableDataToClipboard(tableDistricts, districtCols)}
+              onExportCSV={() => exportDataToCSV(tableDistricts, districtCols, `bihar_ula_districtwise_${stamp}.csv`)}
+              onExportExcel={() => exportDataToExcel(tableDistricts, districtCols, `bihar_ula_districtwise_${stamp}.xlsx`)}
+              onPrint={() => printTableData(tableDistricts, districtCols, 'Bihar ULA Installation District Breakdown')}
+            />
+          </div>
+
+          <div className="ax-card__body" style={{ padding: 0 }}>
+            <div className="ax-table-wrap">
+              <table className="ula-dist-table" aria-label="District wise installation breakdown">
+                <thead>
+                  <tr>
+                    <th style={{ width: 50 }}>Sr.</th>
+                    <th>District</th>
+                    <th style={{ textAlign: 'right' }}>Allocated Sites</th>
+                    <th style={{ textAlign: 'center' }}>Structure (Done / Pend)</th>
+                    <th style={{ textAlign: 'center' }}>Installation (Done / Pend)</th>
+                    <th style={{ textAlign: 'center' }}>Verification (App / Pend / Rej)</th>
+                    <th style={{ textAlign: 'center' }}>Documents (Done / Pend)</th>
+                    <th style={{ minWidth: 140 }}>Completion %</th>
+                    <th style={{ textAlign: 'center', width: 100 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && !data ? (
+                    <tr>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--ax-space-8)' }}>
+                        <span className="ax-spinner" /> Loading district records…
+                      </td>
+                    </tr>
+                  ) : pagedDistricts.length === 0 ? (
+                    <tr>
+                      <td colSpan={9}>
+                        <TableEmptyState title="No district records" message="Try resetting your search query or district filter." />
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedDistricts.map((d, index) => {
+                      const total = n(d.site_count);
+                      const installed = n(d.inst_complete);
+                      const rowPct = pctOf(installed, total);
+                      const isSelected = selectedDistrict.toLowerCase() === d.district.toLowerCase();
+
+                      return (
+                        <tr
+                          key={d.district}
+                          style={{
+                            background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined,
+                            transition: 'background 120ms ease',
+                          }}
+                        >
+                          <td style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>
+                            {(currentPage - 1) * pageSize + index + 1}
+                          </td>
+                          <td>
+                            <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontSize: '0.92rem' }}>
+                                {d.district}
+                              </span>
+                              {isSelected && (
+                                <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span style={{ fontFamily: 'var(--ax-font-display)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--ax-text-strong)' }}>
+                              {num(total)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '2px 7px' }}>
+                                {num(d.structure_complete)}
+                              </span>
+                              <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
+                              <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>
+                                {num(d.structure_pending)}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                              <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>
+                                {num(d.inst_complete)}
+                              </span>
+                              <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
+                              <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>
+                                {num(d.inst_pending)}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                              <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }} title="Approved">
+                                <span className="ax-badge__dot" />
+                                {num(d.verify_approved)}
+                              </span>
+                              <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }} title="Verify Pending">
+                                {num(d.verify_pending)}
+                              </span>
+                              <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }} title="Rejected">
+                                {num(d.verify_reject)}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.inst_doc_complete)}</span>
+                              <span style={{ color: 'var(--ax-text-muted)' }}>/</span>
+                              <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.inst_doc_pending)}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className="ax-progress ax-progress--sm" style={{ flex: 1, minWidth: 60, height: 6 }}>
+                                <div className="ax-progress__track" style={{ background: 'var(--ax-surface-subtle, #e2e8f0)' }}>
+                                  <div
+                                    className="ax-progress__fill"
+                                    style={{
+                                      width: `${rowPct}%`,
+                                      background: rowPct === 100 ? 'var(--ax-viz-emerald)' : rowPct >= 50 ? 'var(--ax-accent)' : 'var(--ax-viz-amber)',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ax-text-muted)', minWidth: 38, textAlign: 'right' }}>
+                                {rowPct}%
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
+                              onClick={() => handleOpenStatusDrill('total', `${d.district} — All Sites`, d.district)}
+                              title={`Inspect sites in ${d.district}`}
+                            >
+                              {ICON_EYE}
+                              <span className="ax-btn__label">Sites</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+
+                {/* Table Summary Footer */}
+                {filteredDistrictRows.length > 0 && (
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 'var(--ax-text-xs)' }}>
+                        Total ({filteredDistrictRows.length} Districts)
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--ax-font-display)', fontSize: '1rem', color: 'var(--ax-text-strong)' }}>
+                        {num(districtTotals.site_count)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                          <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 700 }}>
+                            {num(districtTotals.structure_complete)}
+                          </span>
+                          <span>/</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>
+                            {num(districtTotals.structure_pending)}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>
+                            {num(districtTotals.inst_complete)}
+                          </span>
+                          <span>/</span>
+                          <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 700 }}>
+                            {num(districtTotals.inst_pending)}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="ax-cluster" style={{ justifyContent: 'center', gap: '4px' }}>
+                          <span className="ax-badge ax-badge--soft ax-badge--success">
+                            {num(districtTotals.verify_approved)}
+                          </span>
+                          <span className="ax-badge ax-badge--soft ax-badge--warning">
+                            {num(districtTotals.verify_pending)}
+                          </span>
+                          <span className="ax-badge ax-badge--soft ax-badge--danger">
+                            {num(districtTotals.verify_reject)}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{ fontWeight: 700 }}>{num(districtTotals.inst_doc_complete)}</span>
+                        <span> / </span>
+                        <span>{num(districtTotals.inst_doc_pending)}</span>
+                      </td>
+                      <td>
+                        <b style={{ color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-xs)' }}>
+                          {pctOf(districtTotals.inst_complete, districtTotals.site_count)}% Overall
+                        </b>
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+
+          <div className="ax-card__footer" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)', background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                totalCount={tableDistricts.length}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 8. Lifecycle Milestones (Clean 12-column card) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="ULA milestones">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Workflow Lifecycle</span>
+              <h2 className="ax-card__title">ULA Milestones &amp; Progression</h2>
+              <p className="ax-card__subtitle">Stage-by-stage progression from allocation to final document signoff</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--ax-space-4)' }}>
+              {milestones.map((m) => <ProgressRow key={m.label} {...m} />)}
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* ── Status Drill-Down Modal ── */}
@@ -1097,7 +1367,7 @@ export function Bihar_Installation_ULA_Dashboard() {
               <div>
                 <h4 className="ax-modal__title">{statusModalTitle}</h4>
                 <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  {filtersActive ? `District: ${selectedDistrict}` : 'State: Bihar'} · Total {statusModalSites.length} site{statusModalSites.length === 1 ? '' : 's'}
+                  Total {statusModalSites.length} site{statusModalSites.length === 1 ? '' : 's'}
                 </p>
               </div>
               <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" onClick={() => setStatusModalOpen(false)}>✕</button>
