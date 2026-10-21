@@ -237,6 +237,7 @@ const BiharInstSRTClaim = lazy(() => import('./components/V-Portal/bihar/Install
 
 const BiharInstULADb = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/Dashboard'));
 const BiharInstULARequest = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/RequestAccept'));
+const BiharInstULAAssignDetail = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/AssignSiteDetail'));
 const BiharInstULADetails = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/InstallationDetails'));
 const BiharInstULAView = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/ViewInstallation'));
 const BiharInstULAAddPay = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/AddPayment'));
@@ -886,6 +887,8 @@ const shell: Record<string, PageComponent> = {
   'bihar/ula-installation-dashboard': BiharInstULADb,
   'v/bihar/ula-installation-view-assign-site': BiharInstULARequest,
   'bihar/ula-installation-view-assign-site': BiharInstULARequest,
+  'v/bihar/ula-installation-view-assign-site-detail': BiharInstULAAssignDetail,
+  'bihar/ula-installation-view-assign-site-detail': BiharInstULAAssignDetail,
   'v/bihar/ula-installation-pending-structure-site': BiharInstULADetails,
   'bihar/ula-installation-pending-structure-site': BiharInstULADetails,
   'v/bihar/ula-installation-view-site': BiharInstULAView,

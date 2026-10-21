@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
@@ -133,6 +134,8 @@ const getSiteCount = (item: AssignSiteItem) => {
 };
 
 export function Bihar_Installation_ULA_RequestAccept() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<AssignSiteItem[]>([]);
   const [search, setSearch] = useState('');
@@ -189,21 +192,11 @@ export function Bihar_Installation_ULA_RequestAccept() {
     }
   };
 
-  // Open Details Modal
-  const handleViewDetail = async (item: AssignSiteItem) => {
-    setSelectedAssign(item);
-    setModalSites(item.sites || []);
-    setModalLoading(true);
-    try {
-      const detail = await biharUlaInstallationService.getAssignSiteDetail(item.id);
-      if (detail && detail.sites) {
-        setModalSites(detail.sites);
-      }
-    } catch (err) {
-      console.warn('Could not load detailed assignment data, fallback to inline sites', err);
-    } finally {
-      setModalLoading(false);
-    }
+  // Navigate to Dedicated Site Details Page
+  const handleViewDetail = (item: AssignSiteItem) => {
+    const isV = location.pathname.startsWith('/v/') || location.pathname.startsWith('v/');
+    const target = isV ? '/v/bihar/ula-installation-view-assign-site-detail' : '/bihar/ula-installation-view-assign-site-detail';
+    navigate(`${target}?id=${item.id}`, { state: { assignment: item } });
   };
 
   // KPI calculations
