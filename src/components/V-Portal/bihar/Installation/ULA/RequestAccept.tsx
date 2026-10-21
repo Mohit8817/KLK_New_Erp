@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
@@ -17,25 +17,120 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
+/* ── Styles: same KPI cards + table polish as SRT200MW ViewData ── */
+const VIEW_CSS = `
+.bsv-kpi { position: relative; overflow: hidden; border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); }
+.bsv-kpi:hover { box-shadow: var(--ax-shadow-md); transform: translateY(-1px); }
+.bsv-kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--bsv-accent); }
+.bsv-kpi__body { padding: var(--ax-space-5) var(--ax-space-5) var(--ax-space-4); display: flex; flex-direction: column; gap: var(--ax-space-4); }
+.bsv-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: var(--ax-space-3); }
+.bsv-kpi__title-wrap { display: flex; align-items: center; gap: var(--ax-space-3); min-width: 0; }
+.bsv-kpi__icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--ax-radius-lg); display: inline-flex; align-items: center; justify-content: center; color: var(--bsv-accent); background: color-mix(in srgb, var(--bsv-accent) 12%, var(--ax-surface-solid)); }
+.bsv-kpi__icon svg { width: 20px; height: 20px; }
+.bsv-kpi__label { font-size: var(--ax-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); }
+.bsv-kpi__caption { font-size: var(--ax-text-xs); color: var(--ax-text-subtle); margin-top: 2px; }
+.bsv-kpi__value-row { display: flex; align-items: baseline; gap: var(--ax-space-2); flex-wrap: wrap; }
+.bsv-kpi__value { font-size: 2rem; line-height: 1.1; font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
+.bsv-kpi__unit { font-size: var(--ax-text-sm); color: var(--ax-text-muted); }
+.bsv-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--ax-surface-subtle); border: 1px solid var(--ax-border-subtle); }
+.bsv-bar__seg { height: 100%; transition: width .4s var(--ax-ease-standard); }
+.bsv-legend { display: flex; flex-wrap: wrap; gap: var(--ax-space-2) var(--ax-space-4); padding-top: var(--ax-space-3); border-top: 1px dashed var(--ax-border); }
+.bsv-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ax-text-xs); color: var(--ax-text-muted); }
+.bsv-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.bsv-legend__num { font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
+
+.bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
+.bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
+.bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
+`;
+
+const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+
 const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
     <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </svg>
 );
 
 const ICON_CHECK = (
-  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg className="ax-btn__icon" {...ICON_PROPS} strokeWidth={2}>
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
 const ICON_EYE = (
-  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
     <circle cx="12" cy="12" r="2" />
     <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
   </svg>
 );
+
+interface Segment { label: string; count: number; color: string }
+
+function KpiCard({
+  accent, icon, label, caption, value, unit, badge, segments,
+}: {
+  accent: string; icon: ReactNode; label: string; caption: string;
+  value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
+}) {
+  const sum = (segments || []).reduce((a, s) => a + s.count, 0);
+  return (
+    <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
+      <div className="bsv-kpi__body">
+        <div className="bsv-kpi__head">
+          <div className="bsv-kpi__title-wrap">
+            <span className="bsv-kpi__icon"><svg {...ICON_PROPS}>{icon}</svg></span>
+            <div>
+              <div className="bsv-kpi__label">{label}</div>
+              <div className="bsv-kpi__caption">{caption}</div>
+            </div>
+          </div>
+          {badge}
+        </div>
+
+        <div className="bsv-kpi__value-row">
+          <span className="bsv-kpi__value">{value}</span>
+          {unit && <span className="bsv-kpi__unit">{unit}</span>}
+        </div>
+
+        {segments && (
+          <>
+            <div className="bsv-bar" role="img" aria-label={segments.map((s) => `${s.label}: ${s.count}`).join(', ')}>
+              {sum > 0 && segments.map((s) => (
+                <div key={s.label} className="bsv-bar__seg" style={{ width: `${(s.count / sum) * 100}%`, background: s.color }} />
+              ))}
+            </div>
+            <div className="bsv-legend">
+              {segments.map((s) => (
+                <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
+                  <span className="bsv-legend__dot" />
+                  {s.label} <span className="bsv-legend__num">{s.count}</span>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const DASH = '—';
+
+// Helper count of sites
+const getSiteCount = (item: AssignSiteItem) => {
+  if (Array.isArray(item.sites) && item.sites.length > 0) return item.sites.length;
+  if (typeof item.site_id === 'string') {
+    try {
+      const parsed = JSON.parse(item.site_id);
+      if (Array.isArray(parsed)) return parsed.length;
+    } catch {
+      // ignore
+    }
+  }
+  return 1;
+};
 
 export function Bihar_Installation_ULA_RequestAccept() {
   const [loading, setLoading] = useState(true);
@@ -80,7 +175,6 @@ export function Bihar_Installation_ULA_RequestAccept() {
         type: 'success',
         text: res.message || 'Installation Assignment Accepted Successfully!',
       });
-      // Refresh list
       await loadData();
       if (selectedAssign?.id === id) {
         setSelectedAssign((prev) => (prev ? { ...prev, status: 2 } : null));
@@ -116,6 +210,12 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const totalAssignments = assignments.length;
   const pendingCount = assignments.filter((a) => Number(a.status) === 1).length;
   const acceptedCount = assignments.filter((a) => Number(a.status) === 2).length;
+  const acceptedPct = totalAssignments > 0 ? Math.round((acceptedCount / totalAssignments) * 100) : 0;
+  const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
+
+  const warn = 'var(--ax-warning-500)';
+  const ok = 'var(--ax-success-500)';
+  const accent = 'var(--ax-accent)';
 
   // Filtered
   const filteredAssignments = useMemo(() => {
@@ -141,52 +241,42 @@ export function Bihar_Installation_ULA_RequestAccept() {
     return filteredAssignments.slice(start, start + pageSize);
   }, [filteredAssignments, currentPage, pageSize]);
 
-  // Helper count of sites
-  const getSiteCount = (item: AssignSiteItem) => {
-    if (Array.isArray(item.sites) && item.sites.length > 0) return item.sites.length;
-    if (typeof item.site_id === 'string') {
-      try {
-        const parsed = JSON.parse(item.site_id);
-        if (Array.isArray(parsed)) return parsed.length;
-      } catch {
-        // ignore
-      }
-    }
-    return 1;
-  };
-
   // Export Columns
   const exportCols: ExportColumn<AssignSiteItem>[] = useMemo(
     () => [
       { header: 'Assign ID', accessor: (r) => `#${r.id}` },
-      { header: 'Vendor Name', accessor: (r) => r.vendors?.name || '—' },
+      { header: 'Vendor Name', accessor: (r) => r.vendors?.name || '' },
       { header: 'Total Sites', accessor: (r) => getSiteCount(r) },
-      { header: 'Deadline Date', accessor: (r) => r.deadline_date || '—' },
+      { header: 'Deadline Date', accessor: (r) => r.deadline_date || '' },
       { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Pending Acceptance') },
-      { header: 'Remarks', accessor: (r) => r.remarks || '—' },
+      { header: 'Remarks', accessor: (r) => r.remarks || '' },
     ],
     []
   );
 
+  const handleCopy = () => copyTableDataToClipboard(filteredAssignments, exportCols);
+  const handleCsv = () => exportDataToCSV('Bihar_ULA_Installation_Assignments', filteredAssignments, exportCols);
+  const handleExcel = () => exportDataToExcel('Bihar_ULA_Installation_Assignments', filteredAssignments, exportCols);
+  const handlePdf = () => printTableData('Bihar ULA Installation Assignments', filteredAssignments, exportCols);
+
   return (
-    <div className="ax-page">
+    <div className="ax-page bsv-page">
+      <style>{VIEW_CSS}</style>
+
+      {/* ── Page Head ── */}
       <PageHead
         title="Bihar - Installation > ULA > Request Accept"
         subtitle="Manage assigned installation batches and accept assignments for site execution"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'ULA' },
           { label: 'Request Accept' },
         ]}
         actions={
-          <button
-            type="button"
-            className="ax-btn ax-btn--secondary ax-btn--sm"
-            onClick={loadData}
-            disabled={loading}
-          >
-            <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
+          <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
+            {ICON_REFRESH}
             <span className="ax-btn__label">Refresh</span>
           </button>
         }
@@ -200,146 +290,155 @@ export function Bihar_Installation_ULA_RequestAccept() {
       )}
 
       <div className="ax-dash-grid">
-        {/* KPI Cards */}
-        <div className="ax-card ax-kpi ax-col--4">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--info">All Batches</span>
-            </div>
-            <div className="ax-kpi__label">Total Assignments</div>
-            <div className="ax-kpi__value ax-num">{totalAssignments}</div>
-            <div className="ax-kpi__caption">Batches allocated by state admin</div>
-          </div>
-        </div>
+        {/* ── KPI 1: Total Assignments ── */}
+        <KpiCard
+          accent={accent}
+          label="Total Assignments"
+          caption="Batches allocated by state admin"
+          value={totalAssignments}
+          unit="batches"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Batches</span>}
+          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
+          segments={[
+            { label: 'Accepted', count: acceptedCount, color: ok },
+            { label: 'Pending', count: pendingCount, color: warn },
+          ]}
+        />
 
-        <div className="ax-card ax-kpi ax-col--4">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-            </div>
-            <div className="ax-kpi__label">Pending Acceptance</div>
-            <div className="ax-kpi__value ax-num">{pendingCount}</div>
-            <div className="ax-kpi__caption">Action required to begin installation</div>
-          </div>
-        </div>
+        {/* ── KPI 2: Pending Acceptance ── */}
+        <KpiCard
+          accent={warn}
+          label="Pending Acceptance"
+          caption="Action required to begin installation"
+          value={pendingCount}
+          unit="pending"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">{pendingPct}%</span>}
+          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
+          segments={[
+            { label: 'Pending', count: pendingCount, color: warn },
+            { label: 'Others', count: totalAssignments - pendingCount, color: 'var(--ax-border)' },
+          ]}
+        />
 
-        <div className="ax-card ax-kpi ax-col--4">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--success">Accepted</span>
-            </div>
-            <div className="ax-kpi__label">Accepted Assignments</div>
-            <div className="ax-kpi__value ax-num">{acceptedCount}</div>
-            <div className="ax-kpi__caption">Ready for structure erection</div>
-          </div>
-        </div>
+        {/* ── KPI 3: Accepted ── */}
+        <KpiCard
+          accent={ok}
+          label="Accepted Assignments"
+          caption="Ready for structure erection"
+          value={`${acceptedPct}%`}
+          unit="accepted"
+          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{acceptedCount} / {totalAssignments}</span>}
+          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
+          segments={[
+            { label: 'Accepted', count: acceptedCount, color: ok },
+            { label: 'Pending', count: pendingCount, color: warn },
+          ]}
+        />
 
-        {/* Main Assignments Table */}
-        <section className="ax-card ax-col--12" aria-labelledby="assign-table-title">
-          <div className="ax-card__header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <div>
-                <h3 id="assign-table-title" className="ax-card__title">Assigned Installation Batches</h3>
-                <p className="ax-card__subtitle">Review assigned beneficiary locations and accept requests</p>
-              </div>
-              <TableExportToolbar
-                onExportCSV={() => exportDataToCSV(filteredAssignments, exportCols, 'ula_assigned_installations.csv')}
-                onExportExcel={() => exportDataToExcel(filteredAssignments, exportCols, 'ula_assigned_installations.xlsx')}
-                onPrint={() => printTableData(filteredAssignments, exportCols, 'Bihar ULA Installation Assignments')}
-                onCopy={() => copyTableDataToClipboard(filteredAssignments, exportCols)}
-              />
+        {/* ── Main Table Card ── */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">
+          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Assigned Installation Batches</h2>
+              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                {filteredAssignments.length} of {assignments.length} records
+              </p>
             </div>
-          </div>
-
-          <div className="ax-card__body">
-            <div style={{ marginBottom: 'var(--ax-space-3)', maxWidth: 300 }}>
+            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
               <SearchInput
                 value={search}
-                onChange={setSearch}
-                placeholder="Search vendor, ID, district..."
+                onChange={(val) => {
+                  setSearch(val);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search vendor, ID, district…"
+                ariaLabel="Search assignments"
+              />
+              <TableExportToolbar
+                onCopy={handleCopy}
+                onExportCSV={handleCsv}
+                onExportExcel={handleExcel}
+                onExportPDF={handlePdf}
               />
             </div>
+          </div>
 
-            <div className="ax-table-wrap">
-              <table className="ax-table ax-table--hover">
-                <thead>
-                  <tr>
-                    <th>Sr.</th>
-                    <th>Assign ID</th>
-                    <th>Vendor Name</th>
-                    <th>Sites Count</th>
-                    <th>Deadline Date</th>
-                    <th>Remarks</th>
-                    <th>Attachment</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 'var(--ax-space-10) var(--ax-space-5)' }}>
+              <span className="ax-spinner" style={{ width: 24, height: 24, margin: '0 auto var(--ax-space-3)' }} />
+              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>
+                Loading assigned installation batches…
+              </p>
+            </div>
+          ) : filteredAssignments.length === 0 ? (
+            <TableEmptyState
+              title="No installation assignments found"
+              message={
+                search
+                  ? 'No assignments match your search filter. Try clearing your query.'
+                  : 'Assigned installation requests will appear here once allocated.'
+              }
+              onClear={search ? () => setSearch('') : undefined}
+              clearLabel="Clear search"
+            />
+          ) : (
+            <>
+              <div className="ax-table-wrap">
+                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                  <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
+                  <thead className="ax-table__head">
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
-                        <span className="ax-spinner" /> Loading assigned installation batches...
-                      </td>
+                      <th className="ax-table__th" scope="col">Sr. No.</th>
+                      <th className="ax-table__th" scope="col">Assign ID</th>
+                      <th className="ax-table__th" scope="col">Vendor Name</th>
+                      <th className="ax-table__th" scope="col">Sites Count</th>
+                      <th className="ax-table__th" scope="col">Deadline Date</th>
+                      <th className="ax-table__th" scope="col">Remarks</th>
+                      <th className="ax-table__th" scope="col">Attachment</th>
+                      <th className="ax-table__th" scope="col">Status</th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                     </tr>
-                  ) : paginatedAssignments.length === 0 ? (
-                    <tr>
-                      <td colSpan={9}>
-                        <TableEmptyState title="No installation assignments found" message="Assigned installation requests will appear here once allocated." />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedAssignments.map((a, index) => {
+                  </thead>
+                  <tbody>
+                    {paginatedAssignments.map((a, index) => {
                       const isAccepted = Number(a.status) === 2;
                       const isActioning = actionLoadingId === a.id;
                       return (
-                        <tr key={a.id}>
-                          <td>{(currentPage - 1) * pageSize + index + 1}</td>
-                          <td style={{ fontWeight: 600 }}>#{a.id}</td>
-                          <td>{a.vendors?.name || 'Assigned Vendor'}</td>
-                          <td>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral">
-                              {getSiteCount(a)} Sites
-                            </span>
+                        <tr key={a.id} className="ax-table__row">
+                          <td className="ax-table__td">{(currentPage - 1) * pageSize + index + 1}</td>
+                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>#{a.id}</td>
+                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' as any }}>{a.vendors?.name || 'Assigned Vendor'}</td>
+                          <td className="ax-table__td">
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{getSiteCount(a)} Sites</span>
                           </td>
-                          <td>{a.deadline_date || '—'}</td>
-                          <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {a.remarks || '—'}
+                          <td className="ax-table__td">{a.deadline_date || DASH}</td>
+                          <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {a.remarks || DASH}
                           </td>
-                          <td>
+                          <td className="ax-table__td">
                             {a.file ? (
                               <a
                                 href={a.file}
                                 target="_blank"
-                                rel="noreferrer"
-                                className="ax-btn ax-btn--ghost ax-btn--sm"
-                                style={{ height: 26, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                                rel="noopener noreferrer"
+                                className="ax-badge ax-badge--soft ax-badge--neutral"
+                                style={{ textDecoration: 'none', cursor: 'pointer' }}
                               >
-                                View Doc
+                                View Doc ↗
                               </a>
                             ) : (
-                              '—'
+                              <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
                             )}
                           </td>
-                          <td>
-                            {isAccepted ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">
-                                Accepted
-                              </span>
-                            ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">
-                                Pending Accept
-                              </span>
-                            )}
+                          <td className="ax-table__td">
+                            <span className={`ax-badge ax-badge--soft ax-badge--pill ${isAccepted ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                              <span className="ax-badge__dot" />
+                              {isAccepted ? 'Accepted' : 'Pending Accept'}
+                            </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             <div className="ax-cluster" style={{ justifyContent: 'center', gap: 'var(--ax-space-1)' }}>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                style={{ height: 28, padding: '0 10px', fontSize: 'var(--ax-text-xs)' }}
-                                onClick={() => handleViewDetail(a)}
-                              >
+                              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => handleViewDetail(a)}>
                                 {ICON_EYE}
                                 <span className="ax-btn__label">View Sites</span>
                               </button>
@@ -347,15 +446,10 @@ export function Bihar_Installation_ULA_RequestAccept() {
                                 <button
                                   type="button"
                                   className="ax-btn ax-btn--primary ax-btn--sm"
-                                  style={{ height: 28, padding: '0 10px', fontSize: 'var(--ax-text-xs)' }}
                                   disabled={isActioning}
                                   onClick={() => handleAccept(a.id)}
                                 >
-                                  {isActioning ? (
-                                    <span className="ax-spinner" />
-                                  ) : (
-                                    ICON_CHECK
-                                  )}
+                                  {isActioning ? <span className="ax-spinner" /> : ICON_CHECK}
                                   <span className="ax-btn__label">Accept</span>
                                 </button>
                               )}
@@ -363,26 +457,24 @@ export function Bihar_Installation_ULA_RequestAccept() {
                           </td>
                         </tr>
                       );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            <div style={{ marginTop: 'var(--ax-space-3)' }}>
               <Pagination
-                currentPage={currentPage}
-                totalCount={filteredAssignments.length}
+                page={currentPage}
                 pageSize={pageSize}
-                onPageChange={setCurrentPage}
+                total={filteredAssignments.length}
+                onChange={setCurrentPage}
                 onPageSizeChange={setPageSize}
               />
-            </div>
-          </div>
+            </>
+          )}
         </section>
       </div>
 
-      {/* View Assignment Sites Modal */}
+      {/* ── View Assignment Sites Modal ── */}
       {selectedAssign && (
         <div className="ax-modal-backdrop" onClick={() => setSelectedAssign(null)}>
           <div className="ax-modal" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
@@ -390,63 +482,57 @@ export function Bihar_Installation_ULA_RequestAccept() {
               <div>
                 <h4 className="ax-modal__title">Assignment Details — Batch #{selectedAssign.id}</h4>
                 <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Vendor: {selectedAssign.vendors?.name || '—'} · Deadline: {selectedAssign.deadline_date || '—'}
+                  Vendor: {selectedAssign.vendors?.name || DASH} · Deadline: {selectedAssign.deadline_date || DASH}
                 </p>
               </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon"
-                onClick={() => setSelectedAssign(null)}
-              >
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setSelectedAssign(null)} aria-label="Close">
                 ✕
               </button>
             </div>
             <div className="ax-modal__body" style={{ maxHeight: 460, overflowY: 'auto' }}>
               {modalLoading ? (
                 <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
-                  <span className="ax-spinner" /> Loading site list...
+                  <span className="ax-spinner" /> Loading site list…
                 </div>
               ) : modalSites.length === 0 ? (
                 <TableEmptyState title="No sites listed" message="No beneficiary sites attached to this assignment batch." />
               ) : (
                 <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover">
-                    <thead>
+                  <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                    <thead className="ax-table__head">
                       <tr>
-                        <th>Sr.</th>
-                        <th>Beneficiary Name</th>
-                        <th>District</th>
-                        <th>Block</th>
-                        <th>Village</th>
-                        <th>CA No.</th>
-                        <th>Contact No.</th>
-                        <th>Structure Status</th>
-                        <th>Installation Status</th>
+                        <th className="ax-table__th" scope="col">Sr.</th>
+                        <th className="ax-table__th" scope="col">Beneficiary Name</th>
+                        <th className="ax-table__th" scope="col">District</th>
+                        <th className="ax-table__th" scope="col">Block</th>
+                        <th className="ax-table__th" scope="col">Village</th>
+                        <th className="ax-table__th" scope="col">CA No.</th>
+                        <th className="ax-table__th" scope="col">Contact No.</th>
+                        <th className="ax-table__th" scope="col">Structure Status</th>
+                        <th className="ax-table__th" scope="col">Installation Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {modalSites.map((s, idx) => (
-                        <tr key={s.id || idx}>
-                          <td>{idx + 1}</td>
-                          <td style={{ fontWeight: 600 }}>{s.beneficiary_name || '—'}</td>
-                          <td>{s.district || '—'}</td>
-                          <td>{s.block || '—'}</td>
-                          <td>{s.village || '—'}</td>
-                          <td>{s.ca_no || '—'}</td>
-                          <td>{s.contact_no || '—'}</td>
-                          <td>
-                            {Number(s.structure_status) === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
-                            ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-                            )}
+                        <tr key={s.id || idx} className="ax-table__row">
+                          <td className="ax-table__td">{idx + 1}</td>
+                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>{s.beneficiary_name || DASH}</td>
+                          <td className="ax-table__td">{s.district || DASH}</td>
+                          <td className="ax-table__td">{s.block || DASH}</td>
+                          <td className="ax-table__td">{s.village || DASH}</td>
+                          <td className="ax-table__td">{s.ca_no || DASH}</td>
+                          <td className="ax-table__td">{s.contact_no || DASH}</td>
+                          <td className="ax-table__td">
+                            <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(s.structure_status) === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                              <span className="ax-badge__dot" />
+                              {Number(s.structure_status) === 1 ? 'Complete' : 'Pending'}
+                            </span>
                           </td>
-                          <td>
-                            {Number(s.inst_status) === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
-                            ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--neutral">Pending</span>
-                            )}
+                          <td className="ax-table__td">
+                            <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(s.inst_status) === 1 ? 'ax-badge--success' : 'ax-badge--neutral'}`}>
+                              <span className="ax-badge__dot" />
+                              {Number(s.inst_status) === 1 ? 'Complete' : 'Pending'}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -469,11 +555,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
                   </button>
                 )}
               </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setSelectedAssign(null)}
-              >
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedAssign(null)}>
                 Close
               </button>
             </div>
