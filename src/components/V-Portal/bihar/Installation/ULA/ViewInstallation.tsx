@@ -607,10 +607,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <Link to="/v/bihar/ula-installation-pending-structure-site" className="ax-btn ax-btn--primary ax-btn--sm">
-              {ICON_PLUS}
-              <span className="ax-btn__label">Add Structure</span>
-            </Link>
           </div>
         }
       />

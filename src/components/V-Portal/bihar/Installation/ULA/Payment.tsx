@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -41,84 +41,218 @@ const ICON_EYE = (
 
 const inr = (v: unknown) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 
+
+type KpiTone = 'blue' | 'cyan' | 'emerald' | 'amber';
+
+const KPI_TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  blue: { bg: 'color-mix(in srgb, var(--ax-accent) 12%, transparent)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in srgb, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in srgb, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in srgb, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+};
+
+const KPI_ICON_PROPS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+function PaymentKpiCard({
+  icon, tone, label, value, unit, sub, badge,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  unit?: string;
+  sub: string;
+  badge: string;
+}) {
+  const t = KPI_TONE[tone];
+  return (
+    <div className="bsv-payment-kpi ax-col--3" role="region" aria-label={label}>
+      <div className="bsv-payment-kpi__body">
+        <div className="bsv-payment-kpi__head">
+          <div className="bsv-payment-kpi__title-wrap">
+            <span className="bsv-payment-kpi__icon" style={{ background: t.bg, color: t.fg }}>
+              <svg {...KPI_ICON_PROPS}>{icon}</svg>
+            </span>
+            <span className="bsv-payment-kpi__label">{label}</span>
+          </div>
+          <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill bsv-payment-kpi__badge">
+            {badge}
+          </span>
+        </div>
+        <div className="bsv-payment-kpi__value-row">
+          <span className="bsv-payment-kpi__value">{value}</span>
+          {unit && <span className="bsv-payment-kpi__unit">{unit}</span>}
+        </div>
+        <div className="bsv-payment-kpi__caption">{sub}</div>
+      </div>
+    </div>
+  );
+}
+
 /* ───────── Responsive CSS (Bihar AMC view jaisa) ───────── */
 const PAGE_CSS = `
-  .solar-erp-page .ax-card { min-width: 0; }
-  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
-  .solar-erp-page .ula-pagination-left {
-    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
-  }
+  .solar-erp-page { --ula-accent: var(--ax-accent, #2563eb); }
+  .solar-erp-page .ax-card { min-width: 0; border: 1px solid var(--ax-border-subtle, #e2e8f0); border-radius: var(--ax-radius-xl, 16px); box-shadow: var(--ax-shadow-sm, 0 2px 8px rgba(15,23,42,.04)); overflow: hidden; background: var(--ax-surface-solid, #fff); }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; background: var(--ax-surface-subtle, #f8fafc); }
+  .solar-erp-page .ula-pagination-left { width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto; }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  .solar-erp-page .ax-card__header {
-    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
-  }
-  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
-  .solar-erp-page .ax-card__title,
-  .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
-  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
-
-  .solar-erp-page .ax-card__actions {
-    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
-    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
-  }
-  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
-  .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 240px; max-width: 260px; }
+  /* Header and table toolbar */
+  .solar-erp-page .ax-card__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 180px; max-width: 100%; }
+  .solar-erp-page .ax-card__title, .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: anywhere; hyphens: none; }
+  .solar-erp-page .ax-card__title { font-size: var(--ax-text-lg, 18px); font-weight: 700; letter-spacing: -.02em; color: var(--ax-text-strong, #0f172a); }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; margin-top: 4px; color: var(--ax-text-muted, #64748b); }
+  .solar-erp-page .ax-card__actions { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; min-width: 0; justify-content: flex-end; }
+  .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 180px; min-width: 200px; max-width: 280px; }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
-  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar, .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 5px; }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 9px !important; min-width: 0; border-radius: var(--ax-radius-md, 8px); }
 
-  /* Filters row */
-  .solar-erp-page .ula-filters {
-    display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--ax-space-3);
-    padding: var(--ax-space-3) var(--ax-space-4);
-    border-top: 1px solid var(--ax-border-subtle, #e2e8f0);
-    border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0);
+  /* KPI cards: same compact layout, icon, typography and spacing as Bihar_Survey_SRT200MW_ViewData */
+  .solar-erp-page .bsv-payment-kpi {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-bg-surface, var(--ax-surface-solid));
+    box-shadow: var(--ax-shadow-sm);
+    transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
   }
+  .solar-erp-page .bsv-payment-kpi:hover {
+    box-shadow: var(--ax-shadow-md);
+    border-color: var(--ax-border);
+    transform: translateY(-1px);
+  }
+  .solar-erp-page .bsv-payment-kpi__body {
+    height: 100%;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .solar-erp-page .bsv-payment-kpi__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-payment-kpi__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-payment-kpi__icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: var(--ax-radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .solar-erp-page .bsv-payment-kpi__icon svg { width: 16px; height: 16px; }
+  .solar-erp-page .bsv-payment-kpi__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ax-text-muted);
+  }
+  .solar-erp-page .bsv-payment-kpi__caption {
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ax-text-muted);
+  }
+  .solar-erp-page .bsv-payment-kpi__badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+  .solar-erp-page .bsv-payment-kpi__value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-payment-kpi__value {
+    font-family: var(--ax-font-display);
+    font-size: 1.35rem;
+    line-height: 1.1;
+    font-weight: 700;
+    color: var(--ax-text-strong);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .solar-erp-page .bsv-payment-kpi__unit {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ax-text-muted);
+  }
+  @media (max-width: 900px) {
+    .solar-erp-page .bsv-payment-kpi__body { padding: 11px 12px; }
+    .solar-erp-page .bsv-payment-kpi__value { font-size: 1.25rem; }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .bsv-payment-kpi__caption { max-width: 100%; }
+  }
+
+  /* Filters */
+  .solar-erp-page .ula-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); background: var(--ax-surface-solid, #fff); }
   .solar-erp-page .ula-filters .ax-field { margin: 0; min-width: 180px; }
+  .solar-erp-page .ula-filters .ax-field__label { margin-bottom: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .045em; color: var(--ax-text-muted, #64748b); }
+  .solar-erp-page .ula-filters .ax-input { min-height: 38px; border-radius: var(--ax-radius-md, 8px); }
+  .solar-erp-page .ula-filters .ax-btn { min-height: 38px; }
 
   /* Table */
   .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .solar-erp-page .ula-table--wide { min-width: 1300px; white-space: nowrap; }
-  .solar-erp-page .ula-table--wide th,
-  .solar-erp-page .ula-table--wide td { vertical-align: middle; }
+  .solar-erp-page .ax-table { border-collapse: separate; border-spacing: 0; }
+  .solar-erp-page .ax-table__th { padding: 13px 14px; font-size: 10px; font-weight: 750; letter-spacing: .065em; text-transform: uppercase; color: var(--ax-text-muted, #64748b); background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border, #e2e8f0); }
+  .solar-erp-page .ax-table__td { padding: 12px 14px; vertical-align: middle; font-size: var(--ax-text-sm, 13px); border-bottom: 1px solid var(--ax-border-subtle, #edf2f7); }
+  .solar-erp-page .ax-table__row:last-child .ax-table__td { border-bottom: 0; }
+  .solar-erp-page .ax-table--hover .ax-table__row:hover .ax-table__td { background: color-mix(in srgb, var(--ula-accent) 4%, var(--ax-surface-solid, #fff)); }
+  .solar-erp-page .ula-sticky-first th:first-child, .solar-erp-page .ula-sticky-first td:first-child { position: sticky; left: 0; z-index: 2; background: var(--ax-surface-solid, #fff); box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0); }
+  .solar-erp-page .ula-sticky-first th:first-child { z-index: 3; background: var(--ax-surface-subtle, #f8fafc); }
+  .solar-erp-page .ax-badge { font-weight: 650; }
+  .solar-erp-page .ax-modal { border: 1px solid var(--ax-border, #e2e8f0); border-radius: var(--ax-radius-xl, 16px); box-shadow: 0 24px 70px rgba(15,23,42,.2); overflow: hidden; }
+  .solar-erp-page .ax-modal__header { background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); }
 
   @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center;
-    }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
     .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
+    .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { max-width: 220px; }
   }
-
   @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 15px; }
     .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md);
-    }
+    .solar-erp-page .ax-card__title { font-family: var(--ax-font-display); font-size: var(--ax-text-md, 16px); line-height: 1.4; }
     .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
     .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
-    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
+    .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar, .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 32px; padding: 0 9px !important; }
+    .solar-erp-page .ula-filters { padding: 13px 15px; }
     .solar-erp-page .ula-filters .ax-field { flex: 1 1 100%; min-width: 0; }
-
-    .solar-erp-page .ula-sticky-first th:first-child,
-    .solar-erp-page .ula-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1;
-      background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
+    .solar-erp-page .ula-sticky-first th:first-child, .solar-erp-page .ula-sticky-first td:first-child { position: sticky; left: 0; z-index: 1; background: var(--ax-bg-surface, #fff); box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0); }
   }
-
   @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 29px; padding: 0 6px !important; }
   }
 `;
 
@@ -263,50 +397,39 @@ export function Bihar_Installation_ULA_Payment() {
       />
 
       <div className="ax-dash-grid">
-        {/* KPI Summary Cards */}
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--info">All Claims</span>
-            </div>
-            <div className="ax-kpi__label">Total Claims Raised</div>
-            <div className="ax-kpi__value ax-num">{totalClaims}</div>
-            <div className="ax-kpi__caption">Batches submitted for payout</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--neutral">Invoiced</span>
-            </div>
-            <div className="ax-kpi__label">Total Claim Amount</div>
-            <div className="ax-kpi__value ax-num">{inr(totalClaimAmount)}</div>
-            <div className="ax-kpi__caption">Cumulative invoice claims</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--success">Disbursed</span>
-            </div>
-            <div className="ax-kpi__label">Total Paid Amount</div>
-            <div className="ax-kpi__value ax-num">{inr(totalPaidAmount)}</div>
-            <div className="ax-kpi__caption">Amount credited to vendor</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending Balance</span>
-            </div>
-            <div className="ax-kpi__label">Disbursement Balance</div>
-            <div className="ax-kpi__value ax-num">{inr(totalBalanceAmount)}</div>
-            <div className="ax-kpi__caption">Awaiting bank settlement</div>
-          </div>
-        </div>
+        {/* KPI Summary Cards — same card structure as Bihar_Survey_SRT200MW_ViewData */}
+        <PaymentKpiCard
+          tone="blue"
+          label="Total Claims Raised"
+          value={totalClaims}
+          sub="Batches submitted for payout"
+          badge="All Claims"
+          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
+        />
+        <PaymentKpiCard
+          tone="cyan"
+          label="Total Claim Amount"
+          value={inr(totalClaimAmount)}
+          sub="Cumulative invoice claims"
+          badge="Invoiced"
+          icon={<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>}
+        />
+        <PaymentKpiCard
+          tone="emerald"
+          label="Total Paid Amount"
+          value={inr(totalPaidAmount)}
+          sub="Amount credited to vendor"
+          badge="Disbursed"
+          icon={<><circle cx="12" cy="12" r="9" /><path d="M8 12l2.5 2.5L16 9" /></>}
+        />
+        <PaymentKpiCard
+          tone="amber"
+          label="Disbursement Balance"
+          value={inr(totalBalanceAmount)}
+          sub="Awaiting bank settlement"
+          badge="Pending Balance"
+          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
+        />
 
         {/* Claims Table */}
         <section className="ax-card ax-col--12" role="region" aria-labelledby="claim-table-title">
@@ -505,73 +628,7 @@ export function Bihar_Installation_ULA_Payment() {
         </section>
       </div>
 
-      {/* ── View Claim Sites Modal ── */}
-      {selectedClaim && (
-        <div className="ax-modal-backdrop" onClick={() => setSelectedClaim(null)}>
-          <div className="ax-modal" style={{ maxWidth: 850 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <div>
-                <h4 className="ax-modal__title">Sites Included in Claim #{selectedClaim.id}</h4>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Stage: {selectedClaim.payment_type}% · Invoiced Amount: {inr(selectedClaim.amount)}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon"
-                onClick={() => setSelectedClaim(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="ax-modal__body" style={{ maxHeight: 420, overflowY: 'auto' }}>
-              {!selectedClaim.sites || selectedClaim.sites.length === 0 ? (
-                <TableEmptyState
-                  title="No detailed site breakdown"
-                  message={`This claim covers ${getSiteCount(selectedClaim)} sites.`}
-                />
-              ) : (
-                <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover">
-                    <thead className="ax-table__head">
-                      <tr>
-                        <th className="ax-table__th">Sr. No.</th>
-                        <th className="ax-table__th">Beneficiary Name</th>
-                        <th className="ax-table__th">District</th>
-                        <th className="ax-table__th">Block</th>
-                        <th className="ax-table__th">Village</th>
-                        <th className="ax-table__th">Contact No.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedClaim.sites.map((s, idx) => (
-                        <tr key={s.id || idx} className="ax-table__row">
-                          <td className="ax-table__td ax-num">{idx + 1}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{s.beneficiary_name || `Site #${s.id}`}</td>
-                          <td className="ax-table__td">{s.district || '—'}</td>
-                          <td className="ax-table__td">{s.block || '—'}</td>
-                          <td className="ax-table__td">{s.village || '—'}</td>
-                          <td className="ax-table__td">{s.contact_no || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="ax-modal__footer">
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setSelectedClaim(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

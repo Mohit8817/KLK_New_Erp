@@ -683,9 +683,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                 </p>
               </div>
 
-              <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                Completion: {completedRequired} / {totalRequired} ({progressPercent}%)
-              </span>
+          
             </div>
 
             <div className="ula-section-pills" role="navigation" aria-label="Jump to section">

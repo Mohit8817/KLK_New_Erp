@@ -20,30 +20,182 @@ import {
 
 /* ── Styles: same KPI cards + table polish as SRT200MW ViewData ── */
 const VIEW_CSS = `
-.bsv-kpi { position: relative; overflow: hidden; border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); }
-.bsv-kpi:hover { box-shadow: var(--ax-shadow-md); transform: translateY(-1px); }
-.bsv-kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--bsv-accent); }
-.bsv-kpi__body { padding: var(--ax-space-5) var(--ax-space-5) var(--ax-space-4); display: flex; flex-direction: column; gap: var(--ax-space-4); }
-.bsv-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: var(--ax-space-3); }
-.bsv-kpi__title-wrap { display: flex; align-items: center; gap: var(--ax-space-3); min-width: 0; }
-.bsv-kpi__icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--ax-radius-lg); display: inline-flex; align-items: center; justify-content: center; color: var(--bsv-accent); background: color-mix(in srgb, var(--bsv-accent) 12%, var(--ax-surface-solid)); }
-.bsv-kpi__icon svg { width: 20px; height: 20px; }
-.bsv-kpi__label { font-size: var(--ax-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); }
-.bsv-kpi__caption { font-size: var(--ax-text-xs); color: var(--ax-text-subtle); margin-top: 2px; }
-.bsv-kpi__value-row { display: flex; align-items: baseline; gap: var(--ax-space-2); flex-wrap: wrap; }
-.bsv-kpi__value { font-size: 2rem; line-height: 1.1; font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
-.bsv-kpi__unit { font-size: var(--ax-text-sm); color: var(--ax-text-muted); }
-.bsv-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--ax-surface-subtle); border: 1px solid var(--ax-border-subtle); }
-.bsv-bar__seg { height: 100%; transition: width .4s var(--ax-ease-standard); }
-.bsv-legend { display: flex; flex-wrap: wrap; gap: var(--ax-space-2) var(--ax-space-4); padding-top: var(--ax-space-3); border-top: 1px dashed var(--ax-border); }
-.bsv-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ax-text-xs); color: var(--ax-text-muted); }
-.bsv-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
-.bsv-legend__num { font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
+/* Page surface and dashboard cards aligned with Bihar_Survey_SRT200MW_ViewData */
+.bsv-page {
+  --bsv-card-radius: var(--ax-radius-lg);
+}
+.bsv-page .ax-dash-grid {
+  align-items: stretch;
+  gap: var(--ax-space-4);
+}
+.bsv-kpi {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ax-border);
+  border-radius: var(--bsv-card-radius);
+  background: var(--ax-bg-surface, var(--ax-surface-solid));
+  box-shadow: var(--ax-shadow-sm);
+  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.bsv-kpi:hover {
+  box-shadow: var(--ax-shadow-md);
+  border-color: var(--ax-border);
+  transform: translateY(-1px);
+}
+.bsv-kpi::before { display: none; }
+.bsv-kpi__body {
+  height: 100%;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bsv-kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.bsv-kpi__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bsv-kpi__icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--ax-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bsv-accent);
+  background: color-mix(in srgb, var(--bsv-accent) 12%, transparent);
+}
+.bsv-kpi__icon svg { width: 16px; height: 16px; }
+.bsv-kpi__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ax-text-muted);
+}
+.bsv-kpi__caption {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ax-text-muted);
+}
+.bsv-kpi__head > .ax-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 1px 6px;
+}
+.bsv-kpi__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.bsv-kpi__value {
+  font-family: var(--ax-font-display);
+  font-size: 1.35rem;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--ax-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.bsv-kpi__unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted);
+}
 
-.bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
-.bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
-.bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
-.bsv-page .bsv-benef { max-width: 240px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--ax-text-strong); }
+.bsv-bar__seg { height: 100%; transition: width .3s ease; }
+.bsv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  padding-top: 7px;
+  border-top: 1px solid var(--ax-border-subtle);
+}
+.bsv-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ax-text-muted);
+}
+.bsv-legend__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.bsv-legend__num {
+  font-weight: 700;
+  color: var(--ax-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.bsv-page .ax-card {
+  min-width: 0;
+  border-radius: var(--ax-radius-lg);
+  overflow: hidden;
+}
+.bsv-page .ax-card__header {
+  background: var(--ax-surface-subtle);
+  border-bottom: 1px solid var(--ax-border-subtle);
+}
+.bsv-page .ax-card__title { font-weight: 650; }
+.bsv-page .ax-table-wrap {
+  width: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.bsv-page .ax-table {
+  min-width: 1180px;
+}
+.bsv-page .ax-table__th {
+  font-size: var(--ax-text-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ax-text-muted);
+  background: var(--ax-surface-subtle);
+  white-space: nowrap;
+}
+.bsv-page .ax-table__td { font-size: var(--ax-text-sm); vertical-align: middle; }
+.bsv-page .bsv-benef {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ax-text-strong);
+}
+.bsv-page .ax-card__actions { min-width: 0; }
+.bsv-page .ax-alert { border-radius: var(--ax-radius-md); }
+.bsv-page .ax-modal {
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-xl);
+  box-shadow: var(--ax-shadow-lg);
+}
+@media (max-width: 900px) {
+  .bsv-kpi__body { padding: 11px 12px; }
+  .bsv-kpi__value { font-size: 1.25rem; }
+}
+@media (max-width: 640px) {
+  .bsv-page .ax-card__header { align-items: flex-start; }
+  .bsv-page .ax-card__actions { width: 100%; }
+  .bsv-page .ax-card__actions > * { max-width: 100%; }
+  .bsv-kpi__caption { max-width: 100%; }
+}
 `;
 
 const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
@@ -98,11 +250,7 @@ function KpiCard({
 
         {segments && (
           <>
-            <div className="bsv-bar" role="img" aria-label={segments.map((s) => `${s.label}: ${s.count}`).join(', ')}>
-              {sum > 0 && segments.map((s) => (
-                <div key={s.label} className="bsv-bar__seg" style={{ width: `${(s.count / sum) * 100}%`, background: s.color }} />
-              ))}
-            </div>
+         
             <div className="bsv-legend">
               {segments.map((s) => (
                 <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
@@ -248,7 +396,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
 
   const warn = 'var(--ax-warning-500)';
-  const ok = 'var(--ax-success-500)';
+  const ok = 'var(--ax-accent)'; // Blue fill for accepted segments in KPI bars
   const accent = 'var(--ax-accent)';
 
   // Filtered
