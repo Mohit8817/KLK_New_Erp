@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
@@ -116,7 +117,7 @@ const VerifyBadge = ({ value }: { value: number }) =>
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/* ── Interactive Image Thumbnail with Candidate Fallbacks ── */
+/* ── Interactive Image Thumbnail (NO BORDER RADIUS) ── */
 function InstallationThumbnail({
   src,
   alt,
@@ -150,7 +151,7 @@ function InstallationThumbnail({
       style={{
         width: size,
         height: size,
-        borderRadius: 'var(--ax-radius-sm, 4px)',
+        borderRadius: 0,
         objectFit: 'cover',
         cursor: 'pointer',
         border: '1px solid var(--ax-border, #e2e8f0)',
@@ -198,6 +199,167 @@ function ThumbnailGroup({
   );
 }
 
+/* ── Action Dropdown Component ── */
+function RowActionDropdown({
+  site,
+  index,
+  totalRows,
+  onOpenDoc,
+}: {
+  site: StructureSiteItem;
+  index: number;
+  totalRows: number;
+  onOpenDoc: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  // Flip upward if located near bottom
+  const openUpward = index >= totalRows - 2 && totalRows > 3;
+
+  return (
+    <div className="ax-dropdown" ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        className="ax-btn ax-btn--secondary ax-btn--sm"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontWeight: 500,
+          fontSize: '12px',
+          height: 30,
+          padding: '0 12px',
+          borderRadius: 0,
+          cursor: 'pointer',
+        }}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          className="ax-menu"
+          role="menu"
+          style={{
+            position: 'absolute',
+            ...(openUpward ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
+            right: 0,
+            zIndex: 9999,
+            minWidth: 170,
+            background: 'var(--ax-surface-solid, #ffffff)',
+            border: '1px solid var(--ax-border, #e2e8f0)',
+            borderRadius: 0,
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+            padding: '4px 0',
+            display: 'flex',
+            flexDirection: 'column',
+            textAlign: 'left',
+          }}
+        >
+          {/* 1. Edit Structure */}
+          <Link
+            to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
+            className="ax-menu__item"
+            role="menuitem"
+            style={{
+              padding: '8px 14px',
+              fontSize: '12px',
+              color: 'var(--ax-text)',
+              textDecoration: 'none',
+              display: 'block',
+              width: '100%',
+              borderRadius: 0,
+              fontWeight: 500,
+              boxSizing: 'border-box',
+            }}
+            onClick={() => setOpen(false)}
+          >
+            Edit Structure
+          </Link>
+
+          {/* 2. Pending Installation */}
+          <Link
+            to={`/v/bihar/ula-installation-pending-site/${site.id}`}
+            className="ax-menu__item"
+            role="menuitem"
+            style={{
+              padding: '8px 14px',
+              fontSize: '12px',
+              color: 'var(--ax-text)',
+              textDecoration: 'none',
+              display: 'block',
+              width: '100%',
+              borderRadius: 0,
+              fontWeight: 500,
+              boxSizing: 'border-box',
+            }}
+            onClick={() => setOpen(false)}
+          >
+            Pending Installation
+          </Link>
+
+          {/* 3. Document */}
+          <button
+            type="button"
+            className="ax-menu__item"
+            role="menuitem"
+            style={{
+              padding: '8px 14px',
+              fontSize: '12px',
+              color: 'var(--ax-text)',
+              background: 'transparent',
+              border: 0,
+              cursor: 'pointer',
+              display: 'block',
+              width: '100%',
+              borderRadius: 0,
+              textAlign: 'left',
+              fontWeight: 500,
+              boxSizing: 'border-box',
+            }}
+            onClick={() => {
+              setOpen(false);
+              onOpenDoc();
+            }}
+          >
+            Document
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────── Responsive CSS (BiharAMCSSLViewAssignLight / DLE jaisa) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
@@ -206,6 +368,14 @@ const PAGE_CSS = `
     width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* Images: NO BORDER RADIUS */
+  .solar-erp-page img,
+  .solar-erp-page .ula-table--wide img,
+  .solar-erp-page .ax-modal img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
 
   /* Card header: title and actions */
   .solar-erp-page .ax-card__header {
@@ -267,7 +437,12 @@ const PAGE_CSS = `
   }
 
   /* Table: sideways scroll with sticky first column */
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 380px;
+    padding-bottom: 40px;
+  }
   .solar-erp-page .ula-table--wide { min-width: 2800px; }
   .solar-erp-page .ula-sticky-first th:first-child,
   .solar-erp-page .ula-sticky-first td:first-child {
@@ -879,8 +1054,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                     const lng = text(s, 'inst_longitude') || text(s, 'longitude');
                     const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
 
-                    const docPath = text(s, 'inst_doc');
-
                     return (
                       <tr key={s.id} className="ax-table__row">
                         {/* 1. Sr. No. */}
@@ -1085,37 +1258,14 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                           <VerifyBadge value={Number(s.inst_verify_status ?? s.verify_status)} />
                         </td>
 
-                        {/* 31. Action */}
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <div className="ax-cluster" style={{ justifyContent: 'center', gap: 'var(--ax-space-1)' }}>
-                            <button
-                              type="button"
-                              className={`ax-btn ax-btn--sm ${isElectricDone ? 'ax-btn--ghost' : 'ax-btn--primary'}`}
-                              onClick={() => handleOpenElectricModal(s)}
-                              title={isElectricDone ? 'Update electric details' : 'Complete electric installation'}
-                            >
-                              {isElectricDone ? 'Edit Electric' : 'Complete Electric'}
-                            </button>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => setDocModalSite(s)}
-                              title="Upload commissioning document"
-                            >
-                              Upload Doc
-                            </button>
-                            {docPath && (
-                              <a
-                                href={mediaUrl(docPath)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="ax-btn ax-btn--ghost ax-btn--sm"
-                                title="View Commissioning Document"
-                              >
-                                View Doc ↗
-                              </a>
-                            )}
-                          </div>
+                        {/* 31. Action (Single button with dropdown menu) */}
+                        <td className="ax-table__td" style={{ textAlign: 'center', position: 'relative' }}>
+                          <RowActionDropdown
+                            site={s}
+                            index={index}
+                            totalRows={paginatedData.length}
+                            onOpenDoc={() => setDocModalSite(s)}
+                          />
                         </td>
                       </tr>
                     );
@@ -1144,7 +1294,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
         <div className="ax-modal-backdrop" onClick={() => setPreviewImg(null)}>
           <div
             className="ax-modal"
-            style={{ maxWidth: 800, padding: 'var(--ax-space-4)', background: 'var(--ax-surface-solid)' }}
+            style={{ maxWidth: 800, padding: 'var(--ax-space-4)', background: 'var(--ax-surface-solid)', borderRadius: 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-2)' }}>
@@ -1158,11 +1308,11 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 ✕
               </button>
             </div>
-            <div style={{ textAlign: 'center', background: '#0000000d', padding: 8, borderRadius: 'var(--ax-radius-md)' }}>
+            <div style={{ textAlign: 'center', background: '#0000000d', padding: 8, borderRadius: 0 }}>
               <img
                 src={previewImg}
                 alt="Verification media preview"
-                style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-sm)' }}
+                style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 0 }}
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px' }}>
@@ -1171,12 +1321,14 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 target="_blank"
                 rel="noreferrer"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
+                style={{ borderRadius: 0 }}
               >
                 Open in New Tab ↗
               </a>
               <button
                 type="button"
                 className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{ borderRadius: 0 }}
                 onClick={() => setPreviewImg(null)}
               >
                 Close
@@ -1425,6 +1577,19 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                     required
                   />
                 </div>
+                {text(docModalSite, 'inst_doc') && (
+                  <div style={{ marginTop: 'var(--ax-space-3)' }}>
+                    <a
+                      href={mediaUrl(text(docModalSite, 'inst_doc'))}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ax-btn ax-btn--secondary ax-btn--sm"
+                      style={{ borderRadius: 0 }}
+                    >
+                      View Current Document ↗
+                    </a>
+                  </div>
+                )}
               </div>
               <div className="ax-modal__footer">
                 <button

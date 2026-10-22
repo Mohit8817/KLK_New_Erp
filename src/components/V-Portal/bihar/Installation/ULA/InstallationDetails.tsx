@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
@@ -268,6 +268,7 @@ interface FieldStatusProps {
 
 export function Bihar_Installation_ULA_InstallationDetails() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
 
   // ── Step 1: Site Selection ──
   const [siteOptions, setSiteOptions] = useState<{ id: number; beneficiary_name: string }[]>([]);
@@ -331,6 +332,12 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   useEffect(() => {
     loadSites();
   }, [loadSites]);
+
+  useEffect(() => {
+    if (id) {
+      handleSiteChange(String(id));
+    }
+  }, [id]);
 
   // Auto GPS location on initial page load
   const handleDetectGps = useCallback(() => {
