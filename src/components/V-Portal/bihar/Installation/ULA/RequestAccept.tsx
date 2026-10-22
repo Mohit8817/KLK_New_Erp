@@ -43,6 +43,7 @@ const VIEW_CSS = `
 .bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
 .bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
 .bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
+.bsv-page .bsv-benef { max-width: 240px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--ax-text-strong); }
 `;
 
 const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
@@ -119,8 +120,27 @@ function KpiCard({
 
 const DASH = '—';
 
-// Helper count of sites
-const getSiteCount = (item: AssignSiteItem) => {
+/* ── Response field helpers ──
+   The API returns `beneficiary_name`, `site_count` and `file` directly on each
+   assignment. They are read through this helper so the code works even if the
+   AssignSiteItem type does not declare them yet. */
+const readField = (item: AssignSiteItem, key: string): unknown =>
+  (item as unknown as Record<string, unknown>)[key];
+
+// Beneficiary name from the response (falls back to the first attached site)
+const getBeneficiaryName = (item: AssignSiteItem): string => {
+  const v = readField(item, 'beneficiary_name');
+  if (typeof v === 'string' && v.trim()) return v.trim();
+  return item.sites?.[0]?.beneficiary_name || '';
+};
+
+// Site count from the response (falls back to counting the attached sites)
+const getSiteCount = (item: AssignSiteItem): number => {
+  const raw = readField(item, 'site_count');
+  if (raw !== null && raw !== undefined && raw !== '') {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
   if (Array.isArray(item.sites) && item.sites.length > 0) return item.sites.length;
   if (typeof item.site_id === 'string') {
     try {
@@ -132,6 +152,27 @@ const getSiteCount = (item: AssignSiteItem) => {
   }
   return 1;
 };
+
+// Attachment URL from the response
+const getFileUrl = (item: AssignSiteItem): string => {
+  const v = readField(item, 'file');
+  return typeof v === 'string' ? v.trim() : '';
+};
+
+// Generic text/number field from the response
+const getText = (item: AssignSiteItem, key: string): string => {
+  const v = readField(item, key);
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number') return String(v);
+  return '';
+};
+
+const getVendor = (item: AssignSiteItem): string =>
+  item.vendors?.name || getText(item, 'vendor') || getText(item, 'vendor_name');
+const getAssignDate = (item: AssignSiteItem): string => getText(item, 'assign_date');
+const getState = (item: AssignSiteItem): string => getText(item, 'state');
+const getBlock = (item: AssignSiteItem): string => getText(item, 'block');
+const getUniqueId = (item: AssignSiteItem): string => getText(item, 'unique_id');
 
 export function Bihar_Installation_ULA_RequestAccept() {
   const navigate = useNavigate();
@@ -146,8 +187,8 @@ export function Bihar_Installation_ULA_RequestAccept() {
 
   // Detail Modal State
   const [selectedAssign, setSelectedAssign] = useState<AssignSiteItem | null>(null);
-  const [modalSites, setModalSites] = useState<AssignedBeneficiarySite[]>([]);
-  const [modalLoading, setModalLoading] = useState(false);
+  const [modalSites] = useState<AssignedBeneficiarySite[]>([]);
+  const [modalLoading] = useState(false);
 
   // Load assignments
   const loadData = useCallback(async () => {
@@ -216,7 +257,10 @@ export function Bihar_Installation_ULA_RequestAccept() {
     const q = search.toLowerCase();
     return assignments.filter((a) => {
       const idMatch = String(a.id).includes(q);
-      const vendorMatch = a.vendors?.name?.toLowerCase().includes(q);
+      const vendorMatch = getVendor(a).toLowerCase().includes(q);
+      const extraMatch = [getAssignDate(a), getState(a), getBlock(a), getUniqueId(a)]
+        .some((t) => t.toLowerCase().includes(q));
+      const beneficiaryMatch = getBeneficiaryName(a).toLowerCase().includes(q);
       const remarkMatch = a.remarks?.toLowerCase().includes(q);
       const deadlineMatch = a.deadline_date?.toLowerCase().includes(q);
       const sitesMatch = a.sites?.some((s) =>
@@ -224,7 +268,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
         s.district?.toLowerCase().includes(q) ||
         s.ca_no?.toLowerCase().includes(q)
       );
-      return idMatch || vendorMatch || remarkMatch || deadlineMatch || sitesMatch;
+      return idMatch || vendorMatch || extraMatch || beneficiaryMatch || remarkMatch || deadlineMatch || sitesMatch;
     });
   }, [assignments, search]);
 
@@ -238,11 +282,17 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const exportCols: ExportColumn<AssignSiteItem>[] = useMemo(
     () => [
       { header: 'Assign ID', accessor: (r) => `#${r.id}` },
-      { header: 'Vendor Name', accessor: (r) => r.vendors?.name || '' },
-      { header: 'Total Sites', accessor: (r) => getSiteCount(r) },
+      { header: 'Vendor', accessor: (r) => getVendor(r) },
+      { header: 'Assign Date', accessor: (r) => getAssignDate(r) },
+      { header: 'State', accessor: (r) => getState(r) },
+      { header: 'Block', accessor: (r) => getBlock(r) },
+      { header: 'Unique ID', accessor: (r) => getUniqueId(r) },
+      { header: 'Beneficiary Name', accessor: (r) => getBeneficiaryName(r) },
+      { header: 'Site Count', accessor: (r) => getSiteCount(r) },
       { header: 'Deadline Date', accessor: (r) => r.deadline_date || '' },
       { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Pending Acceptance') },
       { header: 'Remarks', accessor: (r) => r.remarks || '' },
+      { header: 'File', accessor: (r) => getFileUrl(r) },
     ],
     []
   );
@@ -344,7 +394,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
                   setSearch(val);
                   setCurrentPage(1);
                 }}
-                placeholder="Search vendor, ID, district…"
+                placeholder="Search beneficiary, vendor, ID, district…"
                 ariaLabel="Search assignments"
               />
               <TableExportToolbar
@@ -383,11 +433,16 @@ export function Bihar_Installation_ULA_RequestAccept() {
                     <tr>
                       <th className="ax-table__th" scope="col">Sr. No.</th>
                       <th className="ax-table__th" scope="col">Assign ID</th>
-                      <th className="ax-table__th" scope="col">Vendor Name</th>
-                      <th className="ax-table__th" scope="col">Sites Count</th>
+                      <th className="ax-table__th" scope="col">Vendor</th>
+                      <th className="ax-table__th" scope="col">Assign Date</th>
+                      <th className="ax-table__th" scope="col">State</th>
+                      <th className="ax-table__th" scope="col">Block</th>
+                      <th className="ax-table__th" scope="col">Unique ID</th>
+                      <th className="ax-table__th" scope="col">Beneficiary Name</th>
+                      <th className="ax-table__th" scope="col">Site Count</th>
                       <th className="ax-table__th" scope="col">Deadline Date</th>
                       <th className="ax-table__th" scope="col">Remarks</th>
-                      <th className="ax-table__th" scope="col">Attachment</th>
+                      <th className="ax-table__th" scope="col">File</th>
                       <th className="ax-table__th" scope="col">Status</th>
                       <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                     </tr>
@@ -396,28 +451,44 @@ export function Bihar_Installation_ULA_RequestAccept() {
                     {paginatedAssignments.map((a, index) => {
                       const isAccepted = Number(a.status) === 2;
                       const isActioning = actionLoadingId === a.id;
+                      const beneficiary = getBeneficiaryName(a);
+                      const siteCount = getSiteCount(a);
+                      const fileUrl = getFileUrl(a);
                       return (
                         <tr key={a.id} className="ax-table__row">
                           <td className="ax-table__td">{(currentPage - 1) * pageSize + index + 1}</td>
                           <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>#{a.id}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' as any }}>{a.vendors?.name || 'Assigned Vendor'}</td>
+                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' as any }}>
+                            {getVendor(a) || DASH}
+                          </td>
+                          <td className="ax-table__td">{getAssignDate(a) || DASH}</td>
+                          <td className="ax-table__td">{getState(a) || DASH}</td>
+                          <td className="ax-table__td">{getBlock(a) || DASH}</td>
+                          <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                            {getUniqueId(a) || DASH}
+                          </td>
+                          <td className="ax-table__td bsv-benef" title={beneficiary || undefined}>
+                            {beneficiary || DASH}
+                          </td>
                           <td className="ax-table__td">
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{getSiteCount(a)} Sites</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
+                              {siteCount} {siteCount === 1 ? 'Site' : 'Sites'}
+                            </span>
                           </td>
                           <td className="ax-table__td">{a.deadline_date || DASH}</td>
                           <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {a.remarks || DASH}
                           </td>
                           <td className="ax-table__td">
-                            {a.file ? (
+                            {fileUrl ? (
                               <a
-                                href={a.file}
+                                href={fileUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="ax-badge ax-badge--soft ax-badge--neutral"
                                 style={{ textDecoration: 'none', cursor: 'pointer' }}
                               >
-                                View Doc ↗
+                                View File ↗
                               </a>
                             ) : (
                               <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
@@ -456,11 +527,15 @@ export function Bihar_Installation_ULA_RequestAccept() {
               </div>
 
               <Pagination
-                page={currentPage}
+                currentPage={currentPage}
                 pageSize={pageSize}
                 total={filteredAssignments.length}
-                onChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
               />
             </>
           )}
