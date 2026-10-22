@@ -1280,7 +1280,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
               alignItems: 'center',
               gap: '12px',
               padding: '14px 24px',
-              background: '#350a45',
+              background: '#e1e1e3',
               borderRadius: '8px',
               marginTop: '36px',
             }}

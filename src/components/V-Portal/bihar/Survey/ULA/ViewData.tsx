@@ -19,6 +19,101 @@ import {
   type ColumnDef,
 } from '../../../../../common';
 
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getSurveyImageCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  if (clean.startsWith('r2:')) {
+    const key = clean.slice(3).replace(/^\/+/, '');
+    const urls: string[] = [];
+    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/uploads/${key}`);
+    return urls;
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/survey/ula/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/survey/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/survey/ula/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+function SurveyThumbnail({
+  src,
+  alt,
+  onPreview,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string) => void;
+}) {
+  const candidates = useMemo(() => getSurveyImageCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 'var(--ax-radius-sm)',
+        objectFit: 'cover',
+        cursor: 'pointer',
+        border: '1px solid var(--ax-border)',
+        background: 'var(--ax-surface-subtle)',
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl)}
+      title="Click to preview"
+    />
+  );
+}
+
 const DEFAULT_KPIS: UlaSurveyKpis = {
   total: 0,
   feasible: 0,
@@ -450,74 +545,29 @@ export function Bihar_Survey_ULA_ViewData() {
 
                           {/* Electricity Bill Photo */}
                           <td className="ax-table__td">
-                            {item.electricity_bill_photo ? (
-                              <img
-                                src={
-                                  item.electricity_bill_photo.startsWith('http')
-                                    ? item.electricity_bill_photo
-                                    : `/${item.electricity_bill_photo}`
-                                }
-                                alt="Electricity Bill"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() =>
-                                  setPreviewImg(
-                                    item.electricity_bill_photo!.startsWith('http')
-                                      ? item.electricity_bill_photo!
-                                      : `/${item.electricity_bill_photo}`
-                                  )
-                                }
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
+                            <SurveyThumbnail
+                              src={item.electricity_bill_photo}
+                              alt="Electricity Bill"
+                              onPreview={setPreviewImg}
+                            />
                           </td>
 
                           {/* Consent Form Photo */}
                           <td className="ax-table__td">
-                            {item.consent_form_photo ? (
-                              <img
-                                src={
-                                  item.consent_form_photo.startsWith('http')
-                                    ? item.consent_form_photo
-                                    : `/${item.consent_form_photo}`
-                                }
-                                alt="Consent Form"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() =>
-                                  setPreviewImg(
-                                    item.consent_form_photo!.startsWith('http')
-                                      ? item.consent_form_photo!
-                                      : `/${item.consent_form_photo}`
-                                  )
-                                }
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
+                            <SurveyThumbnail
+                              src={item.consent_form_photo}
+                              alt="Consent Form"
+                              onPreview={setPreviewImg}
+                            />
                           </td>
 
                           {/* Aadhaar Card Photo */}
                           <td className="ax-table__td">
-                            {item.aadhar_card_photo ? (
-                              <img
-                                src={
-                                  item.aadhar_card_photo.startsWith('http')
-                                    ? item.aadhar_card_photo
-                                    : `/${item.aadhar_card_photo}`
-                                }
-                                alt="Aadhaar Card"
-                                style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                onClick={() =>
-                                  setPreviewImg(
-                                    item.aadhar_card_photo!.startsWith('http')
-                                      ? item.aadhar_card_photo!
-                                      : `/${item.aadhar_card_photo}`
-                                  )
-                                }
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                            )}
+                            <SurveyThumbnail
+                              src={item.aadhar_card_photo}
+                              alt="Aadhaar Card"
+                              onPreview={setPreviewImg}
+                            />
                           </td>
 
                           {/* Remarks */}
@@ -642,8 +692,25 @@ export function Bihar_Survey_ULA_ViewData() {
             <img
               src={previewImg}
               alt="Document Preview"
-              style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }}
+              style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }}
             />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <a
+                href={previewImg}
+                target="_blank"
+                rel="noreferrer"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+              >
+                Open in New Tab ↗
+              </a>
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={() => setPreviewImg(null)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -165,7 +165,117 @@ const MEDIA_COLS: { th: string; alt: string; field: 'image1' | 'image2' | 'image
   { th: 'Other Image', alt: 'Other', field: 'image4' },
 ];
 
-const fileUrl = (p: string) => (p.startsWith('http') ? p : `/${p}`);
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getSurveyImageCandidates(path?: string | null, moduleType: 'ula' | 'srt' = 'srt'): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  if (clean.startsWith('r2:')) {
+    const key = clean.slice(3).replace(/^\/+/, '');
+    const urls: string[] = [];
+    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/uploads/${key}`);
+    return urls;
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/survey/srt/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/survey/srt200mw/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/survey/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/srt200mw/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/srt/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/survey/srt/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+function resolveSurveyFileUrl(path?: string | null, moduleType: 'ula' | 'srt' = 'srt'): string {
+  if (!path) return '';
+  const clean = path.trim();
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return clean;
+  }
+  const normalized = clean.replace(/^\/+/, '');
+  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/')) {
+    return `${BACKEND_BASE}/${normalized}`;
+  }
+  const filename = normalized.split('/').pop() || normalized;
+  return `${BACKEND_BASE}/uploads/bihar/survey/srt/${filename}`;
+}
+
+function SurveyThumbnail({
+  src,
+  alt,
+  onPreview,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string) => void;
+}) {
+  const candidates = useMemo(() => getSurveyImageCandidates(src, 'srt'), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 'var(--ax-radius-sm)',
+        objectFit: 'cover',
+        cursor: 'pointer',
+        border: '1px solid var(--ax-border)',
+        background: 'var(--ax-surface-subtle)',
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl)}
+      title="Click to preview"
+    />
+  );
+}
 
 export function Bihar_Survey_SRT200MW_ViewData() {
   const navigate = useNavigate();
@@ -478,16 +588,11 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                             const path = item[m.field];
                             return (
                               <td key={m.field} className="ax-table__td">
-                                {path ? (
-                                  <img
-                                    src={fileUrl(path)}
-                                    alt={m.alt}
-                                    style={{ width: 34, height: 34, borderRadius: 'var(--ax-radius-sm)', objectFit: 'cover', cursor: 'pointer', border: '1px solid var(--ax-border)' }}
-                                    onClick={() => setPreviewImg(fileUrl(path))}
-                                  />
-                                ) : (
-                                  <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>
-                                )}
+                                <SurveyThumbnail
+                                  src={path}
+                                  alt={m.alt}
+                                  onPreview={setPreviewImg}
+                                />
                               </td>
                             );
                           })}
@@ -496,7 +601,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                           <td className="ax-table__td">
                             {item.pdf_file ? (
                               <a
-                                href={fileUrl(item.pdf_file)}
+                                href={resolveSurveyFileUrl(item.pdf_file, 'srt')}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="ax-badge ax-badge--soft ax-badge--neutral"
@@ -584,7 +689,24 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                 ✕
               </button>
             </div>
-            <img src={previewImg} alt="Survey Preview" style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }} />
+            <img src={previewImg} alt="Survey Preview" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+              <a
+                href={previewImg}
+                target="_blank"
+                rel="noreferrer"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+              >
+                Open in New Tab ↗
+              </a>
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={() => setPreviewImg(null)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

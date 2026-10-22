@@ -4,12 +4,6 @@ import { PageHead } from '../../../../shell/PageHead';
 import { biharUlaInstallationService } from '../../../../../services/biharUlaInstallationService';
 import { SearchInput, TableEmptyState, Pagination } from '../../../../../common';
 
-const ICON_CHECK = (
-  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
 const ICON_UPLOAD = (
   <svg style={{ width: 18, height: 18 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
@@ -20,17 +14,18 @@ const ICON_UPLOAD = (
 
 export function Bihar_Installation_ULA_AddPayment() {
   const navigate = useNavigate();
-  const [paymentType, setPaymentType] = useState<string>('50');
+  const [paymentType, setPaymentType] = useState<string>('');
   const [claimDate, setClaimDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState<string>('');
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [totalAmount, setTotalAmount] = useState<string>('');
 
   // Eligible Sites
   const [eligibleSites, setEligibleSites] = useState<any[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
 
-  // Search & Pagination for eligible sites table
+  // Search & Pagination
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -42,9 +37,14 @@ export function Bihar_Installation_ULA_AddPayment() {
 
   // Load eligible sites when paymentType changes
   const loadEligibleSites = useCallback(async (typeVal: string) => {
+    setSelectedSiteIds([]);
+    setCurrentPage(1);
+    if (!typeVal) {
+      setEligibleSites([]);
+      return;
+    }
     setLoadingSites(true);
     setErrorMsg(null);
-    setSelectedSiteIds([]);
     try {
       const data = await biharUlaInstallationService.fetchClaimEligibleSites(Number(typeVal));
       setEligibleSites(data || []);
@@ -61,20 +61,10 @@ export function Bihar_Installation_ULA_AddPayment() {
     loadEligibleSites(paymentType);
   }, [paymentType, loadEligibleSites]);
 
-  // Select / Deselect individual site
   const toggleSiteSelect = (id: number) => {
     setSelectedSiteIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  };
-
-  // Select All
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedSiteIds(filteredSites.map((s) => s.id));
-    } else {
-      setSelectedSiteIds([]);
-    }
   };
 
   // Filtered sites
@@ -86,6 +76,7 @@ export function Bihar_Installation_ULA_AddPayment() {
       s.ca_no?.toLowerCase().includes(q) ||
       s.district?.toLowerCase().includes(q) ||
       s.block?.toLowerCase().includes(q) ||
+      s.panchayat?.toLowerCase().includes(q) ||
       s.village?.toLowerCase().includes(q) ||
       String(s.id).includes(q)
     );
@@ -99,18 +90,26 @@ export function Bihar_Installation_ULA_AddPayment() {
 
   const allFilteredSelected = filteredSites.length > 0 && filteredSites.every((s) => selectedSiteIds.includes(s.id));
 
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedSiteIds(checked ? filteredSites.map((s) => s.id) : []);
+  };
+
   // Submit Claim
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (!paymentType) {
+      setErrorMsg('Please select a payment type.');
+      return;
+    }
     if (selectedSiteIds.length === 0) {
       setErrorMsg('Please select at least one site to raise a payment claim.');
       return;
     }
     if (!claimDate) {
-      setErrorMsg('Claim date is required.');
+      setErrorMsg('Date is required.');
       return;
     }
     if (!remarks.trim()) {
@@ -118,7 +117,11 @@ export function Bihar_Installation_ULA_AddPayment() {
       return;
     }
     if (!invoiceFile) {
-      setErrorMsg('Invoice file is required.');
+      setErrorMsg('Document is required.');
+      return;
+    }
+    if (!totalAmount || Number(totalAmount) <= 0) {
+      setErrorMsg('Total amount is required.');
       return;
     }
 
@@ -131,6 +134,7 @@ export function Bihar_Installation_ULA_AddPayment() {
       });
       fd.append('date', claimDate);
       fd.append('remarks', remarks.trim());
+      fd.append('total_amount', totalAmount);
       fd.append('file', invoiceFile);
 
       const resp = await biharUlaInstallationService.storeClaim(fd);
@@ -149,13 +153,13 @@ export function Bihar_Installation_ULA_AddPayment() {
   return (
     <div className="ax-page">
       <PageHead
-        title="Bihar - Installation > ULA > Add Payment Claim"
+        title="Payment Summary"
         subtitle="Submit 50% advance or 30% final installation claim with supporting tax invoice"
         breadcrumbs={[
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'ULA' },
-          { label: 'Add Payment' },
+          { label: 'Payment Summary' },
         ]}
         actions={
           <Link to="/v/bihar/ula-installation-view-payment" className="ax-btn ax-btn--secondary ax-btn--sm">
@@ -179,109 +183,87 @@ export function Bihar_Installation_ULA_AddPayment() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <div className="ax-dash-grid">
-          {/* ── STEP 1: Select Claim Stage ── */}
-          <div className="ax-card ax-col--12">
-            <div className="ax-card__header">
-              <h3 className="ax-card__title">1. Claim Type & Batch Parameters</h3>
-              <p className="ax-card__subtitle">Choose whether you are claiming 50% (structure stage) or 30% (final electric stage)</p>
-            </div>
-            <div className="ax-card__body">
-              <div className="ax-dash-grid">
-                <div className="ax-col--4">
-                  <div className="ax-field">
-                    <label className="ax-field__label" htmlFor="payment_type">
-                      Claim Stage <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                    </label>
-                    <select
-                      id="payment_type"
-                      className="ax-input"
-                      value={paymentType}
-                      onChange={(e) => setPaymentType(e.target.value)}
-                      required
-                    >
-                      <option value="50">50% Advance Claim (Structure Complete)</option>
-                      <option value="30">30% Final Installation Claim</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="ax-col--4">
-                  <div className="ax-field">
-                    <label className="ax-field__label" htmlFor="claim_date">
-                      Claim Date <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                    </label>
-                    <input
-                      id="claim_date"
-                      type="date"
-                      className="ax-input"
-                      value={claimDate}
-                      onChange={(e) => setClaimDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="ax-col--4">
-                  <div className="ax-field">
-                    <label className="ax-field__label" htmlFor="invoice_file">
-                      Invoice Document (PDF/JPG max 2MB) <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                    </label>
-                    <input
-                      id="invoice_file"
-                      type="file"
-                      accept=".pdf,image/jpeg,image/png,image/jpg"
-                      className="ax-input"
-                      onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="ax-col--12">
-                  <div className="ax-field">
-                    <label className="ax-field__label" htmlFor="remarks">
-                      Vendor Claim Remarks <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                    </label>
-                    <input
-                      id="remarks"
-                      type="text"
-                      className="ax-input"
-                      placeholder="e.g. Submitting invoice for batch installation completed across Muzaffarpur & Samastipur"
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div className="ax-card">
+          <div className="ax-card__header">
+            <h3 className="ax-card__title">Payment Summary</h3>
           </div>
 
-          {/* ── STEP 2: Select Eligible Sites ── */}
-          <div className="ax-card ax-col--12">
-            <div className="ax-card__header">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-                <div>
-                  <h3 className="ax-card__title">2. Select Eligible Beneficiary Sites</h3>
-                  <p className="ax-card__subtitle">
-                    Select sites from the eligible list to attach to this invoice ({eligibleSites.length} available)
-                  </p>
+          <div className="ax-card__body">
+            {/* ── Row 1: Document | Date | Payment Type ── */}
+            <div className="ax-dash-grid">
+              <div className="ax-col--4">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="invoice_file">
+                    Document <span style={{ color: 'var(--ax-danger)' }}>*</span>
+                  </label>
+                  <input
+                    id="invoice_file"
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/jpg"
+                    className="ax-input"
+                    onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+                  />
                 </div>
-                <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-                  <span className="ax-badge ax-badge--soft ax-badge--info">
-                    Selected: <b>{selectedSiteIds.length} Sites</b>
-                  </span>
+              </div>
+
+              <div className="ax-col--4">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="claim_date">
+                    Date <span style={{ color: 'var(--ax-danger)' }}>*</span>
+                  </label>
+                  <input
+                    id="claim_date"
+                    type="date"
+                    className="ax-input"
+                    value={claimDate}
+                    onChange={(e) => setClaimDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="ax-col--4">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="payment_type">
+                    Payment Type <span style={{ color: 'var(--ax-danger)' }}>*</span>
+                  </label>
+                  <select
+                    id="payment_type"
+                    className="ax-input"
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                  >
+                    <option value="">Select Payment</option>
+                    <option value="50">50% Advance Claim (Structure Complete)</option>
+                    <option value="30">30% Final Installation Claim</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* ── Row 2: Remarks ── */}
+              <div className="ax-col--12">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="remarks">
+                    Remarks <span style={{ color: 'var(--ax-danger)' }}>*</span>
+                  </label>
+                  <textarea
+                    id="remarks"
+                    className="ax-input"
+                    rows={3}
+                    placeholder="Enter remarks"
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="ax-card__body">
+            {/* ── Sites table ── */}
+            <div style={{ marginTop: 'var(--ax-space-4)' }}>
               <div style={{ marginBottom: 'var(--ax-space-3)', maxWidth: 300 }}>
                 <SearchInput
                   value={search}
-                  onChange={setSearch}
-                  placeholder="Search eligible sites..."
+                  onChange={(v: string) => { setSearch(v); setCurrentPage(1); }}
+                  placeholder="Search sites..."
                 />
               </div>
 
@@ -298,26 +280,29 @@ export function Bihar_Installation_ULA_AddPayment() {
                           aria-label="Select all"
                         />
                       </th>
-                      <th>Sr.</th>
-                      <th>Beneficiary Name</th>
-                      <th>CA Number</th>
-                      <th>Contact No.</th>
                       <th>District</th>
                       <th>Block</th>
-                      <th>Village</th>
-                      <th>Structure Status</th>
+                      <th>Panchayat</th>
+                      <th>Beneficiary Name</th>
+                      <th>Contact No.</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loadingSites ? (
                       <tr>
-                        <td colSpan={9} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
-                          <span className="ax-spinner" /> Loading eligible sites...
+                        <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
+                          <span className="ax-spinner" /> Loading records...
+                        </td>
+                      </tr>
+                    ) : !paymentType ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
+                          <i>Select a payment type to load records</i>
                         </td>
                       </tr>
                     ) : paginatedSites.length === 0 ? (
                       <tr>
-                        <td colSpan={9}>
+                        <td colSpan={6}>
                           <TableEmptyState
                             title="No eligible sites found"
                             message="There are currently no approved sites awaiting this payment claim type."
@@ -325,7 +310,7 @@ export function Bihar_Installation_ULA_AddPayment() {
                         </td>
                       </tr>
                     ) : (
-                      paginatedSites.map((s, index) => {
+                      paginatedSites.map((s) => {
                         const isSelected = selectedSiteIds.includes(s.id);
                         return (
                           <tr
@@ -340,16 +325,11 @@ export function Bihar_Installation_ULA_AddPayment() {
                                 onChange={() => toggleSiteSelect(s.id)}
                               />
                             </td>
-                            <td>{(currentPage - 1) * pageSize + index + 1}</td>
-                            <td style={{ fontWeight: 600 }}>{s.beneficiary_name || '—'}</td>
-                            <td>{s.ca_no || '—'}</td>
-                            <td>{s.contact_no || '—'}</td>
                             <td>{s.district || '—'}</td>
                             <td>{s.block || '—'}</td>
-                            <td>{s.village || '—'}</td>
-                            <td>
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Eligible</span>
-                            </td>
+                            <td>{s.panchayat || '—'}</td>
+                            <td style={{ fontWeight: 600 }}>{s.beneficiary_name || '—'}</td>
+                            <td>{s.contact_no || '—'}</td>
                           </tr>
                         );
                       })
@@ -368,37 +348,52 @@ export function Bihar_Installation_ULA_AddPayment() {
                 />
               </div>
             </div>
-          </div>
 
-          {/* ── Submit Action Toolbar ── */}
-          <div className="ax-col--12" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--ax-space-2)' }}>
-            <div style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-              Total Sites Selected for Claim: <b style={{ color: 'var(--ax-text-strong)' }}>{selectedSiteIds.length}</b>
-            </div>
+            {/* ── Footer: Total Amount | Total Count | Submit ── */}
+            <div className="ax-dash-grid" style={{ marginTop: 'var(--ax-space-4)', alignItems: 'end' }}>
+              <div className="ax-col--4" />
 
-            <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={() => {
-                  setSelectedSiteIds([]);
-                  setRemarks('');
-                  setInvoiceFile(null);
-                }}
-                disabled={submitting}
-              >
-                Reset Selection
-              </button>
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary"
-                disabled={submitting || selectedSiteIds.length === 0}
-              >
-                {submitting ? <span className="ax-spinner" /> : ICON_UPLOAD}
-                <span className="ax-btn__label">
-                  {submitting ? 'Submitting Claim...' : `Submit ${paymentType}% Payment Claim`}
-                </span>
-              </button>
+              <div className="ax-col--3">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="total_amount">Total Amount</label>
+                  <input
+                    id="total_amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="ax-input"
+                    value={totalAmount}
+                    onChange={(e) => setTotalAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="ax-col--3">
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="total_count">Total Count</label>
+                  <input
+                    id="total_count"
+                    type="text"
+                    className="ax-input"
+                    value={selectedSiteIds.length}
+                    readOnly
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div className="ax-col--2">
+                <button
+                  type="submit"
+                  className="ax-btn ax-btn--primary"
+                  disabled={submitting || selectedSiteIds.length === 0}
+                >
+                  {submitting ? <span className="ax-spinner" /> : ICON_UPLOAD}
+                  <span className="ax-btn__label">
+                    {submitting ? 'Submitting...' : 'Submit Payment'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
