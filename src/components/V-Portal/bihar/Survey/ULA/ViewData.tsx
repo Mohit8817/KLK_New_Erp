@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -18,6 +18,61 @@ import {
   type ExportColumn,
   type ColumnDef,
 } from '../../../../../common';
+
+/* ───────── KPI card (same as ULA Dashboard) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+};
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+
+function KpiCard({
+  icon, tone, label, value, unit, sub, badge,
+}: {
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; unit?: string; sub: string; badge?: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div
+      className="ax-card ax-col--4"
+      role="region"
+      aria-label={label}
+      style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}
+    >
+      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+          </div>
+          {badge && (
+            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
+            {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
@@ -305,77 +360,37 @@ export function Bihar_Survey_ULA_ViewData() {
 
       <div className="ax-dash-grid">
         {/* ── KPI Box 1: Total Surveys ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Total Surveys">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                  <rect x="9" y="3" width="6" height="4" rx="2" />
-                  <path d="M9 14l2 2 4-4" />
-                </svg>
-              </span>
-              <span className="ax-badge ax-badge--soft ax-badge--neutral">All Surveys</span>
-            </div>
-            <div className="ax-kpi__label">Total Surveys</div>
-            <div className="ax-kpi__value ax-num">{kpis.total}</div>
-            <div className="ax-kpi__caption">Total ULA surveys recorded</div>
-          </div>
-        </div>
+        <KpiCard
+          tone="cyan"
+          label="Total Surveys"
+          value={kpis.total}
+          unit="Nos."
+          sub="Total ULA surveys recorded"
+          badge="All Surveys"
+          icon={svg(<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 14l2 2 4-4" /></>)}
+        />
 
         {/* ── KPI Box 2: Feasibility Breakdown ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Feasibility Status">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 3" />
-                </svg>
-              </span>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
-                <span className="ax-badge ax-badge--soft ax-badge--success">Feasible: {kpis.feasible}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--danger">Not Feasible: {kpis.not_feasible}</span>
-              </div>
-            </div>
-            <div className="ax-kpi__label">Feasibility Breakdown</div>
-            <div className="ax-kpi__value ax-num">
-              {kpis.feasible}{' '}
-              <span style={{ fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-muted)', fontWeight: 'var(--ax-weight-normal)' }}>
-                / {kpis.not_feasible}
-              </span>
-            </div>
-            <div className="ax-kpi__caption">Feasible / Not Feasible sites</div>
-          </div>
-        </div>
+        <KpiCard
+          tone="emerald"
+          label="Feasibility Breakdown"
+          value={`${kpis.feasible} / ${kpis.not_feasible}`}
+          unit="Nos."
+          sub="Feasible / Not Feasible sites"
+          badge={`${kpis.feasible} Feasible`}
+          icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>)}
+        />
 
         {/* ── KPI Box 3: Verification Status ── */}
-        <div className="ax-card ax-kpi ax-col--4" role="region" aria-label="Verification Status">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-kpi__icon ax-kpi__icon--c3">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <path d="M9 15l2 2 4-4" />
-                </svg>
-              </span>
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-1)' }}>
-                <span className="ax-badge ax-badge--soft ax-badge--success">Approved: {kpis.verified}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--warning">Pending: {kpis.pending}</span>
-                <span className="ax-badge ax-badge--soft ax-badge--danger">Reject: {kpis.rejected}</span>
-              </div>
-            </div>
-            <div className="ax-kpi__label">Verification Status</div>
-            <div className="ax-kpi__value ax-num">
-              {kpis.verified}{' '}
-              <span style={{ fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-muted)', fontWeight: 'var(--ax-weight-normal)' }}>
-                / {kpis.pending} / {kpis.rejected}
-              </span>
-            </div>
-            <div className="ax-kpi__caption">Approved / Pending / Rejected</div>
-          </div>
-        </div>
+        <KpiCard
+          tone="amber"
+          label="Verification Status"
+          value={`${kpis.verified} / ${kpis.pending} / ${kpis.rejected}`}
+          unit="Nos."
+          sub="Approved / Pending / Rejected"
+          badge={`${kpis.pending} Pending`}
+          icon={svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></>)}
+        />
 
         {/* ── Main Table Card (Template DataTables pattern) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">

@@ -257,10 +257,7 @@ export function Bihar_Installation_ULA_Payment() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <Link to="/v/bihar/ula-installation-claim" className="ax-btn ax-btn--primary ax-btn--sm">
-              {ICON_PLUS}
-              <span className="ax-btn__label">Raise Claim</span>
-            </Link>
+    
           </div>
         }
       />

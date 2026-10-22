@@ -845,7 +845,7 @@ function FloatingFileInput({ id, label, required, accept, file, existing, onChan
                 </svg>
               </button>
             ) : (
-              <span className="ax-btn ax-btn--secondary ax-btn--xs" style={{ pointerEvents: 'none' }}>
+              <span className="ax-btn" style={{ pointerEvents: 'none' }}>
                 Choose File
               </span>
             )}

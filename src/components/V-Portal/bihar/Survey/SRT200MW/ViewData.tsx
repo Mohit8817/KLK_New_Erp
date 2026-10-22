@@ -28,80 +28,63 @@ const DEFAULT_KPIS: SurveyDetailKpis = {
   verify_reject: 0,
 };
 
-/* ── Styles: professional KPI cards + light table polish ── */
+/* ── Styles: light table polish only ── */
 const VIEW_CSS = `
-.bsv-kpi { position: relative; overflow: hidden; border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); }
-.bsv-kpi:hover { box-shadow: var(--ax-shadow-md); transform: translateY(-1px); }
-.bsv-kpi::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--bsv-accent); }
-.bsv-kpi__body { padding: var(--ax-space-5) var(--ax-space-5) var(--ax-space-4); display: flex; flex-direction: column; gap: var(--ax-space-4); }
-.bsv-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: var(--ax-space-3); }
-.bsv-kpi__title-wrap { display: flex; align-items: center; gap: var(--ax-space-3); min-width: 0; }
-.bsv-kpi__icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--ax-radius-lg); display: inline-flex; align-items: center; justify-content: center; color: var(--bsv-accent); background: color-mix(in srgb, var(--bsv-accent) 12%, var(--ax-surface-solid)); }
-.bsv-kpi__icon svg { width: 20px; height: 20px; }
-.bsv-kpi__label { font-size: var(--ax-text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); }
-.bsv-kpi__caption { font-size: var(--ax-text-xs); color: var(--ax-text-subtle); margin-top: 2px; }
-.bsv-kpi__value-row { display: flex; align-items: baseline; gap: var(--ax-space-2); flex-wrap: wrap; }
-.bsv-kpi__value { font-size: 2rem; line-height: 1.1; font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
-.bsv-kpi__unit { font-size: var(--ax-text-sm); color: var(--ax-text-muted); }
-.bsv-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--ax-surface-subtle); border: 1px solid var(--ax-border-subtle); }
-.bsv-bar__seg { height: 100%; transition: width .4s var(--ax-ease-standard); }
-.bsv-legend { display: flex; flex-wrap: wrap; gap: var(--ax-space-2) var(--ax-space-4); padding-top: var(--ax-space-3); border-top: 1px dashed var(--ax-border); }
-.bsv-legend__item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ax-text-xs); color: var(--ax-text-muted); }
-.bsv-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
-.bsv-legend__num { font-weight: 700; color: var(--ax-text-strong); font-variant-numeric: tabular-nums; }
-
 .bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
 .bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
 .bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
 `;
 
-const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+/* ───────── KPI card (same as ULA Dashboard) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
-interface Segment { label: string; count: number; color: string }
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+};
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
 function KpiCard({
-  accent, icon, label, caption, value, unit, badge, segments,
+  icon, tone, label, value, unit, sub, badge,
 }: {
-  accent: string; icon: ReactNode; label: string; caption: string;
-  value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; unit?: string; sub: string; badge?: string;
 }) {
-  const sum = (segments || []).reduce((a, s) => a + s.count, 0);
+  const t = TONE[tone];
   return (
-    <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
-      <div className="bsv-kpi__body">
-        <div className="bsv-kpi__head">
-          <div className="bsv-kpi__title-wrap">
-            <span className="bsv-kpi__icon"><svg {...ICON_PROPS}>{icon}</svg></span>
-            <div>
-              <div className="bsv-kpi__label">{label}</div>
-              <div className="bsv-kpi__caption">{caption}</div>
-            </div>
+    <div
+      className="ax-card ax-col--4"
+      role="region"
+      aria-label={label}
+      style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}
+    >
+      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
           </div>
-          {badge}
+          {badge && (
+            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
+              {badge}
+            </span>
+          )}
         </div>
-
-        <div className="bsv-kpi__value-row">
-          <span className="bsv-kpi__value">{value}</span>
-          {unit && <span className="bsv-kpi__unit">{unit}</span>}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
+            {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
         </div>
-
-        {segments && (
-          <>
-            <div className="bsv-bar" role="img" aria-label={segments.map((s) => `${s.label}: ${s.count}`).join(', ')}>
-              {sum > 0 && segments.map((s) => (
-                <div key={s.label} className="bsv-bar__seg" style={{ width: `${(s.count / sum) * 100}%`, background: s.color }} />
-              ))}
-            </div>
-            <div className="bsv-legend">
-              {segments.map((s) => (
-                <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
-                  <span className="bsv-legend__dot" />
-                  {s.label} <span className="bsv-legend__num">{s.count}</span>
-                </span>
-              ))}
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
@@ -417,11 +400,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const surveyDonePct = kpis.total > 0 ? Math.round((kpis.complete / kpis.total) * 100) : 0;
   const verifyDonePct = kpis.total > 0 ? Math.round((kpis.verify_complete / kpis.total) * 100) : 0;
 
-  const warn = 'var(--ax-warning-500, #f59e0b)';
-  const ok = 'var(--ax-success-500)';
-  const bad = 'var(--ax-danger-500)';
-  const accent = 'var(--ax-accent)';
-
   return (
     <div className="ax-page bsv-page">
       <style>{VIEW_CSS}</style>
@@ -459,48 +437,35 @@ export function Bihar_Survey_SRT200MW_ViewData() {
       <div className="ax-dash-grid">
         {/* ── KPI 1: Total Assigned ── */}
         <KpiCard
-          accent={accent}
+          tone="accent"
           label="Total Assigned"
-          caption="Assigned survey sites"
           value={kpis.total}
           unit="sites"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Sites</span>}
-          icon={<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>}
-          segments={[
-            { label: 'Surveyed', count: kpis.complete, color: ok },
-            { label: 'Remaining', count: kpis.pending, color: warn },
-          ]}
+          sub={`${kpis.complete} surveyed · ${kpis.pending} remaining`}
+          badge="All Sites"
+          icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
         />
 
         {/* ── KPI 2: Survey Status ── */}
         <KpiCard
-          accent={ok}
+          tone="emerald"
           label="Survey Status"
-          caption="Complete vs Pending"
           value={`${surveyDonePct}%`}
           unit="completed"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{kpis.complete} / {kpis.total}</span>}
-          icon={<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>}
-          segments={[
-            { label: 'Complete', count: kpis.complete, color: ok },
-            { label: 'Pending', count: kpis.pending, color: warn },
-          ]}
+          sub={`${kpis.pending} pending`}
+          badge={`${kpis.complete} / ${kpis.total}`}
+          icon={svg(<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>)}
         />
 
         {/* ── KPI 3: Verify Status ── */}
         <KpiCard
-          accent={warn}
+          tone="amber"
           label="Survey Verification"
-          caption="Approved / Pending / Rejected"
           value={`${verifyDonePct}%`}
           unit="verified"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">{kpis.verify_pending} pending</span>}
-          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
-          segments={[
-            { label: 'Approved', count: kpis.verify_complete, color: ok },
-            { label: 'Pending', count: kpis.verify_pending, color: warn },
-            { label: 'Rejected', count: kpis.verify_reject, color: bad },
-          ]}
+          sub={`${kpis.verify_complete} approved · ${kpis.verify_pending} pending · ${kpis.verify_reject} rejected`}
+          badge={`${kpis.verify_pending} pending`}
+          icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
         />
 
         {/* ── Main Table Card ── */}
@@ -689,24 +654,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                 ✕
               </button>
             </div>
-            <img src={previewImg} alt="Survey Preview" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-              <a
-                href={previewImg}
-                target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-              >
-                Open in New Tab ↗
-              </a>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary ax-btn--sm"
-                onClick={() => setPreviewImg(null)}
-              >
-                Close
-              </button>
-            </div>
+            <img src={previewImg} alt="Survey Preview" style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }} />
           </div>
         </div>
       )}
