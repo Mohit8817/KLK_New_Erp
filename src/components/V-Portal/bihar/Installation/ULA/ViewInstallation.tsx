@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, useCallback, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -17,6 +17,19 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
+/* The API returns relative media paths such as "uploads/bihar/installation/...".
+   Set this to your backend / storage base URL (e.g. 'https://api.example.com')
+   so images and documents open correctly. Leave '' if the files are served
+   from the same domain as the app. */
+const MEDIA_BASE_URL = '';
+
+const mediaUrl = (path?: string | null): string => {
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  const clean = path.replace(/^\/+/, '');
+  return MEDIA_BASE_URL ? `${MEDIA_BASE_URL.replace(/\/+$/, '')}/${clean}` : `/${clean}`;
+};
+
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
@@ -29,6 +42,59 @@ const ICON_PLUS = (
     <path d="M12 5l0 14" />
     <path d="M5 12l14 0" />
   </svg>
+);
+
+const DASH = '—';
+
+/* ── Response field helpers ──
+   Fields are read by key so the page works even if StructureSiteItem does not
+   declare every property returned by the API. */
+const field = (s: StructureSiteItem, key: string): unknown =>
+  (s as unknown as Record<string, unknown>)[key];
+
+const text = (s: StructureSiteItem, key: string): string => {
+  const v = field(s, key);
+  if (v === null || v === undefined || v === '') return '';
+  return String(v);
+};
+
+const num = (s: StructureSiteItem, key: string): number => Number(field(s, key));
+
+// JSON-encoded array ('["a","b"]'), real array, or single string -> string[]
+const parseList = (val?: unknown): string[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map(String);
+  if (typeof val !== 'string') return [];
+  try {
+    const parsed = JSON.parse(val);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {
+    // not json
+  }
+  return [val];
+};
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
+
+// 0 = Pending, 1 = Approved, 2 = Rejected
+const VerifyBadge = ({ value }: { value: number }) =>
+  value === 1 ? <Badge tone="success">Approved</Badge>
+  : value === 2 ? <Badge tone="danger">Rejected</Badge>
+  : <Badge tone="warning">Pending</Badge>;
+
+const Sub = ({ children }: { children: ReactNode }) => (
+  <div style={{ fontSize: '10px', color: 'var(--ax-text-muted)' }}>{children}</div>
+);
+
+const Row = ({ label, value }: { label: string; value?: ReactNode }) => (
+  <div style={{ whiteSpace: 'nowrap' }}>
+    <span style={{ color: 'var(--ax-text-muted)' }}>{label}: </span>
+    <b style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{value || DASH}</b>
+  </div>
 );
 
 export function Bihar_Installation_ULA_ViewInstallation() {
@@ -94,12 +160,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     return Array.from(set).sort();
   }, [sites]);
 
-  // KPIs
-  const totalSites = sites.length;
-  const structVerifiedCount = sites.filter((s) => Number(s.structure_verify_status) === 1).length;
-  const electricCompleteCount = sites.filter((s) => Number(s.inst_status) === 1).length;
-  const electricVerifiedCount = sites.filter((s) => Number(s.inst_verify_status) === 1).length;
-
   // Filtered
   const filteredSites = useMemo(() => {
     return sites.filter((s) => {
@@ -120,7 +180,13 @@ export function Bihar_Installation_ULA_ViewInstallation() {
         s.district?.toLowerCase().includes(q) ||
         s.block?.toLowerCase().includes(q) ||
         s.village?.toLowerCase().includes(q) ||
-        String(s.id).includes(q)
+        String(s.id).includes(q) ||
+        text(s, 'unique_id').toLowerCase().includes(q) ||
+        text(s, 'company_id').toLowerCase().includes(q) ||
+        text(s, 'wo_no').toLowerCase().includes(q) ||
+        text(s, 'firm_name').toLowerCase().includes(q) ||
+        text(s, 'state').toLowerCase().includes(q) ||
+        text(s, 'discom').toLowerCase().includes(q)
       );
     });
   }, [sites, selectedDistrict, selectedInstStatus, search]);
@@ -130,19 +196,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     const start = (currentPage - 1) * pageSize;
     return filteredSites.slice(start, start + pageSize);
   }, [filteredSites, currentPage, pageSize]);
-
-  // Helpers to parse JSON or comma separated values
-  const parseList = (val?: string | string[]): string[] => {
-    if (!val) return [];
-    if (Array.isArray(val)) return val;
-    try {
-      const parsed = JSON.parse(val);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      // not json
-    }
-    return [String(val)];
-  };
 
   // Submit Electric Install
   const handleSubmitElectric = async (e: FormEvent) => {
@@ -204,22 +257,61 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const exportCols: ExportColumn<StructureSiteItem>[] = useMemo(
     () => [
       { header: 'ID', accessor: (r) => `#${r.id}` },
+      { header: 'Unique ID', accessor: (r) => text(r, 'unique_id') },
+      { header: 'Company ID', accessor: (r) => text(r, 'company_id') },
       { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name || '' },
-      { header: 'CA No.', accessor: (r) => r.ca_no || '' },
       { header: 'Contact No.', accessor: (r) => r.contact_no || '' },
+      { header: 'CA No.', accessor: (r) => r.ca_no || '' },
+      { header: 'Firm Name', accessor: (r) => text(r, 'firm_name') },
+      { header: 'DISCOM', accessor: (r) => text(r, 'discom') },
+      { header: 'State', accessor: (r) => text(r, 'state') },
       { header: 'District', accessor: (r) => r.district || '' },
       { header: 'Block', accessor: (r) => r.block || '' },
       { header: 'Village', accessor: (r) => r.village || '' },
+      { header: 'Latitude', accessor: (r) => text(r, 'inst_latitude') },
+      { header: 'Longitude', accessor: (r) => text(r, 'inst_longitude') },
+      { header: 'Sanction Load (kW)', accessor: (r) => text(r, 'sanction_load') },
+      { header: 'Phase', accessor: (r) => text(r, 'phase') },
+      { header: 'WO No.', accessor: (r) => text(r, 'wo_no') },
+      { header: 'WO Date', accessor: (r) => text(r, 'wo_date') },
+      { header: 'Assign Date', accessor: (r) => text(r, 'inst_assign_date') },
+      { header: 'Deadline', accessor: (r) => text(r, 'inst_deadline') },
+      { header: 'Installation Date', accessor: (r) => text(r, 'inst_date') },
+      { header: 'Installation Remarks', accessor: (r) => text(r, 'inst_remarks') },
+      { header: 'Module Serials', accessor: (r) => parseList(field(r, 'module_serial_no')).join(', ') },
       { header: 'Structure Status', accessor: (r) => (Number(r.structure_status) === 1 ? 'Complete' : 'Pending') },
-      { header: 'Structure Verify', accessor: (r) => (Number(r.structure_verify_status) === 1 ? 'Approved' : 'Pending') },
+      { header: 'Structure Date', accessor: (r) => text(r, 'structure_date') },
+      { header: 'Structure Verify', accessor: (r) => (Number(r.structure_verify_status) === 1 ? 'Approved' : Number(r.structure_verify_status) === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Structure Verify Remarks', accessor: (r) => text(r, 'structure_verify_remarks') },
+      { header: 'Solar Meter No.', accessor: (r) => r.solarmeter_no || DASH },
+      { header: 'Inverter No.', accessor: (r) => r.inverter_no || DASH },
+      { header: 'Net Meter No.', accessor: (r) => r.nm_sm_no || DASH },
+      { header: 'Logger No.', accessor: (r) => r.loger_no || DASH },
       { header: 'Electric Status', accessor: (r) => (Number(r.inst_status) === 1 ? 'Complete' : 'Pending') },
-      { header: 'Solar Meter No.', accessor: (r) => r.solarmeter_no || '—' },
-      { header: 'Inverter No.', accessor: (r) => r.inverter_no || '—' },
-      { header: 'Net Meter No.', accessor: (r) => r.nm_sm_no || '—' },
-      { header: 'Logger No.', accessor: (r) => r.loger_no || '—' },
+      { header: 'Electric Verify', accessor: (r) => (Number(r.inst_verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status) === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Electric Verify Date', accessor: (r) => text(r, 'inst_verify_date') },
+      { header: 'Doc Date', accessor: (r) => text(r, 'inst_doc_date') },
+      { header: 'Doc Remarks', accessor: (r) => text(r, 'inst_doc_remarks') },
+      { header: 'Doc Verify', accessor: (r) => (num(r, 'inst_doc_verify_status') === 1 ? 'Approved' : num(r, 'inst_doc_verify_status') === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Doc Verify Remarks', accessor: (r) => text(r, 'inst_doc_verify_remarks') },
     ],
     []
   );
+
+  // Photo badge (opens preview)
+  const PhotoBtn = ({ label, path, tone = 'neutral' }: { label: string; path?: string | null; tone?: Tone }) =>
+    path ? (
+      <button
+        type="button"
+        className={`ax-badge ax-badge--soft ax-badge--${tone}`}
+        style={{ cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+        onClick={() => setPreviewImg(mediaUrl(path))}
+      >
+        {label}
+      </button>
+    ) : null;
+
+  const COLS = 17;
 
   return (
     <div className="ax-page">
@@ -259,51 +351,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
       )}
 
       <div className="ax-dash-grid">
-        {/* KPI Cards */}
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--info">Structure Done</span>
-            </div>
-            <div className="ax-kpi__label">Total Installed Structures</div>
-            <div className="ax-kpi__value ax-num">{totalSites}</div>
-            <div className="ax-kpi__caption">Sites with structure erected</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--success">Structure Verified</span>
-            </div>
-            <div className="ax-kpi__label">Structure Verified</div>
-            <div className="ax-kpi__value ax-num">{structVerifiedCount}</div>
-            <div className="ax-kpi__caption">Approved upon structure inspection</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--success">Electric Done</span>
-            </div>
-            <div className="ax-kpi__label">Electric Commissioned</div>
-            <div className="ax-kpi__value ax-num">{electricCompleteCount}</div>
-            <div className="ax-kpi__caption">Inverter, wiring & meter complete</div>
-          </div>
-        </div>
-
-        <div className="ax-card ax-kpi ax-col--3">
-          <div className="ax-card__body">
-            <div className="ax-kpi__top">
-              <span className="ax-badge ax-badge--soft ax-badge--success">Fully Approved</span>
-            </div>
-            <div className="ax-kpi__label">Installation Verified</div>
-            <div className="ax-kpi__value ax-num">{electricVerifiedCount}</div>
-            <div className="ax-kpi__caption">Officially verified installation</div>
-          </div>
-        </div>
-
         {/* Filter and Table Card */}
         <section className="ax-card ax-col--12" aria-labelledby="install-table-title">
           <div className="ax-card__header">
@@ -313,10 +360,10 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 <p className="ax-card__subtitle">Comprehensive list of installed structures and commissioning data</p>
               </div>
               <TableExportToolbar
-                onExportCSV={() => exportDataToCSV(filteredSites, exportCols, 'bihar_ula_installations.csv')}
-                onExportExcel={() => exportDataToExcel(filteredSites, exportCols, 'bihar_ula_installations.xlsx')}
-                onPrint={() => printTableData(filteredSites, exportCols, 'Bihar ULA Installation Records')}
                 onCopy={() => copyTableDataToClipboard(filteredSites, exportCols)}
+                onExportCSV={() => exportDataToCSV('bihar_ula_installations', filteredSites, exportCols)}
+                onExportExcel={() => exportDataToExcel('bihar_ula_installations', filteredSites, exportCols)}
+                onExportPDF={() => printTableData('Bihar ULA Installation Records', filteredSites, exportCols)}
               />
             </div>
           </div>
@@ -324,11 +371,14 @@ export function Bihar_Installation_ULA_ViewInstallation() {
           <div className="ax-card__body">
             {/* Filter toolbar */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--ax-space-3)', alignItems: 'center', marginBottom: 'var(--ax-space-3)' }}>
-              <div style={{ width: 260 }}>
+              <div style={{ width: 280 }}>
                 <SearchInput
                   value={search}
-                  onChange={setSearch}
-                  placeholder="Search consumer, CA, district..."
+                  onChange={(val) => {
+                    setSearch(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search name, CA, unique ID, WO..."
                 />
               </div>
 
@@ -383,6 +433,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                     setSelectedDistrict('All');
                     setSelectedInstStatus('All');
                     setSearch('');
+                    setCurrentPage(1);
                   }}
                 >
                   Reset
@@ -395,8 +446,11 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 <thead>
                   <tr>
                     <th>Sr.</th>
+                    <th>IDs</th>
                     <th>Beneficiary Details</th>
                     <th>Location</th>
+                    <th>Plant & Work Order</th>
+                    <th>Installation Assignment</th>
                     <th>Module Serials</th>
                     <th>Structure Photos</th>
                     <th>Structure Status</th>
@@ -405,46 +459,98 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                     <th>Electric Photos</th>
                     <th>Electric Status</th>
                     <th>Electric Verify</th>
+                    <th>Commissioning Doc</th>
+                    <th>50% Payment</th>
                     <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={12} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
+                      <td colSpan={COLS} style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
                         <span className="ax-spinner" /> Loading installation records...
                       </td>
                     </tr>
                   ) : paginatedSites.length === 0 ? (
                     <tr>
-                      <td colSpan={12}>
+                      <td colSpan={COLS}>
                         <TableEmptyState title="No installation records found" message="Try adjusting your filters or search query." />
                       </td>
                     </tr>
                   ) : (
                     paginatedSites.map((s, index) => {
-                      const modSerials = parseList(s.module_serial_no);
-                      const modImages = parseList(s.module_serial_image);
-                      const fastenerImages = parseList(s.foundation_fastener_images);
+                      const modSerials = parseList(field(s, 'module_serial_no'));
+                      const modImages = parseList(field(s, 'module_serial_image'));
+                      const fastenerImages = parseList(field(s, 'foundation_fastener_images'));
                       const isElectricDone = Number(s.inst_status) === 1;
+
+                      const lat = text(s, 'inst_latitude');
+                      const lng = text(s, 'inst_longitude');
+                      const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
+
+                      const docPath = text(s, 'inst_doc');
+                      const docSubmitted = num(s, 'inst_doc_submit') === 1 || docPath !== '';
+
+                      const payClaim = num(s, 'inst_pay50_claim_status');
+                      const payClaimVerify = num(s, 'inst_pay50_claim_verify_status');
+                      const payStatus = num(s, 'inst_pay50_status');
 
                       return (
                         <tr key={s.id}>
                           <td>{(currentPage - 1) * pageSize + index + 1}</td>
+
+                          {/* IDs */}
+                          <td>
+                            <Row label="ID" value={`#${s.id}`} />
+                            <Row label="Unique" value={text(s, 'unique_id')} />
+                            <Row label="Company" value={text(s, 'company_id')} />
+                          </td>
+
                           {/* Beneficiary Details */}
                           <td>
-                            <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{s.beneficiary_name || '—'}</div>
-                            <div style={{ color: 'var(--ax-text-muted)' }}>CA: {s.ca_no || '—'}</div>
-                            <div style={{ color: 'var(--ax-text-muted)' }}>Ph: {s.contact_no || '—'}</div>
+                            <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{s.beneficiary_name || DASH}</div>
+                            <div style={{ color: 'var(--ax-text-muted)' }}>CA: {s.ca_no || DASH}</div>
+                            <div style={{ color: 'var(--ax-text-muted)' }}>Ph: {s.contact_no || DASH}</div>
+                            <div style={{ color: 'var(--ax-text-muted)' }}>Firm: {text(s, 'firm_name') || DASH}</div>
                           </td>
+
                           {/* Location */}
                           <td>
-                            <div><b>{s.district || '—'}</b></div>
-                            <div>{s.block || '—'} / {s.village || '—'}</div>
-                            <div style={{ fontSize: '10px', color: 'var(--ax-text-subtle)' }}>
-                              {s.inst_latitude ? `${Number(s.inst_latitude).toFixed(4)}, ${Number(s.inst_longitude).toFixed(4)}` : ''}
-                            </div>
+                            <div><b>{s.district || DASH}</b></div>
+                            <div>{s.block || DASH} / {s.village || DASH}</div>
+                            <Sub>
+                              {[text(s, 'state'), text(s, 'discom')].filter(Boolean).join(' · ') || DASH}
+                            </Sub>
+                            {hasGeo && (
+                              <a
+                                href={`https://www.google.com/maps?q=${lat},${lng}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontSize: '10px' }}
+                              >
+                                {Number(lat).toFixed(4)}, {Number(lng).toFixed(4)}
+                              </a>
+                            )}
                           </td>
+
+                          {/* Plant & Work Order */}
+                          <td>
+                            <Row label="Load" value={text(s, 'sanction_load') ? `${text(s, 'sanction_load')} kW` : ''} />
+                            <Row label="Phase" value={text(s, 'phase')} />
+                            <Row label="WO No." value={text(s, 'wo_no')} />
+                            <Row label="WO Date" value={text(s, 'wo_date')} />
+                          </td>
+
+                          {/* Installation Assignment */}
+                          <td>
+                            <Row label="Assigned" value={text(s, 'inst_assign_date')} />
+                            <Row label="Deadline" value={text(s, 'inst_deadline')} />
+                            <Row label="Installed" value={text(s, 'inst_date')} />
+                            {text(s, 'inst_remarks') && (
+                              <Sub>Remarks: {text(s, 'inst_remarks')}</Sub>
+                            )}
+                          </td>
+
                           {/* Module Serials */}
                           <td>
                             {modSerials.length > 0 ? (
@@ -454,144 +560,144 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                                 </div>
                               ))
                             ) : (
-                              '—'
+                              DASH
                             )}
                           </td>
+
                           {/* Structure Photos */}
                           <td>
-                            <div className="ax-cluster" style={{ gap: '4px' }}>
-                              {s.structure_image && (
-                                <button
-                                  type="button"
-                                  className="ax-badge ax-badge--soft ax-badge--info"
-                                  style={{ cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
-                                  onClick={() => setPreviewImg(s.structure_image!)}
-                                >
-                                  Structure
-                                </button>
-                              )}
-                              {fastenerImages.length > 0 && (
-                                <button
-                                  type="button"
-                                  className="ax-badge ax-badge--soft ax-badge--neutral"
-                                  style={{ cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
-                                  onClick={() => setPreviewImg(fastenerImages[0])}
-                                >
-                                  Fasteners ({fastenerImages.length})
-                                </button>
-                              )}
-                              {modImages.length > 0 && (
-                                <button
-                                  type="button"
-                                  className="ax-badge ax-badge--soft ax-badge--neutral"
-                                  style={{ cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
-                                  onClick={() => setPreviewImg(modImages[0])}
-                                >
-                                  Mod Serials ({modImages.length})
-                                </button>
-                              )}
+                            <div className="ax-cluster" style={{ gap: '4px', flexWrap: 'wrap' }}>
+                              <PhotoBtn label="Structure" path={s.structure_image} tone="info" />
+                              {fastenerImages.map((p, i) => (
+                                <PhotoBtn key={`f${i}`} label={`Fastener ${i + 1}`} path={p} />
+                              ))}
+                              {modImages.map((p, i) => (
+                                <PhotoBtn key={`m${i}`} label={`Mod Serial ${i + 1}`} path={p} />
+                              ))}
+                              {!s.structure_image && fastenerImages.length === 0 && modImages.length === 0 && DASH}
                             </div>
                           </td>
+
                           {/* Structure Status */}
                           <td>
                             {Number(s.structure_status) === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
+                              <Badge tone="success">Complete</Badge>
                             ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
+                              <Badge tone="warning">Pending</Badge>
                             )}
-                            {s.structure_date && <div style={{ fontSize: '10px', color: 'var(--ax-text-muted)' }}>{s.structure_date}</div>}
+                            {text(s, 'structure_date') && <Sub>{text(s, 'structure_date')}</Sub>}
                           </td>
+
                           {/* Structure Verify */}
                           <td>
-                            {Number(s.structure_verify_status) === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
-                            ) : Number(s.structure_verify_status) === 2 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
-                            ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
+                            <VerifyBadge value={Number(s.structure_verify_status)} />
+                            {text(s, 'structure_verify_date') && <Sub>{text(s, 'structure_verify_date')}</Sub>}
+                            {text(s, 'structure_verify_remarks') && (
+                              <div
+                                title={text(s, 'structure_verify_remarks')}
+                                style={{ fontSize: '10px', color: 'var(--ax-text-muted)', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                              >
+                                {text(s, 'structure_verify_remarks')}
+                              </div>
                             )}
-                            {s.verify_remarks && <div style={{ fontSize: '10px', color: 'var(--ax-text-muted)', maxWidth: 110, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.verify_remarks}</div>}
                           </td>
+
                           {/* Electric Equipments */}
                           <td>
                             {isElectricDone ? (
                               <div style={{ fontSize: '11px' }}>
-                                <div><b>Solar M:</b> {s.solarmeter_no || '—'}</div>
-                                <div><b>Inv:</b> {s.inverter_no || '—'}</div>
-                                <div><b>Net M:</b> {s.nm_sm_no || '—'}</div>
-                                <div><b>Log:</b> {s.loger_no || '—'}</div>
+                                <div><b>Solar M:</b> {s.solarmeter_no || DASH}</div>
+                                <div><b>Inv:</b> {s.inverter_no || DASH}</div>
+                                <div><b>Net M:</b> {s.nm_sm_no || DASH}</div>
+                                <div><b>Log:</b> {s.loger_no || DASH}</div>
                               </div>
                             ) : (
                               <span style={{ color: 'var(--ax-text-muted)' }}>Not Installed</span>
                             )}
                           </td>
+
                           {/* Electric Photos */}
                           <td>
                             {isElectricDone ? (
-                              <div className="ax-cluster" style={{ gap: '4px' }}>
-                                {s.complete_photo && (
-                                  <button
-                                    type="button"
-                                    className="ax-badge ax-badge--soft ax-badge--info"
-                                    style={{ cursor: 'pointer', padding: '2px 5px', fontSize: '10px' }}
-                                    onClick={() => setPreviewImg(s.complete_photo!)}
-                                  >
-                                    Plant
-                                  </button>
-                                )}
-                                {s.inverter_image && (
-                                  <button
-                                    type="button"
-                                    className="ax-badge ax-badge--soft ax-badge--neutral"
-                                    style={{ cursor: 'pointer', padding: '2px 5px', fontSize: '10px' }}
-                                    onClick={() => setPreviewImg(s.inverter_image!)}
-                                  >
-                                    Inv
-                                  </button>
-                                )}
-                                {s.earthing_image && (
-                                  <button
-                                    type="button"
-                                    className="ax-badge ax-badge--soft ax-badge--neutral"
-                                    style={{ cursor: 'pointer', padding: '2px 5px', fontSize: '10px' }}
-                                    onClick={() => setPreviewImg(s.earthing_image!)}
-                                  >
-                                    Earth
-                                  </button>
-                                )}
-                                {s.acdb_image && (
-                                  <button
-                                    type="button"
-                                    className="ax-badge ax-badge--soft ax-badge--neutral"
-                                    style={{ cursor: 'pointer', padding: '2px 5px', fontSize: '10px' }}
-                                    onClick={() => setPreviewImg(s.acdb_image!)}
-                                  >
-                                    ACDB
-                                  </button>
-                                )}
+                              <div className="ax-cluster" style={{ gap: '4px', flexWrap: 'wrap' }}>
+                                <PhotoBtn label="Plant" path={s.complete_photo} tone="info" />
+                                <PhotoBtn label="Inverter" path={s.inverter_image} />
+                                <PhotoBtn label="Earthing" path={s.earthing_image} />
+                                <PhotoBtn label="ACDB" path={s.acdb_image} />
+                                <PhotoBtn label="Solar Meter" path={text(s, 'solar_meter_image')} />
+                                <PhotoBtn label="LA" path={text(s, 'la_image')} />
                               </div>
                             ) : (
-                              '—'
+                              DASH
                             )}
                           </td>
+
                           {/* Electric Status */}
                           <td>
                             {isElectricDone ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
+                              <Badge tone="success">Complete</Badge>
                             ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--neutral">Pending</span>
+                              <Badge tone="neutral">Pending</Badge>
                             )}
                           </td>
+
                           {/* Electric Verify */}
                           <td>
-                            {Number(s.inst_verify_status) === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
-                            ) : Number(s.inst_verify_status) === 2 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
+                            <VerifyBadge value={Number(s.inst_verify_status)} />
+                            {text(s, 'inst_verify_date') && <Sub>{text(s, 'inst_verify_date')}</Sub>}
+                          </td>
+
+                          {/* Commissioning Doc */}
+                          <td>
+                            {docSubmitted ? (
+                              <div>
+                                {docPath && (
+                                  <a
+                                    href={mediaUrl(docPath)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="ax-badge ax-badge--soft ax-badge--info"
+                                    style={{ textDecoration: 'none' }}
+                                  >
+                                    View Doc ↗
+                                  </a>
+                                )}
+                                {text(s, 'inst_doc_date') && <Sub>Submitted: {text(s, 'inst_doc_date')}</Sub>}
+                                {text(s, 'inst_doc_remarks') && <Sub>Remarks: {text(s, 'inst_doc_remarks')}</Sub>}
+                                <div style={{ marginTop: 4 }}>
+                                  <VerifyBadge value={num(s, 'inst_doc_verify_status')} />
+                                </div>
+                                {text(s, 'inst_doc_verify_date') && <Sub>{text(s, 'inst_doc_verify_date')}</Sub>}
+                                {text(s, 'inst_doc_verify_remarks') && (
+                                  <Sub>{text(s, 'inst_doc_verify_remarks')}</Sub>
+                                )}
+                              </div>
                             ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
+                              <Badge tone="neutral">Not submitted</Badge>
                             )}
                           </td>
+
+                          {/* 50% Payment */}
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                              {payClaim === 1 ? (
+                                <Badge tone="info">Claimed{text(s, 'inst_pay50_claim_id') ? ` #${text(s, 'inst_pay50_claim_id')}` : ''}</Badge>
+                              ) : (
+                                <Badge tone="neutral">Not claimed</Badge>
+                              )}
+                              {payClaim === 1 && (
+                                payClaimVerify === 1 ? <Badge tone="success">Claim verified</Badge> : <Badge tone="warning">Claim pending</Badge>
+                              )}
+                              {payStatus === 2 ? (
+                                <Badge tone="success">Paid</Badge>
+                              ) : payStatus === 0 || Number.isNaN(payStatus) ? (
+                                <Badge tone="warning">Payment pending</Badge>
+                              ) : (
+                                <Badge tone="info">Payment status {payStatus}</Badge>
+                              )}
+                            </div>
+                          </td>
+
                           {/* Actions */}
                           <td style={{ textAlign: 'center' }}>
                             <div className="ax-cluster" style={{ justifyContent: 'center', gap: 'var(--ax-space-1)' }}>
@@ -633,10 +739,14 @@ export function Bihar_Installation_ULA_ViewInstallation() {
             <div style={{ marginTop: 'var(--ax-space-3)' }}>
               <Pagination
                 currentPage={currentPage}
-                totalCount={filteredSites.length}
+                total={filteredSites.length}
                 pageSize={pageSize}
                 onPageChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
               />
             </div>
           </div>
