@@ -702,7 +702,13 @@ export function Bihar_Installation_SSL_Dashboard() {
             Bihar State Operations · SSL installation tracking — last updated {updatedAt ? fmtTime(updatedAt) : '—'}
           </span>
         }
-        breadcrumbs={[{ label: 'Bihar' }, { label: 'Installation' }, { label: 'SSL' }, { label: 'Dashboard' }]}
+        breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Bihar' },
+          { label: 'Installation' },
+          { label: 'SSL', href: '/v/ssl/installation-dashboard' },
+          { label: 'Dashboard' },
+        ]}
         actions={
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
@@ -1388,15 +1394,30 @@ export function Bihar_Installation_SSL_Dashboard() {
 
             <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
 
-            <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Quick Actions</span>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => navigate('/v/ssl/view-ssl-complete-site')}
-              >
-                View Installations →
-              </button>
+            <div>
+              <div style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 8 }}>
+                Quick Navigation
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <Link to="/v/ssl/view-assigned-ssl-site" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Assigned Lights
+                </Link>
+                <Link to="/v/ssl/update-ssl-site-deatils" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Install Light
+                </Link>
+                <Link to="/v/ssl/view-ssl-complete-site" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Installation Details
+                </Link>
+                <Link to="/v/ssl/view-claim-request-deatils" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Claim Request
+                </Link>
+                <Link to="/v/bihar/ssl-light-supply-inspection" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Supply Inspection
+                </Link>
+                <Link to="/v/bihar/ssl-light-installation-inspection" className="ax-btn ax-btn--secondary ax-btn--xs">
+                  Installation Inspection
+                </Link>
+              </div>
             </div>
           </div>
         </section>

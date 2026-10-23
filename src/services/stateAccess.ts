@@ -77,10 +77,15 @@ export const stateOfSlug = (slug: string): string | null => {
   if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
   if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
+  if (clean.startsWith('ssl/') || clean.startsWith('ssl-')) return 'bihar';
   return null;
 };
 
 export const canAccessSlug = (slug: string): boolean => {
+  const clean = slug.replace(/^\/+/, '');
+  if (clean.startsWith('v/') || clean.startsWith('ssl/') || clean.startsWith('vendor/') || clean.startsWith('v-')) {
+    return true;
+  }
   const st = stateOfSlug(slug);
   return !st || canAccessState(st);
 };

@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
-  getMediaUrl,
   getCompanyId,
   type InstalledLightsSummary,
   type InstalledLightItem,
@@ -15,17 +14,468 @@ import {
   usePagination,
   TableSkeleton,
   KpiSkeleton,
-  type ExportColumn,
+  copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
+  printTableData,
+  type ExportColumn,
 } from '../../../../../common';
 
-const BLUE_PRIMARY = '#2563eb';
-const GREEN_EMERALD = '#10b981';
+/* ── Colors ── */
+const BLUE_ACCENT = '#2563eb';
+const GREEN_SUCCESS = '#10b981';
 const AMBER_WARNING = '#f59e0b';
-const RED_DANGER = '#ef4444';
+const DASH = '—';
 
-const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
+/* ── Image Candidate Resolver (matching ULA ViewInstallation) ── */
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getInstallationImageCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  if (clean.startsWith('r2:')) {
+    const key = clean.slice(3).replace(/^\/+/, '');
+    const urls: string[] = [];
+    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/uploads/${key}`);
+    return urls;
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/ssl/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/ssl/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/installation/ssl/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+/* ── Interactive Image Thumbnail with Zero Border-Radius ── */
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getInstallationImageCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 0,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'block',
+        flexShrink: 0,
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
+      title="Click to preview"
+    />
+  );
+}
+
+/* ── Zoom Preview Modal ── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div className="ax-modal__dialog" style={{ maxWidth: 760, width: '90%' }}>
+        <div className="ax-modal__header">
+          <h3 className="ax-modal__title">{title || 'Image Preview'}</h3>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 0, background: '#0b1120' }}>
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 380,
+              maxHeight: '65vh',
+              overflow: 'auto',
+            }}
+          >
+            {status === 'loading' && (
+              <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 20 }}>
+                Loading image…
+              </div>
+            )}
+            {status === 'error' && (
+              <div style={{ color: '#f87171', fontSize: 13, textAlign: 'center', padding: 20 }}>
+                Unable to load image file.
+              </div>
+            )}
+            <img
+              key={url}
+              src={url}
+              alt={title || 'Preview'}
+              onLoad={() => setStatus('ready')}
+              onError={() => setStatus('error')}
+              style={{
+                display: status === 'ready' ? 'block' : 'none',
+                margin: 'auto',
+                borderRadius: 0,
+                ...(zoom === 1
+                  ? { maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain' }
+                  : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+              }}
+            />
+          </div>
+        </div>
+        <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+              disabled={zoomIdx === 0}
+            >
+              −
+            </button>
+            <span style={{ fontSize: 12, minWidth: 44, textAlign: 'center', fontWeight: 600 }}>
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+              disabled={zoomIdx === ZOOM_STEPS.length - 1}
+            >
+              +
+            </button>
+          </div>
+          <div style={{ display: 'inline-flex', gap: 8 }}>
+            <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ULA Page & Table Styling ── */
+const PAGE_CSS = `
+  .solar-erp-page { --bsv-card-radius: var(--ax-radius-lg); --ula-accent: var(--ax-accent, #2563eb); }
+  .solar-erp-page .ax-dash-grid { align-items: stretch; gap: var(--ax-space-4); margin-bottom: var(--ax-space-5); }
+  .solar-erp-page .bsv-kpi {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--bsv-card-radius);
+    background: var(--ax-bg-surface, var(--ax-surface-solid));
+    box-shadow: var(--ax-shadow-sm);
+    transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .solar-erp-page .bsv-kpi:hover {
+    box-shadow: var(--ax-shadow-md);
+    border-color: var(--ax-border);
+    transform: translateY(-1px);
+  }
+  .solar-erp-page .bsv-kpi__body {
+    height: 100%;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .solar-erp-page .bsv-kpi__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-kpi__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-kpi__icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: var(--ax-radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bsv-accent);
+    background: color-mix(in srgb, var(--bsv-accent) 12%, transparent);
+  }
+  .solar-erp-page .bsv-kpi__icon svg { width: 16px; height: 16px; }
+  .solar-erp-page .bsv-kpi__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ax-text-muted);
+  }
+  .solar-erp-page .bsv-kpi__caption {
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ax-text-muted);
+  }
+  .solar-erp-page .bsv-kpi__value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .solar-erp-page .bsv-kpi__value {
+    font-family: var(--ax-font-display);
+    font-size: 1.35rem;
+    line-height: 1.1;
+    font-weight: 700;
+    color: var(--ax-text-strong);
+    font-variant-numeric: tabular-nums;
+  }
+  .solar-erp-page .bsv-kpi__unit {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ax-text-muted);
+  }
+
+  /* Image zero radius strict rule */
+  .solar-erp-page img,
+  .solar-erp-page .ax-table img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
+
+  /* Card */
+  .solar-erp-page .ax-card {
+    min-width: 0;
+    border: 1px solid var(--ax-border-subtle, #e2e8f0);
+    border-radius: var(--ax-radius-xl, 16px);
+    box-shadow: var(--ax-shadow-sm, 0 2px 8px rgba(15,23,42,.04));
+    overflow: hidden;
+    background: var(--ax-surface-solid, #fff);
+  }
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 20px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0);
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 180px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title {
+    font-size: var(--ax-text-lg, 17px);
+    font-weight: 700;
+    color: var(--ax-text-strong, #0f172a);
+    margin: 0;
+  }
+  .solar-erp-page .ax-card__subtitle {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: var(--ax-text-muted, #64748b);
+  }
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Table */
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .solar-erp-page .ula-table--wide { min-width: 2200px; white-space: nowrap; }
+  .solar-erp-page .ax-table { border-collapse: separate; border-spacing: 0; }
+  .solar-erp-page .ax-table__th {
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ax-text-muted, #64748b);
+    background: var(--ax-surface-subtle, #f8fafc);
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    white-space: nowrap;
+  }
+  .solar-erp-page .ax-table__td {
+    padding: 11px 14px;
+    vertical-align: middle;
+    font-size: var(--ax-text-sm, 13px);
+    border-bottom: 1px solid var(--ax-border-subtle, #edf2f7);
+  }
+  .solar-erp-page .ax-table__row:last-child .ax-table__td { border-bottom: 0; }
+  .solar-erp-page .ax-table--hover .ax-table__row:hover .ax-table__td {
+    background: color-mix(in srgb, var(--ula-accent) 4%, var(--ax-surface-solid, #fff));
+  }
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-surface-solid, #fff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
+  .solar-erp-page .ula-sticky-first th:first-child {
+    z-index: 3;
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+
+  /* Left-aligned ULA Pagination */
+  .solar-erp-page .ax-card__footer {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--ax-surface-subtle, #f8fafc);
+    padding: 10px 16px;
+    border-top: 1px solid var(--ax-border-subtle, #e2e8f0);
+  }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin: 0;
+    overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* Subnav Tab Pill button */
+  .ula-tab-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--ax-radius-pill, 9999px);
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .ula-tab-pill.is-active {
+    background: var(--ula-accent);
+    color: #fff;
+    box-shadow: var(--ax-shadow-sm);
+  }
+  .ula-tab-pill:not(.is-active) {
+    background: var(--ax-surface-solid, #fff);
+    border-color: var(--ax-border, #cbd5e1);
+    color: var(--ax-text, #0f172a);
+  }
+  .ula-tab-pill:not(.is-active):hover {
+    background: var(--ax-surface-subtle, #f8fafc);
+    border-color: var(--ula-accent);
+  }
+`;
+
+const ICON_PROPS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
+const ICON_EDIT = (
+  <svg style={{ width: 14, height: 14 }} {...ICON_PROPS}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+);
 
 export function Bihar_Installation_SSL_InstallationDetail() {
   const [activeTab, setActiveTab] = useState<'Completed' | 'Payment'>('Completed');
@@ -41,9 +491,12 @@ export function Bihar_Installation_SSL_InstallationDetail() {
   const [districtFilter, setDistrictFilter] = useState('all');
   const [verifyFilter, setVerifyFilter] = useState('all');
 
-  // Modal States
-  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
-  const [viewItem, setViewItem] = useState<InstalledLightItem | null>(null);
+  // Preview Modal State
+  const [previewModal, setPreviewModal] = useState<{ open: boolean; url: string; title: string }>({
+    open: false,
+    url: '',
+    title: '',
+  });
 
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -203,7 +656,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
       setTimeout(() => {
         setEditModalOpen(false);
         setEditingId(null);
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       console.error('[Save Edit] error:', err);
       setEditErrorMsg(err.message || 'Failed to update details.');
@@ -212,25 +665,29 @@ export function Bihar_Installation_SSL_InstallationDetail() {
     }
   };
 
-  // Export handlers
+  // Export Columns
   const completedExportCols: ExportColumn<InstalledLightItem>[] = [
     { header: 'UID', accessor: (r) => r.unique_id || r.uid || `#${r.id}` },
     { header: 'State', accessor: 'state' },
     { header: 'Phase', accessor: 'phase' },
     { header: 'District', accessor: 'district' },
     { header: 'Block', accessor: 'block' },
-    { header: 'Panchayat', accessor: (r) => r.panchayat || r.panchyat || '—' },
+    { header: 'Panchayat', accessor: (r) => r.panchayat || r.panchyat || DASH },
     { header: 'Ward No.', accessor: 'ward_no' },
     { header: 'Pole No.', accessor: 'pole_no' },
     { header: 'Beneficiary Name', accessor: 'beneficiary_name' },
     { header: 'Contact', accessor: 'contact_no' },
     { header: 'Light No.', accessor: 'light_no' },
     { header: 'UUID No.', accessor: 'uuid_no' },
-    { header: 'Battery No.', accessor: (r) => r.battery_no || r.battery_serial_no || '—' },
-    { header: 'Panel No.', accessor: (r) => r.panel_no || r.module_no || '—' },
+    { header: 'Battery No.', accessor: (r) => r.battery_no || r.battery_serial_no || DASH },
+    { header: 'Panel No.', accessor: (r) => r.panel_no || r.module_no || DASH },
     {
       header: 'Verify Status',
       accessor: (r) => (Number(r.inst_verify_status ?? r.verify_status) === 1 ? 'Approved' : 'Pending'),
+    },
+    {
+      header: 'Payment Status',
+      accessor: (r) => (Number(r.inst_pay_status ?? r.payment_status) === 1 ? 'Paid' : 'Pending'),
     },
   ];
 
@@ -240,29 +697,44 @@ export function Bihar_Installation_SSL_InstallationDetail() {
     { header: 'Phase', accessor: 'phase' },
     { header: 'District', accessor: 'district' },
     { header: 'Block', accessor: 'block' },
-    { header: 'Panchayat', accessor: (r) => r.panchayat || r.panchyat || '—' },
+    { header: 'Panchayat', accessor: (r) => r.panchayat || r.panchyat || DASH },
+    { header: 'Ward No.', accessor: 'ward_no' },
+    { header: 'Pole No.', accessor: 'pole_no' },
     { header: 'Beneficiary Name', accessor: 'beneficiary_name' },
     { header: 'Contact', accessor: 'contact_no' },
+    { header: 'Latitude', accessor: 'latitude' },
+    { header: 'Longitude', accessor: 'longitude' },
     { header: 'IMEI No.', accessor: 'imei_no' },
     { header: 'Sim No.', accessor: 'sim_no' },
-    { header: 'Battery No.', accessor: (r) => r.battery_no || r.battery_serial_no || '—' },
-    { header: 'Panel No.', accessor: (r) => r.panel_no || r.module_no || '—' },
+    { header: 'Battery No.', accessor: (r) => r.battery_no || r.battery_serial_no || DASH },
+    { header: 'Panel No.', accessor: (r) => r.panel_no || r.module_no || DASH },
     {
       header: 'Payment Status',
       accessor: (r) => (Number(r.inst_pay_status ?? r.payment_status) === 1 ? 'Paid' : 'Pending'),
     },
   ];
 
+  const currentExportCols = activeTab === 'Completed' ? completedExportCols : paymentExportCols;
+
+  const handleCopy = () => copyTableDataToClipboard(filtered, currentExportCols);
+  const handleExportCSV = () => exportDataToCSV(`Bihar_SSL_Installation_${activeTab}`, filtered, currentExportCols);
+  const handleExportExcel = () => exportDataToExcel(`Bihar_SSL_Installation_${activeTab}`, filtered, currentExportCols);
+  const handleExportPDF = () => printTableData(`Bihar SSL Installation ${activeTab}`, filtered, currentExportCols);
+
   return (
     <div className="ax-page solar-erp-page">
+      <style>{PAGE_CSS}</style>
+
+      {/* ── Page Head ── */}
       <PageHead
         title="Installation Details"
-        subtitle="View installed lights and payment status for Bihar Solar Street Light sites"
+        subtitle="View completed installations and payment status for Bihar SSL sites"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/ssl/installation-dashboard' },
-          { label: 'Installation Detail' },
+          { label: 'Installation Details' },
         ]}
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -271,124 +743,203 @@ export function Bihar_Installation_SSL_InstallationDetail() {
             </span>
             <button
               type="button"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={loadData}
-              title="Refresh records"
+              disabled={loading}
+              title="Refresh list"
             >
-            <svg
-              width={14}
-              height={14}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
-            >
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-            </svg>
-            <span>Refresh</span>
-          </button>
-        </div>
-      }
+              {ICON_REFRESH}
+              <span className="ax-btn__label">Refresh</span>
+            </button>
+          </div>
+        }
       />
 
-      {/* ── Summary KPI Cards ── */}
+      {/* ── KPI Row ── */}
       {loading ? (
         <KpiSkeleton count={4} />
-      ) : summary ? (
-        <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Completed Sites
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
-              {num(summary.complete)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Out of {num(summary.total)} total lights
-            </div>
-          </div>
-
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Verified Approved
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
-              {num(summary.verify_approved)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              {num(summary.verify_pending)} verification pending
-            </div>
-          </div>
-
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Claim Applicable
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: AMBER_WARNING, marginTop: 4 }}>
-              {num(summary.claim_applicable)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              {num(summary.claim_raised)} claims raised
+      ) : (
+        <div className="ax-dash-grid">
+          {/* KPI 1: Completed Sites */}
+          <div
+            className="bsv-kpi ax-col--3"
+            role="region"
+            aria-label="Completed Lights"
+            style={{ ['--bsv-accent' as string]: BLUE_ACCENT } as CSSProperties}
+          >
+            <div className="bsv-kpi__body">
+              <div className="bsv-kpi__head">
+                <div className="bsv-kpi__title-wrap">
+                  <span className="bsv-kpi__icon">
+                    <svg {...ICON_PROPS}>
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="bsv-kpi__label">Completed Lights</div>
+                    <div className="bsv-kpi__caption">Installed on site</div>
+                  </div>
+                </div>
+                <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Done</span>
+              </div>
+              <div className="bsv-kpi__value-row">
+                <span className="bsv-kpi__value">{summary?.complete ?? completeLights.length}</span>
+                <span className="bsv-kpi__unit">lights</span>
+              </div>
             </div>
           </div>
 
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Payment Complete
+          {/* KPI 2: Verified Sites */}
+          <div
+            className="bsv-kpi ax-col--3"
+            role="region"
+            aria-label="Verified Sites"
+            style={{ ['--bsv-accent' as string]: GREEN_SUCCESS } as CSSProperties}
+          >
+            <div className="bsv-kpi__body">
+              <div className="bsv-kpi__head">
+                <div className="bsv-kpi__title-wrap">
+                  <span className="bsv-kpi__icon">
+                    <svg {...ICON_PROPS}>
+                      <path d="M9 12l2 2 4-4" />
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="bsv-kpi__label">Verified Sites</div>
+                    <div className="bsv-kpi__caption">Inspection approved</div>
+                  </div>
+                </div>
+                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">Approved</span>
+              </div>
+              <div className="bsv-kpi__value-row">
+                <span className="bsv-kpi__value">{summary?.verify_approved ?? 0}</span>
+                <span className="bsv-kpi__unit">verified</span>
+              </div>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#059669', marginTop: 4 }}>
-              {num(summary.payment_complete)}
+          </div>
+
+          {/* KPI 3: Verification Pending */}
+          <div
+            className="bsv-kpi ax-col--3"
+            role="region"
+            aria-label="Verification Pending"
+            style={{ ['--bsv-accent' as string]: AMBER_WARNING } as CSSProperties}
+          >
+            <div className="bsv-kpi__body">
+              <div className="bsv-kpi__head">
+                <div className="bsv-kpi__title-wrap">
+                  <span className="bsv-kpi__icon">
+                    <svg {...ICON_PROPS}>
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="bsv-kpi__label">Verification Pending</div>
+                    <div className="bsv-kpi__caption">Awaiting sign-off</div>
+                  </div>
+                </div>
+                <span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">Review</span>
+              </div>
+              <div className="bsv-kpi__value-row">
+                <span className="bsv-kpi__value">{summary?.verify_pending ?? 0}</span>
+                <span className="bsv-kpi__unit">pending</span>
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              {num(summary.payment_pending)} pending payment
+          </div>
+
+          {/* KPI 4: Payment Lights */}
+          <div
+            className="bsv-kpi ax-col--3"
+            role="region"
+            aria-label="Payment Lights"
+            style={{ ['--bsv-accent' as string]: '#06b6d4' } as CSSProperties}
+          >
+            <div className="bsv-kpi__body">
+              <div className="bsv-kpi__head">
+                <div className="bsv-kpi__title-wrap">
+                  <span className="bsv-kpi__icon">
+                    <svg {...ICON_PROPS}>
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="bsv-kpi__label">Payment Lights</div>
+                    <div className="bsv-kpi__caption">Claimed & processed</div>
+                  </div>
+                </div>
+                <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">Payment</span>
+              </div>
+              <div className="bsv-kpi__value-row">
+                <span className="bsv-kpi__value">{paymentLights.length}</span>
+                <span className="bsv-kpi__unit">sites</span>
+              </div>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {/* ── Main Section with Tabs ── */}
-      <section className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        {/* Tab Navigation Header */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
+      {/* ── Sub-navigation Tabs: Completed Lights / Payment Lights ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center' }}>
+        <button
+          type="button"
+          className={`ula-tab-pill ${activeTab === 'Completed' ? 'is-active' : ''}`}
+          onClick={() => {
+            setActiveTab('Completed');
+            pagination.setPage(1);
           }}
         >
-          {/* Tab Switch Buttons */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              type="button"
-              className={`ax-btn ax-btn--sm ${activeTab === 'Completed' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => {
-                setActiveTab('Completed');
-                pagination.setPage(1);
-              }}
-              style={{ fontWeight: 700 }}
-            >
-              Lights Completed ({completeLights.length})
-            </button>
-            <button
-              type="button"
-              className={`ax-btn ax-btn--sm ${activeTab === 'Payment' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => {
-                setActiveTab('Payment');
-                pagination.setPage(1);
-              }}
-              style={{ fontWeight: 700 }}
-            >
-              Payment Lights ({paymentLights.length})
-            </button>
+          <span>Lights Completed</span>
+          <span
+            style={{
+              padding: '1px 8px',
+              borderRadius: 10,
+              fontSize: 11,
+              background: activeTab === 'Completed' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle)',
+            }}
+          >
+            {completeLights.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`ula-tab-pill ${activeTab === 'Payment' ? 'is-active' : ''}`}
+          onClick={() => {
+            setActiveTab('Payment');
+            pagination.setPage(1);
+          }}
+        >
+          <span>Payment Lights</span>
+          <span
+            style={{
+              padding: '1px 8px',
+              borderRadius: 10,
+              fontSize: 11,
+              background: activeTab === 'Payment' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-subtle)',
+            }}
+          >
+            {paymentLights.length}
+          </span>
+        </button>
+      </div>
+
+      {/* ── Table Card ── */}
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">
+              {activeTab === 'Completed' ? 'Installed Lights Completed' : 'Payment Status Lights'}
+            </h2>
+            <p className="ax-card__subtitle" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+              {filtered.length} of {currentList.length} records
+            </p>
           </div>
 
-          {/* Search, Filter & Export */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ax-card__actions">
+            {/* District Filter */}
             <select
               className="ax-input ax-input--sm"
               value={districtFilter}
@@ -396,7 +947,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
                 setDistrictFilter(e.target.value);
                 pagination.setPage(1);
               }}
-              style={{ minWidth: 130, height: 36, borderRadius: 8 }}
+              style={{ minWidth: 140, height: 32, borderRadius: 'var(--ax-radius-md)' }}
             >
               <option value="all">All Districts</option>
               {districts.map((d) => (
@@ -406,6 +957,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
               ))}
             </select>
 
+            {/* Verify Status Filter (Only in Completed tab) */}
             {activeTab === 'Completed' && (
               <select
                 className="ax-input ax-input--sm"
@@ -414,7 +966,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
                   setVerifyFilter(e.target.value);
                   pagination.setPage(1);
                 }}
-                style={{ minWidth: 140, height: 36, borderRadius: 8 }}
+                style={{ minWidth: 140, height: 32, borderRadius: 'var(--ax-radius-md)' }}
               >
                 <option value="all">All Verification</option>
                 <option value="1">Approved</option>
@@ -423,728 +975,586 @@ export function Bihar_Installation_SSL_InstallationDetail() {
               </select>
             )}
 
+            {/* Search Input */}
             <SearchInput
               value={searchQuery}
               onChange={(val) => {
                 setSearchQuery(val);
                 pagination.setPage(1);
               }}
-              placeholder="Search UID, contact, pole…"
+              placeholder="Search UID, beneficiary, contact…"
+              ariaLabel="Search installations"
             />
 
+            {/* Export Toolbar */}
             <TableExportToolbar
-              onExportCSV={() => {
-                if (activeTab === 'Completed') {
-                  exportDataToCSV('Bihar_SSL_Completed_Lights', filtered, completedExportCols);
-                } else {
-                  exportDataToCSV('Bihar_SSL_Payment_Lights', filtered, paymentExportCols);
-                }
-              }}
-              onExportExcel={() => {
-                if (activeTab === 'Completed') {
-                  exportDataToExcel('Bihar_SSL_Completed_Lights', filtered, completedExportCols);
-                } else {
-                  exportDataToExcel('Bihar_SSL_Payment_Lights', filtered, paymentExportCols);
-                }
-              }}
+              onCopy={handleCopy}
+              onExportCSV={handleExportCSV}
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
             />
           </div>
         </div>
 
         {/* Data Table */}
         {loading ? (
-          <TableSkeleton columns={activeTab === 'Completed' ? 14 : 12} rows={8} showCard={false} />
+          <TableSkeleton columns={activeTab === 'Completed' ? 23 : 20} rows={8} showCard={false} />
+        ) : filtered.length === 0 ? (
+          <TableEmptyState
+            title="No Installation Records Found"
+            message={
+              searchQuery || districtFilter !== 'all' || verifyFilter !== 'all'
+                ? 'No site records match your current filters.'
+                : 'Installed lights will appear here once submitted from the Install Light form.'
+            }
+            onClear={() => {
+              setSearchQuery('');
+              setDistrictFilter('all');
+              setVerifyFilter('all');
+            }}
+            clearLabel="Reset Filters"
+          />
         ) : (
-          <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
-            {activeTab === 'Completed' ? (
-              /* Tab 1: Lights Completed Table */
-              <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1400 }}>
-                <thead>
-                  <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', width: 50 }}>Sr. No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>UID</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>State</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Phase</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>District</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Block</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Panchayat</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Ward No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Pole No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Beneficiary Name</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Beneficiary Contact</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Latitude</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Longitude</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Light No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>UUID No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Battery No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Panel No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Light Image</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Remark</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Verify Status</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Claim Status</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Payment Status</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center', width: 90 }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagination.paged.length === 0 ? (
+          <>
+            <div className="ax-table-wrap">
+              <table className="ax-table ax-table--hover ula-table--wide ula-sticky-first">
+                <caption className="ax-visually-hidden">
+                  {activeTab === 'Completed' ? 'Completed SSL Lights' : 'Payment Lights'}
+                </caption>
+                <thead className="ax-table__head">
+                  {activeTab === 'Completed' ? (
                     <tr>
-                      <td colSpan={23} style={{ padding: 40, textAlign: 'center' }}>
-                        <TableEmptyState
-                          title="No Completed Lights Found"
-                          message={searchQuery ? `No records match "${searchQuery}"` : 'No lights marked as completed.'}
-                        />
-                      </td>
+                      <th className="ax-table__th" scope="col" style={{ width: 50 }}>
+                        Sr. No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        UID
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        State
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Phase
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        District
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Block
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Panchayat
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Ward No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Pole No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Beneficiary Name
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Beneficiary Contact
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Latitude
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Longitude
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Light No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        UUID No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Battery No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Panel No.
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Light Image
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Remark
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Verify Status
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Claim Status
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Payment Status
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 90 }}>
+                        Action
+                      </th>
                     </tr>
                   ) : (
-                    pagination.paged.map((r, idx) => {
-                      const rowNum = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                      const imgUrl = getMediaUrl(r.light_image || r.light_file);
-                      const vStatus = Number(r.inst_verify_status ?? r.verify_status);
-                      const cStatus = Number(r.inst_claim_status ?? r.claim_status);
-                      const pStatus = Number(r.inst_pay_status ?? r.payment_status);
+                    <tr>
+                      <th className="ax-table__th" scope="col" style={{ width: 50 }}>
+                        Sr. No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        UID
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        State
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Phase
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        District
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Block
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Panchayat
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Ward No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Pole No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Beneficiary Name
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Beneficiary Contact
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Latitude
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Longitude
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        IMEI No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Sim No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Battery No.
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Panel No.
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Light Image
+                      </th>
+                      <th className="ax-table__th" scope="col">
+                        Remark
+                      </th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>
+                        Payment Status
+                      </th>
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {pagination.paged.map((r, idx) => {
+                    const rowNum = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                    const isVerifyApproved = Number(r.inst_verify_status ?? r.verify_status) === 1;
+                    const isVerifyRejected = Number(r.inst_verify_status ?? r.verify_status) === 2;
+                    const isPaid = Number(r.inst_pay_status ?? r.payment_status) === 1;
+                    const isClaimed = Number(r.claim_status) === 1;
 
-                      return (
-                        <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
-                          <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--ax-text-subtle)' }}>{rowNum}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 700, color: BLUE_PRIMARY }}>
-                            {r.unique_id || r.uid || `#${r.id}`}
-                          </td>
-                          <td style={{ padding: '10px 12px', textTransform: 'capitalize' }}>{r.state || 'Bihar'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.phase || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 600 }}>{r.district || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.block || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.panchayat || r.panchyat || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.ward_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.pole_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 600 }}>{r.beneficiary_name || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.contact_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontSize: 12 }}>{r.latitude || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontSize: 12 }}>{r.longitude || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.light_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.uuid_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.battery_no || r.battery_serial_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.panel_no || r.module_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            {imgUrl ? (
-                              <img
-                                src={imgUrl}
-                                alt="Light Thumbnail"
-                                onClick={() => setImageModalUrl(imgUrl)}
-                                style={{
-                                  width: 38,
-                                  height: 38,
-                                  objectFit: 'cover',
-                                  borderRadius: 6,
-                                  cursor: 'pointer',
-                                  border: '1px solid #cbd5e1',
-                                }}
-                                title="Click to enlarge"
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)', fontSize: 12 }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 12px', fontSize: 12, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.remark || r.inst_remark || ''}>
-                            {r.remark || r.inst_remark || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                background: vStatus === 1 ? '#ecfdf5' : vStatus === 2 ? '#fef2f2' : '#fffbeb',
-                                color: vStatus === 1 ? GREEN_EMERALD : vStatus === 2 ? RED_DANGER : AMBER_WARNING,
-                              }}
+                    return (
+                      <tr key={r.id || idx} className="ax-table__row">
+                        <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>
+                          {rowNum}
+                        </td>
+                        <td
+                          className="ax-table__td"
+                          style={{
+                            fontWeight: 'var(--ax-weight-semibold)' as any,
+                            fontFamily: 'var(--ax-font-mono)',
+                            color: 'var(--ax-text-strong)',
+                          }}
+                        >
+                          {r.unique_id || r.uid || `#${r.id}`}
+                        </td>
+                        <td className="ax-table__td">{r.state || 'Bihar'}</td>
+                        <td className="ax-table__td">{r.phase || DASH}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {r.district || DASH}
+                        </td>
+                        <td className="ax-table__td">{r.block || DASH}</td>
+                        <td className="ax-table__td">{r.panchayat || r.panchyat || DASH}</td>
+                        <td className="ax-table__td">{r.ward_no || DASH}</td>
+                        <td className="ax-table__td">{r.pole_no || DASH}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 650, color: 'var(--ax-text-strong)' }}>
+                          {r.beneficiary_name || DASH}
+                        </td>
+                        <td className="ax-table__td">{r.contact_no || DASH}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                          {r.latitude || DASH}
+                        </td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                          {r.longitude || DASH}
+                        </td>
+
+                        {activeTab === 'Completed' ? (
+                          <>
+                            <td className="ax-table__td">{r.light_no || DASH}</td>
+                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                              {r.uuid_no || DASH}
+                            </td>
+                            <td className="ax-table__td">{r.battery_no || r.battery_serial_no || DASH}</td>
+                            <td className="ax-table__td">{r.panel_no || r.module_no || DASH}</td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <InstallationThumbnail
+                                  src={r.light_image || r.file}
+                                  alt={`Site #${r.unique_id || r.id}`}
+                                  onPreview={(url, title) => setPreviewModal({ open: true, url, title })}
+                                />
+                              </div>
+                            </td>
+                            <td
+                              className="ax-table__td"
+                              style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                              title={r.remark || r.remarks || undefined}
                             >
-                              {vStatus === 1 ? 'Approved' : vStatus === 2 ? 'Rejected' : 'Pending'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                background: cStatus === 1 ? '#eff6ff' : '#f8fafc',
-                                color: cStatus === 1 ? BLUE_PRIMARY : '#64748b',
-                              }}
-                            >
-                              {cStatus === 1 ? 'Raised' : 'Not Raised'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                background: pStatus === 1 ? '#ecfdf5' : '#fffbeb',
-                                color: pStatus === 1 ? GREEN_EMERALD : AMBER_WARNING,
-                              }}
-                            >
-                              {pStatus === 1 ? 'Paid' : 'Pending'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                              {r.remark || r.remarks || DASH}
+                            </td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <span
+                                className={`ax-badge ax-badge--soft ax-badge--pill ${
+                                  isVerifyApproved
+                                    ? 'ax-badge--success'
+                                    : isVerifyRejected
+                                    ? 'ax-badge--danger'
+                                    : 'ax-badge--warning'
+                                }`}
+                              >
+                                {isVerifyApproved ? 'Approved' : isVerifyRejected ? 'Rejected' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <span
+                                className={`ax-badge ax-badge--soft ax-badge--pill ${
+                                  isClaimed ? 'ax-badge--info' : 'ax-badge--neutral'
+                                }`}
+                              >
+                                {isClaimed ? 'Claimed' : 'Unclaimed'}
+                              </span>
+                            </td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <span
+                                className={`ax-badge ax-badge--soft ax-badge--pill ${
+                                  isPaid ? 'ax-badge--success' : 'ax-badge--warning'
+                                }`}
+                              >
+                                {isPaid ? 'Paid' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
                               <button
                                 type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                className="ax-btn ax-btn--secondary ax-btn--xs"
                                 onClick={() => handleOpenEdit(r.id)}
-                                title="Edit light details"
+                                title="Edit Installation"
+                                style={{ gap: 4 }}
                               >
-                                Edit
+                                {ICON_EDIT}
+                                <span>Edit</span>
                               </button>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--ghost ax-btn--sm"
-                                onClick={() => setViewItem(r)}
-                                title="View specs"
-                              >
-                                View
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              /* Tab 2: Payment Lights Table */
-              <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
-                <thead>
-                  <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', width: 50 }}>Sr. No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>UID</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>State</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Phase</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>District</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Block</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Panchayat</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Ward No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Pole No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Beneficiary Name</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Beneficiary Contact</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Latitude</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Longitude</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>IMEI No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Sim No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Battery No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Panel No.</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Light Image</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Remark</th>
-                    <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Payment Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagination.paged.length === 0 ? (
-                    <tr>
-                      <td colSpan={20} style={{ padding: 40, textAlign: 'center' }}>
-                        <TableEmptyState
-                          title="No Payment Lights Found"
-                          message={searchQuery ? `No records match "${searchQuery}"` : 'No lights marked in payment stage.'}
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    pagination.paged.map((r, idx) => {
-                      const rowNum = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                      const imgUrl = getMediaUrl(r.light_image || r.light_file);
-                      const pStatus = Number(r.inst_pay_status ?? r.payment_status);
-
-                      return (
-                        <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
-                          <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--ax-text-subtle)' }}>{rowNum}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 700, color: BLUE_PRIMARY }}>
-                            {r.unique_id || r.uid || `#${r.id}`}
-                          </td>
-                          <td style={{ padding: '10px 12px', textTransform: 'capitalize' }}>{r.state || 'Bihar'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.phase || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 600 }}>{r.district || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.block || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.panchayat || r.panchyat || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.ward_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.pole_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontWeight: 600 }}>{r.beneficiary_name || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.contact_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontSize: 12 }}>{r.latitude || '—'}</td>
-                          <td style={{ padding: '10px 12px', fontSize: 12 }}>{r.longitude || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.imei_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.sim_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.battery_no || r.battery_serial_no || '—'}</td>
-                          <td style={{ padding: '10px 12px' }}>{r.panel_no || r.module_no || '—'}</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            {imgUrl ? (
-                              <img
-                                src={imgUrl}
-                                alt="Light Thumbnail"
-                                onClick={() => setImageModalUrl(imgUrl)}
-                                style={{
-                                  width: 38,
-                                  height: 38,
-                                  objectFit: 'cover',
-                                  borderRadius: 6,
-                                  cursor: 'pointer',
-                                  border: '1px solid #cbd5e1',
-                                }}
-                                title="Click to enlarge"
-                              />
-                            ) : (
-                              <span style={{ color: 'var(--ax-text-subtle)', fontSize: 12 }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 12px', fontSize: 12, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.remark || r.inst_remark || ''}>
-                            {r.remark || r.inst_remark || '—'}
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: 6,
-                                fontSize: 11,
-                                fontWeight: 700,
-                                background: pStatus === 1 ? '#ecfdf5' : '#fffbeb',
-                                color: pStatus === 1 ? GREEN_EMERALD : AMBER_WARNING,
-                              }}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="ax-table__td">{r.imei_no || DASH}</td>
+                            <td className="ax-table__td">{r.sim_no || DASH}</td>
+                            <td className="ax-table__td">{r.battery_no || r.battery_serial_no || DASH}</td>
+                            <td className="ax-table__td">{r.panel_no || r.module_no || DASH}</td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <InstallationThumbnail
+                                  src={r.light_image || r.file}
+                                  alt={`Site #${r.unique_id || r.id}`}
+                                  onPreview={(url, title) => setPreviewModal({ open: true, url, title })}
+                                />
+                              </div>
+                            </td>
+                            <td
+                              className="ax-table__td"
+                              style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                              title={r.remark || r.remarks || undefined}
                             >
-                              {pStatus === 1 ? 'Paid' : 'Pending'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
+                              {r.remark || r.remarks || DASH}
+                            </td>
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                              <span
+                                className={`ax-badge ax-badge--soft ax-badge--pill ${
+                                  isPaid ? 'ax-badge--success' : 'ax-badge--warning'
+                                }`}
+                              >
+                                {isPaid ? 'Paid' : 'Pending'}
+                              </span>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            )}
-          </div>
-        )}
-
-        <div className="ax-card__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <Pagination {...pagination} />
-        </div>
-      </section>
-
-      {/* ── Image Light Modal ── */}
-      {imageModalUrl && (
-        <div
-          className="ax-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 20,
-          }}
-          onClick={() => setImageModalUrl(null)}
-        >
-          <div
-            className="ax-modal__dialog"
-            style={{
-              background: '#000',
-              borderRadius: 12,
-              maxWidth: 700,
-              maxHeight: '90vh',
-              overflow: 'hidden',
-              position: 'relative',
-              textAlign: 'center',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setImageModalUrl(null)}
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                background: 'rgba(0,0,0,0.6)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '50%',
-                width: 32,
-                height: 32,
-                cursor: 'pointer',
-                fontSize: 16,
-              }}
-            >
-              ✕
-            </button>
-            <img
-              src={imageModalUrl}
-              alt="Full Light Site"
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── View Specs Modal ── */}
-      {viewItem && (
-        <div
-          className="ax-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 20,
-          }}
-          onClick={() => setViewItem(null)}
-        >
-          <div
-            className="ax-modal__dialog"
-            style={{
-              background: '#fff',
-              borderRadius: 14,
-              maxWidth: 650,
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="ax-modal__header"
-              style={{
-                padding: '16px 22px',
-                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
-                SSL Site Details - {viewItem.unique_id || viewItem.uid || `#${viewItem.id}`}
-              </h4>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setViewItem(null)}
-              >
-                ✕
-              </button>
             </div>
-            <div className="ax-modal__body" style={{ padding: 22, maxHeight: 480, overflowY: 'auto' }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 12,
-                  fontSize: 13,
-                }}
-              >
-                {[
-                  { label: 'Beneficiary', val: viewItem.beneficiary_name },
-                  { label: 'Contact', val: viewItem.contact_no },
-                  { label: 'District / Block', val: `${viewItem.district || '—'} / ${viewItem.block || '—'}` },
-                  { label: 'Panchayat', val: viewItem.panchayat || viewItem.panchyat },
-                  { label: 'Ward / Pole', val: `${viewItem.ward_no || '—'} / ${viewItem.pole_no || '—'}` },
-                  { label: 'GPS (Lat, Lng)', val: `${viewItem.latitude || '—'}, ${viewItem.longitude || '—'}` },
-                  { label: 'UUID No.', val: viewItem.uuid_no },
-                  { label: 'Light No.', val: viewItem.light_no },
-                  { label: 'Battery Serial No.', val: viewItem.battery_no || viewItem.battery_serial_no },
-                  { label: 'Module / Panel No.', val: viewItem.panel_no || viewItem.module_no },
-                  { label: 'Sim No.', val: viewItem.sim_no },
-                  { label: 'IMEI No.', val: viewItem.imei_no },
-                  { label: 'Remark', val: viewItem.remark || viewItem.inst_remark },
-                ].map((item, i) => (
-                  <div key={i} style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{item.val || '—'}</div>
-                  </div>
-                ))}
+
+            {/* Left-aligned ULA Pagination */}
+            <div className="ax-card__footer">
+              <div className="ula-pagination-left">
+                <Pagination
+                  currentPage={pagination.curPage}
+                  totalItems={filtered.length}
+                  pageSize={pagination.pageSize}
+                  onPageChange={pagination.setPage}
+                  onPageSizeChange={pagination.setPageSize}
+                  pageSizeOptions={[10, 15, 25, 50, 100]}
+                />
               </div>
             </div>
-            <div className="ax-modal__footer" style={{ padding: '12px 22px', borderTop: '1px solid #e2e8f0', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setViewItem(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
+      </section>
+
+      {/* ── Image Preview Zoom Modal ── */}
+      {previewModal.open && (
+        <ImagePreviewModal
+          url={previewModal.url}
+          title={previewModal.title}
+          onClose={() => setPreviewModal({ open: false, url: '', title: '' })}
+        />
       )}
 
-      {/* ── Edit Modal (API 7 & 8) ── */}
+      {/* ── Edit Light Modal ── */}
       {editModalOpen && (
-        <div
-          className="ax-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 20,
-          }}
-          onClick={() => {
-            if (!editSubmitting) setEditModalOpen(false);
-          }}
-        >
-          <div
-            className="ax-modal__dialog"
-            style={{
-              background: '#fff',
-              borderRadius: 14,
-              maxWidth: 750,
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="ax-modal__header"
-              style={{
-                padding: '16px 22px',
-                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
-                Edit Installed Light Details (ID: #{editingId})
-              </h4>
+        <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true">
+          <div className="ax-modal__backdrop" onClick={() => !editSubmitting && setEditModalOpen(false)} />
+          <div className="ax-modal__dialog" style={{ maxWidth: 640 }}>
+            <div className="ax-modal__header">
+              <h3 className="ax-modal__title">Edit Installed Light #{editingId}</h3>
               <button
                 type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => {
-                  if (!editSubmitting) setEditModalOpen(false);
-                }}
+                className="ax-modal__close"
+                onClick={() => setEditModalOpen(false)}
                 disabled={editSubmitting}
+                aria-label="Close"
               >
                 ✕
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: 22, maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="ax-modal__body">
               {editSuccessMsg && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 13, fontWeight: 600 }}>
-                  ✓ {editSuccessMsg}
+                <div className="ax-alert ax-alert--success" style={{ marginBottom: 14 }}>
+                  <div className="ax-alert__text">{editSuccessMsg}</div>
                 </div>
               )}
               {editErrorMsg && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600 }}>
-                  ⚠ {editErrorMsg}
+                <div className="ax-alert ax-alert--danger" style={{ marginBottom: 14 }}>
+                  <div className="ax-alert__text">{editErrorMsg}</div>
                 </div>
               )}
 
               {editLoading ? (
-                <TableSkeleton rows={4} columns={2} showCard={false} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i}>
+                      <SkeletonLine width="40%" height="0.8em" style={{ marginBottom: 6 }} />
+                      <SkeletonRect width="100%" height={36} borderRadius="6px" />
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <form onSubmit={handleSaveEdit}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 16 }}>
+                <form id="edit_light_form" onSubmit={handleSaveEdit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Beneficiary Name *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Beneficiary Name
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.beneficiary_name}
                         onChange={(e) => setEditForm({ ...editForm, beneficiary_name: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Contact No. *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Contact No.
                       </label>
                       <input
-                        type="text"
-                        className="ax-input ax-input--sm"
+                        type="tel"
+                        className="ax-input"
                         value={editForm.contact_no}
                         onChange={(e) => setEditForm({ ...editForm, contact_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Ward No. *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Ward No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.ward_no}
                         onChange={(e) => setEditForm({ ...editForm, ward_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Pole No. *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Pole No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.pole_no}
                         onChange={(e) => setEditForm({ ...editForm, pole_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        UUID NO *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        UUID No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.uuid_no}
                         onChange={(e) => setEditForm({ ...editForm, uuid_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Light Number *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Light No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.light_no}
                         onChange={(e) => setEditForm({ ...editForm, light_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Panel Number (Module No) *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Battery No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
-                        value={editForm.module_no}
-                        onChange={(e) => setEditForm({ ...editForm, module_no: e.target.value })}
-                        required
-                        style={{ width: '100%', height: 36, borderRadius: 6 }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Battery Number *
-                      </label>
-                      <input
-                        type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.battery_serial_no}
                         onChange={(e) => setEditForm({ ...editForm, battery_serial_no: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Latitude *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Panel / Module No.
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
+                        value={editForm.module_no}
+                        onChange={(e) => setEditForm({ ...editForm, module_no: e.target.value })}
+                        style={{ width: '100%', height: 36, borderRadius: 6 }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Latitude
+                      </label>
+                      <input
+                        type="text"
+                        className="ax-input"
                         value={editForm.latitude}
                         onChange={(e) => setEditForm({ ...editForm, latitude: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Longitude *
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                        Longitude
                       </label>
                       <input
                         type="text"
-                        className="ax-input ax-input--sm"
+                        className="ax-input"
                         value={editForm.longitude}
                         onChange={(e) => setEditForm({ ...editForm, longitude: e.target.value })}
-                        required
                         style={{ width: '100%', height: 36, borderRadius: 6 }}
-                      />
-                    </div>
-
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Replace Light Photo (Optional)
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setEditFile(e.target.files?.[0] || null)}
-                        style={{ fontSize: 13 }}
-                      />
-                    </div>
-
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-                        Remarks
-                      </label>
-                      <textarea
-                        className="ax-input"
-                        rows={2}
-                        value={editForm.remark}
-                        onChange={(e) => setEditForm({ ...editForm, remark: e.target.value })}
-                        style={{ width: '100%', borderRadius: 6, padding: 8 }}
                       />
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      onClick={() => setEditModalOpen(false)}
-                      disabled={editSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="ax-btn ax-btn--primary ax-btn--sm"
-                      disabled={editSubmitting}
-                    >
-                      {editSubmitting ? 'Saving…' : 'Update Details'}
-                    </button>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                      Remarks
+                    </label>
+                    <textarea
+                      className="ax-input"
+                      rows={2}
+                      value={editForm.remark}
+                      onChange={(e) => setEditForm({ ...editForm, remark: e.target.value })}
+                      style={{ width: '100%', borderRadius: 6, resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 650, marginBottom: 4 }}>
+                      Replace Light Image (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                      className="ax-input"
+                      style={{ width: '100%', height: 36 }}
+                    />
                   </div>
                 </form>
               )}
+            </div>
+
+            <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={() => setEditModalOpen(false)}
+                disabled={editSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit_light_form"
+                className="ax-btn ax-btn--primary"
+                disabled={editSubmitting || editLoading}
+              >
+                {editSubmitting ? 'Saving…' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
