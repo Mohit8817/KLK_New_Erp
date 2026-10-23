@@ -259,6 +259,36 @@ const SINGLE_CARD_FORM_CSS = `
   grid-column: 1 / -1;
 }
 
+/* Eligible sites table alignment fix */
+.jammu-single-card-form .ax-table-wrap {
+  overflow-x: auto;
+}
+.jammu-single-card-form .ax-table-wrap .ax-table {
+  display: table;
+  width: 100%;
+  min-width: 900px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.jammu-single-card-form .ax-table-wrap .ax-table thead { display: table-header-group; }
+.jammu-single-card-form .ax-table-wrap .ax-table tbody { display: table-row-group; }
+.jammu-single-card-form .ax-table-wrap .ax-table tr { display: table-row; }
+.jammu-single-card-form .ax-table-wrap .ax-table th,
+.jammu-single-card-form .ax-table-wrap .ax-table td {
+  display: table-cell;
+  text-align: left;
+  vertical-align: middle;
+  padding: var(--ax-space-3) var(--ax-space-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jammu-single-card-form .ax-table-wrap .ax-table th:first-child,
+.jammu-single-card-form .ax-table-wrap .ax-table td:first-child {
+  text-align: center;
+  padding-inline: 0;
+}
+
 /* Sticky Action Footer */
 .jammu-form-sticky-bar {
   position: sticky;
@@ -891,9 +921,6 @@ export function Bihar_Installation_ULA_AddPayment() {
                 </p>
               </div>
 
-              <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                Completion: {completedRequired} / {totalRequired} ({progressPercent}%)
-              </span>
             </div>
 
             {/* Quick Section Jump Navigator */}
@@ -1046,8 +1073,26 @@ export function Bihar_Installation_ULA_AddPayment() {
               {/* Table */}
               <div className="ax-table-wrap">
                 <table className="ax-table ax-table--hover">
+                  <colgroup>
+                    <col style={{ width: 48 }} />
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '16%' }} />
+                  </colgroup>
                   <thead>
                     <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          disabled={filteredSites.length === 0}
+                          aria-label="Select all"
+                        />
+                      </th>
                       <th>District</th>
                       <th>Block</th>
                       <th>Panchayat</th>
@@ -1090,7 +1135,7 @@ export function Bihar_Installation_ULA_AddPayment() {
                               backgroundColor: isSelected ? 'color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid))' : undefined,
                             }}
                           >
-                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <td onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
                                 checked={isSelected}

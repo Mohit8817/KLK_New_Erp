@@ -150,7 +150,6 @@ function SurveyThumbnail({
       style={{
         width: 34,
         height: 34,
-        borderRadius: 'var(--ax-radius-sm)',
         objectFit: 'cover',
         cursor: 'pointer',
         border: '1px solid var(--ax-border)',
@@ -322,7 +321,7 @@ export function Bihar_Survey_ULA_ViewData() {
       {/* ── Page Head ── */}
       <PageHead
         title="Bihar ULA Survey Records"
-        subtitle="Unnat Lok Abhiyan (ULA) solar rooftop survey records and verification details"
+        subtitle="ULA solar rooftop survey records and verification details"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },

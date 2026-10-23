@@ -623,7 +623,7 @@ export function Bihar_Survey_ULA_AddData() {
 
       <PageHead
         title={editId ? `Edit Bihar ULA Survey (#${editId})` : 'Bihar ULA Survey Details'}
-        subtitle="Unnat Lok Abhiyan (ULA) solar rooftop survey entry form"
+        subtitle="ULA solar rooftop survey entry form"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
@@ -686,7 +686,7 @@ export function Bihar_Survey_ULA_AddData() {
             <div className="ax-card__header">
               <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
                 <div>
-                  <span className="ax-card__eyebrow">Unified Card Architecture</span>
+               
                   <h2 className="ax-card__title" style={{ margin: 0 }}>
                     {editId ? 'Edit Bihar ULA Survey' : 'Add Bihar ULA Survey'}
                   </h2>
@@ -694,13 +694,9 @@ export function Bihar_Survey_ULA_AddData() {
                     Location, customer and feasibility details organized in one main card.
                   </p>
                 </div>
-
-                <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                  Completion: {completedRequired} / {totalRequired} ({progressPercent}%)
-                </span>
               </div>
 
-              <div className="ula-section-pills" role="navigation" aria-label="Jump to section">
+              <div className="ula-section-pills" role="navigation" aria-label="ump to section">
                 {[
                   { id: 'ula-sec-1', num: '1', title: 'Location Details' },
                   { id: 'ula-sec-2', num: '2', title: 'Customer Details' },

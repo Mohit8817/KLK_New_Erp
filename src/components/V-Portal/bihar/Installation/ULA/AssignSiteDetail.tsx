@@ -60,6 +60,11 @@ interface SiteRow {
   deadline: string;
 }
 
+// Export ke liye row (Sr. No. ke saath)
+interface ExportRow extends SiteRow {
+  srNo: string;
+}
+
 /* ───────── Responsive CSS (Bihar AMC view jaisa) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
@@ -234,8 +239,15 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
   }, [q]);
 
   /* ───────── Export ───────── */
-  const exportCols: ExportColumn<SiteRow>[] = useMemo(
+  // Poora filtered data (saari pages), Sr. No. ke saath
+  const exportRows = useMemo<ExportRow[]>(
+    () => filtered.map((r, i) => ({ ...r, srNo: String(i + 1) })),
+    [filtered]
+  );
+
+  const exportCols: ExportColumn<ExportRow>[] = useMemo(
     () => [
+      { header: 'Sr. No.', accessor: 'srNo' },
       { header: 'Assign Date', accessor: 'assignDate' },
       { header: 'State', accessor: 'state' },
       { header: 'District', accessor: 'district' },
@@ -246,6 +258,22 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
     ],
     []
   );
+
+  const exportBase = `ula_assignment_${assignId}_sites`;
+
+  // Data na ho to export na chale
+  const guardExport = (fn: () => void) => () => {
+    if (!exportRows.length) {
+      window.alert('No site data available to export.');
+      return;
+    }
+    fn();
+  };
+
+  const handleCopy = guardExport(() => copyTableDataToClipboard(exportRows, exportCols));
+  const handleCSV = guardExport(() => exportDataToCSV(exportRows, exportCols, `${exportBase}.csv`));
+  const handleExcel = guardExport(() => exportDataToExcel(exportRows, exportCols, `${exportBase}.xlsx`));
+  const handlePrint = guardExport(() => printTableData(exportRows, exportCols, `ULA Assignment #${assignId} Sites`));
 
   const COLS = 8;
 
@@ -297,10 +325,10 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
               <div className="ax-cluster" style={actionsRowStyle}>
                 <SearchInput value={q} onChange={setQ} placeholder="Search…" size="sm" />
                 <TableExportToolbar
-                  onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
-                  onExportCSV={() => exportDataToCSV(filtered, exportCols, `ula_assignment_${assignId}_sites.csv`)}
-                  onExportExcel={() => exportDataToExcel(filtered, exportCols, `ula_assignment_${assignId}_sites.xlsx`)}
-                  onPrint={() => printTableData(filtered, exportCols, `ULA Assignment #${assignId} Sites`)}
+                  onCopy={handleCopy}
+                  onExportCSV={handleCSV}
+                  onExportExcel={handleExcel}
+                  onPrint={handlePrint}
                 />
               </div>
             </div>

@@ -28,6 +28,19 @@ const DEFAULT_KPIS: SurveyDetailKpis = {
   verify_reject: 0,
 };
 
+/* ── Row type: API fields (dept_name, survey_verify_remarks) ke saath ── */
+type Row = BiharSrtSiteItem & {
+  dept_name?: string | null;
+  survey_verify_remarks?: string | null;
+};
+
+/* ── Helpers: API field + purana field fallback ── */
+const getDept = (r: Row) => r.dept_name ?? (r as any).department;
+const getVerifyRemarks = (r: Row) => r.survey_verify_remarks ?? (r as any).verify_remarks;
+// API se survey_status string ("1") aa sakta hai, isliye Number() use kiya
+const isSurveyDone = (r: Row) => Number(r.survey_status) === 1;
+const verifyStatusNum = (r: Row) => Number(r.survey_verify_status);
+
 /* ── Styles: light table polish only ── */
 const VIEW_CSS = `
 .bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
@@ -91,7 +104,6 @@ function KpiCard({
 }
 
 /* ── Table column config (same columns / order as before) ── */
-type Row = BiharSrtSiteItem;
 interface TextCol { key: string; th: string; get: (r: Row) => ReactNode; style?: CSSProperties }
 
 const DASH = '—';
@@ -103,7 +115,7 @@ const TEXT_COLS_BEFORE_MEDIA: TextCol[] = [
   { key: 'District', th: 'District', get: (r) => txt(r.district) },
   { key: 'Division', th: 'Division', get: (r) => txt(r.division) },
   { key: 'Sub Division', th: 'Sub Division', get: (r) => txt(r.sub_division) },
-  { key: 'Department', th: 'Department', get: (r) => txt(r.department) },
+  { key: 'Department', th: 'Department', get: (r) => txt(getDept(r)) },
   { key: 'Site Name', th: 'Site Name', get: (r) => txt(r.site_name), style: { fontWeight: 'var(--ax-weight-medium)' as any } },
   { key: 'Site Address', th: 'Site Address', get: (r) => txt(r.address) },
   { key: 'CA No.', th: 'CA No.', get: (r) => txt(r.ca_no) },
@@ -241,7 +253,7 @@ function SurveyThumbnail({
       style={{
         width: 34,
         height: 34,
-        borderRadius: 'var(--ax-radius-sm)',
+
         objectFit: 'cover',
         cursor: 'pointer',
         border: '1px solid var(--ax-border)',
@@ -265,7 +277,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [kpis, setKpis] = useState<SurveyDetailKpis>(DEFAULT_KPIS);
-  const [sites, setSites] = useState<BiharSrtSiteItem[]>([]);
+  const [sites, setSites] = useState<Row[]>([]);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -282,7 +294,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
     try {
       const resp = await biharSrt200mwService.getViewSurveyData();
       setKpis(resp.data.survey_detail || DEFAULT_KPIS);
-      setSites(resp.data.srt200mw || []);
+      setSites((resp.data.srt200mw || []) as Row[]);
       if (!resp.data.srt200mw?.length) {
         setErrorMsg('No survey records found from server.');
       }
@@ -316,14 +328,14 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   }, [filteredSites, currentPage, pageSize]);
 
   // Export column definitions
-  const exportCols: ExportColumn<BiharSrtSiteItem>[] = useMemo(
+  const exportCols: ExportColumn<Row>[] = useMemo(
     () => [
       { header: 'Unique ID', accessor: (r) => r.uid ?? '' },
       { header: 'State', accessor: (r) => r.state ?? '' },
       { header: 'District', accessor: (r) => r.district ?? '' },
       { header: 'Division', accessor: (r) => r.division ?? '' },
       { header: 'Sub Division', accessor: (r) => r.sub_division ?? '' },
-      { header: 'Department', accessor: (r) => r.department ?? '' },
+      { header: 'Department', accessor: (r) => getDept(r) ?? '' },
       { header: 'Site Name', accessor: (r) => r.site_name ?? '' },
       { header: 'Site Address', accessor: (r) => r.address ?? '' },
       { header: 'CA No.', accessor: (r) => r.ca_no ?? '' },
@@ -359,13 +371,13 @@ export function Bihar_Survey_SRT200MW_ViewData() {
       { header: 'Water Source', accessor: (r) => r.water_source ?? '' },
       { header: 'Access to Site', accessor: (r) => r.site_access ?? '' },
       { header: 'Distance from Road', accessor: (r) => r.site_distance ?? '' },
-      { header: 'Survey Status', accessor: (r) => (r.survey_status === 1 ? 'Done' : 'Pending') },
+      { header: 'Survey Status', accessor: (r) => (isSurveyDone(r) ? 'Done' : 'Pending') },
       {
         header: 'Verify Status',
         accessor: (r) =>
-          r.survey_verify_status === 1 ? 'Approved' : r.survey_verify_status === 2 ? 'Rejected' : 'Pending',
+          verifyStatusNum(r) === 1 ? 'Approved' : verifyStatusNum(r) === 2 ? 'Rejected' : 'Pending',
       },
-      { header: 'Verify Remarks', accessor: (r) => r.verify_remarks ?? '' },
+      { header: 'Verify Remarks', accessor: (r) => getVerifyRemarks(r) ?? '' },
     ],
     []
   );
@@ -582,9 +594,9 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                           {/* Survey Status */}
                           {isVisible('Survey Status') && (
                             <td className="ax-table__td">
-                              <span className={`ax-badge ax-badge--soft ax-badge--pill ${item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                              <span className={`ax-badge ax-badge--soft ax-badge--pill ${isSurveyDone(item) ? 'ax-badge--success' : 'ax-badge--warning'}`}>
                                 <span className="ax-badge__dot" />
-                                {item.survey_status === 1 ? 'Complete' : 'Pending'}
+                                {isSurveyDone(item) ? 'Complete' : 'Pending'}
                               </span>
                             </td>
                           )}
@@ -594,21 +606,21 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                             <td className="ax-table__td">
                               <span
                                 className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                  item.survey_verify_status === 1
+                                  verifyStatusNum(item) === 1
                                     ? 'ax-badge--success'
-                                    : item.survey_verify_status === 2
+                                    : verifyStatusNum(item) === 2
                                     ? 'ax-badge--danger'
                                     : 'ax-badge--warning'
                                 }`}
                               >
                                 <span className="ax-badge__dot" />
-                                {item.survey_verify_status === 1 ? 'Approved' : item.survey_verify_status === 2 ? 'Rejected' : 'Pending'}
+                                {verifyStatusNum(item) === 1 ? 'Approved' : verifyStatusNum(item) === 2 ? 'Rejected' : 'Pending'}
                               </span>
                             </td>
                           )}
 
                           {/* Verify Remarks */}
-                          {isVisible('Verify Remarks') && <td className="ax-table__td">{item.verify_remarks || '—'}</td>}
+                          {isVisible('Verify Remarks') && <td className="ax-table__td">{getVerifyRemarks(item) || '—'}</td>}
 
                           {/* Action */}
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
