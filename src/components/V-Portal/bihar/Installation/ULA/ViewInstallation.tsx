@@ -1,6 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharUlaInstallationService,
   type StructureSiteItem,
@@ -89,8 +91,6 @@ const text = (s: StructureSiteItem, key: string): string => {
   return String(v);
 };
 
-const num = (s: StructureSiteItem, key: string): number => Number(field(s, key));
-
 const parseList = (val?: unknown): string[] => {
   if (!val) return [];
   if (Array.isArray(val)) return val.map(String).filter(Boolean);
@@ -117,6 +117,140 @@ const VerifyBadge = ({ value }: { value: number }) =>
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const DOC_MAX_BYTES = 5 * 1024 * 1024;
+const DOC_ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+
+/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  describedBy,
+  role = 'dialog',
+  centered = true,
+  dialogClass = '',
+  dialogStyle,
+  modalStyle,
+  closeOnBackdrop = true,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  describedBy?: string;
+  role?: 'dialog' | 'alertdialog';
+  centered?: boolean;
+  dialogClass?: string;
+  dialogStyle?: CSSProperties;
+  modalStyle?: CSSProperties;
+  closeOnBackdrop?: boolean;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return createPortal(
+    <div
+      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
+      role={role}
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      style={modalStyle}
+    >
+      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={dialogStyle}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image preview modal ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="ula-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="ula-preview-title">{title || 'Media Preview'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div className="ula-m-stage">
+          {status === 'loading' && (
+            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+          )}
+          {status === 'error' && (
+            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+          )}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Preview'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              borderRadius: 0,
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* ── Interactive Image Thumbnail (NO BORDER RADIUS) ── */
 function InstallationThumbnail({
   src,
@@ -126,7 +260,7 @@ function InstallationThumbnail({
 }: {
   src?: string | null;
   alt: string;
-  onPreview: (url: string) => void;
+  onPreview: (url: string, title: string) => void;
   size?: number;
 }) {
   const candidates = useMemo(() => getInstallationImageCandidates(src), [src]);
@@ -153,13 +287,11 @@ function InstallationThumbnail({
         height: size,
         borderRadius: 0,
         objectFit: 'cover',
-        cursor: 'pointer',
+        cursor: 'zoom-in',
         border: '1px solid var(--ax-border, #e2e8f0)',
         background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'inline-block',
-        verticalAlign: 'middle',
+        display: 'block',
         flexShrink: 0,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}
       onError={() => {
         if (candidateIdx + 1 < candidates.length) {
@@ -168,7 +300,7 @@ function InstallationThumbnail({
           setFailed(true);
         }
       }}
-      onClick={() => onPreview(currentUrl)}
+      onClick={() => onPreview(currentUrl, alt)}
       title="Click to preview"
     />
   );
@@ -181,12 +313,12 @@ function ThumbnailGroup({
 }: {
   images?: unknown;
   altPrefix: string;
-  onPreview: (url: string) => void;
+  onPreview: (url: string, title: string) => void;
 }) {
   const list = parseList(images);
   if (!list.length) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
   return (
-    <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', maxWidth: 160 }}>
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', maxWidth: 160 }}>
       {list.map((img, i) => (
         <InstallationThumbnail
           key={i}
@@ -199,52 +331,68 @@ function ThumbnailGroup({
   );
 }
 
-/* ── Action Dropdown Component ── */
+/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ── */
+const MENU_W = 180;
+const MENU_H = 118;
+
 function RowActionDropdown({
   site,
-  index,
-  totalRows,
   onOpenDoc,
 }: {
   site: StructureSiteItem;
-  index: number;
-  totalRows: number;
   onOpenDoc: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [open]);
 
-  // Flip upward if located near bottom
-  const openUpward = index >= totalRows - 2 && totalRows > 3;
-
   return (
-    <div className="ax-dropdown" ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+    <>
       <button
         type="button"
-        className="ax-btn ax-btn--secondary ax-btn--sm"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontWeight: 500,
-          fontSize: '12px',
-          height: 30,
-          padding: '0 12px',
-          borderRadius: 0,
-          cursor: 'pointer',
-        }}
-        onClick={() => setOpen((prev) => !prev)}
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
         aria-expanded={open}
       >
         <span>Action</span>
@@ -261,106 +409,113 @@ function RowActionDropdown({
             transform: open ? 'rotate(180deg)' : 'none',
             transition: 'transform 0.15s ease',
           }}
+          aria-hidden="true"
         >
           <path d="M6 9l6 6l6 -6" />
         </svg>
       </button>
 
-      {open && (
-        <div
-          className="ax-menu"
-          role="menu"
-          style={{
-            position: 'absolute',
-            ...(openUpward ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
-            right: 0,
-            zIndex: 9999,
-            minWidth: 170,
-            background: 'var(--ax-surface-solid, #ffffff)',
-            border: '1px solid var(--ax-border, #e2e8f0)',
-            borderRadius: 0,
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
-            padding: '4px 0',
-            display: 'flex',
-            flexDirection: 'column',
-            textAlign: 'left',
-          }}
-        >
-          {/* 1. Edit Structure */}
-          <Link
-            to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
-            className="ax-menu__item"
-            role="menuitem"
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              color: 'var(--ax-text)',
-              textDecoration: 'none',
-              display: 'block',
-              width: '100%',
-              borderRadius: 0,
-              fontWeight: 500,
-              boxSizing: 'border-box',
-            }}
-            onClick={() => setOpen(false)}
+      {open && pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{ top: pos.top, left: pos.left, width: MENU_W }}
           >
-            Edit Structure
-          </Link>
-
-          {/* 2. Pending Installation */}
-          <Link
-            to={`/v/bihar/ula-installation-pending-site/${site.id}`}
-            className="ax-menu__item"
-            role="menuitem"
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              color: 'var(--ax-text)',
-              textDecoration: 'none',
-              display: 'block',
-              width: '100%',
-              borderRadius: 0,
-              fontWeight: 500,
-              boxSizing: 'border-box',
-            }}
-            onClick={() => setOpen(false)}
-          >
-            Pending Installation
-          </Link>
-
-          {/* 3. Document */}
-          <button
-            type="button"
-            className="ax-menu__item"
-            role="menuitem"
-            style={{
-              padding: '8px 14px',
-              fontSize: '12px',
-              color: 'var(--ax-text)',
-              background: 'transparent',
-              border: 0,
-              cursor: 'pointer',
-              display: 'block',
-              width: '100%',
-              borderRadius: 0,
-              textAlign: 'left',
-              fontWeight: 500,
-              boxSizing: 'border-box',
-            }}
-            onClick={() => {
-              setOpen(false);
-              onOpenDoc();
-            }}
-          >
-            Document
-          </button>
-        </div>
-      )}
-    </div>
+            <Link
+              to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              Edit Structure
+            </Link>
+            <Link
+              to={`/v/bihar/ula-installation-pending-site/${site.id}`}
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              Pending Installation
+            </Link>
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenDoc();
+              }}
+            >
+              Document
+            </button>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 
-/* ───────── Responsive CSS (BiharAMCSSLViewAssignLight / DLE jaisa) ───────── */
+/* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal img { border-radius: 0 !important; }
+
+  /* Image preview stage */
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  /* Form bits inside modals */
+  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
+  .ula-m-full { grid-column: 1 / -1; }
+  .ula-m-note { margin: 0; font-size: var(--ax-text-sm, 13px); color: var(--ax-text-muted, #64748b); }
+  .ula-m-hint { margin: 0; font-size: 12px; color: var(--ax-text-muted, #64748b); word-break: break-all; }
+  .ula-m-info {
+    display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; font-size: 12px;
+    background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
+  }
+  .ula-m-info span { color: var(--ax-text-muted, #64748b); }
+  .ula-m-info b { color: var(--ax-text-strong, #0f172a); font-weight: 600; }
+  .ula-m-current {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-top: var(--ax-space-4, 16px); border-top: 1px solid var(--ax-border, #e2e8f0);
+    font-size: 12px; color: var(--ax-text-muted, #64748b);
+  }
+  .ax-modal textarea.ax-input { resize: vertical; min-height: 84px; line-height: 1.45; }
+
+  /* Row action button + menu */
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
+    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
+
+  @media (max-width: 560px) {
+    .ula-m-grid { grid-template-columns: 1fr; }
+    .ula-m-stage { height: 56vh; }
+  }
+`;
+
+/* ───────── Responsive page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -372,7 +527,6 @@ const PAGE_CSS = `
   /* Images: NO BORDER RADIUS */
   .solar-erp-page img,
   .solar-erp-page .ula-table--wide img,
-  .solar-erp-page .ax-modal img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
   }
@@ -436,12 +590,10 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* Table: sideways scroll with sticky first column */
+  /* Table: sideways scroll with sticky first column (no extra min-height / bottom padding) */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    min-height: 380px;
-    padding-bottom: 40px;
   }
   .solar-erp-page .ula-table--wide { min-width: 2800px; }
   .solar-erp-page .ula-sticky-first th:first-child,
@@ -547,6 +699,59 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
+/* Small form helpers used by the electrical modal */
+const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
+
+function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  required,
+  full,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+  full?: boolean;
+}) {
+  return (
+    <div className={`ax-field${full ? ' ula-m-full' : ''}`}>
+      <label className="ax-label" htmlFor={id}>{label} {required && <Req />}</label>
+      <input
+        id={id}
+        type={type}
+        className="ax-input"
+        placeholder={placeholder}
+        value={value}
+        required={required}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function FileField({ id, label, onChange }: { id: string; label: string; onChange: (f: File | null) => void }) {
+  return (
+    <div className="ax-field">
+      <label className="ax-label" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="file"
+        accept="image/*"
+        className="ax-input"
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+    </div>
+  );
+}
+
 export function Bihar_Installation_ULA_ViewInstallation() {
   const [loading, setLoading] = useState(true);
   const [sites, setSites] = useState<StructureSiteItem[]>([]);
@@ -555,8 +760,10 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
-  // Photo Lightbox Modal
-  const [previewImg, setPreviewImg] = useState<string | null>(null);
+  // Photo preview modal
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
+  const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
+  const closePreview = useCallback(() => setPreview(null), []);
 
   // Electrical Modal State
   const [electricModalSite, setElectricModalSite] = useState<StructureSiteItem | null>(null);
@@ -577,15 +784,26 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
   const [electricSubmitting, setElectricSubmitting] = useState(false);
   const [electricError, setElectricError] = useState<string | null>(null);
+  const closeElectric = useCallback(() => setElectricModalSite(null), []);
 
   // Document Modal State
   const [docModalSite, setDocModalSite] = useState<StructureSiteItem | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
+  const [docDate, setDocDate] = useState('');
+  const [docRemarks, setDocRemarks] = useState('');
   const [docSubmitting, setDocSubmitting] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const closeDoc = useCallback(() => setDocModalSite(null), []);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = window.setTimeout(() => setToastMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toastMsg]);
 
   // Fetch installed sites
   const loadData = useCallback(async () => {
@@ -680,6 +898,36 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     setElectricError(null);
   };
 
+  // Open Document Modal
+  const handleOpenDocModal = (site: StructureSiteItem) => {
+    setDocModalSite(site);
+    setDocFile(null);
+    setDocDate('');
+    setDocRemarks('');
+    setDocError(null);
+  };
+
+  const handlePickDoc = (file: File | null) => {
+    setDocError(null);
+    if (!file) {
+      setDocFile(null);
+      return;
+    }
+    if (!DOC_ALLOWED_TYPES.includes(file.type)) {
+      setDocFile(null);
+      if (docInputRef.current) docInputRef.current.value = '';
+      setDocError('Only PDF, JPG or PNG files are allowed.');
+      return;
+    }
+    if (file.size > DOC_MAX_BYTES) {
+      setDocFile(null);
+      if (docInputRef.current) docInputRef.current.value = '';
+      setDocError(`File is ${formatSize(file.size)}. Maximum allowed size is 5 MB.`);
+      return;
+    }
+    setDocFile(file);
+  };
+
   // Submit Electrical Installation
   const handleSubmitElectric = async (e: FormEvent) => {
     e.preventDefault();
@@ -717,18 +965,26 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   // Submit Commissioning Doc
   const handleSubmitDoc = async (e: FormEvent) => {
     e.preventDefault();
-    if (!docModalSite || !docFile) return;
+    if (!docModalSite) return;
+    if (!docFile || !docDate || !docRemarks.trim()) {
+      setDocError('Document, Date and Remarks are required.');
+      return;
+    }
     setDocError(null);
     setDocSubmitting(true);
     try {
       const fd = new FormData();
       fd.append('site_id', String(docModalSite.id));
       fd.append('file', docFile);
+      fd.append('doc_date', docDate);
+      fd.append('doc_remarks', docRemarks.trim());
 
       await biharUlaInstallationService.uploadInstallationDoc(fd);
       setToastMsg({ type: 'success', text: 'Installation document uploaded successfully!' });
       setDocModalSite(null);
       setDocFile(null);
+      setDocDate('');
+      setDocRemarks('');
       await loadData();
     } catch (err: any) {
       setDocError(err?.message || 'Failed to upload document.');
@@ -876,6 +1132,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
       {/* ── Page Head ── */}
       <PageHead
@@ -899,14 +1156,14 @@ export function Bihar_Installation_ULA_ViewInstallation() {
       />
 
       {toastMsg && (
-        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }}>
+        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
           <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
           <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
 
       <div className="ax-dash-grid">
-        {/* ── Main Table Card (Exact DLE style with 31 columns) ── */}
+        {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="ULA Installation Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -1056,35 +1313,20 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
                     return (
                       <tr key={s.id} className="ax-table__row">
-                        {/* 1. Sr. No. */}
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-
-                        {/* 2. State */}
                         <td className="ax-table__td">{text(s, 'state') || 'Bihar'}</td>
-
-                        {/* 3. District */}
                         <td className="ax-table__td"><b>{s.district || DASH}</b></td>
-
-                        {/* 4. Block */}
                         <td className="ax-table__td">{s.block || DASH}</td>
-
-                        {/* 5. Village */}
                         <td className="ax-table__td">{s.village || DASH}</td>
-
-                        {/* 6. Beneficiary Name */}
                         <td className="ax-table__td">
                           <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                             {s.beneficiary_name || DASH}
                           </span>
                         </td>
-
-                        {/* 7. Contact Number */}
                         <td className="ax-table__td">{s.contact_no || DASH}</td>
-
-                        {/* 8. CA No. */}
                         <td className="ax-table__td">{s.ca_no || DASH}</td>
 
-                        {/* 9. Module Serial No. */}
+                        {/* Module Serial No. */}
                         <td className="ax-table__td">
                           {modSerials.length === 0 ? (
                             <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
@@ -1103,34 +1345,31 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                           )}
                         </td>
 
-                        {/* 10. Module Serial Image */}
                         <td className="ax-table__td">
                           <ThumbnailGroup
                             images={field(s, 'module_serial_image')}
                             altPrefix="Module Serial"
-                            onPreview={setPreviewImg}
+                            onPreview={openPreview}
                           />
                         </td>
 
-                        {/* 11. Foundation & Fastener */}
                         <td className="ax-table__td">
                           <ThumbnailGroup
                             images={field(s, 'foundation_fastener_images')}
                             altPrefix="Foundation & Fastener"
-                            onPreview={setPreviewImg}
+                            onPreview={openPreview}
                           />
                         </td>
 
-                        {/* 12. Structure Image */}
                         <td className="ax-table__td">
                           <InstallationThumbnail
                             src={s.structure_image}
                             alt="Structure"
-                            onPreview={setPreviewImg}
+                            onPreview={openPreview}
                           />
                         </td>
 
-                        {/* 13. Latitude */}
+                        {/* Latitude */}
                         <td className="ax-table__td">
                           {hasGeo ? (
                             <a
@@ -1147,10 +1386,8 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                           )}
                         </td>
 
-                        {/* 14. Longitude */}
                         <td className="ax-table__td">{lng || DASH}</td>
 
-                        {/* 15. Structure Status */}
                         <td className="ax-table__td">
                           <span
                             className={`ax-badge ax-badge--soft ${
@@ -1161,88 +1398,46 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                           </span>
                         </td>
 
-                        {/* 16. Structure Verify Status */}
                         <td className="ax-table__td">
                           <VerifyBadge value={Number(s.structure_verify_status)} />
                         </td>
 
-                        {/* 17. Verify Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
                           {text(s, 'structure_verify_remarks') || text(s, 'verify_remarks') || DASH}
                         </td>
 
-                        {/* 18. Solar Meter No. */}
                         <td className="ax-table__td">{s.solarmeter_no || text(s, 'solar_meter_no') || DASH}</td>
-
-                        {/* 19. Inverter No. */}
                         <td className="ax-table__td">{s.inverter_no || DASH}</td>
-
-                        {/* 20. Net/Smart Meter No. */}
                         <td className="ax-table__td">{s.nm_sm_no || text(s, 'smart_meter_no') || DASH}</td>
-
-                        {/* 21. Loger No. */}
                         <td className="ax-table__td">{s.loger_no || DASH}</td>
 
-                        {/* 22. Complete Photo */}
                         <td className="ax-table__td">
-                          <InstallationThumbnail
-                            src={text(s, 'complete_photo')}
-                            alt="Complete Plant"
-                            onPreview={setPreviewImg}
-                          />
+                          <InstallationThumbnail src={text(s, 'complete_photo')} alt="Complete Plant" onPreview={openPreview} />
                         </td>
-
-                        {/* 23. Inverter Image */}
                         <td className="ax-table__td">
-                          <InstallationThumbnail
-                            src={text(s, 'inverter_image')}
-                            alt="Inverter"
-                            onPreview={setPreviewImg}
-                          />
+                          <InstallationThumbnail src={text(s, 'inverter_image')} alt="Inverter" onPreview={openPreview} />
                         </td>
-
-                        {/* 24. Earthing Image */}
                         <td className="ax-table__td">
-                          <InstallationThumbnail
-                            src={text(s, 'earthing_image')}
-                            alt="Earthing"
-                            onPreview={setPreviewImg}
-                          />
+                          <InstallationThumbnail src={text(s, 'earthing_image')} alt="Earthing" onPreview={openPreview} />
                         </td>
-
-                        {/* 25. ACDB Image */}
                         <td className="ax-table__td">
-                          <InstallationThumbnail
-                            src={text(s, 'acdb_image')}
-                            alt="ACDB"
-                            onPreview={setPreviewImg}
-                          />
+                          <InstallationThumbnail src={text(s, 'acdb_image')} alt="ACDB" onPreview={openPreview} />
                         </td>
-
-                        {/* 26. Solar Meter Image */}
                         <td className="ax-table__td">
                           <InstallationThumbnail
                             src={text(s, 'solar_meter_image') || text(s, 'solarmeter_image')}
                             alt="Solar Meter"
-                            onPreview={setPreviewImg}
+                            onPreview={openPreview}
                           />
                         </td>
-
-                        {/* 27. LA Image */}
                         <td className="ax-table__td">
-                          <InstallationThumbnail
-                            src={text(s, 'la_image')}
-                            alt="Lightning Arrester"
-                            onPreview={setPreviewImg}
-                          />
+                          <InstallationThumbnail src={text(s, 'la_image')} alt="Lightning Arrester" onPreview={openPreview} />
                         </td>
 
-                        {/* 28. Remark */}
                         <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
                           {text(s, 'inst_remarks') || text(s, 'remarks') || DASH}
                         </td>
 
-                        {/* 29. Installation Status */}
                         <td className="ax-table__td">
                           <span
                             className={`ax-badge ax-badge--soft ${
@@ -1253,19 +1448,13 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                           </span>
                         </td>
 
-                        {/* 30. Verify Status */}
                         <td className="ax-table__td">
                           <VerifyBadge value={Number(s.inst_verify_status ?? s.verify_status)} />
                         </td>
 
-                        {/* 31. Action (Single button with dropdown menu) */}
-                        <td className="ax-table__td" style={{ textAlign: 'center', position: 'relative' }}>
-                          <RowActionDropdown
-                            site={s}
-                            index={index}
-                            totalRows={paginatedData.length}
-                            onOpenDoc={() => setDocModalSite(s)}
-                          />
+                        {/* Action */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <RowActionDropdown site={s} onOpenDoc={() => handleOpenDocModal(s)} />
                         </td>
                       </tr>
                     );
@@ -1289,329 +1478,157 @@ export function Bihar_Installation_ULA_ViewInstallation() {
         </section>
       </div>
 
-      {/* ── Photo Lightbox Modal ── */}
-      {previewImg && (
-        <div className="ax-modal-backdrop" onClick={() => setPreviewImg(null)}>
-          <div
-            className="ax-modal"
-            style={{ maxWidth: 800, padding: 'var(--ax-space-4)', background: 'var(--ax-surface-solid)', borderRadius: 0 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-2)' }}>
-              <h4 style={{ margin: 0, fontSize: 'var(--ax-text-base)' }}>Media Preview</h4>
+      {/* ── Photo Preview Modal ── */}
+      {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Document Modal ── */}
+      <Modal open={!!docModalSite} onClose={closeDoc} labelledBy="ula-doc-title">
+        {docModalSite && (
+          <form onSubmit={handleSubmitDoc}>
+            <div className="ax-modal__header">
+              <h2 className="ax-modal__title" id="ula-doc-title">Installation document</h2>
+              <button type="button" className="ax-modal__close" onClick={closeDoc} aria-label="Close dialog">{X_ICON}</button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+              {docError && (
+                <div className="ax-alert ax-alert--danger" role="alert">
+                  <div className="ax-alert__text">{docError}</div>
+                </div>
+              )}
+
+              <div className="ula-m-info">
+                <div><span>Beneficiary: </span><b>{docModalSite.beneficiary_name || DASH}</b></div>
+                <div><span>CA No.: </span><b>{docModalSite.ca_no || DASH}</b></div>
+                {docModalSite.district && <div><span>District: </span><b>{docModalSite.district}</b></div>}
+              </div>
+
+              <p className="ula-m-note">The field labels marked with * are required fields.</p>
+
+              <div className="ax-field">
+                <label className="ax-label" htmlFor="ula-doc-file">Document <Req /></label>
+                <input
+                  id="ula-doc-file"
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,image/jpeg,image/png,image/jpg"
+                  className="ax-input"
+                  required
+                  onChange={(e) => handlePickDoc(e.target.files?.[0] || null)}
+                />
+                <span className="ax-help">
+                  {docFile ? `${docFile.name} (${formatSize(docFile.size)})` : 'PDF, JPG or PNG, max 5 MB'}
+                </span>
+              </div>
+
+              <div className="ax-field">
+                <label className="ax-label" htmlFor="ula-doc-date">Date <Req /></label>
+                <input
+                  id="ula-doc-date"
+                  type="date"
+                  className="ax-input"
+                  value={docDate}
+                  onChange={(e) => setDocDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="ax-field">
+                <label className="ax-label" htmlFor="ula-doc-remarks">Remarks <Req /></label>
+                <textarea
+                  id="ula-doc-remarks"
+                  className="ax-input"
+                  rows={3}
+                  placeholder="Enter the Remark..."
+                  value={docRemarks}
+                  onChange={(e) => setDocRemarks(e.target.value)}
+                  required
+                />
+              </div>
+
+              {text(docModalSite, 'inst_doc') && (
+                <div className="ula-m-current">
+                  <span>A document is already uploaded. Uploading a new one replaces it.</span>
+                  <a
+                    href={mediaUrl(text(docModalSite, 'inst_doc'))}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ax-btn ax-btn--secondary"
+                    style={{ flexShrink: 0 }}
+                  >
+                    View current ↗
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="ax-modal__footer">
+              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeDoc} disabled={docSubmitting}>Cancel</button>
               <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
-                onClick={() => setPreviewImg(null)}
-                aria-label="Close preview"
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={docSubmitting || !docFile || !docDate || !docRemarks.trim()}
               >
-                ✕
+                {docSubmitting ? <span className="ax-spinner" /> : 'Upload document'}
               </button>
             </div>
-            <div style={{ textAlign: 'center', background: '#0000000d', padding: 8, borderRadius: 0 }}>
-              <img
-                src={previewImg}
-                alt="Verification media preview"
-                style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 0 }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px' }}>
-              <a
-                href={previewImg}
-                target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                style={{ borderRadius: 0 }}
-              >
-                Open in New Tab ↗
-              </a>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary ax-btn--sm"
-                style={{ borderRadius: 0 }}
-                onClick={() => setPreviewImg(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </form>
+        )}
+      </Modal>
 
       {/* ── Electrical Installation Modal ── */}
-      {electricModalSite && (
-        <div className="ax-modal-backdrop" onClick={() => setElectricModalSite(null)}>
-          <div className="ax-modal" style={{ maxWidth: 700 }} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleSubmitElectric}>
-              <div className="ax-modal__header">
-                <div>
-                  <h4 className="ax-modal__title">Electrical Commissioning</h4>
-                  <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Site: <b>{electricModalSite.beneficiary_name}</b> (CA #{electricModalSite.ca_no})
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
-                  onClick={() => setElectricModalSite(null)}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="ax-modal__body" style={{ maxHeight: 520, overflowY: 'auto' }}>
-                {electricError && (
-                  <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-3)' }}>
-                    <div className="ax-alert__text">{electricError}</div>
-                  </div>
-                )}
-
-                <div className="ax-dash-grid">
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Installation Date</label>
-                      <input
-                        type="date"
-                        className="ax-input"
-                        value={instDate}
-                        onChange={(e) => setInstDate(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Solar Meter No.</label>
-                      <input
-                        type="text"
-                        className="ax-input"
-                        placeholder="e.g. SM-10023"
-                        value={solarMeterNo}
-                        onChange={(e) => setSolarMeterNo(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Inverter No.</label>
-                      <input
-                        type="text"
-                        className="ax-input"
-                        placeholder="e.g. INV-9081"
-                        value={inverterNo}
-                        onChange={(e) => setInverterNo(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Net Meter No.</label>
-                      <input
-                        type="text"
-                        className="ax-input"
-                        placeholder="e.g. NM-4521"
-                        value={nmSmNo}
-                        onChange={(e) => setNmSmNo(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Logger No.</label>
-                      <input
-                        type="text"
-                        className="ax-input"
-                        placeholder="e.g. LOG-3321"
-                        value={logerNo}
-                        onChange={(e) => setLogerNo(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--12">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Installation Remarks</label>
-                      <input
-                        type="text"
-                        className="ax-input"
-                        placeholder="e.g. Full electrical wiring and inverter synchronization complete"
-                        value={instRemarks}
-                        onChange={(e) => setInstRemarks(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Complete Plant Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setCompletePhoto(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Inverter Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setInverterImage(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Earthing Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setEarthingImage(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">ACDB Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setAcdbImage(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Solar Meter Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setSolarMeterImage(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ax-col--6">
-                    <div className="ax-field">
-                      <label className="ax-field__label">Lightning Arrester (LA) Photo</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => setLaImage(e.target.files?.[0] || null)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="ax-modal__footer">
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setElectricModalSite(null)}
-                  disabled={electricSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={electricSubmitting}
-                >
-                  {electricSubmitting ? <span className="ax-spinner" /> : 'Save Electrical Installation'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Document Upload Modal ── */}
-      {docModalSite && (
-        <div className="ax-modal-backdrop" onClick={() => setDocModalSite(null)}>
-          <div className="ax-modal" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleSubmitDoc}>
-              <div className="ax-modal__header">
-                <h4 className="ax-modal__title">Upload Commissioning Document</h4>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
-                  onClick={() => setDocModalSite(null)}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="ax-modal__body">
-                {docError && (
-                  <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-3)' }}>
-                    <div className="ax-alert__text">{docError}</div>
-                  </div>
-                )}
-                <p style={{ margin: '0 0 var(--ax-space-3) 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Site: <b>{docModalSite.beneficiary_name}</b> (CA #{docModalSite.ca_no})
+      <Modal open={!!electricModalSite} onClose={closeElectric} labelledBy="ula-electric-title" dialogClass="ax-modal__dialog--lg">
+        {electricModalSite && (
+          <form onSubmit={handleSubmitElectric}>
+            <div className="ax-modal__header">
+              <div>
+                <h2 className="ax-modal__title" id="ula-electric-title">Electrical commissioning</h2>
+                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                  Site: <b>{electricModalSite.beneficiary_name}</b> (CA #{electricModalSite.ca_no})
                 </p>
-                <div className="ax-field">
-                  <label className="ax-field__label">Select Document (PDF/JPG/PNG max 5MB)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,image/jpeg,image/png,image/jpg"
-                    className="ax-input"
-                    onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                    required
-                  />
+              </div>
+              <button type="button" className="ax-modal__close" onClick={closeElectric} aria-label="Close dialog">{X_ICON}</button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+              {electricError && (
+                <div className="ax-alert ax-alert--danger" role="alert">
+                  <div className="ax-alert__text">{electricError}</div>
                 </div>
-                {text(docModalSite, 'inst_doc') && (
-                  <div style={{ marginTop: 'var(--ax-space-3)' }}>
-                    <a
-                      href={mediaUrl(text(docModalSite, 'inst_doc'))}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      style={{ borderRadius: 0 }}
-                    >
-                      View Current Document ↗
-                    </a>
-                  </div>
-                )}
+              )}
+
+              <div className="ula-m-grid">
+                <TextField id="ula-e-date" label="Installation Date" type="date" value={instDate} onChange={setInstDate} required />
+                <TextField id="ula-e-sm" label="Solar Meter No." value={solarMeterNo} onChange={setSolarMeterNo} placeholder="e.g. SM-10023" />
+                <TextField id="ula-e-inv" label="Inverter No." value={inverterNo} onChange={setInverterNo} placeholder="e.g. INV-9081" />
+                <TextField id="ula-e-nm" label="Net Meter No." value={nmSmNo} onChange={setNmSmNo} placeholder="e.g. NM-4521" />
+                <TextField id="ula-e-log" label="Logger No." value={logerNo} onChange={setLogerNo} placeholder="e.g. LOG-3321" />
+                <TextField
+                  id="ula-e-rem"
+                  label="Installation Remarks"
+                  value={instRemarks}
+                  onChange={setInstRemarks}
+                  placeholder="e.g. Full electrical wiring and inverter synchronization complete"
+                  full
+                />
+                <FileField id="ula-e-f1" label="Complete Plant Photo" onChange={setCompletePhoto} />
+                <FileField id="ula-e-f2" label="Inverter Photo" onChange={setInverterImage} />
+                <FileField id="ula-e-f3" label="Earthing Photo" onChange={setEarthingImage} />
+                <FileField id="ula-e-f4" label="ACDB Photo" onChange={setAcdbImage} />
+                <FileField id="ula-e-f5" label="Solar Meter Photo" onChange={setSolarMeterImage} />
+                <FileField id="ula-e-f6" label="Lightning Arrester (LA) Photo" onChange={setLaImage} />
               </div>
-              <div className="ax-modal__footer">
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setDocModalSite(null)}
-                  disabled={docSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={docSubmitting || !docFile}
-                >
-                  {docSubmitting ? <span className="ax-spinner" /> : 'Upload Document'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>
+
+            <div className="ax-modal__footer">
+              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeElectric} disabled={electricSubmitting}>Cancel</button>
+              <button type="submit" className="ax-btn ax-btn--primary" disabled={electricSubmitting}>
+                {electricSubmitting ? <span className="ax-spinner" /> : 'Save electrical installation'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

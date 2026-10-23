@@ -159,6 +159,39 @@ const SINGLE_CARD_FORM_CSS = `
 }
 .ula-form-col-span-full { grid-column: 1 / -1; }
 
+/* Selected site info cards */
+.ula-site-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--ax-space-3);
+}
+@media (min-width: 1024px) {
+  .ula-site-info-grid { grid-template-columns: repeat(3, 1fr); }
+}
+.ula-site-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--ax-space-3) var(--ax-space-4);
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-lg);
+}
+.ula-site-info-card__label {
+  font-size: var(--ax-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ax-text-muted);
+}
+.ula-site-info-card__value {
+  font-size: var(--ax-text-base);
+  font-weight: 600;
+  color: var(--ax-text-strong);
+  overflow-wrap: anywhere;
+}
+
 /* Photo cards */
 .ula-photo-grid {
   display: grid;
@@ -265,6 +298,14 @@ interface FieldStatusProps {
   isValid: boolean;
   isInvalid: boolean;
 }
+
+// null / undefined / empty / 0 → "N/A"
+const formatInfo = (v: unknown): string => {
+  if (v === null || v === undefined) return 'N/A';
+  const s = String(v).trim();
+  if (s === '' || s === '0') return 'N/A';
+  return s;
+};
 
 export function Bihar_Installation_ULA_InstallationDetails() {
   const navigate = useNavigate();
@@ -433,11 +474,29 @@ export function Bihar_Installation_ULA_InstallationDetails() {
       }
     } catch (err: any) {
       console.error('[ULA Installation] fetchSiteDetails error:', err);
+      setSiteDetails(null);
       setErrorMsg('Failed to load beneficiary details for this site.');
     } finally {
       setLoadingDetails(false);
     }
   };
+
+  // Info cards shown under Site Name (State, District, Block, Village, Location, Sanction Load, Plant SC, WO No., Phase)
+  const siteInfoItems = useMemo(() => {
+    if (!siteDetails) return [];
+    const d = siteDetails as unknown as Record<string, unknown>;
+    return [
+      { label: 'State', value: formatInfo(d.state) },
+      { label: 'District', value: formatInfo(d.district) },
+      { label: 'Block Name', value: formatInfo(d.block) },
+      { label: 'Village Name', value: formatInfo(d.village) },
+      { label: 'Location', value: formatInfo(d.address) },
+      { label: 'Sanction Load', value: formatInfo(d.sanction_load) },
+      { label: 'Plant SC', value: formatInfo(d.plant_sc) },
+      { label: 'WO No.', value: formatInfo(d.wo_no) },
+      { label: 'Phase', value: formatInfo(d.phase) },
+    ];
+  }, [siteDetails]);
 
   // ── Foundation & Fastener Multi-File Handler (up to 4) ──
   const handleFastenerFiles = (e: ChangeEvent<HTMLInputElement>) => {
@@ -690,7 +749,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                 </p>
               </div>
 
-          
+
             </div>
 
             <div className="ula-section-pills" role="navigation" aria-label="Jump to section">
@@ -729,6 +788,30 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   />
                 </div>
               </div>
+
+              {/* Selected site info cards */}
+              {loadingDetails && (
+                <p style={{ margin: 'var(--ax-space-4) 0 0', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+                  <span className="ax-spinner" style={{ width: 14, height: 14, marginRight: 8 }} />
+                  Fetching site details…
+                </p>
+              )}
+
+              {!loadingDetails && siteDetails && (
+                <div style={{ marginTop: 'var(--ax-space-4)' }}>
+                  <p style={{ margin: '0 0 var(--ax-space-3)', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+                    Confirm this is the correct site before proceeding.
+                  </p>
+                  <div className="ula-site-info-grid">
+                    {siteInfoItems.map((item) => (
+                      <div key={item.label} className="ula-site-info-card">
+                        <span className="ula-site-info-card__label">{item.label}</span>
+                        <span className="ula-site-info-card__value">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <hr className="ula-section-divider" />

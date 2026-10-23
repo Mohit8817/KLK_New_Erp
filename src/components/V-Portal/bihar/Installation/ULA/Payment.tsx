@@ -602,8 +602,7 @@ export function Bihar_Installation_ULA_Payment() {
                           className="ax-btn ax-btn--secondary ax-btn--sm"
                           onClick={() => setSelectedClaim(c)}
                         >
-                          {ICON_EYE}
-                          <span className="ax-btn__label">Sites</span>
+                          <span className="ax-btn__label">Download</span>
                         </button>
                       </td>
                     </tr>

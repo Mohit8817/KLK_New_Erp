@@ -297,7 +297,6 @@ interface KpiProps {
   badge?: string;
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
-  onClick?: () => void;
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
   accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
@@ -309,7 +308,7 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
   red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line',  }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
@@ -318,17 +317,7 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
   return (
     <div
       className="ax-card ax-col--3"
-      role={onClick ? 'button' : 'region'}
-      tabIndex={onClick ? 0 : undefined}
-      aria-label={label}
-      onClick={onClick}
-      onKeyDown={onClick ? onActivate(onClick) : undefined}
-      style={{
-        borderRadius: 'var(--ax-radius-lg)',
-        background: 'var(--ax-bg-surface)',
-        cursor: onClick ? 'pointer' : undefined,
-        transition: 'transform 160ms ease, box-shadow 160ms ease',
-      }}
+ 
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>

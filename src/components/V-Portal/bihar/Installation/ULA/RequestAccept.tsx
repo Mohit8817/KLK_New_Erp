@@ -48,7 +48,7 @@ const VIEW_CSS = `
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .bsv-kpi__head {
   display: flex;
