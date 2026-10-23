@@ -4,10 +4,11 @@
  * Bihar  : https://klkerp.com/api/user/dle/bihar/ssl/amc
  */
 import { getDleToken } from './dleServices';
+import { BIHAR_API } from '../../V-Portal/V_Portal_APIS/Bihar_API';
 
 const ROOT = (import.meta.env.VITE_KLKERP_API_BASE_URL ?? 'https://klkerp.com').replace(/\/+$/, '');
 export const UP_SSL_AMC_BASE = `${ROOT}/api/user/dle/up/ssl/amc`;
-export const BIHAR_SSL_AMC_BASE = `${ROOT}/api/user/dle/bihar/ssl/amc`;
+export const BIHAR_SSL_AMC_BASE = BIHAR_API.AMC.SSL.BASE;
 
 export interface Option { value: string; label: string }
 
@@ -101,10 +102,10 @@ export const upSslAmc = {
 
 /* ───────────── Bihar ───────────── */
 export const biharSslAmc = {
-  getVolumes: (signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/volume`, { method: 'GET', signal }),                           // GET
+  getVolumes: (signal?: AbortSignal) => request(BIHAR_API.AMC.SSL.VOLUMES, { method: 'GET', signal }),                           // GET
   getDistricts: (volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-district`, { method: 'GET', signal }, { volume }),       // GET
   getBlocks: (district: string, volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-block`, { method: 'GET', signal }, { district, district_id: district, volume }),   // GET
   getPanchayats: (block: string, district: string, volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-panchayat`, { method: 'GET', signal }, { block, block_id: block, district, volume }), // GET
-  storeAssignLight: (payload: Record<string, any>) => request(`${BIHAR_SSL_AMC_BASE}/store-assign-light`, { method: 'POST', body: JSON.stringify(payload) }), // POST
-  viewAssignLight: (signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/view-assign-light`, { method: 'GET', signal }),           // GET
+  storeAssignLight: (payload: Record<string, any>) => request(BIHAR_API.AMC.SSL.STORE_ASSIGN_LIGHT, { method: 'POST', body: JSON.stringify(payload) }), // POST
+  viewAssignLight: (signal?: AbortSignal) => request(BIHAR_API.AMC.SSL.VIEW_ASSIGN_LIGHT, { method: 'GET', signal }),           // GET
 };

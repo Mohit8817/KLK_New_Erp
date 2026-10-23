@@ -6,7 +6,7 @@ import { TableExportToolbar, type ColumnDef } from '../../../../../common/TableE
 import { SearchInput } from '../../../../../common/search/SearchInput';
 import { Pagination } from '../../../../../common/pagination/Pagination';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { dleService, filterByCompanyStrict, APPROVAL_APPROVED } from '../../../../../services/dleServices';
+import { dleService, filterByCompanyStrict, APPROVAL_APPROVED } from '../../../dle-services';
 import { authService } from '../../../../../services/authService';
 
 

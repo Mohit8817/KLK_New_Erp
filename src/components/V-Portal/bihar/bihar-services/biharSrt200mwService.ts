@@ -1,4 +1,5 @@
-import { API_BASE_URL, authService } from './authService';
+import { API_BASE_URL, authService } from '../../../../services/authService';
+import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
 
 export interface BiharSrtSiteItem {
   id: number;
@@ -97,7 +98,7 @@ class BiharSrt200mwService {
    */
   async getSurveyPendingSites(): Promise<{ sites: BiharSrtSiteItem[]; message?: string }> {
     const urlsToTry = [
-      `${API_BASE_URL}/bihar/srt200mw-survey`,
+      BIHAR_API.SURVEY.SRT_200MW.PENDING_SITES,
       API_BASE_URL.replace(/\/api$/, '') + '/bihar/srt200mw-survey',
       `${API_BASE_URL}/v/bihar/srt200mw-survey`,
     ];
@@ -144,7 +145,7 @@ class BiharSrt200mwService {
    */
   async storeSurvey(formData: FormData): Promise<{ success: boolean; message: string; errors?: any }> {
     try {
-      const res = await fetch(`${API_BASE_URL}/bihar/srt200mw-survey-store`, {
+      const res = await fetch(BIHAR_API.SURVEY.SRT_200MW.SURVEY_STORE, {
         method: 'POST',
         headers: this.getHeaders(true),
         body: formData,
@@ -182,7 +183,7 @@ class BiharSrt200mwService {
    */
   async getSurveyForEdit(id: number | string): Promise<BiharSrtSiteItem | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/bihar/srt200mw-survey-edit?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(BIHAR_API.SURVEY.SRT_200MW.SURVEY_EDIT(id), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -201,7 +202,7 @@ class BiharSrt200mwService {
    */
   async updateSurvey(formData: FormData): Promise<{ success: boolean; message: string; errors?: any }> {
     try {
-      const res = await fetch(`${API_BASE_URL}/bihar/srt200mw-survey-update`, {
+      const res = await fetch(BIHAR_API.SURVEY.SRT_200MW.SURVEY_UPDATE, {
         method: 'POST',
         headers: this.getHeaders(true),
         body: formData,
@@ -254,13 +255,13 @@ class BiharSrt200mwService {
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/bihar/srt200mw-view-survey`, {
+      const res = await fetch(BIHAR_API.SURVEY.SRT_200MW.VIEW_SURVEY, {
         method: 'GET',
         headers: this.getHeaders(),
       });
       if (!res.ok) {
         // Try fallback with POST as route is Route::any
-        const postRes = await fetch(`${API_BASE_URL}/bihar/srt200mw-view-survey`, {
+        const postRes = await fetch(BIHAR_API.SURVEY.SRT_200MW.VIEW_SURVEY, {
           method: 'POST',
           headers: this.getHeaders(),
         });

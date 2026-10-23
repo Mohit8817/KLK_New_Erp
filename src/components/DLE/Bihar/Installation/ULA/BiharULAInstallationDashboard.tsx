@@ -11,7 +11,7 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 // DLE service: relative URL use karta hai -> Vite proxy API key/secret lagata hai
-import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
+import { dleService, filterByCompanyStrict } from '../../../dle-services';
 
 /* ───────────────────────── API CONFIG ─────────────────────────
  * FIELD_KEYS mein har field ke possible naam diye hain; jo pehla mile wahi use hoga.

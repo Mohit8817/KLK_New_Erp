@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, useId, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { biharUlaInstallationService } from '../../../../../services/biharUlaInstallationService';
+import { biharUlaInstallationService } from '../../bihar-services';
 import { SearchInput, TableEmptyState, Pagination } from '../../../../../common';
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers

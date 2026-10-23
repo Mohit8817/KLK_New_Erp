@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { biharUlaSurveyService } from '../../../../../services/biharUlaSurveyService';
+import { biharUlaSurveyService } from '../../bihar-services';
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers (same as Jammu form)
 const SINGLE_CARD_FORM_CSS = `

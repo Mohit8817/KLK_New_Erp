@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../shell/PageHead';
 import { TableExportToolbar, type ColumnDef, Pagination } from '../../../common';
-import { dleService, extractList, filterByCompany, getLoginCompanyId } from '../../../services/dleServices';
+import { dleService, extractList, filterByCompany, getLoginCompanyId } from '../dle-services';
 
 /* ---------- Types ---------- */
 export interface UserRow {

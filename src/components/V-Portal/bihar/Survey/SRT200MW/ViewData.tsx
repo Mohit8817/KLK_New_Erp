@@ -5,7 +5,7 @@ import {
   biharSrt200mwService,
   type BiharSrtSiteItem,
   type SurveyDetailKpis,
-} from '../../../../../services/biharSrt200mwService';
+} from '../../bihar-services';
 import {
   TableExportToolbar,
   SearchInput,

@@ -7,7 +7,7 @@ const ApexChart = lazy(() => import('../charts/ApexChart').then((m) => ({ defaul
 import { Pagination, usePagination,  TableExportToolbar, type ExportColumn } from '../../common';
 import { SearchInput } from '../../common/search/SearchInput';
 // Company-filtered DLE service (path apne folder structure ke hisaab se adjust karna)
-import { dleService, extractList, filterByCompany } from '../../services/dleServices';
+import { dleService, extractList, filterByCompany } from './dle-services';
 import { canAccessState } from '../../services/stateAccess';
 
 

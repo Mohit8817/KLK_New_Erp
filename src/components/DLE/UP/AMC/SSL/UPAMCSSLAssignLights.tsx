@@ -6,13 +6,13 @@ import {
   extractList,
   filterByCompany,
   filterApproved,
-} from '../../../../../services/dleServices';
+} from '../../../dle-services';
 import {
   upSslAmc,
   toArray,
   toOptions,
   type Option,
-} from '../../../../../services/Sslamcservice';
+} from '../../../dle-services';
 
 const FLOAT_CSS = `
 .ax-float{position:relative}

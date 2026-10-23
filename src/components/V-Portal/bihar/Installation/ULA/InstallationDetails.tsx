@@ -4,7 +4,7 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
   type SiteDetailResponse,
-} from '../../../../../services/biharUlaInstallationService';
+} from '../../bihar-services';
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers (same as Jammu form)
 const SINGLE_CARD_FORM_CSS = `

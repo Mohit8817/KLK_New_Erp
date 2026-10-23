@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { dleService } from '../services/dleServices';
+import { dleService } from '../components/DLE/dle-services/dleServices';
 
 export type AmcState = 'bihar' | 'up';
 

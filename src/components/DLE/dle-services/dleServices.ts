@@ -5,7 +5,7 @@
  * https://klkdle.klkventures.cloud
  */
 
-import { authService } from './authService';
+import { authService } from '../../../services/authService';
 
 export const DLE_BASE_URL = (
   import.meta.env.VITE_DLE_API_BASE_URL ?? ''

@@ -6,7 +6,7 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharUlaInstallationService,
   type StructureSiteItem,
-} from '../../../../../services/biharUlaInstallationService';
+} from '../../bihar-services';
 import {
   Pagination,
   usePagination,

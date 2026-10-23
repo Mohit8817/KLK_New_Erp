@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { dleService } from '../../../../../services/dleServices';
+import { dleService } from '../../../dle-services';
 
 const RESPONSIVE_CSS = `
   .ax-detail-page {

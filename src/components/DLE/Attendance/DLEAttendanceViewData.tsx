@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useDeferredValue } fr
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../shell/PageHead';
 import { Pagination } from '../../../common';
-import { dleService, getLoginCompanyId } from '../../../services/dleServices';
+import { dleService, getLoginCompanyId } from '../dle-services';
 import { filterByState } from '../../../services/stateAccess';
 
 export interface AttendanceRecord {

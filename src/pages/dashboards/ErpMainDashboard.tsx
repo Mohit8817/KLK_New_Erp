@@ -9,7 +9,7 @@ import 'leaflet/dist/leaflet.css';
 import { PageHead } from '../../components/shell/PageHead';
 import { SearchInput } from '../../common/search/SearchInput';
 import { ApexChart } from '../../components/charts/ApexChart';
-import { dleService } from '../../services/dleServices';
+import { dleService } from '../../components/DLE/dle-services/dleServices';
 
 const num = (x: number) => x.toLocaleString('en-IN');
 const dash = (v: number) => num(v);

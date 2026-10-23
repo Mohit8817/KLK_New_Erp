@@ -7,8 +7,8 @@ import {
   TableExportToolbar,
   type ExportColumn,
 } from '../../../../../common';
-import { biharSslAmc, toArray } from '../../../../../services/Sslamcservice';
-import { dleService } from '../../../../../services/dleServices';
+import { biharSslAmc, toArray } from '../../../dle-services';
+import { dleService } from '../../../dle-services';
 
 interface AssignRow {
   id: string | number;

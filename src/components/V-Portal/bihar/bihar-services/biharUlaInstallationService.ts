@@ -1,4 +1,5 @@
-import { API_BASE_URL, authService } from './authService';
+import { API_BASE_URL, authService } from '../../../../services/authService';
+import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
 
 export interface AssignSiteItem {
   id: number;
@@ -38,15 +39,25 @@ export interface SiteDetailResponse {
   plant_sc?: string;
   sanction_load?: string;
   wo_no?: string;
-  phase?: string;
   beneficiary_name?: string;
+  father_name?: string;
   contact_no?: string;
+  aadhar_no?: string;
   ca_no?: string;
+  category?: string;
+  latitude?: string;
+  longitude?: string;
+  meter_no?: string;
+  module_serial_no?: string;
+  inverter_serial_no?: string;
+  rms_serial_no?: string;
+  bos_kit_serial_no?: string;
   [key: string]: any;
 }
 
 export interface StructureSiteItem {
   id: number;
+  site_id?: number;
   state?: string;
   district?: string;
   block?: string;
@@ -55,21 +66,18 @@ export interface StructureSiteItem {
   contact_no?: string;
   ca_no?: string;
   structure_status?: number;
-  structure_date?: string;
   structure_verify_status?: number;
-  verify_remarks?: string;
   inst_status?: number;
-  inst_date?: string;
-  inst_verify_status?: number;
-  inst_latitude?: string | number;
-  inst_longitude?: string | number;
-  module_serial_no?: string | string[];
-  module_serial_image?: string | string[];
-  foundation_fastener_images?: string | string[];
+  verify_status?: number;
+  verify_remarks?: string;
+  structure_remark?: string;
+  module_serial_no?: string;
+  module_serial_image?: string;
+  foundation_and_fastner?: string;
   structure_image?: string;
-  solarmeter_no?: string;
+  solar_meter_no?: string;
   inverter_no?: string;
-  nm_sm_no?: string;
+  net_smart_meter_no?: string;
   loger_no?: string;
   complete_photo?: string;
   inverter_image?: string;
@@ -77,16 +85,21 @@ export interface StructureSiteItem {
   acdb_image?: string;
   solar_meter_image?: string;
   la_image?: string;
-  inst_remarks?: string;
+  inst_doc?: string;
+  inst_doc_status?: number;
+  doc_verify_status?: number;
+  latitude?: string;
+  longitude?: string;
+  created_at?: string;
+  updated_at?: string;
   [key: string]: any;
 }
 
 export interface PaymentClaimItem {
   id: number;
-  type?: string;
-  payment_type?: string | number;
-  amount?: string | number;
-  claim_status?: number;
+  vendor_id?: number;
+  claim_type?: number;
+  payment_type?: number | string;
   site_id?: string | number[];
   remarks?: string;
   file?: string;
@@ -161,16 +174,29 @@ class BiharUlaInstallationService {
     return headers;
   }
 
-  private async fetchWithFallback(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  private async fetchWithFallback(urlOrEndpoint: string, options: RequestInit = {}): Promise<Response> {
+    let urls: string[] = [];
     const baseClean = API_BASE_URL.replace(/\/+$/, '');
     const altBase = baseClean.endsWith('/api') ? baseClean.slice(0, -4) : `${baseClean}/api`;
 
-    const urls = [
-      `${baseClean}${cleanEndpoint}`,
-      `${altBase}${cleanEndpoint}`,
-      `${baseClean}/v${cleanEndpoint}`,
-    ];
+    if (urlOrEndpoint.startsWith('http://') || urlOrEndpoint.startsWith('https://')) {
+      const u = new URL(urlOrEndpoint);
+      const cleanPath = (u.pathname + u.search).replace(/^\/api/, '');
+      urls = [
+        urlOrEndpoint,
+        `${baseClean}${cleanPath}`,
+        `${altBase}${cleanPath}`,
+        `${baseClean}/v${cleanPath}`,
+      ];
+      urls = Array.from(new Set(urls));
+    } else {
+      const cleanEndpoint = urlOrEndpoint.startsWith('/') ? urlOrEndpoint : `/${urlOrEndpoint}`;
+      urls = [
+        `${baseClean}${cleanEndpoint}`,
+        `${altBase}${cleanEndpoint}`,
+        `${baseClean}/v${cleanEndpoint}`,
+      ];
+    }
 
     for (const url of urls) {
       try {
@@ -191,7 +217,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async getViewAssignSites(): Promise<AssignSiteItem[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/view-assign-site', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.VIEW_ASSIGN_SITE, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -209,7 +235,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/view-assign-site-detail?id=12
      ═══════════════════════════════════════════════════════════════════════ */
   async getAssignSiteDetail(id: number | string): Promise<AssignSiteItem | null> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/view-assign-site-detail?id=${encodeURIComponent(id)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.VIEW_ASSIGN_SITE_DETAIL(id), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -223,7 +249,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/accept-assign-site?id=12
      ═══════════════════════════════════════════════════════════════════════ */
   async acceptAssignSite(id: number | string): Promise<{ success: boolean; message: string }> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/accept-assign-site?id=${encodeURIComponent(id)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.ACCEPT_ASSIGN_SITE(id), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -240,7 +266,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async fetchSiteNames(): Promise<{ id: number; beneficiary_name: string }[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/fetch-site-name', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.FETCH_SITE_NAME, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -258,7 +284,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/fetch-site-details?site_id=101
      ═══════════════════════════════════════════════════════════════════════ */
   async fetchSiteDetails(siteId: number | string): Promise<SiteDetailResponse | null> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/fetch-site-details?site_id=${encodeURIComponent(siteId)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.FETCH_SITE_DETAILS(siteId), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -272,7 +298,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/pending-structure-site-store (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async storeStructureInstall(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/pending-structure-site-store', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.PENDING_STRUCTURE_STORE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -294,7 +320,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async getViewInstalledSites(): Promise<StructureSiteItem[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/view-site', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.VIEW_INSTALLED_SITES, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -312,7 +338,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/structure-edit-site?site_id=101
      ═══════════════════════════════════════════════════════════════════════ */
   async getStructureEditSite(siteId: number | string): Promise<StructureSiteItem | null> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/structure-edit-site?site_id=${encodeURIComponent(siteId)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.STRUCTURE_EDIT_SITE(siteId), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -326,7 +352,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/structure-update-site (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async updateStructureSite(formData: FormData): Promise<{ success: boolean; message: string }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/structure-update-site', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.UPDATE_STRUCTURE_SITE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -347,7 +373,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/pending-site?site_id=101
      ═══════════════════════════════════════════════════════════════════════ */
   async getPendingInstallSite(siteId: number | string): Promise<StructureSiteItem | null> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/pending-site?site_id=${encodeURIComponent(siteId)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.PENDING_SITE(siteId), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -361,7 +387,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/pending-site-store (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async storeInstallation(formData: FormData): Promise<{ success: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/pending-site-store', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.STORE_SITE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -382,7 +408,7 @@ class BiharUlaInstallationService {
      GET /bihar/ula/installation/edit-site?site_id=101
      ═══════════════════════════════════════════════════════════════════════ */
   async getInstallationEditSite(siteId: number | string): Promise<StructureSiteItem | null> {
-    const res = await this.fetchWithFallback(`/bihar/ula/installation/edit-site?site_id=${encodeURIComponent(siteId)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.EDIT_SITE(siteId), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -396,7 +422,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/update-site (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async updateInstallation(formData: FormData): Promise<{ success: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/update-site', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.UPDATE_SITE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -417,7 +443,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/doc-store (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async uploadInstallationDoc(formData: FormData): Promise<{ success: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/doc-store', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.DOC_STORE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -435,7 +461,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async getViewPayments(): Promise<PaymentClaimItem[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/view-payment', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.VIEW_PAYMENT, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -454,7 +480,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async fetchClaimEligibleSites(paymentType: string | number): Promise<any[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/claim-payment-details', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.CLAIM_PAYMENT_DETAILS, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({ payment_type: paymentType }),
@@ -473,7 +499,7 @@ class BiharUlaInstallationService {
      POST /bihar/ula/installation/claim-store (multipart)
      ═══════════════════════════════════════════════════════════════════════ */
   async storeClaim(formData: FormData): Promise<{ success: boolean; message: string }> {
-    const res = await this.fetchWithFallback('/bihar/ula/installation/claim-store', {
+    const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.CLAIM_STORE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -495,7 +521,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async getDashboardData(): Promise<UlaInstallationDashboardData | null> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula/installation/dashboard', {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.DASHBOARD, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -514,7 +540,7 @@ class BiharUlaInstallationService {
      ═══════════════════════════════════════════════════════════════════════ */
   async getDashboardSitesByStatus(status: string): Promise<any[]> {
     try {
-      const res = await this.fetchWithFallback(`/bihar/ula/installation/view-dashboard/${encodeURIComponent(status)}`, {
+      const res = await this.fetchWithFallback(BIHAR_API.INSTALLATION.ULA.DASHBOARD_BY_STATUS(status), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -534,7 +560,7 @@ class BiharUlaInstallationService {
   async getDashboardSitesByDistrict(status: string, district: string): Promise<any[]> {
     try {
       const res = await this.fetchWithFallback(
-        `/bihar/ula/installation/view-dashboard/districtwise/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
+        BIHAR_API.INSTALLATION.ULA.DASHBOARD_BY_DISTRICT(status, district),
         {
           method: 'GET',
           headers: this.getHeaders(),
@@ -551,3 +577,4 @@ class BiharUlaInstallationService {
 }
 
 export const biharUlaInstallationService = new BiharUlaInstallationService();
+export default biharUlaInstallationService;
