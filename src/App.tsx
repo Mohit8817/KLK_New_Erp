@@ -864,6 +864,14 @@ const shell: Record<string, PageComponent> = {
 
   // Installation - SRT
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'v/bihar/srt-installation-dashboard': BiharInstSRTDb,
+  'bihar/srt-installation-dashboard': BiharInstSRTDb,
+  'v/bihar/srt-installation-view-site': BiharInstSRTView,
+  'bihar/srt-installation-view-site': BiharInstSRTView,
+  'v/bihar/srt-installation-site': BiharInstSRTDetails,
+  'bihar/srt-installation-site': BiharInstSRTDetails,
+  'v/bihar/srt-installation-view-assign-site': BiharInstSRTRequest,
+  'bihar/srt-installation-view-assign-site': BiharInstSRTRequest,
   'bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
   'v/srt/viewassignsite': BiharInstSRTRequest,
   'srt/viewassignsite': BiharInstSRTRequest,

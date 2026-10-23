@@ -69,10 +69,24 @@ export const BIHAR_INSTALLATION_API = {
   // ── SRT Installation ──
   SRT: {
     DASHBOARD: `${BASE_URL}/bihar/srt/installation-dashboard`,
-    VIEW_ASSIGN_SITES: `${BASE_URL}/bihar/srt/view-assign-installation-sites`,
-    INSTALL_SITE: `${BASE_URL}/bihar/srt/install-site`,
-    VIEW_INSTALLATION: `${BASE_URL}/bihar/srt/view-install-site`,
-    CLAIM_REQUEST: `${BASE_URL}/bihar/srt/paymentsrtVendor`,
+    DASHBOARD_BY_STATUS: (status) => `${BASE_URL}/bihar/srt/installation/view-dashboard-data/${encodeURIComponent(status)}`,
+    DASHBOARD_BY_DISTRICT: (status, district) => `${BASE_URL}/bihar/srt/installation/districtwise-dashboard/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
+    VIEW_ASSIGN_SITE: `${BASE_URL}/bihar/srt/view-assign-site`,
+    ASSIGN_SITE_ACCEPT: `${BASE_URL}/bihar/srt/assign-site-accept`,
+    FETCH_SITE_NAME: `${BASE_URL}/bihar/srt/installation/fetch-site-name`,
+    FETCH_SITE_DETAIL: (srtId) => `${BASE_URL}/bihar/srt/installation/fetch-site-detail?srt_id=${encodeURIComponent(srtId)}`,
+    INSTALLATION_STORE: `${BASE_URL}/bihar/srt/installation-store`,
+    VIEW_INSTALL_SITES: `${BASE_URL}/bihar/srt/view-install-sites`,
+    EDIT_INSTALL_SITE: (id) => `${BASE_URL}/bihar/srt/edit-install-site?id=${encodeURIComponent(id)}`,
+    EDIT_INSTALL_SITE_STORE: `${BASE_URL}/bihar/srt/edit-install-site-store`,
+    INSTALL_DOCUMENT_STORE: `${BASE_URL}/bihar/srt/install-document-store`,
+    VIEW_INSTALL_CLAIM: `${BASE_URL}/bihar/srt/view-install-claim`,
+    INSTALL_CLAIM_RAISED: `${BASE_URL}/bihar/srt/install-claim-raised`,
+    // Backward compatibility aliases
+    VIEW_ASSIGN_SITES: `${BASE_URL}/bihar/srt/view-assign-site`,
+    INSTALL_SITE: `${BASE_URL}/bihar/srt/installation-store`,
+    VIEW_INSTALLATION: `${BASE_URL}/bihar/srt/view-install-sites`,
+    CLAIM_REQUEST: `${BASE_URL}/bihar/srt/install-claim-raised`,
   },
 
     // ── SSL (Solar Street Light) Installation ──

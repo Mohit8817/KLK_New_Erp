@@ -1160,7 +1160,6 @@ export function Bihar_Installation_ULA_AddPayment() {
                 <div style={{ marginTop: 'var(--ax-space-3)' }}>
                   <Pagination
                     currentPage={currentPage}
-                    totalCount={filteredSites.length}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
                     onPageSizeChange={setPageSize}

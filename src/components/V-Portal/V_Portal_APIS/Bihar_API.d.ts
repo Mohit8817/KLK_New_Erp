@@ -49,10 +49,23 @@ export interface BiharUlaInstallationApi {
 
 export interface BiharSrtInstallationApi {
   DASHBOARD: string;
-  VIEW_ASSIGN_SITES: string;
-  INSTALL_SITE: string;
-  VIEW_INSTALLATION: string;
-  CLAIM_REQUEST: string;
+  DASHBOARD_BY_STATUS?: (status: string | number) => string;
+  DASHBOARD_BY_DISTRICT?: (status: string | number, district: string) => string;
+  VIEW_ASSIGN_SITE: string;
+  ASSIGN_SITE_ACCEPT: string;
+  FETCH_SITE_NAME: string;
+  FETCH_SITE_DETAIL: (srtId: string | number) => string;
+  INSTALLATION_STORE: string;
+  VIEW_INSTALL_SITES: string;
+  EDIT_INSTALL_SITE: (id: string | number) => string;
+  EDIT_INSTALL_SITE_STORE: string;
+  INSTALL_DOCUMENT_STORE: string;
+  VIEW_INSTALL_CLAIM: string;
+  INSTALL_CLAIM_RAISED: string;
+  VIEW_ASSIGN_SITES?: string;
+  INSTALL_SITE?: string;
+  VIEW_INSTALLATION?: string;
+  CLAIM_REQUEST?: string;
 }
 
 export interface BiharSslInstallationApi {
