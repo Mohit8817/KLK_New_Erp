@@ -57,6 +57,27 @@ export interface BiharSrtInstallationApi {
 
 export interface BiharSslInstallationApi {
   DASHBOARD: string;
+  DASHBOARD_BY_STATUS: (status: string | number) => string;
+  DASHBOARD_BY_DISTRICT: (status: string | number, district: string) => string;
+  VIEW_ASSIGNED_LIGHTS: string;
+  ACCEPT_ASSIGNED: string;
+  FETCH_LIGHT_NAMES: string;
+  FETCH_LIGHT_DETAIL: (uniqueId: string | number) => string;
+  INSTALL_LIGHT_STORE: string;
+  VIEW_INSTALLED_LIGHTS: string;
+  EDIT_INSTALLED_LIGHT: (id: string | number) => string;
+  UPDATE_INSTALLED_LIGHT: string;
+  CLAIM_RAISED: string;
+  VIEW_CLAIM_DETAILS: string;
+  DOWNLOAD_CLAIM_PDF: (id: string | number) => string;
+  UPDATE_CLAIM_RAISED: string;
+  VIEW_SUPPLY_INSPECTION: string;
+  STORE_SUPPLY_INSPECTION: string;
+  UPDATE_SUPPLY_INSPECTION: (id: string | number) => string;
+  VIEW_INSTALLATION_INSPECTION: string;
+  STORE_INSTALLATION_INSPECTION: string;
+  FETCH_INSPECTION_BLOCKS: (district: string) => string;
+  FETCH_INSPECTION_PANCHAYATS: (block: string, district: string) => string;
   ASSIGNED_LIGHTS: string;
   INSTALL_LIGHT: string;
   INSTALLATION_DETAIL: string;
