@@ -320,6 +320,7 @@ export function Bihar_Installation_SSL_InstallLight() {
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* ── Step 2: Bihar SSL Site Information (Pre-filled details) ── */}
       {selectedUniqueId && (
         <div className="ax-card" style={{ padding: '20px 24px', borderRadius: 12, marginBottom: 20 }}>
@@ -351,6 +352,39 @@ export function Bihar_Installation_SSL_InstallLight() {
                 gap: 14,
               }}
             >
+=======
+      {/* ── Card 2: Bihar SSL Site Information (Pre-filled details) ── */}
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Bihar SSL Site Information</h2>
+            <p className="ax-card__subtitle">
+              {selectedUniqueId
+                ? 'Fetched system parameters and allocated location info'
+                : 'Select a Unique ID above to fetch site information'}
+            </p>
+          </div>
+          <span
+            className={`ax-badge ax-badge--pill ${
+              selectedUniqueId ? 'ax-badge--soft ax-badge--info' : 'ax-badge--soft ax-badge--neutral'
+            }`}
+          >
+            {selectedUniqueId ? 'Auto-fetched' : 'Pending Selection'}
+          </span>
+        </div>
+        <div className="ax-card__body">
+          {detailLoading ? (
+            <div className="ula-info-grid">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="ula-info-tile">
+                  <SkeletonLine width="50%" height="0.8em" style={{ marginBottom: 6 }} />
+                  <SkeletonRect width="100%" height={20} borderRadius="4px" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="ula-info-grid">
+>>>>>>> f499236 (almost done SSL)
               {[
                 { label: 'Vendor Name', val: siteDetail?.vendor || siteDetail?.vendor_name || 'App Testing' },
                 { label: 'State', val: siteDetail?.state || 'Bihar' },
@@ -377,6 +411,7 @@ export function Bihar_Installation_SSL_InstallLight() {
                 { label: 'Installed By', val: siteDetail?.installed_by || '—' },
                 { label: 'Inspected by Breda', val: siteDetail?.inspected_by_breda || '—' },
               ].map((item, idx) => (
+<<<<<<< HEAD
                 <div
                   key={idx}
                   style={{
@@ -392,12 +427,21 @@ export function Bihar_Installation_SSL_InstallLight() {
                   <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ax-text-strong)', marginTop: 2, wordBreak: 'break-word' }}>
                     {item.val || '—'}
                   </div>
+=======
+                <div key={idx} className="ula-info-tile">
+                  <div className="ula-info-tile__label">{item.label}</div>
+                  <div className="ula-info-tile__val">{item.val || '—'}</div>
+>>>>>>> f499236 (almost done SSL)
                 </div>
               ))}
             </div>
           )}
         </div>
+<<<<<<< HEAD
       )}
+=======
+      </section>
+>>>>>>> f499236 (almost done SSL)
 
       {/* ── Step 3: Installation Form ── */}
       <div className="ax-card" style={{ padding: '24px 28px', borderRadius: 12 }}>
