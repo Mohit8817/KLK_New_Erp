@@ -69,10 +69,15 @@ const BiharAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/Bihar/
 const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
 const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
 const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
+
+const UPAMCSSLDashboard = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLDashboard'));
 const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
 const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLSurveyLightDetails'));
+const UPAMCKusumCDashboard = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCDashboard'));
+const UPAMCKusumCAssignPumps = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCAssignPumps'));
+const UPAMCKusumCViewAssign = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCViewAssign'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
 const DLEAttendanceViewData = lazy(() => import('./components/DLE/Attendance/DLEAttendanceViewData'));
@@ -471,10 +476,21 @@ const shell: Record<string, PageComponent> = {
   'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
   'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
   'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
+  'dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
+  '/dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
   'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
   'dle/up/ssl/amc/view-verify-light/:id': UPAMCSSLSurveyLightDetails,
+  'dle/up/kusumc/amc/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/dashboard': UPAMCKusumCDashboard,
+  'up/amc/kusum-c/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/amc/create-assign': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-pump': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-light': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/view-assign': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-pump': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-light': UPAMCKusumCViewAssign,
   'dle/users': DLEManagementViewData,
   'dle/users/:id': DleUserDetail,
   'dle/attendance': DLEAttendanceViewData,
