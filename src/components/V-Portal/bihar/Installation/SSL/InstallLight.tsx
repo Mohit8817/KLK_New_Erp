@@ -455,63 +455,71 @@ export function Bihar_Installation_SSL_InstallLight() {
       </section>
 
       {/* ── Card 2: Bihar SSL Site Information (Pre-filled details) ── */}
-      {selectedUniqueId && (
-        <section className="ax-card">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <h2 className="ax-card__title">Bihar SSL Site Information</h2>
-              <p className="ax-card__subtitle">Fetched system parameters and allocated location info</p>
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Bihar SSL Site Information</h2>
+            <p className="ax-card__subtitle">
+              {selectedUniqueId
+                ? 'Fetched system parameters and allocated location info'
+                : 'Select a Unique ID above to fetch site information'}
+            </p>
+          </div>
+          <span
+            className={`ax-badge ax-badge--pill ${
+              selectedUniqueId ? 'ax-badge--soft ax-badge--info' : 'ax-badge--soft ax-badge--neutral'
+            }`}
+          >
+            {selectedUniqueId ? 'Auto-fetched' : 'Pending Selection'}
+          </span>
+        </div>
+        <div className="ax-card__body">
+          {detailLoading ? (
+            <div className="ula-info-grid">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="ula-info-tile">
+                  <SkeletonLine width="50%" height="0.8em" style={{ marginBottom: 6 }} />
+                  <SkeletonRect width="100%" height={20} borderRadius="4px" />
+                </div>
+              ))}
             </div>
-            <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">Auto-fetched</span>
-          </div>
-          <div className="ax-card__body">
-            {detailLoading ? (
-              <div className="ula-info-grid">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="ula-info-tile">
-                    <SkeletonLine width="50%" height="0.8em" style={{ marginBottom: 6 }} />
-                    <SkeletonRect width="100%" height={20} borderRadius="4px" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="ula-info-grid">
-                {[
-                  { label: 'Vendor Name', val: siteDetail?.vendor || siteDetail?.vendor_name || 'App Testing' },
-                  { label: 'State', val: siteDetail?.state || 'Bihar' },
-                  { label: 'Phase', val: siteDetail?.phase || '—' },
-                  { label: 'District', val: siteDetail?.district || '—' },
-                  { label: 'Block', val: siteDetail?.block || '—' },
-                  { label: 'Panchayat', val: siteDetail?.panchyat || siteDetail?.panchayat || '—' },
-                  { label: 'Work Order No.', val: siteDetail?.wo_no || '—' },
-                  { label: 'Work Order Received', val: siteDetail?.wo_received || '—' },
-                  { label: 'Ward No.', val: siteDetail?.ward_no || '—' },
-                  { label: 'Pole No.', val: siteDetail?.pole_no || '—' },
-                  { label: 'Beneficiary Name', val: siteDetail?.beneficiary_name || '—' },
-                  { label: 'Contact No.', val: siteDetail?.contact_no || '—' },
-                  { label: 'Latitude', val: siteDetail?.latitude || '—' },
-                  { label: 'Longitude', val: siteDetail?.longitude || '—' },
-                  { label: 'Luminary No.', val: siteDetail?.luminary_no || '—' },
-                  { label: 'Sim No.', val: siteDetail?.sim_no || '—' },
-                  { label: 'Battery Serial No.', val: siteDetail?.battery_serial_no || '—' },
-                  { label: 'Module No.', val: siteDetail?.module_no || '—' },
-                  { label: 'Supply', val: siteDetail?.supply || '—' },
-                  { label: 'Material Inspection', val: siteDetail?.material_inspection || '—' },
-                  { label: 'Installation', val: siteDetail?.installation || '—' },
-                  { label: 'Date of Installation', val: siteDetail?.date_of_installation || '—' },
-                  { label: 'Installed By', val: siteDetail?.installed_by || '—' },
-                  { label: 'Inspected by Breda', val: siteDetail?.inspected_by_breda || '—' },
-                ].map((item, idx) => (
-                  <div key={idx} className="ula-info-tile">
-                    <div className="ula-info-tile__label">{item.label}</div>
-                    <div className="ula-info-tile__val">{item.val || '—'}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+          ) : (
+            <div className="ula-info-grid">
+              {[
+                { label: 'Vendor Name', val: siteDetail?.vendor || siteDetail?.vendor_name || 'App Testing' },
+                { label: 'State', val: siteDetail?.state || 'Bihar' },
+                { label: 'Phase', val: siteDetail?.phase || '—' },
+                { label: 'District', val: siteDetail?.district || '—' },
+                { label: 'Block', val: siteDetail?.block || '—' },
+                { label: 'Panchayat', val: siteDetail?.panchyat || siteDetail?.panchayat || '—' },
+                { label: 'Work Order No.', val: siteDetail?.wo_no || '—' },
+                { label: 'Work Order Received', val: siteDetail?.wo_received || '—' },
+                { label: 'Ward No.', val: siteDetail?.ward_no || '—' },
+                { label: 'Pole No.', val: siteDetail?.pole_no || '—' },
+                { label: 'Beneficiary Name', val: siteDetail?.beneficiary_name || '—' },
+                { label: 'Contact No.', val: siteDetail?.contact_no || '—' },
+                { label: 'Latitude', val: siteDetail?.latitude || '—' },
+                { label: 'Longitude', val: siteDetail?.longitude || '—' },
+                { label: 'Luminary No.', val: siteDetail?.luminary_no || '—' },
+                { label: 'Sim No.', val: siteDetail?.sim_no || '—' },
+                { label: 'Battery Serial No.', val: siteDetail?.battery_serial_no || '—' },
+                { label: 'Module No.', val: siteDetail?.module_no || '—' },
+                { label: 'Supply', val: siteDetail?.supply || '—' },
+                { label: 'Material Inspection', val: siteDetail?.material_inspection || '—' },
+                { label: 'Installation', val: siteDetail?.installation || '—' },
+                { label: 'Date of Installation', val: siteDetail?.date_of_installation || '—' },
+                { label: 'Installed By', val: siteDetail?.installed_by || '—' },
+                { label: 'Inspected by Breda', val: siteDetail?.inspected_by_breda || '—' },
+              ].map((item, idx) => (
+                <div key={idx} className="ula-info-tile">
+                  <div className="ula-info-tile__label">{item.label}</div>
+                  <div className="ula-info-tile__val">{item.val || '—'}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ── Card 3: Fill this Form ── */}
       <section className="ax-card">
