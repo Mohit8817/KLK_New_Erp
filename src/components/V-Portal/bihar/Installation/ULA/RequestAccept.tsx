@@ -5,7 +5,7 @@ import {
   biharUlaInstallationService,
   type AssignSiteItem,
   type AssignedBeneficiarySite,
-} from '../../../../../services/biharUlaInstallationService';
+} from '../../bihar-services';
 import {
   TableExportToolbar,
   SearchInput,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../../shell/PageHead';
-import { dleService, extractList, filterByCompany } from '../../../services/dleServices';
+import { dleService, extractList, filterByCompany } from '../dle-services';
 import { type UserRow, normalize, approvalClass } from './DLEManagementViewData';
 
 /**

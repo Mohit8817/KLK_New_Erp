@@ -4,7 +4,7 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
   type UlaInstallationDashboardData,
-} from '../../../../../services/biharUlaInstallationService';
+} from '../../bihar-services';
 import {
   TableExportToolbar,
   SearchInput,

@@ -5,7 +5,7 @@ import {
   biharUlaSurveyService,
   type BiharUlaSurveyItem,
   type UlaSurveyKpis,
-} from '../../../../../services/biharUlaSurveyService';
+} from '../../bihar-services';
 import {
   TableExportToolbar,
   SearchInput,

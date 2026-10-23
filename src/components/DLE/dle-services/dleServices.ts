@@ -5,7 +5,7 @@
  * https://klkdle.klkventures.cloud
  */
 
-import { authService } from './authService';
+import { authService } from '../../../services/authService';
 
 export const KLKERP_API_BASE_URL = (
   (import.meta as any).env?.VITE_API_BASE_URL ||

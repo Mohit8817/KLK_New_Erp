@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { useClickOutside } from '../../../../../hooks/useClickOutside';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 // DLE service: relative URL use karta hai -> Vite proxy API key/secret lagata hai
-import { dleService, filterByCompanyStrict } from '../../../../../services/dleServices';
+import { dleService, filterByCompanyStrict } from '../../../dle-services';
 
 /* ---------- Types ---------- */
 interface Visit { status: string; at: string; }

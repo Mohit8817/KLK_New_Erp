@@ -1,4 +1,5 @@
-import { API_BASE_URL, authService } from './authService';
+import { API_BASE_URL, authService } from '../../../../services/authService';
+import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
 
 export interface BiharUlaSurveyItem {
   id: number;
@@ -86,16 +87,29 @@ class BiharUlaSurveyService {
   /**
    * Helper: try fetching with fallback URLs
    */
-  private async fetchWithFallback(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  private async fetchWithFallback(urlOrEndpoint: string, options: RequestInit = {}): Promise<Response> {
+    let urls: string[] = [];
     const baseClean = API_BASE_URL.replace(/\/+$/, '');
     const altBase = baseClean.endsWith('/api') ? baseClean.slice(0, -4) : `${baseClean}/api`;
 
-    const urls = [
-      `${baseClean}${cleanEndpoint}`,
-      `${altBase}${cleanEndpoint}`,
-      `${baseClean}/v${cleanEndpoint}`,
-    ];
+    if (urlOrEndpoint.startsWith('http://') || urlOrEndpoint.startsWith('https://')) {
+      const u = new URL(urlOrEndpoint);
+      const cleanPath = (u.pathname + u.search).replace(/^\/api/, '');
+      urls = [
+        urlOrEndpoint,
+        `${baseClean}${cleanPath}`,
+        `${altBase}${cleanPath}`,
+        `${baseClean}/v${cleanPath}`,
+      ];
+      urls = Array.from(new Set(urls));
+    } else {
+      const cleanEndpoint = urlOrEndpoint.startsWith('/') ? urlOrEndpoint : `/${urlOrEndpoint}`;
+      urls = [
+        `${baseClean}${cleanEndpoint}`,
+        `${altBase}${cleanEndpoint}`,
+        `${baseClean}/v${cleanEndpoint}`,
+      ];
+    }
 
     let lastError: any = null;
     for (const url of urls) {
@@ -104,13 +118,11 @@ class BiharUlaSurveyService {
         if (res.status !== 404) {
           return res;
         }
-        // If 404, try next url
         lastError = new Error(`404 on ${url}`);
       } catch (err) {
         lastError = err;
       }
     }
-    // If all failed, return the first one's call
     return fetch(urls[0], options);
   }
 
@@ -120,14 +132,13 @@ class BiharUlaSurveyService {
    */
   async getDistricts(): Promise<string[]> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula-surveys/create', {
+      const res = await this.fetchWithFallback(BIHAR_API.SURVEY.ULA.DISTRICTS, {
         method: 'GET',
         headers: this.getHeaders(),
       });
 
       if (!res.ok) {
         console.warn('[ULA Survey] getDistricts responded with status:', res.status);
-        // Fallback default districts per documentation
         return ['Muzaffarpur', 'Samastipur', 'Vaishali', 'Sheohar', 'Sitamarhi'];
       }
 
@@ -153,7 +164,7 @@ class BiharUlaSurveyService {
     if (!district) return [];
     try {
       const res = await this.fetchWithFallback(
-        `/bihar/ula-surveys/blocks?district=${encodeURIComponent(district)}`,
+        BIHAR_API.SURVEY.ULA.BLOCKS(district),
         {
           method: 'GET',
           headers: this.getHeaders(),
@@ -184,7 +195,7 @@ class BiharUlaSurveyService {
     if (!district || !block) return [];
     try {
       const res = await this.fetchWithFallback(
-        `/bihar/ula-surveys/panchayat?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}`,
+        BIHAR_API.SURVEY.ULA.PANCHAYAT(district, block),
         {
           method: 'GET',
           headers: this.getHeaders(),
@@ -216,7 +227,7 @@ class BiharUlaSurveyService {
     kpis: UlaSurveyKpis;
   }> {
     try {
-      const res = await this.fetchWithFallback('/bihar/ula-surveys/view', {
+      const res = await this.fetchWithFallback(BIHAR_API.SURVEY.ULA.VIEW, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -235,7 +246,6 @@ class BiharUlaSurveyService {
       const list: BiharUlaSurveyItem[] =
         json?.data?.surveys || json?.surveys || (Array.isArray(json?.data) ? json.data : []);
 
-      // Calculate KPIs
       const total = list.length;
       let feasible = 0;
       let not_feasible = 0;
@@ -274,7 +284,7 @@ class BiharUlaSurveyService {
    * POST /bihar/ula-surveys (multipart/form-data)
    */
   async storeSurvey(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula-surveys', {
+    const res = await this.fetchWithFallback(BIHAR_API.SURVEY.ULA.STORE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -301,7 +311,7 @@ class BiharUlaSurveyService {
     survey: BiharUlaSurveyItem;
     districts?: string[];
   }> {
-    const res = await this.fetchWithFallback(`/bihar/ula-surveys/edit?id=${encodeURIComponent(id)}`, {
+    const res = await this.fetchWithFallback(BIHAR_API.SURVEY.ULA.EDIT(id), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -326,7 +336,7 @@ class BiharUlaSurveyService {
    * POST /bihar/ula-surveys/update (multipart/form-data)
    */
   async updateSurvey(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await this.fetchWithFallback('/bihar/ula-surveys/update', {
+    const res = await this.fetchWithFallback(BIHAR_API.SURVEY.ULA.UPDATE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -347,3 +357,4 @@ class BiharUlaSurveyService {
 }
 
 export const biharUlaSurveyService = new BiharUlaSurveyService();
+export default biharUlaSurveyService;

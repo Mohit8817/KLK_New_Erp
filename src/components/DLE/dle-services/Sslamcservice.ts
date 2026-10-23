@@ -4,10 +4,11 @@
  * Bihar  : https://klkerp.com/api/user/dle/bihar/ssl/amc
  */
 import { getDleToken } from './dleServices';
+import { BIHAR_API } from '../../V-Portal/V_Portal_APIS/Bihar_API';
 
 const ROOT = (import.meta.env.VITE_KLKERP_API_BASE_URL ?? 'https://klkerp.com').replace(/\/+$/, '');
 export const UP_SSL_AMC_BASE = `${ROOT}/api/user/dle/up/ssl/amc`;
-export const BIHAR_SSL_AMC_BASE = `${ROOT}/api/user/dle/bihar/ssl/amc`;
+export const BIHAR_SSL_AMC_BASE = BIHAR_API.AMC.SSL.BASE;
 
 export interface Option { value: string; label: string }
 
@@ -142,21 +143,10 @@ export const upSslAmc = {
 
 /* ───────────── Bihar: SSL AMC ───────────── */
 export const biharSslAmc = {
-  getVolumes: (signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/volume`, { method: 'GET', signal }),                           // GET
+  getVolumes: (signal?: AbortSignal) => request(BIHAR_API.AMC.SSL.VOLUMES, { method: 'GET', signal }),                           // GET
   getDistricts: (volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-district`, { method: 'GET', signal }, { volume }),       // GET
   getBlocks: (district: string, volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-block`, { method: 'GET', signal }, { district, district_id: district, volume }),   // GET
   getPanchayats: (block: string, district: string, volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-panchayat`, { method: 'GET', signal }, { block, block_id: block, district, volume }), // GET
-  storeAssignLight: (payload: Record<string, any>) => request(`${BIHAR_SSL_AMC_BASE}/store-assign-light`, { method: 'POST', body: JSON.stringify(payload) }), // POST
-  viewAssignLight: (signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/view-assign-light`, { method: 'GET', signal }),           // GET
-};
-
-/* ───────────── Uttar Pradesh: KUSUM-C AMC ───────────── */
-export const UP_KUSUMC_AMC_BASE = `${ROOT}/api/dle/up/kusumc/amc`;
-
-export const upKusumCAmc = {
-  getDistricts: (signal?: AbortSignal) => request(`${UP_KUSUMC_AMC_BASE}/district`, { method: 'GET', signal }),
-  getBlocks: (district: string, signal?: AbortSignal) => request(`${UP_KUSUMC_AMC_BASE}/block`, { method: 'GET', signal }, { district, district_id: district, f_district: district }),
-  getPanchayats: (block: string, district?: string, signal?: AbortSignal) => request(`${UP_KUSUMC_AMC_BASE}/panchayat`, { method: 'GET', signal }, { block, block_id: block, f_block: block, ...(district ? { district, district_id: district, f_district: district } : {}) }),
-  storeAssign: (payload: Record<string, any>) => request(`${UP_KUSUMC_AMC_BASE}/store`, { method: 'POST', body: JSON.stringify(payload) }),
-  viewAssign: (signal?: AbortSignal) => request(`${UP_KUSUMC_AMC_BASE}/view`, { method: 'GET', signal }),
+  storeAssignLight: (payload: Record<string, any>) => request(BIHAR_API.AMC.SSL.STORE_ASSIGN_LIGHT, { method: 'POST', body: JSON.stringify(payload) }), // POST
+  viewAssignLight: (signal?: AbortSignal) => request(BIHAR_API.AMC.SSL.VIEW_ASSIGN_LIGHT, { method: 'GET', signal }),           // GET
 };

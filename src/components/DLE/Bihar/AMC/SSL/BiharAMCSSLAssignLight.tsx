@@ -6,12 +6,12 @@ import {
   extractList,
   filterByCompany,
   filterApproved,
-} from '../../../../../services/dleServices';
+} from '../../../dle-services';
 import {
   biharSslAmc,
   toOptions,
   type Option,
-} from '../../../../../services/Sslamcservice';
+} from '../../../dle-services';
 
 const FLOAT_CSS = `
 .ax-float{position:relative}

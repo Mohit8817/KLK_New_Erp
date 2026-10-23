@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../../shell/PageHead';
-import { dleService } from '../../../services/dleServices';
+import { dleService } from '../dle-services';
 import { type AttendanceRecord } from './DLEAttendanceViewData';
 
 const str = (v: unknown): string => (v === null || v === undefined ? '' : String(v).trim());
