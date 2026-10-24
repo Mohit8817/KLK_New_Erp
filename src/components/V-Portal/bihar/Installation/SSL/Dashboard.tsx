@@ -821,17 +821,6 @@ export function Bihar_Installation_SSL_Dashboard() {
           </div>
         </div>
 
-        {/* 1. Total Allocated Lights */}
-        <KpiCard
-          icon={I_PIN}
-          tone="accent"
-          label="Total Allocated Lights"
-          value={dash(ssl.site_count)}
-          sub="Sanctioned SSL Sites"
-          badge={`${dash(districtwise.length)} Districts`}
-          spark={spk((d) => n(d.total_light))}
-          onClick={drill('total', 'Total Sanctioned SSL Lights')}
-        />
 
         {/* 2. Installation Status: Installed / Pending */}
         <KpiCard

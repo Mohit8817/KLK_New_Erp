@@ -261,9 +261,6 @@ export function Bihar_Installation_SSL_ClaimRequest() {
         ]}
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontWeight: 600 }}>
-              Company ID: {getCompanyId()}
-            </span>
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"

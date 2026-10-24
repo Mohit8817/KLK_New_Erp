@@ -871,7 +871,6 @@ export function Bihar_Installation_ULA_Dashboard() {
           badge={`${structPct}% Done`}
           spark={spk((d) => n(d.structure_complete))}
           
-          onClick={drill('structure_complete', 'Structure Completed Sites')}
         />
 
         {/* 3. Structure Verification Status: Approved / Pending / Rejected */}
@@ -883,8 +882,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Approved / Pending / Rejected"
           badge={ula.structure_verify_approved > 0 ? 'Approved' : undefined}
           spark={spk((d) => n(d.structure_verify_approved))}
-         
-          onClick={drill('structure_verify_approved', 'Structure Approved Sites')}
+        
         />
 
         {/* 4. Installation Status: Installed / Pending */}
@@ -897,7 +895,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           badge={`${instPct}% Done`}
           spark={spk((d) => n(d.inst_complete))}
          
-          onClick={drill('complete', 'Installation Completed Sites')}
+          
         />
 
         {/* 5. Verification Status: Approved / Pending / Rejected */}
@@ -910,7 +908,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           badge={`${approvedPct}% Approved`}
           spark={spk((d) => n(d.verify_approved))}
          
-          onClick={drill('verify_approved', 'Installation Approved Sites')}
+         
         />
 
         {/* 6. Documents Status: Submitted / Pending */}
@@ -923,7 +921,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           badge={ula.inst_doc_complete > 0 ? `${pctOf(ula.inst_doc_complete, ula.site_count)}%` : undefined}
           spark={spk((d) => n(d.inst_doc_complete))}
         
-          onClick={drill('doc_complete', 'Documents Submitted Sites')}
+         
         />
 
         {/* 7. Document Approval: Approved / Pending / Rejected */}
@@ -936,7 +934,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           badge={ula.doc_verify_approve > 0 ? 'Approved' : undefined}
           spark={spk((d) => n(d.doc_verify_approved))}
         
-          onClick={drill('doc_approved', 'Documents Approved Sites')}
+      
         />
 
         {/* 8. Claim 50% Status: Applicable / Raised */}
@@ -947,7 +945,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.claim50_applicable} / ${ula.claim50_raised}`}
           sub="Applicable / Raised"
           badge={ula.claim50_raised > 0 ? `${ula.claim50_raised} Raised` : undefined}
-          onClick={drill('claim50_raised', '50% Claim Raised Sites')}
+          
         />
 
         {/* 9. Claim 50% Approval: Approved / Pending / Rejected */}
@@ -958,7 +956,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_claim50_verify_papprove} / ${ula.inst_claim50_verify_pending} / ${ula.inst_claim50_verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ula.inst_claim50_verify_papprove > 0 ? 'Approved' : undefined}
-          onClick={drill('claim50_approved', '50% Claim Approved Sites')}
+       
         />
 
         {/* 10. Claim 30% Status: Applicable / Raised */}
@@ -969,7 +967,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.claim30_applicable} / ${ula.claim30_raised}`}
           sub="Applicable / Raised"
           badge={ula.claim30_raised > 0 ? `${ula.claim30_raised} Raised` : undefined}
-          onClick={drill('claim30_raised', '30% Claim Raised Sites')}
+        
         />
 
         {/* 11. Claim 30% Approval: Approved / Pending / Rejected */}
@@ -980,7 +978,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_claim30_verify_papprove} / ${ula.inst_claim30_verify_pending} / ${ula.inst_claim30_verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ula.inst_claim30_verify_papprove > 0 ? 'Approved' : undefined}
-          onClick={drill('claim30_approved', '30% Claim Approved Sites')}
+        
         />
 
         {/* 12. Payment 50% Status: Partially Paid / Paid / Pending */}
@@ -991,7 +989,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_pay50_partially} / ${ula.inst_pay50_paid} / ${ula.inst_pay50_pending}`}
           sub="Partially Paid / Paid / Pending"
           badge={ula.inst_pay50_paid > 0 ? 'Disbursed' : undefined}
-          onClick={drill('pay50_paid', '50% Payment Completed Sites')}
+        
         />
 
         {/* 13. Payment 30% Status: Partially Paid / Paid / Pending */}
@@ -1002,7 +1000,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_pay30_partially} / ${ula.inst_pay30_paid} / ${ula.inst_pay30_pending}`}
           sub="Partially Paid / Paid / Pending"
           badge={ula.inst_pay30_paid > 0 ? 'Disbursed' : undefined}
-          onClick={drill('pay30_paid', '30% Payment Completed Sites')}
+        
         />
 
         {/* 5. Charts: Monthly Installation Trend (8 col) + Donut Split (4 col) */}
