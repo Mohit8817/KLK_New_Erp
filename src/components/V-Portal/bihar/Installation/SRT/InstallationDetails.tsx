@@ -549,14 +549,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // File handler
-  const handleFileChange = (field: keyof typeof files) => (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFiles((prev) => ({ ...prev, [field]: f }));
-    const url = URL.createObjectURL(f);
-    setPreviews((prev) => ({ ...prev, [field]: url }));
-  };
+
 
   const removeFile = (field: keyof typeof files) => {
     setFiles((prev) => ({ ...prev, [field]: null }));
@@ -741,7 +734,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   <option value="">-- Choose Assigned SRT Site --</option>
                   {sitesList.map((s) => (
                     <option key={s.id} value={s.id}>
-                      #{s.id} - {s.site_name}
+                        {s.site_name}
                     </option>
                   ))}
                 </select>

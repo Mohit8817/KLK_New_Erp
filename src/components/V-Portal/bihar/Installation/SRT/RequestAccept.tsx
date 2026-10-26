@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSrtInstallationService,
@@ -13,11 +15,11 @@ import {
   exportDataToCSV,
   exportDataToExcel,
   printTableData,
-   KpiSkeleton,
+  KpiSkeleton,
   type ExportColumn,
 } from '../../../../../common';
 
-/* ── Styles: same KPI cards + table polish as ULA RequestAccept ── */
+/* ── Styles: KPI cards + single-line header (Search + Export with flex row & gap, identical to ViewInstallation.tsx) ── */
 const VIEW_CSS = `
 .bsv-page {
   --bsv-card-radius: var(--ax-radius-lg);
@@ -139,23 +141,77 @@ const VIEW_CSS = `
   color: var(--ax-text-strong);
   font-variant-numeric: tabular-nums;
 }
-.bsv-page .ax-card {
-  min-width: 0;
-  border-radius: var(--ax-radius-lg);
-  overflow: hidden;
-}
+
+/* ── Card & Table Header (Exact pattern from ViewInstallation.tsx) ── */
+.bsv-page .ax-card { min-width: 0; }
+
 .bsv-page .ax-card__header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: var(--ax-space-4) var(--ax-space-6);
   background: var(--ax-surface-subtle);
   border-bottom: 1px solid var(--ax-border-subtle);
 }
-.bsv-page .ax-card__title { font-weight: 650; }
+.bsv-page .ax-card__titles {
+  flex: 1 1 220px;
+  min-width: 220px;
+  max-width: 100%;
+}
+.bsv-page .ax-card__title,
+.bsv-page .ax-card__eyebrow,
+.bsv-page .ax-card__subtitle {
+  max-width: none;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+.bsv-page .ax-card__subtitle { line-height: 1.45; }
+
+.bsv-page .ax-card__actions {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.bsv-page .ax-card__actions .ax-cluster {
+  flex-wrap: nowrap !important;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: var(--ax-space-2, 8px);
+}
+.bsv-page .ax-card__actions .ax-search,
+.bsv-page .ax-card__actions [class*="search"] {
+  flex: 1 1 160px;
+  min-width: 200px;
+  max-width: 260px;
+}
+.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
+.bsv-page .ax-card__actions .ax-export-toolbar,
+.bsv-page .ax-card__actions [class*="export-toolbar"] {
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.bsv-page .ax-export-toolbar__button {
+  padding-inline: 8px !important;
+  min-width: 0;
+}
+
 .bsv-page .ax-table-wrap {
   width: 100%;
   overflow: auto;
   scrollbar-width: thin;
 }
 .bsv-page .ax-table {
-  min-width: 900px;
+  min-width: 800px;
 }
 .bsv-page .ax-table__th {
   font-size: var(--ax-text-2xs);
@@ -175,24 +231,93 @@ const VIEW_CSS = `
   font-weight: 600;
   color: var(--ax-text-strong);
 }
-.bsv-page .ax-card__actions { min-width: 0; }
 .bsv-page .ax-alert { border-radius: var(--ax-radius-md); }
-.bsv-page .ax-modal {
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-xl);
-  box-shadow: var(--ax-shadow-lg);
+
+@media (max-width: 1100px) {
+  .bsv-page .ax-export-toolbar__button {
+    font-size: 0;
+    gap: 0;
+    padding: 0 8px !important;
+    justify-content: center;
+  }
+  .bsv-page .ax-export-toolbar__button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] { max-width: 200px; }
 }
+
 @media (max-width: 900px) {
   .bsv-kpi__body { padding: 11px 12px; }
   .bsv-kpi__value { font-size: 1.25rem; }
 }
-@media (max-width: 640px) {
-  .bsv-page .ax-card__header { align-items: flex-start; }
-  .bsv-page .ax-card__actions { width: 100%; }
-  .bsv-page .ax-card__actions > * { max-width: 100%; }
-  .bsv-kpi__caption { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .bsv-page .ax-card__header {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .bsv-page .ax-card__titles {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .bsv-page .ax-card__title {
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
+  .bsv-page .ax-card__actions {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .bsv-page .ax-card__actions .ax-cluster {
+    flex-wrap: wrap !important;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .bsv-page .ax-card__actions .ax-export-toolbar,
+  .bsv-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .bsv-page .ax-export-toolbar__button {
+    font-size: 12px;
+    gap: 4px;
+    height: 30px;
+    padding: 0 8px !important;
+  }
+}
+
+@media (max-width: 490px) {
+  .bsv-page .ax-export-toolbar__button {
+    font-size: 11px;
+    height: 28px;
+    padding: 0 6px !important;
+  }
+  .bsv-page .ax-export-toolbar { gap: 4px; }
 }
 `;
+
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 
 const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
 
@@ -215,6 +340,75 @@ const ICON_EYE = (
     <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
   </svg>
 );
+
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/* ───────── UI Modal Component (matches src/pages/ui/Modals.tsx) ───────── */
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  describedBy,
+  role = 'dialog',
+  centered = true,
+  dialogClass = '',
+  dialogStyle,
+  modalStyle,
+  closeOnBackdrop = true,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  describedBy?: string;
+  role?: 'dialog' | 'alertdialog';
+  centered?: boolean;
+  dialogClass?: string;
+  dialogStyle?: CSSProperties;
+  modalStyle?: CSSProperties;
+  closeOnBackdrop?: boolean;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
+      role={role}
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      style={modalStyle}
+    >
+      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
+      <div
+        ref={dialogRef}
+        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
+        style={dialogStyle}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 /* ───────── KPI Card (exact same as Survey/SRT200MW/ViewData.tsx) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
@@ -316,10 +510,6 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const acceptedPct = totalAssignments > 0 ? Math.round((acceptedCount / totalAssignments) * 100) : 0;
   const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
 
-  const warn = 'var(--ax-warning-500)';
-  const ok = 'var(--ax-accent)'; // Blue fill for accepted segments
-  const accent = 'var(--ax-accent)';
-
   // Filtered
   const filteredAssignments = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -339,10 +529,10 @@ export function Bihar_Installation_SRT_RequestAccept() {
     return filteredAssignments.slice(start, start + pageSize);
   }, [filteredAssignments, currentPage, pageSize]);
 
-  // Export Columns
+  // Export Columns (without Batch ID)
   const exportCols: ExportColumn<SrtAssignBatchItem>[] = useMemo(
     () => [
-      { header: 'Batch ID', accessor: (r) => `#${r.id}` },
+      { header: 'Sr. No.', accessor: (_r, idx) => idx + 1 },
       { header: 'State', accessor: (r) => r.state || 'Bihar' },
       { header: 'District', accessor: (r) => r.district || '—' },
       { header: 'Site Count', accessor: (r) => r.sitecount || r.site_names?.length || 0 },
@@ -387,7 +577,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
         </div>
       )}
 
-            <div className="ax-dash-grid">
+      <div className="ax-dash-grid">
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
@@ -423,31 +613,35 @@ export function Bihar_Installation_SRT_RequestAccept() {
           </>
         )}
 
-        {/* ── Main Table Card ── */}
+        {/* ── Main Table Card (Card Header matches ViewInstallation.tsx) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 className="ax-card__title">Assigned Installation Batches</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredAssignments.length} of {assignments.length} records
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredAssignments.length}</span> of <span className="ax-num">{assignments.length}</span> records
               </p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <SearchInput
-                value={search}
-                onChange={(val) => {
-                  setSearch(val);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search batch ID, district, site name…"
-                ariaLabel="Search assigned batches"
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-              />
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={search}
+                  onChange={(val) => {
+                    setSearch(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search district, site name…"
+                  size="sm"
+                  ariaLabel="Search assigned batches"
+                />
+
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                />
+              </div>
             </div>
           </div>
 
@@ -477,7 +671,6 @@ export function Bihar_Installation_SRT_RequestAccept() {
                   <thead className="ax-table__head">
                     <tr>
                       <th className="ax-table__th" scope="col">Sr. No.</th>
-                      <th className="ax-table__th" scope="col">Batch ID</th>
                       <th className="ax-table__th" scope="col">State</th>
                       <th className="ax-table__th" scope="col">District</th>
                       <th className="ax-table__th" scope="col">Site Count</th>
@@ -496,7 +689,6 @@ export function Bihar_Installation_SRT_RequestAccept() {
                       return (
                         <tr key={row.id} className="ax-table__row">
                           <td className="ax-table__td">{(currentPage - 1) * pageSize + index + 1}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>#{row.id}</td>
                           <td className="ax-table__td">{row.state || 'Bihar'}</td>
                           <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)' as any }}>{row.district || DASH}</td>
                           <td className="ax-table__td">
@@ -571,70 +763,88 @@ export function Bihar_Installation_SRT_RequestAccept() {
         </section>
       </div>
 
-      {/* ── View Batch Sites Modal ── */}
-      {viewBatch && (
-        <div className="ax-modal-backdrop" onClick={() => setViewBatch(null)}>
-          <div className="ax-modal" style={{ maxWidth: 760 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <div>
-                <h4 className="ax-modal__title">Assignment Details — Batch #{viewBatch.id}</h4>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  District: {viewBatch.district || DASH} · {(viewBatch.site_names || []).length} sites
-                </p>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setViewBatch(null)} aria-label="Close">
-                ✕
-              </button>
-            </div>
-            <div className="ax-modal__body" style={{ maxHeight: 460, overflowY: 'auto' }}>
-              {(viewBatch.site_names || []).length === 0 ? (
-                <TableEmptyState title="No sites listed" message="No sites attached to this assignment batch." />
-              ) : (
-                <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 0 }}>
-                    <thead className="ax-table__head">
-                      <tr>
-                        <th className="ax-table__th" scope="col">Sr.</th>
-                        <th className="ax-table__th" scope="col">Site ID</th>
-                        <th className="ax-table__th" scope="col">Site Name</th>
-                        <th className="ax-table__th" scope="col">Installation Deadline</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(viewBatch.site_names || []).map((s, idx) => (
-                        <tr key={s.id || idx} className="ax-table__row">
-                          <td className="ax-table__td">{idx + 1}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any }}>#{s.id}</td>
-                          <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>{s.site_name || DASH}</td>
-                          <td className="ax-table__td">{s.inst_deadline || DASH}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                {Number(viewBatch.status) !== 2 && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--primary ax-btn--sm"
-                    disabled={actionLoadingId === viewBatch.id}
-                    onClick={() => handleAccept(viewBatch.id)}
-                  >
-                    {actionLoadingId === viewBatch.id ? <span className="ax-spinner" /> : ICON_CHECK}
-                    <span className="ax-btn__label">Accept Installation</span>
-                  </button>
-                )}
-              </div>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setViewBatch(null)}>
-                Close
-              </button>
-            </div>
+      {/* ── View Batch Sites Modal (Design from src/pages/ui/Modals.tsx) ── */}
+      <Modal
+        open={Boolean(viewBatch)}
+        onClose={() => setViewBatch(null)}
+        labelledBy="m-view-sites-title"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h2 className="ax-modal__title" id="m-view-sites-title" style={{ fontSize: '1.15rem' }}>
+              Assignment Details — Batch #{viewBatch?.id}
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+              District: {viewBatch?.district || DASH} · {(viewBatch?.site_names || []).length} {(viewBatch?.site_names || []).length === 1 ? 'Site' : 'Sites'}
+            </p>
           </div>
+          <button
+            type="button"
+            className="ax-modal__close"
+            onClick={() => setViewBatch(null)}
+            aria-label="Close dialog"
+          >
+            {X_ICON}
+          </button>
         </div>
-      )}
+
+        <div className="ax-modal__body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {(viewBatch?.site_names || []).length === 0 ? (
+            <TableEmptyState title="No sites listed" message="No sites attached to this assignment batch." />
+          ) : (
+            <div className="ax-table-wrap">
+              <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: '100%' }}>
+                <thead className="ax-table__head">
+                  <tr>
+                    <th className="ax-table__th" scope="col">Sr.</th>
+                    <th className="ax-table__th" scope="col">Site ID</th>
+                    <th className="ax-table__th" scope="col">Site Name</th>
+                    <th className="ax-table__th" scope="col">Installation Deadline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(viewBatch?.site_names || []).map((s, idx) => (
+                    <tr key={s.id || idx} className="ax-table__row">
+                      <td className="ax-table__td">{idx + 1}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>
+                        #{s.id}
+                      </td>
+                      <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', fontWeight: 500 }}>
+                        {s.site_name || DASH}
+                      </td>
+                      <td className="ax-table__td">{s.inst_deadline || DASH}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            {viewBatch && Number(viewBatch.status) !== 2 && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                disabled={actionLoadingId === viewBatch.id}
+                onClick={() => handleAccept(viewBatch.id)}
+              >
+                {actionLoadingId === viewBatch.id ? <span className="ax-spinner" /> : ICON_CHECK}
+                <span className="ax-btn__label">Accept Installation</span>
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary ax-btn--sm"
+            onClick={() => setViewBatch(null)}
+          >
+            Close
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

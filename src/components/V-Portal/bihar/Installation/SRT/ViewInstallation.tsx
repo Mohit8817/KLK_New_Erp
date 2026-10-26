@@ -284,15 +284,9 @@ function InstallationThumbnail({
 
 /* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ── */
 const MENU_W = 180;
-const MENU_H = 84;
+const MENU_H = 48;
 
-function RowActionDropdown({
-  onEdit,
-  onOpenDoc,
-}: {
-  onEdit: () => void;
-  onOpenDoc: () => void;
-}) {
+function RowActionDropdown({ onEdit }: { onEdit: () => void }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -374,17 +368,6 @@ function RowActionDropdown({
               }}
             >
               Edit Details
-            </button>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onOpenDoc();
-              }}
-            >
-              Document Submit
             </button>
           </div>,
           document.body
@@ -710,12 +693,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const closeEdit = useCallback(() => setEditSite(null), []);
 
-  // Document submit modal
-  const [docSite, setDocSite] = useState<SrtInstalledSiteItem | null>(null);
-  const [docSubmitting, setDocSubmitting] = useState(false);
-  const [docError, setDocError] = useState<string | null>(null);
-  const closeDoc = useCallback(() => setDocSite(null), []);
-
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
@@ -817,23 +794,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
     }
   };
 
-  // Submit Document
-  const handleDocumentSubmit = async () => {
-    if (!docSite) return;
-    setDocError(null);
-    setDocSubmitting(true);
-    try {
-      await biharSrtInstallationService.submitInstallDocument(docSite.id);
-      setToastMsg({ type: 'success', text: 'Document submitted successfully!' });
-      setDocSite(null);
-      await loadData();
-    } catch (err: any) {
-      setDocError(err?.message || 'Failed to submit document.');
-    } finally {
-      setDocSubmitting(false);
-    }
-  };
-
   // Filtered (verify-status filter applies to the Completed tab only)
   const filteredSites = useMemo(() => {
     let list = activeSites;
@@ -863,7 +823,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   }, [activeSites, isCompleted, search, statusFilter]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredSites, initialPageSize: 15 });
+    usePagination({ data: filteredSites, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -1250,13 +1210,11 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                               {claimRaised(row) ? <Badge tone="success">Raised</Badge> : <Badge tone="neutral">Not Raised</Badge>}
                             </td>
                             <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                              <RowActionDropdown
-                                onEdit={() => openEditModal(row)}
-                                onOpenDoc={() => {
-                                  setDocError(null);
-                                  setDocSite(row);
-                                }}
-                              />
+                              {Number(row.inst_verify_status) === 1 ? (
+                                <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                              ) : (
+                                <RowActionDropdown onEdit={() => openEditModal(row)} />
+                              )}
                             </td>
                           </>
                         )}
@@ -1275,7 +1233,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 15, 25, 50, 100]}
+                pageSizeOptions={[100, 200, 300]}
               />
             </div>
           </div>
@@ -1336,43 +1294,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
               </button>
             </div>
           </form>
-        )}
-      </Modal>
-
-      {/* ── Document Submit Modal ── */}
-      <Modal open={!!docSite} onClose={closeDoc} labelledBy="srt-doc-title">
-        {docSite && (
-          <div>
-            <div className="ax-modal__header">
-              <h2 className="ax-modal__title" id="srt-doc-title">Submit installation document</h2>
-              <button type="button" className="ax-modal__close" onClick={closeDoc} aria-label="Close dialog">{X_ICON}</button>
-            </div>
-
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-              {docError && (
-                <div className="ax-alert ax-alert--danger" role="alert">
-                  <div className="ax-alert__text">{docError}</div>
-                </div>
-              )}
-
-              <div className="ula-m-info">
-                <div><span>Site: </span><b>{docSite.site_name || DASH}</b></div>
-                <div><span>Site ID: </span><b>#{docSite.id}</b></div>
-                {docSite.ca_no && <div><span>CA No.: </span><b>{docSite.ca_no}</b></div>}
-              </div>
-
-              <p className="ula-m-note">
-                Submit installation documentation for site #{docSite.id} to department verification.
-              </p>
-            </div>
-
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeDoc} disabled={docSubmitting}>Cancel</button>
-              <button type="button" className="ax-btn ax-btn--primary" onClick={handleDocumentSubmit} disabled={docSubmitting}>
-                {docSubmitting ? <span className="ax-spinner" /> : 'Confirm submission'}
-              </button>
-            </div>
-          </div>
         )}
       </Modal>
     </div>
