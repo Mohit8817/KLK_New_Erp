@@ -280,7 +280,141 @@ const VIEW_CSS = `
 .srt-claim-table tr:hover td {
   background: var(--ax-surface-subtle);
 }
+
+/* ── Card & Table Header (Exact pattern from RequestAccept / ViewInstallation) ── */
+.bsv-page .ax-card { min-width: 0; }
+
+.bsv-page .ax-card__header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: var(--ax-space-4) var(--ax-space-6);
+  background: var(--ax-surface-subtle);
+  border-bottom: 1px solid var(--ax-border-subtle);
+}
+.bsv-page .ax-card__titles {
+  flex: 1 1 220px;
+  min-width: 220px;
+  max-width: 100%;
+}
+.bsv-page .ax-card__title,
+.bsv-page .ax-card__eyebrow,
+.bsv-page .ax-card__subtitle {
+  max-width: none;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+.bsv-page .ax-card__subtitle { line-height: 1.45; }
+
+.bsv-page .ax-card__actions {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.bsv-page .ax-card__actions .ax-cluster {
+  flex-wrap: nowrap !important;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: var(--ax-space-2, 8px);
+}
+.bsv-page .ax-card__actions .ax-search,
+.bsv-page .ax-card__actions [class*="search"] {
+  flex: 1 1 160px;
+  min-width: 180px;
+  max-width: 240px;
+}
+.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
+.bsv-page .ax-card__actions .ax-export-toolbar,
+.bsv-page .ax-card__actions [class*="export-toolbar"] {
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.bsv-page .ax-export-toolbar__button {
+  padding-inline: 8px !important;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .bsv-page .ax-export-toolbar__button {
+    font-size: 0;
+    gap: 0;
+    padding: 0 8px !important;
+    justify-content: center;
+  }
+  .bsv-page .ax-export-toolbar__button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] { max-width: 180px; }
+}
+
+@media (max-width: 760px) {
+  .bsv-page .ax-card__header {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .bsv-page .ax-card__titles {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .bsv-page .ax-card__title {
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
+  .bsv-page .ax-card__actions {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .bsv-page .ax-card__actions .ax-cluster {
+    flex-wrap: wrap !important;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .bsv-page .ax-card__actions .ax-export-toolbar,
+  .bsv-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+}
 `;
+
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
 
 export function Bihar_Installation_SRT_ClaimRequest() {
   const [claims, setClaims] = useState<SrtInstallClaimItem[]>([]);
@@ -539,46 +673,49 @@ export function Bihar_Installation_SRT_ClaimRequest() {
 
         {/* ── Main Claims Table Card ── */}
         <section className="ax-card ax-col--12">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">PAYMENT MILESTONES</span>
               <h2 className="ax-card__title">View Claim Request Information</h2>
               <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
                 {filteredClaims.length} of {claims.length} claim records
               </p>
             </div>
 
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <select
-                className="ax-form-select"
-                style={{ width: 140, height: 34, fontSize: '12px' }}
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="all">All Status</option>
-                <option value="approved">Approved / Paid</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-              </select>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-form-select"
+                  style={{ width: 130, height: 34, fontSize: '12px' }}
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="approved">Approved / Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
 
-              <SearchInput
-                value={search}
-                onChange={(v) => {
-                  setSearch(v);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search site, district, ID..."
-                ariaLabel="Search claim requests"
-              />
+                <SearchInput
+                  value={search}
+                  onChange={(v) => {
+                    setSearch(v);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search site, district, ID..."
+                  ariaLabel="Search claim requests"
+                />
 
-              <TableExportToolbar
-                onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
-                onExportCSV={() => exportDataToCSV('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
-                onExportExcel={() => exportDataToExcel('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
-                onExportPDF={() => printTableData('Bihar SRT Claim Requests', filteredClaims, exportCols)}
-              />
+                <TableExportToolbar
+                  onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
+                  onExportCSV={() => exportDataToCSV('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
+                  onExportExcel={() => exportDataToExcel('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
+                  onExportPDF={() => printTableData('Bihar SRT Claim Requests', filteredClaims, exportCols)}
+                />
+              </div>
             </div>
           </div>
 

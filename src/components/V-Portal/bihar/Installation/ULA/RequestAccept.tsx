@@ -18,9 +18,54 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-/* ── Styles: same KPI cards + table polish as SRT200MW ViewData ── */
+/* ── Base URLs for media assets ── */
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getUlaFileCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/ula/installation/assignsite/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/ula/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/ula/installation/assignsite/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
+
+  return Array.from(new Set(candidates));
+}
+
+const resolveFileUrl = (path?: string | null): string => {
+  if (!path) return '';
+  const candidates = getUlaFileCandidates(path);
+  return candidates[0] || '';
+};
+
+/* ── Styles: same KPI cards + single-line responsive header (Search + Export) ── */
 const VIEW_CSS = `
-/* Page surface and dashboard cards aligned with Bihar_Survey_SRT200MW_ViewData */
 .bsv-page {
   --bsv-card-radius: var(--ax-radius-lg);
 }
@@ -116,7 +161,6 @@ const VIEW_CSS = `
   color: var(--ax-text-muted);
 }
 
-.bsv-bar__seg { height: 100%; transition: width .3s ease; }
 .bsv-legend {
   display: flex;
   flex-wrap: wrap;
@@ -143,23 +187,77 @@ const VIEW_CSS = `
   color: var(--ax-text-strong);
   font-variant-numeric: tabular-nums;
 }
-.bsv-page .ax-card {
-  min-width: 0;
-  border-radius: var(--ax-radius-lg);
-  overflow: hidden;
-}
+
+/* ── Card & Table Header (Exact pattern from SRT RequestAccept / ViewInstallation) ── */
+.bsv-page .ax-card { min-width: 0; }
+
 .bsv-page .ax-card__header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: var(--ax-space-4) var(--ax-space-6);
   background: var(--ax-surface-subtle);
   border-bottom: 1px solid var(--ax-border-subtle);
 }
-.bsv-page .ax-card__title { font-weight: 650; }
+.bsv-page .ax-card__titles {
+  flex: 1 1 220px;
+  min-width: 220px;
+  max-width: 100%;
+}
+.bsv-page .ax-card__title,
+.bsv-page .ax-card__eyebrow,
+.bsv-page .ax-card__subtitle {
+  max-width: none;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+.bsv-page .ax-card__subtitle { line-height: 1.45; }
+
+.bsv-page .ax-card__actions {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.bsv-page .ax-card__actions .ax-cluster {
+  flex-wrap: nowrap !important;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: var(--ax-space-2, 8px);
+}
+.bsv-page .ax-card__actions .ax-search,
+.bsv-page .ax-card__actions [class*="search"] {
+  flex: 1 1 160px;
+  min-width: 200px;
+  max-width: 260px;
+}
+.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
+.bsv-page .ax-card__actions .ax-export-toolbar,
+.bsv-page .ax-card__actions [class*="export-toolbar"] {
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.bsv-page .ax-export-toolbar__button {
+  padding-inline: 8px !important;
+  min-width: 0;
+}
+
 .bsv-page .ax-table-wrap {
   width: 100%;
   overflow: auto;
   scrollbar-width: thin;
 }
 .bsv-page .ax-table {
-  min-width: 1180px;
+  min-width: 1100px;
 }
 .bsv-page .ax-table__th {
   font-size: var(--ax-text-2xs);
@@ -172,31 +270,91 @@ const VIEW_CSS = `
 }
 .bsv-page .ax-table__td { font-size: var(--ax-text-sm); vertical-align: middle; }
 .bsv-page .bsv-benef {
-  max-width: 240px;
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
   color: var(--ax-text-strong);
 }
-.bsv-page .ax-card__actions { min-width: 0; }
 .bsv-page .ax-alert { border-radius: var(--ax-radius-md); }
-.bsv-page .ax-modal {
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-xl);
-  box-shadow: var(--ax-shadow-lg);
+
+@media (max-width: 1100px) {
+  .bsv-page .ax-export-toolbar__button {
+    font-size: 0;
+    gap: 0;
+    padding: 0 8px !important;
+    justify-content: center;
+  }
+  .bsv-page .ax-export-toolbar__button svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] { max-width: 200px; }
 }
+
 @media (max-width: 900px) {
   .bsv-kpi__body { padding: 11px 12px; }
   .bsv-kpi__value { font-size: 1.25rem; }
 }
-@media (max-width: 640px) {
-  .bsv-page .ax-card__header { align-items: flex-start; }
-  .bsv-page .ax-card__actions { width: 100%; }
-  .bsv-page .ax-card__actions > * { max-width: 100%; }
-  .bsv-kpi__caption { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .bsv-page .ax-card__header {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .bsv-page .ax-card__titles {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .bsv-page .ax-card__title {
+    font-family: var(--ax-font-display);
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+  }
+  .bsv-page .ax-card__actions {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .bsv-page .ax-card__actions .ax-cluster {
+    flex-wrap: wrap !important;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .bsv-page .ax-card__actions .ax-search,
+  .bsv-page .ax-card__actions [class*="search"] {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .bsv-page .ax-card__actions .ax-export-toolbar,
+  .bsv-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
 }
 `;
+
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
 
 const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
 
@@ -228,7 +386,6 @@ function KpiCard({
   accent: string; icon: ReactNode; label: string; caption: string;
   value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
 }) {
-  const sum = (segments || []).reduce((a, s) => a + s.count, 0);
   return (
     <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
       <div className="bsv-kpi__body">
@@ -249,17 +406,14 @@ function KpiCard({
         </div>
 
         {segments && (
-          <>
-         
-            <div className="bsv-legend">
-              {segments.map((s) => (
-                <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
-                  <span className="bsv-legend__dot" />
-                  {s.label} <span className="bsv-legend__num">{s.count}</span>
-                </span>
-              ))}
-            </div>
-          </>
+          <div className="bsv-legend">
+            {segments.map((s) => (
+              <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
+                <span className="bsv-legend__dot" />
+                {s.label} <span className="bsv-legend__num">{s.count}</span>
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -268,21 +422,38 @@ function KpiCard({
 
 const DASH = '—';
 
-/* ── Response field helpers ──
-   The API returns `beneficiary_name`, `site_count` and `file` directly on each
-   assignment. They are read through this helper so the code works even if the
-   AssignSiteItem type does not declare them yet. */
+/* ── Response field helpers ── */
 const readField = (item: AssignSiteItem, key: string): unknown =>
   (item as unknown as Record<string, unknown>)[key];
 
-// Beneficiary name from the response (falls back to the first attached site)
-const getBeneficiaryName = (item: AssignSiteItem): string => {
-  const v = readField(item, 'beneficiary_name');
-  if (typeof v === 'string' && v.trim()) return v.trim();
-  return item.sites?.[0]?.beneficiary_name || '';
+/**
+ * Beneficiary Name formatted with unique_id:
+ * e.g. "Anil Kumar - 1006" as per user design requirement
+ */
+const getBeneficiaryDisplay = (item: AssignSiteItem): string => {
+  const sites = Array.isArray(item.sites) ? item.sites : [];
+  if (sites.length > 0) {
+    const list = sites
+      .map((s) => {
+        const name = (s.beneficiary_name || '').trim();
+        const uid =
+          s.unique_id !== undefined && s.unique_id !== null && String(s.unique_id).trim() !== ''
+            ? String(s.unique_id).trim()
+            : '';
+        if (name && uid) return `${name} - ${uid}`;
+        return name || uid;
+      })
+      .filter(Boolean);
+    if (list.length > 0) return list.join(', ');
+  }
+
+  const name = (readField(item, 'beneficiary_name') as string || '').trim();
+  const uid = (readField(item, 'unique_id') as string || '').trim();
+  if (name && uid) return `${name} - ${uid}`;
+  return name || uid || DASH;
 };
 
-// Site count from the response (falls back to counting the attached sites)
+// Site count from the response
 const getSiteCount = (item: AssignSiteItem): number => {
   const raw = readField(item, 'site_count');
   if (raw !== null && raw !== undefined && raw !== '') {
@@ -320,7 +491,6 @@ const getVendor = (item: AssignSiteItem): string =>
 const getAssignDate = (item: AssignSiteItem): string => getText(item, 'assign_date');
 const getState = (item: AssignSiteItem): string => getText(item, 'state');
 const getBlock = (item: AssignSiteItem): string => getText(item, 'block');
-const getUniqueId = (item: AssignSiteItem): string => getText(item, 'unique_id');
 
 export function Bihar_Installation_ULA_RequestAccept() {
   const navigate = useNavigate();
@@ -333,10 +503,13 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Detail Modal State
-  const [selectedAssign, setSelectedAssign] = useState<AssignSiteItem | null>(null);
-  const [modalSites] = useState<AssignedBeneficiarySite[]>([]);
-  const [modalLoading] = useState(false);
+  // File Preview Modal State
+  const [previewFile, setPreviewFile] = useState<{
+    url: string;
+    candidates: string[];
+    candidateIndex: number;
+    title: string;
+  } | null>(null);
 
   // Load assignments
   const loadData = useCallback(async () => {
@@ -368,9 +541,6 @@ export function Bihar_Installation_ULA_RequestAccept() {
         text: res.message || 'Installation Assignment Accepted Successfully!',
       });
       await loadData();
-      if (selectedAssign?.id === id) {
-        setSelectedAssign((prev) => (prev ? { ...prev, status: 2 } : null));
-      }
     } catch (err: any) {
       setFeedbackMsg({
         type: 'danger',
@@ -396,7 +566,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
 
   const warn = 'var(--ax-warning-500)';
-  const ok = 'var(--ax-accent)'; // Blue fill for accepted segments in KPI bars
+  const ok = 'var(--ax-accent)';
   const accent = 'var(--ax-accent)';
 
   // Filtered
@@ -406,13 +576,13 @@ export function Bihar_Installation_ULA_RequestAccept() {
     return assignments.filter((a) => {
       const idMatch = String(a.id).includes(q);
       const vendorMatch = getVendor(a).toLowerCase().includes(q);
-      const extraMatch = [getAssignDate(a), getState(a), getBlock(a), getUniqueId(a)]
-        .some((t) => t.toLowerCase().includes(q));
-      const beneficiaryMatch = getBeneficiaryName(a).toLowerCase().includes(q);
+      const extraMatch = [getAssignDate(a), getState(a), getBlock(a)].some((t) => t.toLowerCase().includes(q));
+      const beneficiaryMatch = getBeneficiaryDisplay(a).toLowerCase().includes(q);
       const remarkMatch = a.remarks?.toLowerCase().includes(q);
       const deadlineMatch = a.deadline_date?.toLowerCase().includes(q);
       const sitesMatch = a.sites?.some((s) =>
         s.beneficiary_name?.toLowerCase().includes(q) ||
+        String(s.unique_id || '').toLowerCase().includes(q) ||
         s.district?.toLowerCase().includes(q) ||
         s.ca_no?.toLowerCase().includes(q)
       );
@@ -426,21 +596,21 @@ export function Bihar_Installation_ULA_RequestAccept() {
     return filteredAssignments.slice(start, start + pageSize);
   }, [filteredAssignments, currentPage, pageSize]);
 
-  // Export Columns
+  // Export Columns (Cleaned - Unique ID merged into Beneficiary Name as per user requirement)
   const exportCols: ExportColumn<AssignSiteItem>[] = useMemo(
     () => [
+      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
       { header: 'Assign ID', accessor: (r) => `#${r.id}` },
       { header: 'Vendor', accessor: (r) => getVendor(r) },
       { header: 'Assign Date', accessor: (r) => getAssignDate(r) },
       { header: 'State', accessor: (r) => getState(r) },
       { header: 'Block', accessor: (r) => getBlock(r) },
-      { header: 'Unique ID', accessor: (r) => getUniqueId(r) },
-      { header: 'Beneficiary Name', accessor: (r) => getBeneficiaryName(r) },
+      { header: 'Beneficiary Name', accessor: (r) => getBeneficiaryDisplay(r) },
       { header: 'Site Count', accessor: (r) => getSiteCount(r) },
       { header: 'Deadline Date', accessor: (r) => r.deadline_date || '' },
-      { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Pending Acceptance') },
       { header: 'Remarks', accessor: (r) => r.remarks || '' },
       { header: 'File', accessor: (r) => getFileUrl(r) },
+      { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Pending Acceptance') },
     ],
     []
   );
@@ -518,7 +688,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
           caption="Ready for structure erection"
           value={`${acceptedPct}%`}
           unit="accepted"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{acceptedCount} / {totalAssignments}</span>}
+          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{acceptedCount} / ${totalAssignments}</span>}
           icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
           segments={[
             { label: 'Accepted', count: acceptedCount, color: ok },
@@ -528,29 +698,32 @@ export function Bihar_Installation_ULA_RequestAccept() {
 
         {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">INSTALLATION WORK ORDERS</span>
               <h2 className="ax-card__title">Assigned Installation Batches</h2>
               <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
                 {filteredAssignments.length} of {assignments.length} records
               </p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <SearchInput
-                value={search}
-                onChange={(val) => {
-                  setSearch(val);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search beneficiary, vendor, ID, district…"
-                ariaLabel="Search assignments"
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-              />
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={search}
+                  onChange={(val) => {
+                    setSearch(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search beneficiary, vendor, ID, district…"
+                  ariaLabel="Search assignments"
+                />
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                />
+              </div>
             </div>
           </div>
 
@@ -585,7 +758,6 @@ export function Bihar_Installation_ULA_RequestAccept() {
                       <th className="ax-table__th" scope="col">Assign Date</th>
                       <th className="ax-table__th" scope="col">State</th>
                       <th className="ax-table__th" scope="col">Block</th>
-                      <th className="ax-table__th" scope="col">Unique ID</th>
                       <th className="ax-table__th" scope="col">Beneficiary Name</th>
                       <th className="ax-table__th" scope="col">Site Count</th>
                       <th className="ax-table__th" scope="col">Deadline Date</th>
@@ -599,9 +771,12 @@ export function Bihar_Installation_ULA_RequestAccept() {
                     {paginatedAssignments.map((a, index) => {
                       const isAccepted = Number(a.status) === 2;
                       const isActioning = actionLoadingId === a.id;
-                      const beneficiary = getBeneficiaryName(a);
+                      const beneficiaryDisplay = getBeneficiaryDisplay(a);
                       const siteCount = getSiteCount(a);
-                      const fileUrl = getFileUrl(a);
+                      const rawFile = getFileUrl(a);
+                      const fileCandidates = getUlaFileCandidates(rawFile);
+                      const primaryFileUrl = fileCandidates[0] || resolveFileUrl(rawFile);
+
                       return (
                         <tr key={a.id} className="ax-table__row">
                           <td className="ax-table__td">{(currentPage - 1) * pageSize + index + 1}</td>
@@ -612,11 +787,8 @@ export function Bihar_Installation_ULA_RequestAccept() {
                           <td className="ax-table__td">{getAssignDate(a) || DASH}</td>
                           <td className="ax-table__td">{getState(a) || DASH}</td>
                           <td className="ax-table__td">{getBlock(a) || DASH}</td>
-                          <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                            {getUniqueId(a) || DASH}
-                          </td>
-                          <td className="ax-table__td bsv-benef" title={beneficiary || undefined}>
-                            {beneficiary || DASH}
+                          <td className="ax-table__td bsv-benef" title={beneficiaryDisplay}>
+                            {beneficiaryDisplay}
                           </td>
                           <td className="ax-table__td">
                             <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
@@ -628,16 +800,40 @@ export function Bihar_Installation_ULA_RequestAccept() {
                             {a.remarks || DASH}
                           </td>
                           <td className="ax-table__td">
-                            {fileUrl ? (
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ax-badge ax-badge--soft ax-badge--neutral"
-                                style={{ textDecoration: 'none', cursor: 'pointer' }}
-                              >
-                                View File ↗
-                              </a>
+                            {rawFile ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--secondary ax-btn--xs"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    padding: '3px 8px',
+                                    fontSize: '11px',
+                                  }}
+                                  onClick={() =>
+                                    setPreviewFile({
+                                      url: primaryFileUrl,
+                                      candidates: fileCandidates,
+                                      candidateIndex: 0,
+                                      title: `Batch #${a.id} File - ${a.district || 'Bihar'}`,
+                                    })
+                                  }
+                                >
+                                  📄 View File
+                                </button>
+                                <a
+                                  href={primaryFileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ax-btn ax-btn--ghost ax-btn--xs"
+                                  title="Open file in new tab"
+                                  style={{ padding: '2px 5px', fontSize: '11px', textDecoration: 'none' }}
+                                >
+                                  ↗
+                                </a>
+                              </div>
                             ) : (
                               <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
                             )}
@@ -683,98 +879,106 @@ export function Bihar_Installation_ULA_RequestAccept() {
                   setPageSize(size);
                   setCurrentPage(1);
                 }}
-                pageSizeOptions={[10, 25, 50, 100]}
+                pageSizeOptions={[10, 20, 50, 100]}
               />
             </>
           )}
         </section>
       </div>
 
-      {/* ── View Assignment Sites Modal ── */}
-      {selectedAssign && (
-        <div className="ax-modal-backdrop" onClick={() => setSelectedAssign(null)}>
-          <div className="ax-modal" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <div>
-                <h4 className="ax-modal__title">Assignment Details — Batch #{selectedAssign.id}</h4>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Vendor: {selectedAssign.vendors?.name || DASH} · Deadline: {selectedAssign.deadline_date || DASH}
-                </p>
+      {/* ── File Preview Modal ── */}
+      {previewFile && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewFile(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1050,
+            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '92vw',
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              background: 'var(--ax-surface-solid, #ffffff)',
+              padding: 16,
+              borderRadius: 'var(--ax-radius-lg, 12px)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.45)',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                paddingBottom: 10,
+              }}
+            >
+              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                {previewFile.title}
               </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setSelectedAssign(null)} aria-label="Close">
-                ✕
-              </button>
-            </div>
-            <div className="ax-modal__body" style={{ maxHeight: 460, overflowY: 'auto' }}>
-              {modalLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}>
-                  <span className="ax-spinner" /> Loading site list…
-                </div>
-              ) : modalSites.length === 0 ? (
-                <TableEmptyState title="No sites listed" message="No beneficiary sites attached to this assignment batch." />
-              ) : (
-                <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-                    <thead className="ax-table__head">
-                      <tr>
-                        <th className="ax-table__th" scope="col">Sr.</th>
-                        <th className="ax-table__th" scope="col">Beneficiary Name</th>
-                        <th className="ax-table__th" scope="col">District</th>
-                        <th className="ax-table__th" scope="col">Block</th>
-                        <th className="ax-table__th" scope="col">Village</th>
-                        <th className="ax-table__th" scope="col">CA No.</th>
-                        <th className="ax-table__th" scope="col">Contact No.</th>
-                        <th className="ax-table__th" scope="col">Structure Status</th>
-                        <th className="ax-table__th" scope="col">Installation Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {modalSites.map((s, idx) => (
-                        <tr key={s.id || idx} className="ax-table__row">
-                          <td className="ax-table__td">{idx + 1}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' }}>{s.beneficiary_name || DASH}</td>
-                          <td className="ax-table__td">{s.district || DASH}</td>
-                          <td className="ax-table__td">{s.block || DASH}</td>
-                          <td className="ax-table__td">{s.village || DASH}</td>
-                          <td className="ax-table__td">{s.ca_no || DASH}</td>
-                          <td className="ax-table__td">{s.contact_no || DASH}</td>
-                          <td className="ax-table__td">
-                            <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(s.structure_status) === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                              <span className="ax-badge__dot" />
-                              {Number(s.structure_status) === 1 ? 'Complete' : 'Pending'}
-                            </span>
-                          </td>
-                          <td className="ax-table__td">
-                            <span className={`ax-badge ax-badge--soft ax-badge--pill ${Number(s.inst_status) === 1 ? 'ax-badge--success' : 'ax-badge--neutral'}`}>
-                              <span className="ax-badge__dot" />
-                              {Number(s.inst_status) === 1 ? 'Complete' : 'Pending'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <div>
-                {Number(selectedAssign.status) !== 2 && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--primary ax-btn--sm"
-                    disabled={actionLoadingId === selectedAssign.id}
-                    onClick={() => handleAccept(selectedAssign.id)}
-                  >
-                    {actionLoadingId === selectedAssign.id ? <span className="ax-spinner" /> : ICON_CHECK}
-                    <span className="ax-btn__label">Accept Installation</span>
-                  </button>
-                )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a
+                  href={previewFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ax-btn ax-btn--secondary ax-btn--xs"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Open in New Tab ↗
+                </a>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--xs"
+                  onClick={() => setPreviewFile(null)}
+                >
+                  ✕
+                </button>
               </div>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedAssign(null)}>
-                Close
-              </button>
             </div>
+
+            {/\.pdf($|\?)/i.test(previewFile.url) ? (
+              <iframe
+                src={previewFile.url}
+                title={previewFile.title}
+                style={{ width: '80vw', height: '70vh', border: 'none' }}
+              />
+            ) : (
+              <img
+                src={previewFile.url}
+                alt={previewFile.title}
+                style={{
+                  maxWidth: '85vw',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  borderRadius: 0,
+                  border: '1px solid var(--ax-border)',
+                }}
+                onError={() => {
+                  const nextIdx = previewFile.candidateIndex + 1;
+                  if (nextIdx < previewFile.candidates.length) {
+                    setPreviewFile((prev) =>
+                      prev ? { ...prev, url: prev.candidates[nextIdx], candidateIndex: nextIdx } : null
+                    );
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       )}
