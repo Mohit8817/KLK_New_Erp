@@ -456,7 +456,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="Bihar - Installation > ULA > Request Accept"
+        title="ULA-Request Accept"
         subtitle="Manage assigned installation batches and accept assignments for site execution"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },

@@ -446,7 +446,7 @@ export function Bihar_Installation_ULA_Payment() {
                   onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
                   onExportCSV={() => exportDataToCSV(filteredClaims, exportCols, 'bihar_ula_payment_claims.csv')}
                   onExportExcel={() => exportDataToExcel(filteredClaims, exportCols, 'bihar_ula_payment_claims.xlsx')}
-                  onPrint={() => printTableData(filteredClaims, exportCols, 'Bihar ULA Payment Claims')}
+                  onExportPDF={() => printTableData('Bihar ULA Payment Claims', filteredClaims, exportCols)}
                 />
               </div>
             </div>

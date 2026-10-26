@@ -788,6 +788,8 @@ interface FloatingFileInputProps {
 
 function FloatingFileInput({ id, label, required, accept, file, existing, onChange, error }: FloatingFileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -795,68 +797,188 @@ function FloatingFileInput({ id, label, required, accept, file, existing, onChan
     if (inputRef.current) inputRef.current.value = '';
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) {
+      onChange(chosen);
+    }
+  };
+
   const existingName = existing ? existing.split('/').pop() : null;
-  const text = file
-    ? `${file.name} (${(file.size / 1024).toFixed(0)} KB)`
-    : existingName
-      ? `Current: ${existingName}`
-      : 'No file chosen';
 
   return (
-    <div>
-      <div className={`ax-float ax-float--file ${error ? 'is-invalid' : ''}`}>
-        <input
-          ref={inputRef}
-          id={id}
-          type="file"
-          accept={accept}
-          style={{ display: 'none' }}
-          onChange={(e) => onChange(e.target.files?.[0] || null)}
-        />
-        <div
-          className="ax-file-box"
-          onClick={() => inputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              inputRef.current?.click();
-            }
-          }}
-          aria-label={label}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-            <svg style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--ax-text-muted)' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-              <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
-            </svg>
-            <span style={{ fontSize: 'var(--ax-text-xs)', color: file ? 'var(--ax-text-strong)' : 'var(--ax-text-subtle)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-              {text}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <Asterisk />}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered ? '#fbfcfd' : '#ffffff',
+          padding: file || existingName ? '12px 16px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: '#ecfdf5',
+                  color: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {(file.size / 1024).toFixed(0)} KB · Ready to upload
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove file"
+            >
+              Remove
+            </button>
+          </div>
+        ) : existingName ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: '#eff6ff',
+                  color: '#3b82f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {existingName}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  Existing file · Click to replace
+                </div>
+              </div>
+            </div>
+            <span className="ax-btn ax-btn--secondary ax-btn--sm" style={{ flexShrink: 0, pointerEvents: 'none' }}>
+              Replace
             </span>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {file ? (
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--xs" onClick={handleClear} title="Remove file" aria-label="Remove file">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                  <path d="M18 6l-12 12" />
-                  <path d="M6 6l12 12" />
-                </svg>
-              </button>
-            ) : (
-              <span className="ax-btn" style={{ pointerEvents: 'none' }}>
-                Choose File
-              </span>
-            )}
-          </div>
-        </div>
-
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <Asterisk />}
-        </label>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              PDF, JPG or PNG — single file
+            </div>
+          </>
+        )}
       </div>
+
       <FieldFeedback error={error} />
     </div>
   );

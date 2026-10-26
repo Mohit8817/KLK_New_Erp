@@ -171,6 +171,18 @@ const SINGLE_CARD_FORM_CSS = `
   cursor: pointer;
   font-size: 12px;
 }
+
+/* GPS Section 3 columns in 1 line */
+.srt-gps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .srt-gps-grid {
+    grid-template-columns: 1fr;
+  }
+}
 `;
 
 interface FloatingInputProps {
@@ -206,6 +218,211 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
       </label>
+    </div>
+  );
+}
+
+/* ───────── Modern Upload Dropzone (matching Survey ULA / SRT200MW AddData) ───────── */
+interface UploadDropzoneProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  accept?: string;
+  file: File | null;
+  preview?: string;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+}
+
+function UploadDropzone({
+  id,
+  label,
+  required,
+  accept = 'image/*',
+  file,
+  preview,
+  onSelect,
+  onRemove,
+  error,
+}: UploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) {
+      onSelect(chosen);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : '#ffffff',
+          padding: file || preview ? '12px 14px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file || preview ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {preview ? (
+                <img
+                  src={preview}
+                  alt={label}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file ? file.name : label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Photo captured'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove photo"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              PDF, JPG or PNG — single file
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -434,7 +651,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="Bihar - Installation > SRT > Installation Details"
+        title="SRT-Installation Details"
         subtitle="Capture rooftop solar installation execution data, serial numbers, geocoordinates, and verification photos."
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
@@ -673,7 +890,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
               </button>
             </div>
 
-            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            <div className="srt-gps-grid">
               <FloatingInput
                 label="Latitude"
                 name="inst_latitude"
@@ -688,14 +905,12 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 onChange={handleInputChange}
                 required
               />
-              <div style={{ gridColumn: '1 / -1' }}>
-                <FloatingInput
-                  label="Installation Remarks (optional)"
-                  name="inst_remarks"
-                  value={formData.inst_remarks}
-                  onChange={handleInputChange}
-                />
-              </div>
+              <FloatingInput
+                label="Installation Remarks (optional)"
+                name="inst_remarks"
+                value={formData.inst_remarks}
+                onChange={handleInputChange}
+              />
             </div>
           </div>
 
@@ -712,122 +927,68 @@ export function Bihar_Installation_SRT_InstallationDetails() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              {/* Photo 1: Panel */}
-              <div className="srt-upload-card">
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 4 }}>
-                  1. Panel Image <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange('panel_image')}
-                  required={!previews.panel_image}
-                  style={{ fontSize: '12px', width: '100%' }}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <UploadDropzone
+                  id="panel_image"
+                  label="1. Panel Image"
+                  required
+                  file={files.panel_image}
+                  preview={previews.panel_image}
+                  onSelect={(f) => {
+                    setFiles((prev) => ({ ...prev, panel_image: f }));
+                    setPreviews((prev) => ({ ...prev, panel_image: URL.createObjectURL(f) }));
+                  }}
+                  onRemove={() => removeFile('panel_image')}
                 />
-                {previews.panel_image && (
-                  <div className="srt-upload-card__preview">
-                    <img src={previews.panel_image} alt="Panel Preview" />
-                    <button type="button" className="srt-upload-card__remove" onClick={() => removeFile('panel_image')}>
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo 2: Complete System */}
-              <div className="srt-upload-card">
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 4 }}>
-                  2. System Photo <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange('system_image')}
-                  required={!previews.system_image}
-                  style={{ fontSize: '12px', width: '100%' }}
+                <UploadDropzone
+                  id="system_image"
+                  label="2. Complete System Photo"
+                  required
+                  file={files.system_image}
+                  preview={previews.system_image}
+                  onSelect={(f) => {
+                    setFiles((prev) => ({ ...prev, system_image: f }));
+                    setPreviews((prev) => ({ ...prev, system_image: URL.createObjectURL(f) }));
+                  }}
+                  onRemove={() => removeFile('system_image')}
                 />
-                {previews.system_image && (
-                  <div className="srt-upload-card__preview">
-                    <img src={previews.system_image} alt="System Preview" />
-                    <button type="button" className="srt-upload-card__remove" onClick={() => removeFile('system_image')}>
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo 3: Inverter */}
-              <div className="srt-upload-card">
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 4 }}>
-                  3. Inverter Photo <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange('inverter_image')}
-                  required={!previews.inverter_image}
-                  style={{ fontSize: '12px', width: '100%' }}
+                <UploadDropzone
+                  id="inverter_image"
+                  label="3. Inverter Photo"
+                  required
+                  file={files.inverter_image}
+                  preview={previews.inverter_image}
+                  onSelect={(f) => {
+                    setFiles((prev) => ({ ...prev, inverter_image: f }));
+                    setPreviews((prev) => ({ ...prev, inverter_image: URL.createObjectURL(f) }));
+                  }}
+                  onRemove={() => removeFile('inverter_image')}
                 />
-                {previews.inverter_image && (
-                  <div className="srt-upload-card__preview">
-                    <img src={previews.inverter_image} alt="Inverter Preview" />
-                    <button type="button" className="srt-upload-card__remove" onClick={() => removeFile('inverter_image')}>
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo 4: Net / Smart Meter */}
-              <div className="srt-upload-card">
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 4 }}>
-                  4. Net/Smart Meter <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange('nm_sm_image')}
-                  required={!previews.nm_sm_image}
-                  style={{ fontSize: '12px', width: '100%' }}
+                <UploadDropzone
+                  id="nm_sm_image"
+                  label="4. Net / Smart Meter Photo"
+                  required
+                  file={files.nm_sm_image}
+                  preview={previews.nm_sm_image}
+                  onSelect={(f) => {
+                    setFiles((prev) => ({ ...prev, nm_sm_image: f }));
+                    setPreviews((prev) => ({ ...prev, nm_sm_image: URL.createObjectURL(f) }));
+                  }}
+                  onRemove={() => removeFile('nm_sm_image')}
                 />
-                {previews.nm_sm_image && (
-                  <div className="srt-upload-card__preview">
-                    <img src={previews.nm_sm_image} alt="Meter Preview" />
-                    <button type="button" className="srt-upload-card__remove" onClick={() => removeFile('nm_sm_image')}>
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo 5: Datalogger */}
-              <div className="srt-upload-card">
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: 4 }}>
-                  5. Datalogger Photo <span style={{ color: 'var(--ax-danger)' }}>*</span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleFileChange('loger_image')}
-                  required={!previews.loger_image}
-                  style={{ fontSize: '12px', width: '100%' }}
+                <UploadDropzone
+                  id="loger_image"
+                  label="5. Datalogger Photo"
+                  required
+                  file={files.loger_image}
+                  preview={previews.loger_image}
+                  onSelect={(f) => {
+                    setFiles((prev) => ({ ...prev, loger_image: f }));
+                    setPreviews((prev) => ({ ...prev, loger_image: URL.createObjectURL(f) }));
+                  }}
+                  onRemove={() => removeFile('loger_image')}
                 />
-                {previews.loger_image && (
-                  <div className="srt-upload-card__preview">
-                    <img src={previews.loger_image} alt="Logger Preview" />
-                    <button type="button" className="srt-upload-card__remove" onClick={() => removeFile('loger_image')}>
-                      ✕
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
           </div>
 
           {/* ════════ Submit Footer ════════ */}

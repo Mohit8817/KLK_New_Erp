@@ -328,7 +328,7 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
                   onCopy={handleCopy}
                   onExportCSV={handleCSV}
                   onExportExcel={handleExcel}
-                  onPrint={handlePrint}
+                  onExportPDF={handlePrint}
                 />
               </div>
             </div>

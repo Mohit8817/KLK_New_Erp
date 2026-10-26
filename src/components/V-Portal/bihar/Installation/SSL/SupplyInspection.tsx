@@ -24,6 +24,31 @@ const GREEN_EMERALD = '#10b981';
 const AMBER_WARNING = '#f59e0b';
 const RED_DANGER = '#ef4444';
 
+const ICON_CLIPBOARD = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+    <path d="M9 12h6M9 16h6" />
+  </svg>
+);
+const ICON_LIGHTS = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" />
+  </svg>
+);
+const ICON_RUPEE = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" />
+  </svg>
+);
+const ICON_VERIFIED = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+
+
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -232,9 +257,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
         ]}
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontWeight: 600 }}>
-              Company ID: {getCompanyId()}
-            </span>
+      
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
@@ -279,8 +302,13 @@ export function Bihar_Installation_SSL_SupplyInspection() {
       ) : (
         <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Total Inspections
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(37, 99, 235, 0.12)', color: BLUE_PRIMARY, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_CLIPBOARD}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Total Inspections
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
               {num(metrics.totalCount)}
@@ -291,8 +319,13 @@ export function Bihar_Installation_SSL_SupplyInspection() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Inspected Lights
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_LIGHTS}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Inspected Lights
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
               {num(metrics.totalLights)}
@@ -303,8 +336,13 @@ export function Bihar_Installation_SSL_SupplyInspection() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Inspected Amount
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(100, 116, 139, 0.12)', color: 'var(--ax-text-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_RUPEE}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Inspected Amount
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', marginTop: 4 }}>
               {cur(metrics.totalAmount)}
@@ -315,8 +353,13 @@ export function Bihar_Installation_SSL_SupplyInspection() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Verified Status
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_VERIFIED}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Verified Status
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
               {num(metrics.verifiedCount)}
@@ -378,8 +421,10 @@ export function Bihar_Installation_SSL_SupplyInspection() {
               placeholder="Search code, remarks…"
             />
             <TableExportToolbar
+              onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
               onExportCSV={() => exportDataToCSV('Bihar_SSL_Supply_Inspections', filtered, exportCols)}
               onExportExcel={() => exportDataToExcel('Bihar_SSL_Supply_Inspections', filtered, exportCols)}
+              onExportPDF={() => printTableData('Bihar SSL Supply Inspections', filtered, exportCols)}
             />
           </div>
         </div>

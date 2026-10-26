@@ -11,6 +11,7 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
+  KpiSkeleton,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -48,7 +49,7 @@ const VIEW_CSS = `
 .bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
 `;
 
-/* ───────── KPI card (same as ULA Dashboard) ───────── */
+/* ───────── KPI card (same as SSL Claim Request) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -65,39 +66,27 @@ const svg = (children: ReactNode) => (
 );
 
 function KpiCard({
-  icon, tone, label, value, unit, sub, badge,
+  icon, tone, label, value, sub,
 }: {
   icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; unit?: string; sub: string; badge?: string;
+  value: ReactNode; sub: string;
 }) {
   const t = TONE[tone];
   return (
-    <div
-      className="ax-card ax-col--4"
-      role="region"
-      aria-label={label}
-      style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}
-    >
-      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
-            </span>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-          </div>
-          {badge && (
-            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-              {badge}
-            </span>
-          )}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-            {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
-        </div>
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -447,38 +436,41 @@ export function Bihar_Survey_SRT200MW_ViewData() {
       />
 
       <div className="ax-dash-grid">
-        {/* ── KPI 1: Total Assigned ── */}
-        <KpiCard
-          tone="accent"
-          label="Total Assigned"
-          value={kpis.total}
-          unit="sites"
-          sub={`${kpis.complete} surveyed · ${kpis.pending} remaining`}
-          badge="All Sites"
-          icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
-        />
-
-        {/* ── KPI 2: Survey Status ── */}
-        <KpiCard
-          tone="emerald"
-          label="Survey Status"
-          value={`${surveyDonePct}%`}
-          unit="completed"
-          sub={`${kpis.pending} pending`}
-          badge={`${kpis.complete} / ${kpis.total}`}
-          icon={svg(<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>)}
-        />
-
-        {/* ── KPI 3: Verify Status ── */}
-        <KpiCard
-          tone="amber"
-          label="Survey Verification"
-          value={`${verifyDonePct}%`}
-          unit="verified"
-          sub={`${kpis.verify_complete} approved · ${kpis.verify_pending} pending · ${kpis.verify_reject} rejected`}
-          badge={`${kpis.verify_pending} pending`}
-          icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
-        />
+        {/* ── KPI Row (Claim Request style) ── */}
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Assigned"
+              value={kpis.total.toLocaleString('en-IN')}
+              sub={`${kpis.complete} surveyed · ${kpis.pending} remaining`}
+              icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Survey Completed"
+              value={kpis.complete.toLocaleString('en-IN')}
+              sub={`${surveyDonePct}% done · ${kpis.pending} pending`}
+              icon={svg(<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Verification Approved"
+              value={kpis.verify_complete.toLocaleString('en-IN')}
+              sub={`${verifyDonePct}% verified · ${kpis.verify_pending} pending`}
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="pink"
+              label="Verification Rejected"
+              value={kpis.verify_reject.toLocaleString('en-IN')}
+              sub="Need re-survey / correction"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M15 9l-6 6M9 9l6 6" /></>)}
+            />
+          </>
+        )}
 
         {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
@@ -654,7 +646,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
       {/* ── Image Preview Modal ── */}
       {previewImg && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--ax-space-4)' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(211, 211, 211, 0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--ax-space-4)' }}
           onClick={() => setPreviewImg(null)}
         >
           <div className="ax-card" style={{ position: 'relative', padding: 'var(--ax-space-4)', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>

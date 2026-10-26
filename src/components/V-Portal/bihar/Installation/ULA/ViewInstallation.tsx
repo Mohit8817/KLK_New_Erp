@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -753,11 +753,12 @@ function FileField({ id, label, onChange }: { id: string; label: string; onChang
 }
 
 export function Bihar_Installation_ULA_ViewInstallation() {
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [sites, setSites] = useState<StructureSiteItem[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || 'All');
+  const [selectedStatus, setSelectedStatus] = useState(() => searchParams.get('status') || 'All');
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
 
   // Photo preview modal

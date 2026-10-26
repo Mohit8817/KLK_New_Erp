@@ -17,11 +17,37 @@ import {
   type ExportColumn,
   exportDataToCSV,
   exportDataToExcel,
+  copyTableDataToClipboard,
+  printTableData,
 } from '../../../../../common';
 
 const BLUE_PRIMARY = '#2563eb';
 const GREEN_EMERALD = '#10b981';
 const AMBER_WARNING = '#f59e0b';
+
+const ICON_BATCH = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+  </svg>
+);
+const ICON_SITES = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    <circle cx="12" cy="12" r="4" />
+  </svg>
+);
+const ICON_CLOCK = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+const ICON_CHECK = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
 
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 
@@ -134,6 +160,14 @@ export function Bihar_Installation_SSL_AssignedLights() {
     exportDataToCSV('Bihar_SSL_Assigned_Lights', filtered, exportCols);
   };
 
+  const handleCopy = () => {
+    copyTableDataToClipboard(filtered, exportCols);
+  };
+
+  const handleExportPDF = () => {
+    printTableData('Bihar SSL Assigned Lights', filtered, exportCols);
+  };
+
   const handleExportExcel = () => {
     exportDataToExcel('Bihar_SSL_Assigned_Lights', filtered, exportCols);
   };
@@ -170,9 +204,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
         ]}
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontWeight: 600 }}>
-              Company ID: {getCompanyId()}
-            </span>
+        
             <button
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--sm"
@@ -260,8 +292,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
             className="ax-card ax-col--3"
             style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Total Batches
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(37, 99, 235, 0.12)', color: BLUE_PRIMARY, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_BATCH}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Total Batches
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
               {num(metrics.totalBatches)}
@@ -275,8 +312,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
             className="ax-card ax-col--3"
             style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Total Allocated Sites
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(100, 116, 139, 0.12)', color: 'var(--ax-text-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_SITES}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Total Allocated Sites
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', marginTop: 4 }}>
               {num(metrics.totalSites)}
@@ -290,8 +332,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
             className="ax-card ax-col--3"
             style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Pending Acceptance
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(245, 158, 11, 0.14)', color: AMBER_WARNING, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_CLOCK}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Pending Acceptance
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: AMBER_WARNING, marginTop: 4 }}>
               {num(metrics.pendingCount)}
@@ -305,8 +352,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
             className="ax-card ax-col--3"
             style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Accepted Batches
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_CHECK}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Accepted Batches
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
               {num(metrics.acceptedCount)}
@@ -320,21 +372,33 @@ export function Bihar_Installation_SSL_AssignedLights() {
 
       {/* ── Table Container ── */}
       <section className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        {/* Filters and Search Toolbar */}
-        <div
-          className="ax-card__header"
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-          }}
-        >
+        <style>{`
+          .assigned-lights-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--ax-border, #e2e8f0);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            gap: 16px;
+            overflow-x: auto;
+            white-space: nowrap;
+          }
+          .assigned-lights-header .ax-export-toolbar {
+            width: auto !important;
+            margin-left: 0 !important;
+            flex: 0 0 auto !important;
+            gap: 6px !important;
+          }
+          .assigned-lights-header .ax-search-input {
+            margin-left: 0 !important;
+          }
+        `}</style>
+
+        {/* Filters and Search Toolbar in ONE Line */}
+        <div className="ax-card__header assigned-lights-header">
           {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
@@ -358,8 +422,8 @@ export function Bihar_Installation_SSL_AssignedLights() {
             </button>
           </div>
 
-          {/* Right Toolbar: District Filter + Search + Export */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Right Toolbar: District Filter + Search + Export in ONE Line */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'nowrap', flexShrink: 0 }}>
             <select
               className="ax-input ax-input--sm"
               value={districtFilter}
@@ -367,7 +431,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
                 setDistrictFilter(e.target.value);
                 pagination.setPage(1);
               }}
-              style={{ minWidth: 140, height: 36, borderRadius: 8 }}
+              style={{ width: 'auto', minWidth: 140, height: 32, borderRadius: 8, fontSize: 13 }}
             >
               <option value="all">All Districts</option>
               {districts.map((d) => (
@@ -384,9 +448,10 @@ export function Bihar_Installation_SSL_AssignedLights() {
                 pagination.setPage(1);
               }}
               placeholder="Search vendor, district, block…"
+              style={{ width: 230, maxWidth: 230, flex: '0 0 230px', marginLeft: 0 }}
             />
 
-            <TableExportToolbar onExportCSV={handleExportCSV} onExportExcel={handleExportExcel} />
+            <TableExportToolbar onCopy={handleCopy} onExportCSV={handleExportCSV} onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
           </div>
         </div>
 

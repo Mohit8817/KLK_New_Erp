@@ -11,6 +11,7 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
+  KpiSkeleton,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -19,7 +20,7 @@ import {
   type ColumnDef,
 } from '../../../../../common';
 
-/* ───────── KPI card (same as ULA Dashboard) ───────── */
+/* ───────── KPI card (same as SSL Claim Request) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -36,39 +37,27 @@ const svg = (children: ReactNode) => (
 );
 
 function KpiCard({
-  icon, tone, label, value, unit, sub, badge,
+  icon, tone, label, value, sub,
 }: {
   icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; unit?: string; sub: string; badge?: string;
+  value: ReactNode; sub: string;
 }) {
   const t = TONE[tone];
   return (
-    <div
-      className="ax-card ax-col--4"
-      role="region"
-      aria-label={label}
-      style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}
-    >
-      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
-            </span>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-          </div>
-          {badge && (
-            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-              {badge}
-            </span>
-          )}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-            {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
-        </div>
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -316,6 +305,9 @@ export function Bihar_Survey_ULA_ViewData() {
   const handleExcel = () => exportDataToExcel('Bihar_ULA_Surveys', filteredSurveys, activeExportCols);
   const handlePdf = () => printTableData('Bihar ULA Survey Records', filteredSurveys, activeExportCols);
 
+  const feasiblePct = kpis.total > 0 ? Math.round((kpis.feasible / kpis.total) * 100) : 0;
+  const verifiedPct = kpis.total > 0 ? Math.round((kpis.verified / kpis.total) * 100) : 0;
+
   return (
     <div className="ax-page">
       {/* ── Page Head ── */}
@@ -358,38 +350,41 @@ export function Bihar_Survey_ULA_ViewData() {
       />
 
       <div className="ax-dash-grid">
-        {/* ── KPI Box 1: Total Surveys ── */}
-        <KpiCard
-          tone="cyan"
-          label="Total Surveys"
-          value={kpis.total}
-          unit="Nos."
-          sub="Total ULA surveys recorded"
-          badge="All Surveys"
-          icon={svg(<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 14l2 2 4-4" /></>)}
-        />
-
-        {/* ── KPI Box 2: Feasibility Breakdown ── */}
-        <KpiCard
-          tone="emerald"
-          label="Feasibility Breakdown"
-          value={`${kpis.feasible} / ${kpis.not_feasible}`}
-          unit="Nos."
-          sub="Feasible / Not Feasible sites"
-          badge={`${kpis.feasible} Feasible`}
-          icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>)}
-        />
-
-        {/* ── KPI Box 3: Verification Status ── */}
-        <KpiCard
-          tone="amber"
-          label="Verification Status"
-          value={`${kpis.verified} / ${kpis.pending} / ${kpis.rejected}`}
-          unit="Nos."
-          sub="Approved / Pending / Rejected"
-          badge={`${kpis.pending} Pending`}
-          icon={svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></>)}
-        />
+        {/* ── KPI Row (Claim Request style) ── */}
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Surveys"
+              value={kpis.total.toLocaleString('en-IN')}
+              sub="Total ULA surveys recorded"
+              icon={svg(<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 14l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Feasible Sites"
+              value={kpis.feasible.toLocaleString('en-IN')}
+              sub={`${feasiblePct}% feasible · ${kpis.not_feasible} not feasible`}
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Verification Approved"
+              value={kpis.verified.toLocaleString('en-IN')}
+              sub={`${verifiedPct}% verified · ${kpis.pending} pending`}
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="pink"
+              label="Verification Rejected"
+              value={kpis.rejected.toLocaleString('en-IN')}
+              sub="Need re-survey / correction"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M15 9l-6 6M9 9l6 6" /></>)}
+            />
+          </>
+        )}
 
         {/* ── Main Table Card (Template DataTables pattern) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">
@@ -663,13 +658,13 @@ export function Bihar_Survey_ULA_ViewData() {
         </section>
       </div>
 
-      {/* ── Image Preview Modal (Professional Template Style) ── */}
+
       {previewImg && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
+            background: 'rgba(211, 211, 211, 0.65)',
             backdropFilter: 'blur(4px)',
             WebkitBackdropFilter: 'blur(4px)',
             zIndex: 9999,

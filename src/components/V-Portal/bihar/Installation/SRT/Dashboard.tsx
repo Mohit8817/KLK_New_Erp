@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSrtInstallationService,
@@ -352,6 +352,7 @@ const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text
 const sectionHeadStyle = { margin: 'var(--ax-space-3) 0 var(--ax-space-1) 0', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' } as const;
 
 export function Bihar_Installation_SRT_Dashboard() {
+  const navigate = useNavigate();
   const isMobile = useIsMobile(640);
   const [data, setData] = useState<SrtDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -362,12 +363,7 @@ export function Bihar_Installation_SRT_Dashboard() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
 
-  // Status drill-down modal
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [statusModalTitle, setStatusModalTitle] = useState('');
-  const [statusModalSites, setStatusModalSites] = useState<any[]>([]);
-  const [statusModalLoading, setStatusModalLoading] = useState(false);
-  const [modalSearch, setModalSearch] = useState('');
+
 
   const chartH = isMobile ? 260 : 320;
   const donutH = isMobile ? 210 : 230;
@@ -459,41 +455,7 @@ export function Bihar_Installation_SRT_Dashboard() {
   );
   const districtChartH = Math.min(560, Math.max(isMobile ? 280 : 320, chartDistricts.length * (isMobile ? 38 : 44)));
 
-  /* ───────── Drill-down Modal ───────── */
-  const handleOpenStatusDrill = async (statusKey: string, title: string, district?: string) => {
-    setStatusModalTitle(title);
-    setStatusModalOpen(true);
-    setStatusModalLoading(true);
-    setStatusModalSites([]);
-    setModalSearch('');
-    try {
-      let sites: any[] = [];
-      if (district) {
-        sites = await biharSrtInstallationService.getDashboardSitesByDistrict(statusKey, district);
-      } else {
-        sites = await biharSrtInstallationService.getDashboardSitesByStatus(statusKey);
-      }
-      setStatusModalSites(sites || []);
-    } catch (e) {
-      console.warn('[SRT Dashboard] drill-down error:', e);
-      setStatusModalSites([]);
-    } finally {
-      setStatusModalLoading(false);
-    }
-  };
 
-  const drill = (key: string, title: string) => () => handleOpenStatusDrill(key, title);
-
-  const modalFiltered = useMemo(() => {
-    const q = modalSearch.trim().toLowerCase();
-    if (!q) return statusModalSites;
-    return statusModalSites.filter(
-      (s) =>
-        String(s.id || '').toLowerCase().includes(q) ||
-        String(s.site_name || '').toLowerCase().includes(q) ||
-        String(s.district || '').toLowerCase().includes(q)
-    );
-  }, [statusModalSites, modalSearch]);
 
   /* ───────── Export Columns & Helpers ───────── */
   const [hiddenDistrictColumns, setHiddenDistrictColumns] = useState<string[]>([]);
@@ -702,22 +664,22 @@ export function Bihar_Installation_SRT_Dashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={drill('total', 'All Assigned SRT Sites')} onKeyDown={onActivate(drill('total', 'All Assigned SRT Sites'))}>
+              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => navigate('/v/bihar/srt-installation-view-site')} onKeyDown={onActivate(() => navigate('/v/bihar/srt-installation-view-site'))}>
                 <dt>Total Allocated</dt>
                 <dd className="ax-num">{dash(summary.site_count)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
               </div>
-              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={drill('inst-complete', 'Completed SRT Installations')} onKeyDown={onActivate(drill('inst-complete', 'Completed SRT Installations'))}>
+              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => navigate('/v/bihar/srt-installation-view-site#completed')} onKeyDown={onActivate(() => navigate('/v/bihar/srt-installation-view-site#completed'))}>
                 <dt>Installed</dt>
                 <dd className="ax-num">{dash(summary.complete)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done</small>
               </div>
-              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={drill('inst-pending', 'Pending SRT Installations')} onKeyDown={onActivate(drill('inst-pending', 'Pending SRT Installations'))}>
+              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => navigate('/v/bihar/srt-installation-view-site?status=pending#completed')} onKeyDown={onActivate(() => navigate('/v/bihar/srt-installation-view-site?status=pending#completed'))}>
                 <dt>Pending</dt>
                 <dd className="ax-num">{dash(summary.pending)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{pctOf(n(summary.pending), total)}% Pending</small>
               </div>
-              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={drill('verify-approved', 'Verified & Approved Installations')} onKeyDown={onActivate(drill('verify-approved', 'Verified & Approved Installations'))}>
+              <div className="ax-welcome__stat" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => navigate('/v/bihar/srt-installation-view-site?status=approved#completed')} onKeyDown={onActivate(() => navigate('/v/bihar/srt-installation-view-site?status=approved#completed'))}>
                 <dt>Verified Approved</dt>
                 <dd className="ax-num">{dash(summary.verify_approved)}</dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
@@ -726,13 +688,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           </div>
         </section>
 
-        {/* 4. KPI cards */}
-        <div className="ax-col--12">
-          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={sectionHeadStyle}>SRT Operational Metrics &amp; Approval Status</h4>
-            <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Click card to inspect matching sites</span>
-          </div>
-        </div>
+
 
         <KpiCard
           icon={I_BOLT}
@@ -742,7 +698,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           sub="Installed / Pending"
           badge={`${instPct}% Done`}
           spark={spk((d) => n(d.inst_complete))}
-          onClick={drill('inst-complete', 'Installation Completed Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#completed')}
         />
 
         <KpiCard
@@ -752,7 +708,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${num(summary.inpection_complete)} / ${num(summary.inpection_pending)}`}
           sub="Complete / Pending"
           badge={n(summary.inpection_complete) > 0 ? `${inspPct}% Done` : undefined}
-          onClick={drill('inpection-complete', 'Inspection Completed Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#completed')}
         />
 
         <KpiCard
@@ -762,7 +718,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${num(summary.verify_approved)} / ${num(summary.verify_pending)} / ${num(summary.verify_reject)}`}
           sub="Approved / Pending / Rejected"
           badge={`${approvedPct}% Approved`}
-          onClick={drill('verify-approved', 'Installation Approved Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site?status=approved#completed')}
         />
 
         <KpiCard
@@ -772,7 +728,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${num(summary.inst_doc_complete)} / ${num(summary.inst_doc_pending)}`}
           sub="Submitted / Pending"
           badge={n(summary.inst_doc_complete) > 0 ? `${pctOf(n(summary.inst_doc_complete), total)}%` : undefined}
-          onClick={drill('inst-doc-complete', 'Documents Submitted Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#completed')}
         />
 
         <KpiCard
@@ -782,7 +738,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${num(summary.claim_applicable)} / ${num(summary.claim_raised)}`}
           sub="Applicable / Raised"
           badge={n(summary.claim_raised) > 0 ? `${num(summary.claim_raised)} Raised` : undefined}
-          onClick={drill('claim-applicable', 'Claim Applicable Sites')}
+          onClick={() => navigate('/v/bihar/srt/paymentsrtVendor')}
         />
 
         <KpiCard
@@ -793,7 +749,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           sub={`Amount ₹${num(summary.inst_pay1_amount)}`}
           badge={n(summary.inst_pay1) > 0 ? 'Disbursed' : undefined}
           spark={spk((d) => n(d.inst_pay1))}
-          onClick={drill('inst-pay1', 'Payment 1 Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#payment')}
         />
 
         <KpiCard
@@ -803,7 +759,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : num(summary.inst_pay2)}
           sub={`Amount ₹${num(summary.inst_pay2_amount)}`}
           badge={n(summary.inst_pay2) > 0 ? 'Disbursed' : undefined}
-          onClick={drill('inst-pay2', 'Payment 2 Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#payment')}
         />
 
         <KpiCard
@@ -813,7 +769,7 @@ export function Bihar_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : num(summary.inst_pay3)}
           sub={`Amount ₹${num(summary.inst_pay3_amount)}`}
           badge={n(summary.inst_pay3) > 0 ? 'Disbursed' : undefined}
-          onClick={drill('inst-pay3', 'Payment 3 Sites')}
+          onClick={() => navigate('/v/bihar/srt-installation-view-site#payment')}
         />
 
         {/* 5. Monthly Trend (8) + Donut (4) */}
@@ -1078,7 +1034,7 @@ export function Bihar_Installation_SRT_Dashboard() {
                             style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenStatusDrill('total', `${d.district} — All Sites`, d.district);
+                              navigate(`/v/bihar/srt-installation-view-site?district=${encodeURIComponent(d.district)}`);
                             }}
                             title={`Inspect sites in ${d.district}`}
                           >
@@ -1126,69 +1082,7 @@ export function Bihar_Installation_SRT_Dashboard() {
         </section>
       </div>
 
-      {/* ── Status Drill-Down Modal ── */}
-      {statusModalOpen && (
-        <div className="ax-modal-backdrop" onClick={() => setStatusModalOpen(false)}>
-          <div className="ax-modal" style={{ maxWidth: 850 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <div>
-                <h4 className="ax-modal__title">{statusModalTitle}</h4>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Total {statusModalSites.length} site{statusModalSites.length === 1 ? '' : 's'}
-                </p>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Close" onClick={() => setStatusModalOpen(false)}>✕</button>
-            </div>
-            <div className="ax-modal__body" style={{ maxHeight: 450, overflowY: 'auto' }}>
-              {!statusModalLoading && statusModalSites.length > 0 && (
-                <div style={{ marginBottom: 'var(--ax-space-3)' }}>
-                  <SearchInput value={modalSearch} onChange={setModalSearch} placeholder="Search by site name, district, ID..." size="sm" />
-                </div>
-              )}
-              {statusModalLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}><span className="ax-spinner" /> Fetching sites…</div>
-              ) : modalFiltered.length === 0 ? (
-                <TableEmptyState title="No sites found" message="No sites currently match this status filter." />
-              ) : (
-                <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover">
-                    <thead>
-                      <tr>
-                        <th>Sr.</th>
-                        <th>ID</th>
-                        <th>Site Name</th>
-                        <th>District</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {modalFiltered.map((s, idx) => (
-                        <tr key={s.id || idx}>
-                          <td>{idx + 1}</td>
-                          <td style={{ fontWeight: 600 }}>#{s.id}</td>
-                          <td>{s.site_name || '—'}</td>
-                          <td>{s.district || '—'}</td>
-                          <td>
-                            {s.site_inst_status === 1 ? (
-                              <span className="ax-badge ax-badge--soft ax-badge--success">Installed</span>
-                            ) : (
-                              <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setStatusModalOpen(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
 

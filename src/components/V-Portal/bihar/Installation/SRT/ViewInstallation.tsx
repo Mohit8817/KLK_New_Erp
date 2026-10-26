@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -690,10 +690,11 @@ export function Bihar_Installation_SRT_ViewInstallation() {
     navigate({ pathname: location.pathname, search: location.search, hash: t.hash }, { replace: true });
   };
 
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<SrtViewInstallSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState(() => searchParams.get('district') || searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
   const [hiddenByTab, setHiddenByTab] = useState<Record<TabKey, string[]>>({ completed: [], payment: [] });
 
   // Photo preview modal

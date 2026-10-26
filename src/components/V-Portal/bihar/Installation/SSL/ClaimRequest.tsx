@@ -24,6 +24,32 @@ const GREEN_EMERALD = '#10b981';
 const AMBER_WARNING = '#f59e0b';
 const RED_DANGER = '#ef4444';
 
+const ICON_CLAIMS = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+);
+const ICON_RUPEE = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" />
+  </svg>
+);
+const ICON_APPROVED = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
+const ICON_ELIGIBLE = (
+  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" />
+  </svg>
+);
+
+
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -305,8 +331,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
       ) : (
         <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Total Claims Raised
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(37, 99, 235, 0.12)', color: BLUE_PRIMARY, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_CLAIMS}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Total Claims Raised
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
               {num(metrics.totalClaims)}
@@ -317,8 +348,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Total Claim Amount
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(100, 116, 139, 0.12)', color: 'var(--ax-text-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_RUPEE}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Total Claim Amount
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', marginTop: 4 }}>
               {cur(metrics.totalClaimAmount)}
@@ -329,8 +365,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Claims Approved
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_APPROVED}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Claims Approved
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
               {num(metrics.approvedCount)}
@@ -341,8 +382,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
           </div>
 
           <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
-              Eligible Sites Available
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 8, background: metrics.eligibleSitesCount >= 100 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)', color: metrics.eligibleSitesCount >= 100 ? GREEN_EMERALD : AMBER_WARNING, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {ICON_ELIGIBLE}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Eligible Sites Available
+              </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: metrics.eligibleSitesCount >= 100 ? GREEN_EMERALD : AMBER_WARNING, marginTop: 4 }}>
               {num(metrics.eligibleSitesCount)}
@@ -404,8 +450,10 @@ export function Bihar_Installation_SSL_ClaimRequest() {
               placeholder="Search vendor, amount…"
             />
             <TableExportToolbar
+              onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
               onExportCSV={() => exportDataToCSV('Bihar_SSL_Claims', filtered, exportCols)}
               onExportExcel={() => exportDataToExcel('Bihar_SSL_Claims', filtered, exportCols)}
+              onExportPDF={() => printTableData('Bihar SSL Claim Requests', filtered, exportCols)}
             />
           </div>
         </div>
@@ -524,14 +572,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                         </td>
                         <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--ghost ax-btn--sm"
-                              onClick={() => handleDownloadPdf(r.id)}
-                              title="Download PDF stream"
-                            >
-                              PDF
-                            </button>
+                         
                             <button
                               type="button"
                               className="ax-btn ax-btn--secondary ax-btn--sm"

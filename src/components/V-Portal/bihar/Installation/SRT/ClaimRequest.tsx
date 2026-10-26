@@ -12,6 +12,7 @@ import {
   TableEmptyState,
   copyTableDataToClipboard,
   exportDataToCSV,
+  KpiSkeleton,
   exportDataToExcel,
   printTableData,
   type ExportColumn,
@@ -138,40 +139,44 @@ function RobustClaimImage({
   );
 }
 
-/* ── KPI Component ── */
-interface KpiCardProps {
-  accent: string;
-  label: string;
-  caption: string;
-  value: number | string;
-  unit?: string;
-  badge: ReactNode;
-  icon: ReactNode;
-}
+/* ───────── KPI Card (exact same as Survey/SRT200MW/ViewData.tsx) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
-function KpiCard({ accent, label, caption, value, unit, badge, icon }: KpiCardProps) {
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+};
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
+
+function KpiCard({
+  icon, tone, label, value, sub,
+}: {
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; sub: string;
+}) {
+  const t = TONE[tone];
   return (
-    <div className="ax-col--3 bsv-kpi" style={{ '--bsv-accent': accent } as CSSProperties}>
-      <div className="bsv-kpi__body">
-        <div className="bsv-kpi__head">
-          <div className="bsv-kpi__title-wrap">
-            <span className="bsv-kpi__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
-                {icon}
-              </svg>
-            </span>
-            <div>
-              <div className="bsv-kpi__label">{label}</div>
-              <div className="bsv-kpi__caption">{caption}</div>
-            </div>
-          </div>
-          {badge}
-        </div>
-
-        <div className="bsv-kpi__value-row">
-          <span className="bsv-kpi__value">{value}</span>
-          {unit && <span className="bsv-kpi__unit">{unit}</span>}
-        </div>
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -460,10 +465,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     []
   );
 
-  const ok = '#10b981';
-  const warn = '#f59e0b';
-  const accent = '#2f7df2';
-  const info = '#8b5cf6';
+
 
   return (
     <div className="ax-page bsv-page">
@@ -498,47 +500,42 @@ export function Bihar_Installation_SRT_ClaimRequest() {
         </div>
       )}
 
-      {/* ── KPI Summary Grid ── */}
+            {/* ── KPI Summary Grid ── */}
       <div className="ax-dash-grid">
-        <KpiCard
-          accent={accent}
-          label="Total Claims Raised"
-          caption="Submitted milestone claim requests"
-          value={totalClaims}
-          unit="claims"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All</span>}
-          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
-        />
-
-        <KpiCard
-          accent={ok}
-          label="Payment 1st (70%) Paid"
-          caption="Primary installation payment released"
-          value={pay1Count}
-          unit="sites"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">70% Milestone</span>}
-          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
-        />
-
-        <KpiCard
-          accent={warn}
-          label="Payment 2nd (15%) Paid"
-          caption="Inspection & document verified payout"
-          value={pay2Count}
-          unit="sites"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">15% Milestone</span>}
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-        />
-
-        <KpiCard
-          accent={info}
-          label="Payment 3rd (15%) Paid"
-          caption="RMS & generation verified final release"
-          value={pay3Count}
-          unit="sites"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">15% Final</span>}
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>}
-        />
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Claims Raised"
+              value={totalClaims.toLocaleString('en-IN')}
+              sub="Submitted milestone invoices"
+              icon={svg(<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Payment 1st (70%) Paid"
+              value={pay1Count.toLocaleString('en-IN')}
+              sub="Primary installation payout cleared"
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Payment 2nd (15%) Paid"
+              value={pay2Count.toLocaleString('en-IN')}
+              sub="Inspection & document verified payout"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>)}
+            />
+            <KpiCard
+              tone="cyan"
+              label="Payment 3rd (15%) Paid"
+              value={pay3Count.toLocaleString('en-IN')}
+              sub="RMS & telemetry verified final release"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+          </>
+        )}
 
         {/* ── Main Claims Table Card ── */}
         <section className="ax-card ax-col--12">
@@ -580,7 +577,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                 onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
                 onExportCSV={() => exportDataToCSV('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
                 onExportExcel={() => exportDataToExcel('Bihar_SRT_Claim_Requests', filteredClaims, exportCols)}
-                onPrint={() => printTableData('Bihar SRT Claim Requests', filteredClaims, exportCols)}
+                onExportPDF={() => printTableData('Bihar SRT Claim Requests', filteredClaims, exportCols)}
               />
             </div>
           </div>

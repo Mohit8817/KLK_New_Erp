@@ -13,6 +13,7 @@ import {
   exportDataToCSV,
   exportDataToExcel,
   printTableData,
+   KpiSkeleton,
   type ExportColumn,
 } from '../../../../../common';
 
@@ -215,43 +216,44 @@ const ICON_EYE = (
   </svg>
 );
 
-interface Segment { label: string; count: number; color: string }
+/* ───────── KPI Card (exact same as Survey/SRT200MW/ViewData.tsx) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+};
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
 function KpiCard({
-  accent, icon, label, caption, value, unit, badge, segments,
+  icon, tone, label, value, sub,
 }: {
-  accent: string; icon: ReactNode; label: string; caption: string;
-  value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; sub: string;
 }) {
+  const t = TONE[tone];
   return (
-    <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
-      <div className="bsv-kpi__body">
-        <div className="bsv-kpi__head">
-          <div className="bsv-kpi__title-wrap">
-            <span className="bsv-kpi__icon"><svg {...ICON_PROPS}>{icon}</svg></span>
-            <div>
-              <div className="bsv-kpi__label">{label}</div>
-              <div className="bsv-kpi__caption">{caption}</div>
-            </div>
-          </div>
-          {badge}
-        </div>
-
-        <div className="bsv-kpi__value-row">
-          <span className="bsv-kpi__value">{value}</span>
-          {unit && <span className="bsv-kpi__unit">{unit}</span>}
-        </div>
-
-        {segments && (
-          <div className="bsv-legend">
-            {segments.map((s) => (
-              <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
-                <span className="bsv-legend__dot" />
-                {s.label} <span className="bsv-legend__num">{s.count}</span>
-              </span>
-            ))}
-          </div>
-        )}
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -308,6 +310,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
 
   // KPI calculations
   const totalAssignments = assignments.length;
+  const totalSites = useMemo(() => assignments.reduce((acc, a) => acc + (Number(a.sitecount) || (a.site_names?.length || 0)), 0), [assignments]);
   const acceptedCount = useMemo(() => assignments.filter((a) => Number(a.status) === 2).length, [assignments]);
   const pendingCount = totalAssignments - acceptedCount;
   const acceptedPct = totalAssignments > 0 ? Math.round((acceptedCount / totalAssignments) * 100) : 0;
@@ -360,7 +363,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="Bihar - Installation > SRT > Request Accept"
+        title="SRT-Request Accept"
         subtitle="Manage assigned installation batches and accept assignments for site execution"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
@@ -384,51 +387,41 @@ export function Bihar_Installation_SRT_RequestAccept() {
         </div>
       )}
 
-      <div className="ax-dash-grid">
-        {/* ── KPI 1: Total Assignments ── */}
-        <KpiCard
-          accent={accent}
-          label="Total Assignments"
-          caption="Batches allocated by state admin"
-          value={totalAssignments}
-          unit="batches"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Batches</span>}
-          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
-          segments={[
-            { label: 'Accepted', count: acceptedCount, color: ok },
-            { label: 'Pending', count: pendingCount, color: warn },
-          ]}
-        />
-
-        {/* ── KPI 2: Pending Acceptance ── */}
-        <KpiCard
-          accent={warn}
-          label="Pending Acceptance"
-          caption="Action required to begin installation"
-          value={pendingCount}
-          unit="pending"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">{pendingPct}%</span>}
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-          segments={[
-            { label: 'Pending', count: pendingCount, color: warn },
-            { label: 'Others', count: totalAssignments - pendingCount, color: 'var(--ax-border)' },
-          ]}
-        />
-
-        {/* ── KPI 3: Accepted ── */}
-        <KpiCard
-          accent={ok}
-          label="Accepted Assignments"
-          caption="Ready for site installation"
-          value={`${acceptedPct}%`}
-          unit="accepted"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{acceptedCount} / {totalAssignments}</span>}
-          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
-          segments={[
-            { label: 'Accepted', count: acceptedCount, color: ok },
-            { label: 'Pending', count: pendingCount, color: warn },
-          ]}
-        />
+            <div className="ax-dash-grid">
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Assignments"
+              value={totalAssignments.toLocaleString('en-IN')}
+              sub={`${acceptedCount} accepted · ${pendingCount} pending`}
+              icon={svg(<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Pending Acceptance"
+              value={pendingCount.toLocaleString('en-IN')}
+              sub={`${pendingPct}% of total · Action required`}
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Accepted Batches"
+              value={acceptedCount.toLocaleString('en-IN')}
+              sub={`${acceptedPct}% accepted · Ready to install`}
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="cyan"
+              label="Total Allocated Sites"
+              value={totalSites.toLocaleString('en-IN')}
+              sub="Cumulative rooftop installations"
+              icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
+            />
+          </>
+        )}
 
         {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">

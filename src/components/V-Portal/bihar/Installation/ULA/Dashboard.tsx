@@ -297,6 +297,7 @@ interface KpiProps {
   badge?: string;
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
+  onClick?: () => void;
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
   accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
@@ -308,7 +309,7 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
   red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line',  }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
@@ -317,7 +318,10 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
   return (
     <div
       className="ax-card ax-col--3"
- 
+      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
@@ -404,11 +408,7 @@ export function Bihar_Installation_ULA_Dashboard() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
 
-  // Status drill-down modal
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [statusModalTitle, setStatusModalTitle] = useState('');
-  const [statusModalSites, setStatusModalSites] = useState<any[]>([]);
-  const [statusModalLoading, setStatusModalLoading] = useState(false);
+
 
   const chartH = isMobile ? 260 : 320;
   const donutH = isMobile ? 210 : 230;
@@ -587,29 +587,6 @@ export function Bihar_Installation_ULA_Dashboard() {
     [filteredDistrictRows]
   );
   const districtChartH = Math.min(560, Math.max(isMobile ? 280 : 320, chartDistricts.length * (isMobile ? 38 : 44)));
-
-  /* ───────── Drill-down Modal ───────── */
-  const handleOpenStatusDrill = async (statusKey: string, title: string, districtParam?: string) => {
-    const targetDistrict = districtParam || (filtersActive ? selectedDistrict : undefined);
-    setStatusModalTitle(title);
-    setStatusModalOpen(true);
-    setStatusModalLoading(true);
-    try {
-      let sites = [];
-      if (targetDistrict && targetDistrict !== 'All') {
-        sites = await biharUlaInstallationService.getDashboardSitesByDistrict(statusKey, targetDistrict);
-      } else {
-        sites = await biharUlaInstallationService.getDashboardSitesByStatus(statusKey);
-      }
-      setStatusModalSites(sites || []);
-    } catch {
-      setStatusModalSites([]);
-    } finally {
-      setStatusModalLoading(false);
-    }
-  };
-
-  const drill = (key: string, title: string) => () => handleOpenStatusDrill(key, title);
 
   /* ───────── Export Columns & Helpers ───────── */
   const [hiddenDistrictColumns, setHiddenDistrictColumns] = useState<string[]>([]);
@@ -1238,8 +1215,14 @@ export function Bihar_Installation_ULA_Dashboard() {
                         className="ax-table__row"
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSelectedDistrict(d.district)}
-                        onKeyDown={onActivate(() => setSelectedDistrict(d.district))}
+                        onClick={() => {
+                          setSelectedDistrict(d.district);
+                          navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
+                        }}
+                        onKeyDown={onActivate(() => {
+                          setSelectedDistrict(d.district);
+                          navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
+                        })}
                         style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}
                       >
                         <td className="ax-table__td">
@@ -1293,7 +1276,7 @@ export function Bihar_Installation_ULA_Dashboard() {
                             style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenStatusDrill('total', `${d.district} — All Sites`, d.district);
+                              navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
                             }}
                             title={`Inspect sites in ${d.district}`}
                           >
@@ -1445,7 +1428,7 @@ export function Bihar_Installation_ULA_Dashboard() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => navigate('/v/bihar/ula/installation/view')}
+                onClick={() => navigate('/v/bihar/ula-installation-view-site')}
               >
                 View Installations →
               </button>
@@ -1454,62 +1437,7 @@ export function Bihar_Installation_ULA_Dashboard() {
         </section>
       </div>
 
-      {/* ── Status Drill-Down Modal (DLE modal style) ── */}
-      {statusModalOpen && (
-        <div className="ax-modal-backdrop" onClick={() => setStatusModalOpen(false)}>
-          <div className="ax-modal" style={{ maxWidth: 850 }} onClick={(e) => e.stopPropagation()}>
-            <div className="ax-modal__header">
-              <div>
-                <h4 className="ax-modal__title">{statusModalTitle}</h4>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Total {statusModalSites.length} site{statusModalSites.length === 1 ? '' : 's'}
-                </p>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" onClick={() => setStatusModalOpen(false)}>✕</button>
-            </div>
-            <div className="ax-modal__body" style={{ maxHeight: 450, overflowY: 'auto' }}>
-              {statusModalLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)' }}><span className="ax-spinner" /> Fetching sites…</div>
-              ) : statusModalSites.length === 0 ? (
-                <TableEmptyState title="No sites found" message="No sites currently match this status filter." />
-              ) : (
-                <div className="ax-table-wrap">
-                  <table className="ax-table ax-table--hover">
-                    <thead>
-                      <tr>
-                        <th>Sr.</th>
-                        <th>Beneficiary Name</th>
-                        <th>District</th>
-                        <th>Block</th>
-                        <th>Village</th>
-                        <th>CA No.</th>
-                        <th>Contact</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statusModalSites.map((s, idx) => (
-                        <tr key={s.id || idx}>
-                          <td>{idx + 1}</td>
-                          <td style={{ fontWeight: 600 }}>{s.beneficiary_name || s.consumer_name || '—'}</td>
-                          <td>{s.district || '—'}</td>
-                          <td>{s.block || '—'}</td>
-                          <td>{s.village || '—'}</td>
-                          <td>{s.ca_no || s.ca_number || '—'}</td>
-                          <td>{s.contact_no || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setStatusModalOpen(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
 
