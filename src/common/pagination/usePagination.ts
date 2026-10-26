@@ -1,23 +1,40 @@
 import { useState, useMemo } from 'react';
 
 export interface UsePaginationOptions<T> {
-  data: T[];
+  data?: T[];
   initialPageSize?: number;
   initialPage?: number;
 }
 
 /**
  * Universal pagination hook identical to the logic in Grid.js table.
- * Calculates totalPages, curPage, start, paged slice, rangeStart, rangeEnd, pageList.
+ * Supports both:
+ *   usePagination({ data: items, initialPageSize: 10 })
+ * and
+ *   usePagination(items, { initialPageSize: 10 })
  */
-export function usePagination<T>({
-  data,
-  initialPageSize = 8,
-  initialPage = 1,
-}: UsePaginationOptions<T>) {
-  const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+export function usePagination<T>(
+  optionsOrData: UsePaginationOptions<T> | T[] = [],
+  legacyOpts?: { initialPageSize?: number; initialPage?: number }
+) {
+  let rawData: T[] = [];
+  let defaultPageSize = 8;
+  let defaultPage = 1;
 
+  if (Array.isArray(optionsOrData)) {
+    rawData = optionsOrData;
+    if (legacyOpts?.initialPageSize) defaultPageSize = legacyOpts.initialPageSize;
+    if (legacyOpts?.initialPage) defaultPage = legacyOpts.initialPage;
+  } else if (optionsOrData && typeof optionsOrData === 'object') {
+    rawData = Array.isArray(optionsOrData.data) ? optionsOrData.data : [];
+    if (optionsOrData.initialPageSize) defaultPageSize = optionsOrData.initialPageSize;
+    if (optionsOrData.initialPage) defaultPage = optionsOrData.initialPage;
+  }
+
+  const [page, setPage] = useState(defaultPage);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+
+  const data = Array.isArray(rawData) ? rawData : [];
   const totalItems = data.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const curPage = Math.max(1, Math.min(page, totalPages));
@@ -48,6 +65,8 @@ export function usePagination<T>({
     page: curPage,
     pageSize,
     totalItems,
+    total: totalItems,
+    totalRecords: totalItems,
     setPage: handlePageChange,
     setPageSize: handlePageSizeChange,
     nextPage: () => handlePageChange(curPage + 1),

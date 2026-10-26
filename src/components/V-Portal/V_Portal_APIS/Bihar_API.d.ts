@@ -132,17 +132,48 @@ export interface BiharAmcApi {
   SRT: BiharSrtAmcApi;
 }
 
-export interface BiharComplaintCategoryApi {
-  ADD_COMPLAINT: string;
-  VIEW_COMPLAINT: string;
-  ASSIGNED_COMPLAINT: string;
-  UPDATE_COMPLAINT: string;
-  COMPLAINT_RAISED?: string;
+export interface BiharSslComplaintApi {
+  ADD: string;
+  GET_BLOCKS: (district: string) => string;
+  GET_PANCHYATS: (district: string, block: string) => string;
+  GET_WARDS: (district: string, block: string, panchyat: string) => string;
+  GET_POLES: (district: string, block: string, panchyat: string, ward_no: string | number) => string;
+  GET_POLE_DATAS: (district: string, block: string, panchyat: string, ward_no: string | number, pole_no: string) => string;
+  STORE: string;
+  VIEW_DATA: string;
+  EDIT: (sslId: string | number) => string;
+  UPDATE: string;
+  CLOSE_EDIT: (sslId: string | number) => string;
+  CLOSE_UPDATE: string;
+  ASSIGN: string;
+  DELETE: (sslId: string | number) => string;
+  ADD_COMPLAINT?: string;
+  VIEW_COMPLAINT?: string;
+  ASSIGNED_COMPLAINT?: string;
+  UPDATE_COMPLAINT?: string;
+}
+
+export interface BiharSrtComplaintApi {
+  ADD: string;
+  GET_SITE_NAMES: (district: string) => string;
+  GET_SITES: (district: string, siteName: string) => string;
+  STORE: string;
+  VIEW_DATA: string;
+  EDIT: (srtId: string | number) => string;
+  UPDATE: string;
+  CLOSE_EDIT: (srtId: string | number) => string;
+  CLOSE_UPDATE: string;
+  ASSIGN: string;
+  DELETE: (srtId: string | number) => string;
+  ADD_COMPLAINT?: string;
+  VIEW_COMPLAINT?: string;
+  ASSIGNED_COMPLAINT?: string;
+  UPDATE_COMPLAINT?: string;
 }
 
 export interface BiharComplaintApi {
-  SSL: BiharComplaintCategoryApi;
-  SRT: BiharComplaintCategoryApi;
+  SSL: BiharSslComplaintApi;
+  SRT: BiharSrtComplaintApi;
 }
 
 export interface BiharMasterApi {

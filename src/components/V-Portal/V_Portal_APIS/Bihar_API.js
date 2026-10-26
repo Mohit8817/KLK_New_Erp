@@ -160,22 +160,49 @@ export const BIHAR_AMC_API = {
  * ═══════════════════════════════════════════════════════════════════════════
  */
 export const BIHAR_COMPLAINT_API = {
-  // ── SSL Complaints ──
+  // ── SSL Complaints (14 APIs) ──
   SSL: {
-    ADD_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint-store`,
-    VIEW_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint-list`,
-    ASSIGNED_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint-assigned`,
-    UPDATE_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint-update`,
-    COMPLAINT_RAISED: `${BASE_URL}/bihar/ssl/view-complaint`,
+    ADD: `${BASE_URL}/bihar/ssl/complaint/add`,
+    GET_BLOCKS: (district) => `${BASE_URL}/bihar/ssl/complaint/getblocks?district=${encodeURIComponent(district)}`,
+    GET_PANCHYATS: (district, block) => `${BASE_URL}/bihar/ssl/complaint/getpanchyats?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}`,
+    GET_WARDS: (district, block, panchyat) => `${BASE_URL}/bihar/ssl/complaint/getwards?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchyat=${encodeURIComponent(panchyat)}`,
+    GET_POLES: (district, block, panchyat, ward_no) => `${BASE_URL}/bihar/ssl/complaint/getpoles?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchyat=${encodeURIComponent(panchyat)}&ward_no=${encodeURIComponent(ward_no)}`,
+    GET_POLE_DATAS: (district, block, panchyat, ward_no, pole_no) => `${BASE_URL}/bihar/ssl/complaint/getpoledatas?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchyat=${encodeURIComponent(panchyat)}&ward_no=${encodeURIComponent(ward_no)}&pole_no=${encodeURIComponent(pole_no)}`,
+    STORE: `${BASE_URL}/bihar/ssl/complaint/store`,
+    VIEW_DATA: `${BASE_URL}/bihar/ssl/complaint/view-data`,
+    EDIT: (sslId) => `${BASE_URL}/bihar/ssl/complaint/edit?ssl_id=${encodeURIComponent(sslId)}`,
+    UPDATE: `${BASE_URL}/bihar/ssl/complaint/update`,
+    CLOSE_EDIT: (sslId) => `${BASE_URL}/bihar/ssl/complaint/close-edit?ssl_id=${encodeURIComponent(sslId)}`,
+    CLOSE_UPDATE: `${BASE_URL}/bihar/ssl/complaint/close-update`,
+    ASSIGN: `${BASE_URL}/bihar/ssl/complaint/assign`,
+    DELETE: (sslId) => `${BASE_URL}/bihar/ssl/complaint/delete?ssl_id=${encodeURIComponent(sslId)}`,
+
+    // Backward compatibility aliases
+    ADD_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint/store`,
+    VIEW_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint/view-data`,
+    ASSIGNED_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint/assign`,
+    UPDATE_COMPLAINT: `${BASE_URL}/bihar/ssl/complaint/update`,
   },
 
-  // ── SRT Complaints ──
+  // ── SRT Complaints (11 APIs) ──
   SRT: {
-    ADD_COMPLAINT: `${BASE_URL}/bihar/srt/complaint-store`,
-    VIEW_COMPLAINT: `${BASE_URL}/bihar/srt/complaint-list`,
-    ASSIGNED_COMPLAINT: `${BASE_URL}/bihar/srt/complaint-assigned`,
-    UPDATE_COMPLAINT: `${BASE_URL}/bihar/srt/complaint-update`,
-    COMPLAINT_RAISED: `${BASE_URL}/bihar/view-srt-amc-complaint`,
+    ADD: `${BASE_URL}/bihar/srt/complaint/add`,
+    GET_SITE_NAMES: (district) => `${BASE_URL}/bihar/srt/complaint/get-site-names?district=${encodeURIComponent(district)}`,
+    GET_SITES: (district, siteName) => `${BASE_URL}/bihar/srt/complaint/get-sites?district=${encodeURIComponent(district)}&site_name=${encodeURIComponent(siteName)}`,
+    STORE: `${BASE_URL}/bihar/srt/complaint/store`,
+    VIEW_DATA: `${BASE_URL}/bihar/srt/complaint/view-data`,
+    EDIT: (srtId) => `${BASE_URL}/bihar/srt/complaint/edit?srt_id=${encodeURIComponent(srtId)}`,
+    UPDATE: `${BASE_URL}/bihar/srt/complaint/update`,
+    CLOSE_EDIT: (srtId) => `${BASE_URL}/bihar/srt/complaint/close-edit?srt_id=${encodeURIComponent(srtId)}`,
+    CLOSE_UPDATE: `${BASE_URL}/bihar/srt/complaint/close-update`,
+    ASSIGN: `${BASE_URL}/bihar/srt/complaint/assign`,
+    DELETE: (srtId) => `${BASE_URL}/bihar/srt/complaint/delete?srt_id=${encodeURIComponent(srtId)}`,
+
+    // Backward compatibility aliases
+    ADD_COMPLAINT: `${BASE_URL}/bihar/srt/complaint/store`,
+    VIEW_COMPLAINT: `${BASE_URL}/bihar/srt/complaint/view-data`,
+    ASSIGNED_COMPLAINT: `${BASE_URL}/bihar/srt/complaint/assign`,
+    UPDATE_COMPLAINT: `${BASE_URL}/bihar/srt/complaint/update`,
   },
 };
 
