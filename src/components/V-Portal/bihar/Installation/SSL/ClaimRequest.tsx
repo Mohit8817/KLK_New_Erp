@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue, type FormEvent } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type FormEvent } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
@@ -11,12 +11,13 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  usePagination,
   TableSkeleton,
   KpiSkeleton,
   type ExportColumn,
   exportDataToCSV,
   exportDataToExcel,
+  copyTableDataToClipboard,
+  printTableData,
 } from '../../../../../common';
 
 const BLUE_PRIMARY = '#2563eb';
@@ -53,13 +54,139 @@ const ICON_ELIGIBLE = (
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
+const MODAL_FIELD_STYLES = `
+  .ax-modern-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444;
+    font-weight: 700;
+    margin-left: 3px;
+  }
+  .ax-modern-input-wrap {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px;
+    background: var(--ax-surface-solid, #ffffff);
+    transition: all 0.2s ease;
+    overflow: hidden;
+  }
+  .ax-modern-input-wrap:focus-within {
+    border-color: var(--ax-accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #3b82f6) 18%, transparent);
+  }
+  .ax-modern-addon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    height: 42px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    border-right: 1.5px solid var(--ax-border, #cbd5e1);
+    color: var(--ax-text-muted, #64748b);
+    font-size: 14px;
+    font-weight: 700;
+    user-select: none;
+  }
+  .ax-modern-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border: none;
+    outline: none;
+    font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a);
+    background: transparent;
+  }
+  .ax-modern-input::placeholder {
+    color: var(--ax-text-muted, #94a3b8);
+  }
+  .ax-modern-textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 10px 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px;
+    font-size: 13px;
+    color: var(--ax-text-strong, #0f172a);
+    background: var(--ax-surface-solid, #ffffff);
+    outline: none;
+    transition: all 0.2s ease;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  .ax-modern-textarea:focus {
+    border-color: var(--ax-accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #3b82f6) 18%, transparent);
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #3b82f6);
+    background: color-mix(in srgb, var(--ax-accent, #3b82f6) 5%, var(--ax-surface-subtle, #f8fafc));
+  }
+  .ax-modern-dropzone__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #3b82f6) 10%, #ffffff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 9px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #dcfce7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;
+
 export function Bihar_Installation_SSL_ClaimRequest() {
   const [loading, setLoading] = useState(true);
   const [claims, setClaims] = useState<SslClaimRaisedItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Eligible sites for claim
+  const raiseFileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
   const [eligibleSiteIds, setEligibleSiteIds] = useState<number[]>([]);
 
   // Raise Claim Modal State
@@ -147,10 +274,17 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   }, [claims, eligibleSiteIds]);
 
   // Pagination
-  const pagination = usePagination<SslClaimRaisedItem>({
-    data: filtered,
-    initialPageSize: 15,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredQuery, statusFilter]);
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   // Handle Raise Claim Submit
   const handleRaiseSubmit = async (e: FormEvent) => {
@@ -419,21 +553,21 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('all'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('all'); setCurrentPage(1); }}
             >
               All Claims ({claims.length})
             </button>
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === '0' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('0'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('0'); setCurrentPage(1); }}
             >
               Pending ({metrics.pendingCount})
             </button>
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === '1' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('1'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('1'); setCurrentPage(1); }}
             >
               Approved ({metrics.approvedCount})
             </button>
@@ -443,11 +577,10 @@ export function Bihar_Installation_SSL_ClaimRequest() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <SearchInput
               value={searchQuery}
-              onChange={(val) => {
-                setSearchQuery(val);
-                pagination.setPage(1);
-              }}
+              onChange={setSearchQuery}
               placeholder="Search vendor, amount…"
+              size="sm"
+              ariaLabel="Search claim requests"
             />
             <TableExportToolbar
               onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
@@ -483,7 +616,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.paged.length === 0 ? (
+                {paginated.length === 0 ? (
                   <tr>
                     <td colSpan={14} style={{ padding: 40, textAlign: 'center' }}>
                       <TableEmptyState
@@ -493,8 +626,8 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                     </td>
                   </tr>
                 ) : (
-                  pagination.paged.map((r, idx) => {
-                    const rowNum = (pagination.page - 1) * pagination.pageSize + idx + 1;
+                  paginated.map((r, idx) => {
+                    const rowNum = (currentPage - 1) * pageSize + idx + 1;
                     const invoiceUrl = getMediaUrl(r.claim_invoice);
                     const isApproved = r.claim_status === 1;
                     const isRejected = r.claim_status === 2;
@@ -593,9 +726,23 @@ export function Bihar_Installation_SSL_ClaimRequest() {
         )}
 
         <div className="ax-card__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <Pagination {...pagination} />
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
+          </div>
         </div>
       </section>
+
+            <style>{MODAL_FIELD_STYLES}</style>
 
       {/* ── Raise Claim Modal (Minimum 100 Sites Rule) ── */}
       {raiseModalOpen && (
@@ -605,6 +752,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -619,118 +767,187 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             className="ax-modal__dialog"
             style={{
               background: '#fff',
-              borderRadius: 14,
-              maxWidth: 620,
+              borderRadius: 16,
+              maxWidth: 600,
               width: '100%',
               overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="ax-modal__header"
               style={{
-                padding: '16px 22px',
+                padding: '18px 24px',
                 borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
               <div>
-                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
                   Raise SSL Installation Claim
                 </h4>
-                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
                   Minimum 100 verified eligible sites required by policy
                 </p>
               </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--ghost ax-btn--sm"
+                style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }}
                 onClick={() => {
                   if (!raiseSubmitting) setRaiseModalOpen(false);
                 }}
                 disabled={raiseSubmitting}
+                aria-label="Close dialog"
               >
                 ✕
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: 22 }}>
+            <div className="ax-modal__body" style={{ padding: 24 }}>
               {raiseSuccess && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 13, fontWeight: 600, border: '1px solid #a7f3d0' }}>
                   ✓ {raiseSuccess}
                 </div>
               )}
               {raiseError && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
                   ⚠ {raiseError}
                 </div>
               )}
 
               <form onSubmit={handleRaiseSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Claim Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Claim Amount */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="rc-claim-amount">
+                      <span>Claim Amount (₹)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="ax-input"
-                      placeholder="e.g. 250000.00"
-                      value={claimAmount}
-                      onChange={(e) => setClaimAmount(e.target.value)}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                    <div className="ax-modern-input-wrap">
+                      <span className="ax-modern-addon">₹</span>
+                      <input
+                        id="rc-claim-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="ax-modern-input"
+                        placeholder="e.g. 250000.00"
+                        value={claimAmount}
+                        onChange={(e) => setClaimAmount(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Claim Invoice Document (PDF / Image) <span style={{ color: '#ef4444' }}>*</span>
+                  {/* Claim Invoice Document */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label">
+                      <span>Claim Invoice Document (PDF / Image)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
                     <input
+                      ref={raiseFileRef}
                       type="file"
                       accept=".pdf,image/*"
+                      style={{ display: 'none' }}
                       onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
-                      required
-                      style={{ fontSize: 13 }}
                     />
+                    {!claimInvoiceFile ? (
+                      <div
+                        className="ax-modern-dropzone"
+                        onClick={() => raiseFileRef.current?.click()}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="ax-modern-dropzone__icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                            Click to upload invoice document
+                          </div>
+                          <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                            PDF or Image formats allowed (Max 5 MB)
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ax-modern-file-chip">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span className="ax-modern-file-chip__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {claimInvoiceFile.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                              {(claimInvoiceFile.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                          onClick={() => setClaimInvoiceFile(null)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <label style={{ fontSize: 12.5, fontWeight: 700 }}>
-                        Site IDs (Comma-separated) <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
+                  {/* Site IDs */}
+                  <div className="ax-modern-field">
+                    <div className="ax-modern-label">
+                      <span>Site IDs (Comma-separated) <span className="ax-modern-req">*</span></span>
                       <span
                         style={{
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: 700,
-                          color: siteIdsInput.split(',').filter((s) => s.trim()).length >= 100 ? GREEN_EMERALD : RED_DANGER,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          background: siteIdsInput.split(',').filter((s) => s.trim()).length >= 100 ? '#ecfdf5' : '#fef2f2',
+                          color: siteIdsInput.split(',').filter((s) => s.trim()).length >= 100 ? '#065f46' : '#991b1b',
+                          border: '1px solid #cbd5e1',
                         }}
                       >
                         Count: {siteIdsInput.split(',').filter((s) => s.trim()).length} / 100 required
                       </span>
                     </div>
                     <textarea
-                      className="ax-input"
+                      className="ax-modern-textarea"
                       rows={4}
                       placeholder="e.g. 101, 102, 103..."
                       value={siteIdsInput}
                       onChange={(e) => setSiteIdsInput(e.target.value)}
                       required
-                      style={{ width: '100%', borderRadius: 8, padding: 10, fontSize: 12.5 }}
+                      style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 12.5 }}
                     />
-                    <small style={{ color: 'var(--ax-text-muted)', fontSize: 11.5 }}>
+                    <small style={{ color: 'var(--ax-text-muted, #64748b)', fontSize: 11.5, marginTop: 2 }}>
                       Auto-populated from your {eligibleSiteIds.length} eligible installed sites.
                     </small>
                   </div>
                 </div>
 
-                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"
@@ -761,6 +978,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -775,77 +993,149 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             className="ax-modal__dialog"
             style={{
               background: '#fff',
-              borderRadius: 14,
+              borderRadius: 16,
               maxWidth: 520,
               width: '100%',
               overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="ax-modal__header"
               style={{
-                padding: '16px 22px',
+                padding: '18px 24px',
                 borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
-                Update Claim Request (#{editingClaim.id})
-              </h4>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                  Update Claim Request (#{editingClaim.id})
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Modify claim amount or replace the invoice document
+                </p>
+              </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--ghost ax-btn--sm"
+                style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }}
                 onClick={() => {
                   if (!editSubmitting) setEditModalOpen(false);
                 }}
                 disabled={editSubmitting}
+                aria-label="Close dialog"
               >
                 ✕
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: 22 }}>
+            <div className="ax-modal__body" style={{ padding: 24 }}>
               {editError && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
                   ⚠ {editError}
                 </div>
               )}
 
               <form onSubmit={handleEditSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Claim Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Amount Field */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="ec-claim-amount">
+                      <span>Claim Amount (₹)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="ax-input"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                    <div className="ax-modern-input-wrap">
+                      <span className="ax-modern-addon">₹</span>
+                      <input
+                        id="ec-claim-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="ax-modern-input"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Replace Invoice Document (Optional)
-                    </label>
+                  {/* Document Upload */}
+                  <div className="ax-modern-field">
+                    <div className="ax-modern-label">
+                      <span>Replace Invoice Document</span>
+                      <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>(Optional)</span>
+                    </div>
                     <input
+                      ref={editFileRef}
                       type="file"
                       accept=".pdf,image/*"
+                      style={{ display: 'none' }}
                       onChange={(e) => setEditInvoiceFile(e.target.files?.[0] || null)}
-                      style={{ fontSize: 13 }}
                     />
+                    {!editInvoiceFile ? (
+                      <div
+                        className="ax-modern-dropzone"
+                        onClick={() => editFileRef.current?.click()}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="ax-modern-dropzone__icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                            Click to upload replacement invoice
+                          </div>
+                          <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                            {editingClaim.claim_invoice ? 'Existing invoice already attached. Upload only to replace.' : 'PDF or Image (Max 5 MB)'}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ax-modern-file-chip">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span className="ax-modern-file-chip__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {editInvoiceFile.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                              {(editInvoiceFile.size / 1024).toFixed(1)} KB (New file)
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                          onClick={() => setEditInvoiceFile(null)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"

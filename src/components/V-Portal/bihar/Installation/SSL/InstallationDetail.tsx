@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+﻿import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -626,15 +626,6 @@ const PAYMENT_COLS: Col[] = [
   paymentStatusCol,
 ];
 
-type EditForm = {
-  beneficiary_name: string; contact_no: string; ward_no: string; pole_no: string;
-  uuid_no: string; light_no: string; module_no: string; battery_serial_no: string;
-  latitude: string; longitude: string; remark: string;
-};
-const EMPTY_FORM: EditForm = {
-  beneficiary_name: '', contact_no: '', ward_no: '', pole_no: '', uuid_no: '', light_no: '',
-  module_no: '', battery_serial_no: '', latitude: '', longitude: '', remark: '',
-};
 
 /* =========================================================================
  * Main page
@@ -661,30 +652,12 @@ export function Bihar_Installation_SSL_InstallationDetail() {
   const [hiddenByTab, setHiddenByTab] = useState<Record<TabKey, string[]>>({ Completed: [], Payment: [] });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(100);
 
   // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
-
-  // View modal
-  const [viewItem, setViewItem] = useState<InstalledLightItem | null>(null);
-  const closeView = useCallback(() => setViewItem(null), []);
-
-  // Edit modal
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editForm, setEditForm] = useState<EditForm>(EMPTY_FORM);
-  const [editFile, setEditFile] = useState<File | null>(null);
-  const [existingImage, setExistingImage] = useState('');
-  const [editError, setEditError] = useState<string | null>(null);
-  const [gpsDetecting, setGpsDetecting] = useState(false);
-  const [gpsMsg, setGpsMsg] = useState<string | null>(null);
-  const closeEdit = useCallback(() => {
-    if (!editSubmitting) setEditingId(null);
-  }, [editSubmitting]);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -761,115 +734,6 @@ export function Bihar_Installation_SSL_InstallationDetail() {
     setVerifyFilter('all');
   };
 
-  /* ───────── Edit ───────── */
-  const setField = (name: keyof EditForm) => (v: string) => setEditForm((p) => ({ ...p, [name]: v }));
-
-  const handleOpenEdit = async (lightId: number) => {
-    setEditingId(lightId);
-    setEditLoading(true);
-    setEditError(null);
-    setEditFile(null);
-    setExistingImage('');
-    setGpsMsg(null);
-    setEditForm(EMPTY_FORM);
-    try {
-      const data = await biharSslInstallationService.getInstalledLightEdit(lightId);
-      if (data) {
-        setEditForm({
-          beneficiary_name: data.beneficiary_name || '',
-          contact_no: data.contact_no || '',
-          ward_no: data.ward_no || '',
-          pole_no: data.pole_no || '',
-          uuid_no: data.uuid_no || '',
-          light_no: data.light_no || '',
-          module_no: data.module_no || data.panel_no || '',
-          battery_serial_no: data.battery_serial_no || data.battery_no || '',
-          latitude: data.latitude || '',
-          longitude: data.longitude || '',
-          remark: data.remark || data.inst_remark || '',
-        });
-        setExistingImage(getMediaUrl((data as any).light_image || (data as any).light_file) || '');
-      }
-    } catch (err: any) {
-      console.error('[Edit Light] fetch error:', err);
-      setEditError(err?.message || 'Failed to fetch light details.');
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  const handleDetectGps = () => {
-    if (!navigator.geolocation) {
-      setGpsMsg('Geolocation is not supported by your browser.');
-      return;
-    }
-    setGpsDetecting(true);
-    setGpsMsg('Locating coordinates…');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setEditForm((p) => ({
-          ...p,
-          latitude: pos.coords.latitude.toFixed(6),
-          longitude: pos.coords.longitude.toFixed(6),
-        }));
-        setGpsDetecting(false);
-        setGpsMsg(`GPS locked (accuracy ±${Math.round(pos.coords.accuracy || 5)} m)`);
-      },
-      (err) => {
-        setGpsDetecting(false);
-        setGpsMsg(`Unable to lock GPS: ${err.message}. Enter manually or retry.`);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  };
-
-  const handlePickFile = (file: File | null) => {
-    setEditError(null);
-    if (!file) {
-      setEditFile(null);
-      return;
-    }
-    if (file.size > MAX_FILE) {
-      setEditFile(null);
-      setEditError(`File "${file.name}" exceeds the 2 MB limit.`);
-      return;
-    }
-    setEditFile(file);
-  };
-
-  const handleSaveEdit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingId) return;
-    setEditError(null);
-    setEditSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append('ssl_id', String(editingId));
-      fd.append('uuid_no', editForm.uuid_no.trim());
-      fd.append('light_no', editForm.light_no.trim());
-      fd.append('module_no', editForm.module_no.trim());
-      fd.append('battery_serial_no', editForm.battery_serial_no.trim());
-      fd.append('beneficiary_name', editForm.beneficiary_name.trim());
-      fd.append('contact_no', editForm.contact_no.trim());
-      fd.append('ward_no', editForm.ward_no.trim());
-      fd.append('pole_no', editForm.pole_no.trim());
-      fd.append('latitude', editForm.latitude.trim());
-      fd.append('longitude', editForm.longitude.trim());
-      if (editForm.remark.trim()) fd.append('remark', editForm.remark.trim());
-      if (editFile) fd.append('light_file', editFile);
-
-      const res = await biharSslInstallationService.updateInstalledLight(fd);
-      setToastMsg({ type: 'success', text: res?.message || 'Details updated successfully!' });
-      setEditingId(null);
-      await loadData();
-    } catch (err: any) {
-      console.error('[Save Edit] error:', err);
-      setEditError(err?.message || 'Failed to update details.');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
   /* ───────── Export (derived from the same column config as the table) ───────── */
   const cols = isCompleted ? COMPLETED_COLS : PAYMENT_COLS;
 
@@ -896,24 +760,6 @@ export function Bihar_Installation_SSL_InstallationDetail() {
 
   const TOTAL_COLUMNS = 1 + cols.length + (isCompleted ? 1 : 0);
 
-  const viewItems = viewItem
-    ? [
-        { label: 'Beneficiary', value: viewItem.beneficiary_name },
-        { label: 'Contact', value: viewItem.contact_no },
-        { label: 'District / Block', value: `${viewItem.district || DASH} / ${viewItem.block || DASH}` },
-        { label: 'Panchayat', value: viewItem.panchayat || viewItem.panchyat },
-        { label: 'Ward / Pole', value: `${viewItem.ward_no || DASH} / ${viewItem.pole_no || DASH}` },
-        { label: 'GPS (Lat, Lng)', value: `${viewItem.latitude || DASH}, ${viewItem.longitude || DASH}` },
-        { label: 'UUID No.', value: viewItem.uuid_no },
-        { label: 'Light No.', value: viewItem.light_no },
-        { label: 'Battery Serial No.', value: viewItem.battery_no || viewItem.battery_serial_no },
-        { label: 'Module / Panel No.', value: viewItem.panel_no || viewItem.module_no },
-        { label: 'Sim No.', value: viewItem.sim_no },
-        { label: 'IMEI No.', value: viewItem.imei_no },
-        { label: 'Remark', value: viewItem.remark || viewItem.inst_remark },
-      ]
-    : [];
-
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
@@ -931,9 +777,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontWeight: 600 }}>
-              Company ID: {getCompanyId()}
-            </span>
+          
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
@@ -1049,8 +893,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
                   onExportCSV={() => exportDataToCSV(`${fileBase}_${stamp}`, filtered, activeCols)}
                   onExportExcel={() => exportDataToExcel(`${fileBase}_${stamp}`, filtered, activeCols)}
                   onExportPDF={() => printTableData(fileTitle, filtered, activeCols)}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+               
                 />
               </div>
             </div>
@@ -1120,12 +963,27 @@ export function Bihar_Installation_SSL_InstallationDetail() {
                       })}
                       {isCompleted && (
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <RowActionDropdown
-                            items={[
-                              { label: 'Edit Details', onClick: () => handleOpenEdit(r.id) },
-                              { label: 'View Specs', onClick: () => setViewItem(r) },
-                            ]}
-                          />
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '5px 12px',
+                              fontWeight: 600,
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                            }}
+                            title="Edit installed light details"
+                            onClick={() => navigate(`/v/ssl/update-ssl-site-deatils?id=${r.id}&edit=true`)}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                            <span>Edit</span>
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -1154,131 +1012,6 @@ export function Bihar_Installation_SSL_InstallationDetail() {
 
       {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
-
-      {/* ── View Specs Modal ── */}
-      <Modal open={!!viewItem} onClose={closeView} labelledBy="ssl-view-title" dialogClass="ax-modal__dialog--lg">
-        {viewItem && (
-          <div>
-            <div className="ax-modal__header">
-              <div>
-                <h2 className="ax-modal__title" id="ssl-view-title">SSL site details</h2>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  {viewItem.unique_id || viewItem.uid || `#${viewItem.id}`}
-                </p>
-              </div>
-              <button type="button" className="ax-modal__close" onClick={closeView} aria-label="Close dialog">{X_ICON}</button>
-            </div>
-
-            <div className="ax-modal__body">
-              <div className="ula-m-grid">
-                {viewItems.map((item) => (
-                  <div key={item.label} className="ula-m-kv">
-                    <div className="ula-m-kv__k">{item.label}</div>
-                    <div className="ula-m-kv__v">{item.value || DASH}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--primary" onClick={closeView}>Close</button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Edit Details Modal ── */}
-      <Modal open={editingId !== null} onClose={closeEdit} labelledBy="ssl-edit-title" dialogClass="ax-modal__dialog--lg" closeOnBackdrop={!editSubmitting}>
-        {editingId !== null && (
-          <form onSubmit={handleSaveEdit}>
-            <div className="ax-modal__header">
-              <div>
-                <h2 className="ax-modal__title" id="ssl-edit-title">Edit installed light details</h2>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Light ID #{editingId}</p>
-              </div>
-              <button type="button" className="ax-modal__close" onClick={closeEdit} aria-label="Close dialog" disabled={editSubmitting}>{X_ICON}</button>
-            </div>
-
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-              {editError && (
-                <div className="ax-alert ax-alert--danger" role="alert">
-                  <div className="ax-alert__text">{editError}</div>
-                </div>
-              )}
-
-              {editLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)', color: 'var(--ax-text-muted)' }}>
-                  <span className="ax-spinner" /> Loading light details…
-                </div>
-              ) : (
-                <>
-                  <p className="ula-m-note">The field labels marked with * are required fields.</p>
-
-                  <div className="ula-m-grid">
-                    <TextField id="ssl-e-name" label="Beneficiary Name" value={editForm.beneficiary_name} onChange={setField('beneficiary_name')} />
-                    <TextField id="ssl-e-contact" label="Contact No." type="tel" value={editForm.contact_no} onChange={setField('contact_no')} />
-                    <TextField id="ssl-e-ward" label="Ward No." value={editForm.ward_no} onChange={setField('ward_no')} />
-                    <TextField id="ssl-e-pole" label="Pole No." value={editForm.pole_no} onChange={setField('pole_no')} />
-                    <TextField id="ssl-e-uuid" label="UUID No." value={editForm.uuid_no} onChange={setField('uuid_no')} />
-                    <TextField id="ssl-e-light" label="Light Number" value={editForm.light_no} onChange={setField('light_no')} />
-                    <TextField id="ssl-e-module" label="Panel Number (Module No)" value={editForm.module_no} onChange={setField('module_no')} />
-                    <TextField id="ssl-e-battery" label="Battery Number" value={editForm.battery_serial_no} onChange={setField('battery_serial_no')} />
-                    <TextField id="ssl-e-lat" label="Latitude" value={editForm.latitude} onChange={setField('latitude')} />
-                    <TextField id="ssl-e-lng" label="Longitude" value={editForm.longitude} onChange={setField('longitude')} />
-
-                    <div className="ula-m-full" style={{ display: 'flex', alignItems: 'center', gap: 'var(--ax-space-3)', flexWrap: 'wrap' }}>
-                      <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={handleDetectGps} disabled={gpsDetecting}>
-                        {gpsDetecting ? <span className="ax-spinner" /> : ICON_CROSSHAIR}
-                        <span className="ax-btn__label">{gpsDetecting ? 'Locking GPS…' : 'Detect GPS'}</span>
-                      </button>
-                      {gpsMsg && <span className="ula-m-hint">{gpsMsg}</span>}
-                    </div>
-
-                    <div className="ax-field ula-m-full">
-                      <label className="ax-label" htmlFor="ssl-e-file">Replace Light Photo (optional)</label>
-                      <input
-                        id="ssl-e-file"
-                        type="file"
-                        accept="image/*"
-                        className="ax-input"
-                        onChange={(e) => handlePickFile(e.target.files?.[0] || null)}
-                      />
-                      <span className="ax-help">
-                        {editFile ? `${editFile.name} (${(editFile.size / 1024).toFixed(1)} KB)` : 'JPG or PNG, max 2 MB'}
-                      </span>
-                    </div>
-
-                    {existingImage && (
-                      <div className="ula-m-full" style={{ display: 'flex', alignItems: 'center', gap: 'var(--ax-space-3)' }}>
-                        <LightThumbnail url={existingImage} alt={`Light #${editingId} - Current Photo`} onPreview={openPreview} />
-                        <span className="ula-m-hint">Current photo. Add a new one only to replace it.</span>
-                      </div>
-                    )}
-
-                    <div className="ax-field ula-m-full">
-                      <label className="ax-label" htmlFor="ssl-e-remark">Remarks</label>
-                      <textarea
-                        id="ssl-e-remark"
-                        className="ax-input"
-                        rows={3}
-                        value={editForm.remark}
-                        onChange={(e) => setField('remark')(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeEdit} disabled={editSubmitting}>Cancel</button>
-              <button type="submit" className="ax-btn ax-btn--primary" disabled={editSubmitting || editLoading}>
-                {editSubmitting ? <span className="ax-spinner" /> : 'Update details'}
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
     </div>
   );
 }

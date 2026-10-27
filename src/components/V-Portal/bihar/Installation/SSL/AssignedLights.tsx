@@ -3,7 +3,6 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
   getMediaUrl,
-  getCompanyId,
   type AssignedSslLightItem,
 } from '../../bihar-services';
 import {
@@ -51,6 +50,54 @@ const ICON_CHECK = (
 
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 
+// API: panchayat JSON string aata hai, e.g. "[\"Name\"]" -> "Name"
+const parsePanchayat = (v: unknown): string => {
+  if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return '';
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).join(', ');
+      return String(parsed);
+    } catch {
+      return s;
+    }
+  }
+  return '';
+};
+
+// API field names -> component field names
+const normalizeRecord = (r: any): AssignedSslLightItem => ({
+  ...r,
+  start_date: r.start_date ?? r.sdate ?? '',
+  end_date: r.end_date ?? r.ldate ?? '',
+  site_count: Number(r.site_count ?? r.sitecount) || 0,
+  remarks: r.remarks ?? r.remark ?? '',
+  panchayat: parsePanchayat(r.panchayat),
+  status: Number(r.status) || 0,
+});
+
+// yyyy-mm-dd -> dd-mm-yyyy
+const fmtDate = (d?: string | null) => {
+  if (!d) return '—';
+  const [y, m, day] = String(d).split('-');
+  return y && m && day ? `${day}-${m}-${y}` : String(d);
+};
+
+const getFileExt = (url?: string | null) => {
+  if (!url) return 'FILE';
+  const clean = url.split('?')[0];
+  const ext = clean.includes('.') ? clean.split('.').pop() : '';
+  return ext ? ext.toUpperCase() : 'FILE';
+};
+
+const resolveFileUrl = (file?: string | null) => {
+  if (!file) return '';
+  if (/^https?:\/\//i.test(file)) return file;
+  return getMediaUrl(file) || '';
+};
+
 export function Bihar_Installation_SSL_AssignedLights() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<AssignedSslLightItem[]>([]);
@@ -72,7 +119,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
     setActionErrorMsg(null);
     try {
       const data = await biharSslInstallationService.getAssignedLights();
-      setRecords(Array.isArray(data) ? data : []);
+      setRecords(Array.isArray(data) ? data.map(normalizeRecord) : []);
     } catch (err: any) {
       console.error('[AssignedLights] load error:', err);
       setActionErrorMsg('Failed to load assigned lights.');
@@ -98,7 +145,6 @@ export function Bihar_Installation_SSL_AssignedLights() {
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return records.filter((r) => {
-      // Search
       if (q) {
         const matches =
           (r.vendor && r.vendor.toLowerCase().includes(q)) ||
@@ -109,11 +155,10 @@ export function Bihar_Installation_SSL_AssignedLights() {
         if (!matches) return false;
       }
       // Status filter: 1 = Pending, 2 = Accepted
-      if (statusFilter === 'pending' && r.status !== 1) return false;
+      if (statusFilter === 'pending' && r.status === 2) return false;
       if (statusFilter === 'accepted' && r.status !== 2) return false;
 
-      // District filter
-      if (districtFilter !== 'all' && r.district?.toLowerCase() !== districtFilter.toLowerCase()) {
+      if (districtFilter !== 'all' && r.district?.trim().toLowerCase() !== districtFilter.toLowerCase()) {
         return false;
       }
       return true;
@@ -137,17 +182,17 @@ export function Bihar_Installation_SSL_AssignedLights() {
   }, [records]);
 
   // Pagination
-  const pagination = usePagination({ data: filtered, initialPageSize: 15 });
+  const pagination = usePagination({ data: filtered, initialPageSize: 100 });
 
   // Export Columns
   const exportCols: ExportColumn<AssignedSslLightItem>[] = [
     { header: 'Vendor', accessor: 'vendor' },
-    { header: 'State', accessor: 'state' },
+    { header: 'State', accessor: (r) => r.state || '' },
     { header: 'District', accessor: 'district' },
     { header: 'Block', accessor: 'block' },
     { header: 'Panchayat', accessor: 'panchayat' },
-    { header: 'Start Date', accessor: 'start_date' },
-    { header: 'End Date', accessor: 'end_date' },
+    { header: 'Start Date', accessor: (r) => fmtDate(r.start_date) },
+    { header: 'End Date', accessor: (r) => fmtDate(r.end_date) },
     { header: 'Site Count', accessor: 'site_count' },
     { header: 'Remarks', accessor: 'remarks' },
     {
@@ -191,6 +236,40 @@ export function Bihar_Installation_SSL_AssignedLights() {
     }
   };
 
+  const thBase: React.CSSProperties = {
+    padding: '12px 14px',
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    color: 'var(--ax-text-subtle)',
+  };
+
+  const kpiCard: React.CSSProperties = {
+    padding: '14px 18px',
+    border: '1px solid var(--ax-border, #e2e8f0)',
+    borderRadius: 12,
+  };
+
+  const kpiLabel: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    color: 'var(--ax-text-muted)',
+    letterSpacing: '0.04em',
+  };
+
+  const kpiIcon = (bg: string, color: string): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    background: bg,
+    color,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  });
+
   return (
     <div className="ax-page solar-erp-page">
       <PageHead
@@ -204,7 +283,6 @@ export function Bihar_Installation_SSL_AssignedLights() {
         ]}
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        
             <button
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--sm"
@@ -288,84 +366,48 @@ export function Bihar_Installation_SSL_AssignedLights() {
         <KpiSkeleton count={4} />
       ) : (
         <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
-          <div
-            className="ax-card ax-col--3"
-            style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
-          >
+          <div className="ax-card ax-col--3" style={kpiCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(37, 99, 235, 0.12)', color: BLUE_PRIMARY, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_BATCH}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Total Batches
-              </span>
+              <span style={kpiIcon('rgba(37, 99, 235, 0.12)', BLUE_PRIMARY)}>{ICON_BATCH}</span>
+              <span style={kpiLabel}>Total Batches</span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
               {num(metrics.totalBatches)}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Assigned work orders
-            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>Assigned work orders</div>
           </div>
 
-          <div
-            className="ax-card ax-col--3"
-            style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
-          >
+          <div className="ax-card ax-col--3" style={kpiCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(100, 116, 139, 0.12)', color: 'var(--ax-text-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_SITES}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Total Allocated Sites
-              </span>
+              <span style={kpiIcon('rgba(100, 116, 139, 0.12)', 'var(--ax-text-strong)')}>{ICON_SITES}</span>
+              <span style={kpiLabel}>Total Allocated Sites</span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', marginTop: 4 }}>
               {num(metrics.totalSites)}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Cumulative light points
-            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>Cumulative light points</div>
           </div>
 
-          <div
-            className="ax-card ax-col--3"
-            style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
-          >
+          <div className="ax-card ax-col--3" style={kpiCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(245, 158, 11, 0.14)', color: AMBER_WARNING, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_CLOCK}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Pending Acceptance
-              </span>
+              <span style={kpiIcon('rgba(245, 158, 11, 0.14)', AMBER_WARNING)}>{ICON_CLOCK}</span>
+              <span style={kpiLabel}>Pending Acceptance</span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: AMBER_WARNING, marginTop: 4 }}>
               {num(metrics.pendingCount)}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Requires vendor action
-            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>Requires vendor action</div>
           </div>
 
-          <div
-            className="ax-card ax-col--3"
-            style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
-          >
+          <div className="ax-card ax-col--3" style={kpiCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_CHECK}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Accepted Batches
-              </span>
+              <span style={kpiIcon('rgba(16, 185, 129, 0.14)', GREEN_EMERALD)}>{ICON_CHECK}</span>
+              <span style={kpiLabel}>Accepted Batches</span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
               {num(metrics.acceptedCount)}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Ready for installation
-            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>Ready for installation</div>
           </div>
         </div>
       )}
@@ -451,31 +493,36 @@ export function Bihar_Installation_SSL_AssignedLights() {
               style={{ width: 230, maxWidth: 230, flex: '0 0 230px', marginLeft: 0 }}
             />
 
-            <TableExportToolbar onCopy={handleCopy} onExportCSV={handleExportCSV} onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
+            <TableExportToolbar
+              onCopy={handleCopy}
+              onExportCSV={handleExportCSV}
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+            />
           </div>
         </div>
 
         {/* Data Table */}
         {loading ? (
-          <TableSkeleton columns={12} rows={8} showCard={false} />
+          <TableSkeleton columns={13} rows={8} showCard={false} />
         ) : (
           <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
             <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1100 }}>
               <thead>
                 <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', width: 50 }}>Sr. No.</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Vendor</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>State</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>District</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Block</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Panchayat</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Start Date</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>End Date</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'right' }}>Site Count</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Unique ID's File</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Remarks</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Status</th>
-                  <th style={{ padding: '12px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center', width: 100 }}>Action</th>
+                  <th style={{ ...thBase, width: 50 }}>Sr. No.</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>Vendor</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>State</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>District</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>Block</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>Panchayat</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>Start Date</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>End Date</th>
+                  <th style={{ ...thBase, textAlign: 'right' }}>Site Count</th>
+                  <th style={{ ...thBase, textAlign: 'center' }}>Unique ID's File</th>
+                  <th style={{ ...thBase, textAlign: 'left' }}>Remarks</th>
+                  <th style={{ ...thBase, textAlign: 'center' }}>Status</th>
+                  <th style={{ ...thBase, textAlign: 'center', width: 100 }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -492,7 +539,8 @@ export function Bihar_Installation_SSL_AssignedLights() {
                   pagination.paged.map((r, idx) => {
                     const rowNum = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                     const isAccepted = r.status === 2;
-                    const fileUrl = getMediaUrl(r.uid_file);
+                    const fileUrl = resolveFileUrl(r.uid_file);
+                    const fileExt = getFileExt(r.uid_file);
 
                     return (
                       <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
@@ -503,13 +551,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
                           {r.vendor || '—'}
                         </td>
                         <td style={{ padding: '12px 14px', textTransform: 'capitalize' }}>
-                          {r.state || 'Bihar'}
+                          {r.state || '—'}
                         </td>
                         <td style={{ padding: '12px 14px', fontWeight: 600 }}>{r.district || '—'}</td>
                         <td style={{ padding: '12px 14px' }}>{r.block || '—'}</td>
                         <td style={{ padding: '12px 14px' }}>{r.panchayat || '—'}</td>
-                        <td style={{ padding: '12px 14px', fontSize: 12.5 }}>{r.start_date || '—'}</td>
-                        <td style={{ padding: '12px 14px', fontSize: 12.5 }}>{r.end_date || '—'}</td>
+                        <td style={{ padding: '12px 14px', fontSize: 12.5 }}>{fmtDate(r.start_date)}</td>
+                        <td style={{ padding: '12px 14px', fontSize: 12.5 }}>{fmtDate(r.end_date)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: BLUE_PRIMARY }}>
                           {num(r.site_count)}
                         </td>
@@ -530,13 +578,16 @@ export function Bihar_Installation_SSL_AssignedLights() {
                                 <line x1={9} y1={15} x2={12} y2={18} />
                                 <line x1={15} y1={15} x2={12} y2={18} />
                               </svg>
-                              <span>PDF</span>
+                              <span>{fileExt}</span>
                             </a>
                           ) : (
                             <span style={{ color: 'var(--ax-text-subtle)', fontSize: 12 }}>—</span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 14px', fontSize: 12.5, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.remarks || ''}>
+                        <td
+                          style={{ padding: '12px 14px', fontSize: 12.5, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          title={r.remarks || ''}
+                        >
                           {r.remarks || '—'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
@@ -556,9 +607,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                           {isAccepted ? (
-                            <span style={{ fontSize: 12, color: GREEN_EMERALD, fontWeight: 700 }}>
-                              ✓ Done
-                            </span>
+                            <span style={{ fontSize: 12, color: GREEN_EMERALD, fontWeight: 700 }}>✓ Done</span>
                           ) : (
                             <button
                               type="button"
@@ -586,7 +635,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
         </div>
       </section>
 
-      {/* ── Accept Confirmation Modal (DLE Style) ── */}
+      {/* ── Accept Confirmation Modal ── */}
       {acceptModalOpen && selectedItem && (
         <div
           className="ax-modal"
@@ -672,6 +721,13 @@ export function Bihar_Installation_SSL_AssignedLights() {
                 </div>
                 <div>
                   <strong style={{ color: 'var(--ax-text-strong)' }}>Block:</strong> {selectedItem.block || '—'}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Panchayat:</strong> {selectedItem.panchayat || '—'}
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--ax-text-strong)' }}>Period:</strong>{' '}
+                  {fmtDate(selectedItem.start_date)} → {fmtDate(selectedItem.end_date)}
                 </div>
                 <div>
                   <strong style={{ color: 'var(--ax-text-strong)' }}>Site Count:</strong>{' '}

@@ -731,8 +731,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                   onExportCSV={() => exportToCSV(filtered, activeCols, `Bihar_SSL_Installation_Inspection_${stamp}`)}
                   onExportExcel={() => exportToExcel(filtered, activeCols, `Bihar_SSL_Installation_Inspection_${stamp}`)}
                   onExportPDF={() => exportToPDF(filtered, activeCols, 'Bihar SSL Installation Inspection')}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+                
                 />
               </div>
             </div>

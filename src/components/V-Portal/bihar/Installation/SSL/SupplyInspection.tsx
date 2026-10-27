@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue, type FormEvent } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type FormEvent } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
@@ -11,12 +11,13 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  usePagination,
   TableSkeleton,
   KpiSkeleton,
   type ExportColumn,
   exportDataToCSV,
   exportDataToExcel,
+  copyTableDataToClipboard,
+  printTableData,
 } from '../../../../../common';
 
 const BLUE_PRIMARY = '#2563eb';
@@ -52,11 +53,149 @@ const ICON_VERIFIED = (
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
+const MODAL_FIELD_STYLES = `
+  .ax-modern-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444;
+    font-weight: 700;
+    margin-left: 3px;
+  }
+  .ax-modern-input-wrap {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px;
+    background: var(--ax-surface-solid, #ffffff);
+    transition: all 0.2s ease;
+    overflow: hidden;
+  }
+  .ax-modern-input-wrap:focus-within {
+    border-color: var(--ax-accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #3b82f6) 18%, transparent);
+  }
+  .ax-modern-addon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 13px;
+    height: 42px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    border-right: 1.5px solid var(--ax-border, #cbd5e1);
+    color: var(--ax-text-muted, #64748b);
+    font-size: 14px;
+    font-weight: 700;
+    user-select: none;
+  }
+  .ax-modern-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border: none;
+    outline: none;
+    font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a);
+    background: transparent;
+  }
+  .ax-modern-input::placeholder {
+    color: var(--ax-text-muted, #94a3b8);
+  }
+  .ax-modern-textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 10px 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px;
+    font-size: 13px;
+    color: var(--ax-text-strong, #0f172a);
+    background: var(--ax-surface-solid, #ffffff);
+    outline: none;
+    transition: all 0.2s ease;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  .ax-modern-textarea:focus {
+    border-color: var(--ax-accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #3b82f6) 18%, transparent);
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px;
+    padding: 16px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #3b82f6);
+    background: color-mix(in srgb, var(--ax-accent, #3b82f6) 5%, var(--ax-surface-subtle, #f8fafc));
+  }
+  .ax-modern-dropzone__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #3b82f6) 10%, #ffffff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 9px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #dcfce7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ax-modern-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 540px) {
+    .ax-modern-grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+`;
+
 export function Bihar_Installation_SSL_SupplyInspection() {
   const [loading, setLoading] = useState(true);
   const [inspections, setInspections] = useState<SslSupplyInspectionItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const addFileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   // Add Modal State
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -139,10 +278,17 @@ export function Bihar_Installation_SSL_SupplyInspection() {
   }, [inspections]);
 
   // Pagination
-  const pagination = usePagination<SslSupplyInspectionItem>({
-    data: filtered,
-    initialPageSize: 15,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredQuery, statusFilter]);
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   // Handle Add Submit
   const handleAddSubmit = async (e: FormEvent) => {
@@ -390,21 +536,21 @@ export function Bihar_Installation_SSL_SupplyInspection() {
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('all'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('all'); setCurrentPage(1); }}
             >
               All ({inspections.length})
             </button>
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === '1' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('1'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('1'); setCurrentPage(1); }}
             >
               Approved ({metrics.verifiedCount})
             </button>
             <button
               type="button"
               className={`ax-btn ax-btn--sm ${statusFilter === '0' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('0'); pagination.setPage(1); }}
+              onClick={() => { setStatusFilter('0'); setCurrentPage(1); }}
             >
               Pending ({inspections.length - metrics.verifiedCount})
             </button>
@@ -414,11 +560,10 @@ export function Bihar_Installation_SSL_SupplyInspection() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <SearchInput
               value={searchQuery}
-              onChange={(val) => {
-                setSearchQuery(val);
-                pagination.setPage(1);
-              }}
+              onChange={setSearchQuery}
               placeholder="Search code, remarks…"
+              size="sm"
+              ariaLabel="Search supply inspections"
             />
             <TableExportToolbar
               onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
@@ -452,7 +597,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.paged.length === 0 ? (
+                {paginated.length === 0 ? (
                   <tr>
                     <td colSpan={12} style={{ padding: 40, textAlign: 'center' }}>
                       <TableEmptyState
@@ -462,8 +607,8 @@ export function Bihar_Installation_SSL_SupplyInspection() {
                     </td>
                   </tr>
                 ) : (
-                  pagination.paged.map((r, idx) => {
-                    const rowNum = (pagination.page - 1) * pagination.pageSize + idx + 1;
+                  paginated.map((r, idx) => {
+                    const rowNum = (currentPage - 1) * pageSize + idx + 1;
                     const fileUrl = getMediaUrl(r.file);
                     const isApproved = r.inspection_status === 1;
 
@@ -556,9 +701,23 @@ export function Bihar_Installation_SSL_SupplyInspection() {
         )}
 
         <div className="ax-card__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <Pagination {...pagination} />
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filtered.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setCurrentPage(1);
+              }}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
+          </div>
         </div>
       </section>
+
+            <style>{MODAL_FIELD_STYLES}</style>
 
       {/* ── Add Supply Inspection Modal ── */}
       {addModalOpen && (
@@ -568,6 +727,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -582,133 +742,226 @@ export function Bihar_Installation_SSL_SupplyInspection() {
             className="ax-modal__dialog"
             style={{
               background: '#fff',
-              borderRadius: 14,
-              maxWidth: 550,
+              borderRadius: 16,
+              maxWidth: 580,
               width: '100%',
               overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="ax-modal__header"
               style={{
-                padding: '16px 22px',
+                padding: '18px 24px',
                 borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
-                Add SSL Supply Inspection
-              </h4>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                  Add SSL Supply Inspection
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Record materials inspection and delivery verification
+                </p>
+              </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--ghost ax-btn--sm"
+                style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }}
                 onClick={() => {
                   if (!addSubmitting) setAddModalOpen(false);
                 }}
                 disabled={addSubmitting}
+                aria-label="Close dialog"
               >
                 ✕
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: 22 }}>
+            <div className="ax-modal__body" style={{ padding: 24 }}>
               {addSuccess && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 13, fontWeight: 600, border: '1px solid #a7f3d0' }}>
                   ✓ {addSuccess}
                 </div>
               )}
               {addError && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
                   ⚠ {addError}
                 </div>
               )}
 
               <form onSubmit={handleAddSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Inspection Date <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="date"
-                      className="ax-input"
-                      value={addForm.date}
-                      onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Two column: Date & Number of Lights */}
+                  <div className="ax-modern-grid-2">
+                    <div className="ax-modern-field">
+                      <label className="ax-modern-label" htmlFor="si-date">
+                        <span>Inspection Date</span>
+                        <span className="ax-modern-req">*</span>
+                      </label>
+                      <div className="ax-modern-input-wrap">
+                        <span className="ax-modern-addon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                          </svg>
+                        </span>
+                        <input
+                          id="si-date"
+                          type="date"
+                          className="ax-modern-input"
+                          value={addForm.date}
+                          onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="ax-modern-field">
+                      <label className="ax-modern-label" htmlFor="si-lights">
+                        <span>Number of Lights</span>
+                        <span className="ax-modern-req">*</span>
+                      </label>
+                      <div className="ax-modern-input-wrap">
+                        <span className="ax-modern-addon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                            <line x1="9" y1="18" x2="15" y2="18" />
+                            <line x1="10" y1="22" x2="14" y2="22" />
+                            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+                          </svg>
+                        </span>
+                        <input
+                          id="si-lights"
+                          type="number"
+                          min="1"
+                          className="ax-modern-input"
+                          placeholder="e.g. 50"
+                          value={addForm.no_of_lights}
+                          onChange={(e) => setAddForm({ ...addForm, no_of_lights: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Number of Lights <span style={{ color: '#ef4444' }}>*</span>
+                  {/* Amount Field */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="si-amount">
+                      <span>Amount (₹)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="ax-input"
-                      placeholder="e.g. 50"
-                      value={addForm.no_of_lights}
-                      onChange={(e) => setAddForm({ ...addForm, no_of_lights: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                    <div className="ax-modern-input-wrap">
+                      <span className="ax-modern-addon">₹</span>
+                      <input
+                        id="si-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="ax-modern-input"
+                        placeholder="e.g. 120000.00"
+                        value={addForm.amount}
+                        onChange={(e) => setAddForm({ ...addForm, amount: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
+                  {/* Document Upload */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label">
+                      <span>Inspection Document (File)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="ax-input"
-                      placeholder="e.g. 120000.00"
-                      value={addForm.amount}
-                      onChange={(e) => setAddForm({ ...addForm, amount: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Inspection Document (File) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
+                      ref={addFileRef}
                       type="file"
                       accept=".pdf,image/*"
+                      style={{ display: 'none' }}
                       onChange={(e) => setAddFile(e.target.files?.[0] || null)}
-                      required
-                      style={{ fontSize: 13 }}
                     />
-                    <small style={{ color: 'var(--ax-text-muted)', fontSize: 11.5, marginTop: 4, display: 'block' }}>
-                      Allowed formats: jpg, jpeg, png, webp, pdf (Max 5 MB)
-                    </small>
+                    {!addFile ? (
+                      <div
+                        className="ax-modern-dropzone"
+                        onClick={() => addFileRef.current?.click()}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="ax-modern-dropzone__icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                            Click to upload inspection file
+                          </div>
+                          <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                            Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ax-modern-file-chip">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span className="ax-modern-file-chip__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {addFile.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                              {(addFile.size / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                          onClick={() => setAddFile(null)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Remarks <span style={{ color: '#ef4444' }}>*</span>
+                  {/* Remarks */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="si-remarks">
+                      <span>Remarks</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
                     <textarea
-                      className="ax-input"
+                      id="si-remarks"
+                      className="ax-modern-textarea"
                       rows={3}
                       placeholder="Enter inspection remarks…"
                       value={addForm.remarks}
                       onChange={(e) => setAddForm({ ...addForm, remarks: e.target.value })}
                       required
-                      style={{ width: '100%', borderRadius: 8, padding: 10 }}
                     />
                   </div>
                 </div>
 
-                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"
@@ -739,6 +992,7 @@ export function Bihar_Installation_SSL_SupplyInspection() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -753,121 +1007,218 @@ export function Bihar_Installation_SSL_SupplyInspection() {
             className="ax-modal__dialog"
             style={{
               background: '#fff',
-              borderRadius: 14,
-              maxWidth: 550,
+              borderRadius: 16,
+              maxWidth: 580,
               width: '100%',
               overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="ax-modal__header"
               style={{
-                padding: '16px 22px',
+                padding: '18px 24px',
                 borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
-                Edit Supply Inspection (#{editingItem.id})
-              </h4>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                  Edit Supply Inspection (#{editingItem.id})
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Update inspection figures or replace document
+                </p>
+              </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--ghost ax-btn--sm"
+                style={{ width: 32, height: 32, padding: 0, borderRadius: '50%' }}
                 onClick={() => {
                   if (!editSubmitting) setEditModalOpen(false);
                 }}
                 disabled={editSubmitting}
+                aria-label="Close dialog"
               >
                 ✕
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: 22 }}>
+            <div className="ax-modal__body" style={{ padding: 24 }}>
               {editError && (
-                <div style={{ padding: 12, marginBottom: 14, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600 }}>
+                <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
                   ⚠ {editError}
                 </div>
               )}
 
               <form onSubmit={handleEditSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Inspection Date *
-                    </label>
-                    <input
-                      type="date"
-                      className="ax-input"
-                      value={editForm.date}
-                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Two column: Date & Number of Lights */}
+                  <div className="ax-modern-grid-2">
+                    <div className="ax-modern-field">
+                      <label className="ax-modern-label" htmlFor="esi-date">
+                        <span>Inspection Date</span>
+                        <span className="ax-modern-req">*</span>
+                      </label>
+                      <div className="ax-modern-input-wrap">
+                        <span className="ax-modern-addon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                          </svg>
+                        </span>
+                        <input
+                          id="esi-date"
+                          type="date"
+                          className="ax-modern-input"
+                          value={editForm.date}
+                          onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="ax-modern-field">
+                      <label className="ax-modern-label" htmlFor="esi-lights">
+                        <span>Number of Lights</span>
+                        <span className="ax-modern-req">*</span>
+                      </label>
+                      <div className="ax-modern-input-wrap">
+                        <span className="ax-modern-addon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+                            <line x1="9" y1="18" x2="15" y2="18" />
+                            <line x1="10" y1="22" x2="14" y2="22" />
+                            <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+                          </svg>
+                        </span>
+                        <input
+                          id="esi-lights"
+                          type="number"
+                          min="1"
+                          className="ax-modern-input"
+                          value={editForm.no_of_lights}
+                          onChange={(e) => setEditForm({ ...editForm, no_of_lights: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Number of Lights *
+                  {/* Amount Field */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="esi-amount">
+                      <span>Amount (₹)</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="ax-input"
-                      value={editForm.no_of_lights}
-                      onChange={(e) => setEditForm({ ...editForm, no_of_lights: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
+                    <div className="ax-modern-input-wrap">
+                      <span className="ax-modern-addon">₹</span>
+                      <input
+                        id="esi-amount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="ax-modern-input"
+                        value={editForm.amount}
+                        onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Amount (₹) *
-                    </label>
+                  {/* Document Upload */}
+                  <div className="ax-modern-field">
+                    <div className="ax-modern-label">
+                      <span>Replace Document File</span>
+                      <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>(Optional)</span>
+                    </div>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="ax-input"
-                      value={editForm.amount}
-                      onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-                      required
-                      style={{ width: '100%', height: 40, borderRadius: 8 }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Replace Document File (Optional)
-                    </label>
-                    <input
+                      ref={editFileRef}
                       type="file"
                       accept=".pdf,image/*"
+                      style={{ display: 'none' }}
                       onChange={(e) => setEditFile(e.target.files?.[0] || null)}
-                      style={{ fontSize: 13 }}
                     />
+                    {!editFile ? (
+                      <div
+                        className="ax-modern-dropzone"
+                        onClick={() => editFileRef.current?.click()}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="ax-modern-dropzone__icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                          </svg>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                            Click to upload replacement document
+                          </div>
+                          <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                            Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ax-modern-file-chip">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span className="ax-modern-file-chip__icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                              <line x1="16" y1="13" x2="8" y2="13" />
+                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <polyline points="10 9 9 9 8 9" />
+                            </svg>
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {editFile.name}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                              {(editFile.size / 1024).toFixed(1)} KB (New file)
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                          style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                          onClick={() => setEditFile(null)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                      Remarks *
+                  {/* Remarks */}
+                  <div className="ax-modern-field">
+                    <label className="ax-modern-label" htmlFor="esi-remarks">
+                      <span>Remarks</span>
+                      <span className="ax-modern-req">*</span>
                     </label>
                     <textarea
-                      className="ax-input"
+                      id="esi-remarks"
+                      className="ax-modern-textarea"
                       rows={3}
                       value={editForm.remarks}
                       onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
                       required
-                      style={{ width: '100%', borderRadius: 8, padding: 10 }}
                     />
                   </div>
                 </div>
 
-                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"
