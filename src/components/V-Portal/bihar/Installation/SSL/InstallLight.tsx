@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
@@ -7,6 +8,8 @@ import {
   type SslLightDetail,
 } from '../../bihar-services';
 import { SkeletonLine, SkeletonRect } from '../../../../../common/skeletons/SkeletonPrimitives';
+import { useAuth } from '../../../../../context/AuthContext';
+import authService from '../../../../../services/authService';
 
 /* Same unified single-card design as ULA Installation form */
 const ULA_STYLE_CSS = `
@@ -112,6 +115,30 @@ const TEXT_KEYS = ['wardNo', 'poleNo', 'beneficiaryName', 'contactNo', 'uuidNo',
 const ORDER = ['unique_id', 'wardNo', 'poleNo', 'beneficiaryName', 'contactNo', 'uuidNo', 'batteryNo', 'panelNo', 'lightNo', 'latitude', 'longitude', 'light_file'];
 
 export function Bihar_Installation_SSL_InstallLight() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editIdParam = searchParams.get('id') || searchParams.get('ssl_id') || searchParams.get('unique_id');
+  const isEditMode = searchParams.get('edit') === 'true' || Boolean(editIdParam);
+
+  const { user } = useAuth();
+  const loginVendorName = useMemo(() => {
+    const session = authService.getSession();
+    const raw = authService.getRawResponse();
+    const candidate =
+      user?.vendor_name ||
+      user?.vendor ||
+      user?.name ||
+      session?.vendor_name ||
+      session?.vendor ||
+      session?.name ||
+      raw?.vendor?.name ||
+      raw?.user?.name ||
+      raw?.data?.vendor?.name ||
+      raw?.data?.user?.name ||
+      raw?.data?.name ||
+      '';
+    return candidate ? String(candidate).trim() : '';
+  }, [user]);
   const [dropdownLoading, setDropdownLoading] = useState(true);
   const [lightOptions, setLightOptions] = useState<SslLightDropdownItem[]>([]);
   const [selectedUniqueId, setSelectedUniqueId] = useState('');
@@ -122,6 +149,7 @@ export function Bihar_Installation_SSL_InstallLight() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [lightFile, setLightFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [modalImage, setModalImage] = useState<string | null>(null);
 
   const [gpsDetecting, setGpsDetecting] = useState(false);
@@ -153,6 +181,7 @@ export function Bihar_Installation_SSL_InstallLight() {
     setForm(EMPTY_FORM);
     setLightFile(null);
     setFilePreview(null);
+    setExistingImageUrl(null);
     setTouched({});
     setErrors({});
     setSubmitted(false);
@@ -179,6 +208,7 @@ export function Bihar_Installation_SSL_InstallLight() {
   // Light details on select
   const handleSelectLight = useCallback(async (uid: string) => {
     setSelectedUniqueId(uid);
+    setExistingImageUrl(null);
     setSuccessMsg(null);
     setErrorMsg(null);
     setErrors((p) => ({ ...p, unique_id: uid ? '' : MESSAGES.unique_id }));
@@ -217,6 +247,54 @@ export function Bihar_Installation_SSL_InstallLight() {
       setDetailLoading(false);
     }
   }, [resetForm]);
+
+  // Auto-load details if editIdParam is provided via navigation
+  useEffect(() => {
+    if (!editIdParam) return;
+    let active = true;
+    (async () => {
+      setDetailLoading(true);
+      setSelectedUniqueId(String(editIdParam));
+      try {
+        const [editData, detail] = await Promise.all([
+          biharSslInstallationService.getInstalledLightEdit(editIdParam).catch(() => null),
+          biharSslInstallationService.fetchLightDetail(editIdParam).catch(() => null),
+        ]);
+        if (!active) return;
+        const d: any = editData || detail;
+        if (d) {
+          setSiteDetail(d);
+          setForm({
+            wardNo: d.ward_no || '',
+            poleNo: d.pole_no || '',
+            beneficiaryName: d.beneficiary_name || '',
+            contactNo: d.contact_no || '',
+            uuidNo: d.uuid_no || '',
+            batteryNo: d.battery_serial_no || d.battery_no || '',
+            panelNo: d.module_no || d.panel_no || '',
+            lightNo: d.light_no || '',
+            latitude: d.latitude ? String(d.latitude) : '',
+            longitude: d.longitude ? String(d.longitude) : '',
+            remarks: d.remark || d.inst_remark || '',
+          });
+          const img = d.light_image || d.light_file;
+          if (img && typeof img === 'string') {
+            setExistingImageUrl(img);
+          }
+          setLightOptions((prev) => {
+            if (prev.some((o) => String(o.id) === String(editIdParam))) return prev;
+            return [{ id: Number(editIdParam) || (editIdParam as any), unique_id: d.unique_id || d.uid || `Site #${editIdParam}` }, ...prev];
+          });
+          setErrors({});
+        }
+      } catch (err) {
+        console.error('[InstallLight] fetch edit details error:', err);
+      } finally {
+        if (active) setDetailLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [editIdParam]);
 
   // GPS
   const handleDetectGps = useCallback(() => {
@@ -262,6 +340,7 @@ export function Bihar_Installation_SSL_InstallLight() {
     if (filePreview) URL.revokeObjectURL(filePreview);
     setLightFile(null);
     setFilePreview(null);
+    setExistingImageUrl(null);
   };
 
   const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -277,7 +356,7 @@ export function Bihar_Installation_SSL_InstallLight() {
   const siteInfoItems = useMemo(() => {
     const d = (siteDetail || {}) as Record<string, unknown>;
     return [
-      { label: 'Vendor Name', value: formatInfo(d.vendor || d.vendor_name) },
+      { label: 'Vendor Name', value: selectedUniqueId ? formatInfo(loginVendorName || d.vendor || d.vendor_name) : 'N/A' },
       { label: 'State', value: formatInfo(d.state) },
       { label: 'Phase', value: formatInfo(d.phase) },
       { label: 'District', value: formatInfo(d.district) },
@@ -302,7 +381,7 @@ export function Bihar_Installation_SSL_InstallLight() {
       { label: 'Installed By', value: formatInfo(d.installed_by) },
       { label: 'Inspected by Breda', value: formatInfo(d.inspected_by_breda) },
     ];
-  }, [siteDetail]);
+  }, [siteDetail, selectedUniqueId, loginVendorName]);
 
   // Submit
   const handleSubmit = async (e: FormEvent) => {
@@ -317,7 +396,7 @@ export function Bihar_Installation_SSL_InstallLight() {
       const err = validate(k, form[k]);
       if (err) newErrors[k] = err;
     });
-    if (!lightFile) newErrors.light_file = MESSAGES.light_file;
+    if (!lightFile && !(isEditMode && existingImageUrl)) newErrors.light_file = MESSAGES.light_file;
     setErrors(newErrors);
 
     const firstKey = ORDER.find((k) => newErrors[k]);
@@ -345,19 +424,34 @@ export function Bihar_Installation_SSL_InstallLight() {
       fd.append('longitude', form.longitude.trim());
       fd.append('beneficiary_name', form.beneficiaryName.trim());
       fd.append('contact_no', form.contactNo.trim());
+      if (loginVendorName) {
+        fd.append('vendor_name', loginVendorName);
+        fd.append('vendor', loginVendorName);
+      }
       if (form.remarks.trim()) fd.append('remark', form.remarks.trim());
       if (lightFile) fd.append('light_file', lightFile);
 
-      const res = await biharSslInstallationService.installLightStore(fd);
-      setSuccessMsg(res.message || 'Details saved successfully.');
+      let res: { status: boolean; message: string };
+      if (isEditMode) {
+        try {
+          res = await biharSslInstallationService.updateInstalledLight(fd);
+        } catch {
+          res = await biharSslInstallationService.installLightStore(fd);
+        }
+      } else {
+        res = await biharSslInstallationService.installLightStore(fd);
+      }
+      setSuccessMsg(res.message || (isEditMode ? 'Installation details updated successfully.' : 'Details saved successfully.'));
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      const updatedList = await biharSslInstallationService.fetchLightNames();
+      if (!isEditMode) {
+        const updatedList = await biharSslInstallationService.fetchLightNames();
       setLightOptions(Array.isArray(updatedList) ? updatedList : []);
 
       setSelectedUniqueId('');
       setSiteDetail(null);
       resetForm();
+      }
     } catch (err: any) {
       console.error('[InstallLight] submit error:', err);
       setErrorMsg(err?.message || 'Failed to submit installation details.');
@@ -381,18 +475,28 @@ export function Bihar_Installation_SSL_InstallLight() {
       <style>{ULA_STYLE_CSS}</style>
 
       <PageHead
-        title="Install Light"
-        subtitle="Complete installation verification form for assigned Bihar SSL sites"
+        title={isEditMode ? "Edit Installed Light" : "Install Light"}
+        subtitle={isEditMode ? `Update installation verification form for Bihar SSL Site #${selectedUniqueId || editIdParam || ''}` : "Complete installation verification form for assigned Bihar SSL sites"}
         breadcrumbs={[
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/ssl/installation-dashboard' },
-          { label: 'Install Light' },
+          { label: isEditMode ? 'Edit Light' : 'Install Light' },
         ]}
         actions={
-          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-            Company ID: {getCompanyId()}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {isEditMode && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => navigate('/v/ssl/view-ssl-complete-site#completed')}
+                style={{ fontWeight: 600 }}
+              >
+                ← Back to Details
+              </button>
+            )}
+      
+          </div>
         }
       />
 
@@ -444,7 +548,7 @@ export function Bihar_Installation_SSL_InstallLight() {
             <div id="il-sec-1" className="ula-section-block">
               <SectionHeader num="1" total="4" title="Unique ID" subtitle="Select the assigned site to fetch its information." />
               <div className="ula-form-grid">
-                <div className="ula-form-col-span-full">
+                <div>
                   {dropdownLoading ? (
                     <SkeletonRect width="100%" height={46} borderRadius="8px" />
                   ) : (
@@ -461,6 +565,26 @@ export function Bihar_Installation_SSL_InstallLight() {
                       error={errors.unique_id}
                     />
                   )}
+                </div>
+                <div>
+                  <div className="ax-float ax-float--select">
+                    <input
+                      id="il_vendor_name"
+                      className="ax-float__input"
+                      style={{
+                        background: 'var(--ax-surface-subtle)',
+                        cursor: 'default',
+                        fontWeight: 600,
+                        color: selectedUniqueId ? 'var(--ax-text-strong)' : 'var(--ax-text-muted)'
+                      }}
+                      readOnly
+                      value={selectedUniqueId ? (loginVendorName) : ''}
+                      placeholder=" "
+                    />
+                    <label className="ax-float__label" htmlFor="il_vendor_name">
+                      Vendor Name
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -526,7 +650,7 @@ export function Bihar_Installation_SSL_InstallLight() {
                   </button>
                 </div>
                 {gpsStatusMsg && (
-                  <div className="ula-form-col-span-full">
+                  <div>
                     <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500, color: form.latitude && form.longitude ? 'var(--ax-success-500)' : 'var(--ax-text-muted)' }}>
                       {form.latitude && form.longitude ? '✓ ' : ''}{gpsStatusMsg}
                     </span>
@@ -545,9 +669,9 @@ export function Bihar_Installation_SSL_InstallLight() {
               />
               <div className="ula-photo-grid">
                 <PhotoCard
-                  title="Light Image" hint="Clear photo of the installed light."
-                  previews={filePreview ? [filePreview] : []}
-                  count={lightFile ? 1 : 0} max={1}
+                  title="Light Image" hint={isEditMode && existingImageUrl ? "Current photo attached. Upload new photo to replace." : "Clear photo of the installed light."}
+                  previews={filePreview ? [filePreview] : existingImageUrl ? [existingImageUrl] : []}
+                  count={lightFile || existingImageUrl ? 1 : 0} max={1}
                   submitted={submitted} error={errors.light_file}
                   onFiles={handleFileChange} onRemove={removeFile}
                   onPreview={(url) => setModalImage(url)}
@@ -587,12 +711,12 @@ export function Bihar_Installation_SSL_InstallLight() {
               {submitting ? (
                 <>
                   <span className="ax-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
-                  <span className="ax-btn__label">Submitting…</span>
+                  <span className="ax-btn__label">{isEditMode ? "Updating…" : "Submitting…"}</span>
                 </>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Installation Details</span>
+                  <span className="ax-btn__label">{isEditMode ? "Update Installation Details" : "Submit Installation Details"}</span>
                 </>
               )}
             </button>
@@ -748,3 +872,6 @@ function FieldFeedback({ error, isValid }: { error?: string; isValid?: boolean }
 }
 
 export default Bihar_Installation_SSL_InstallLight;
+
+
+

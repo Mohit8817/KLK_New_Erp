@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+﻿import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -21,6 +21,7 @@ type Item = SslInstallationInspectionItem;
 
 const BLUE_PRIMARY = '#2563eb';
 const GREEN_EMERALD = '#10b981';
+const AMBER_WARNING = '#f59e0b';
 const DASH = '—';
 
 /* ── Icons ── */
@@ -29,6 +30,7 @@ const ICON_INSPECTION = (<svg {...svgProps}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 
 const ICON_LIGHTS = (<svg {...svgProps}><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" /></svg>);
 const ICON_RUPEE = (<svg {...svgProps}><path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" /></svg>);
 const ICON_VERIFIED = (<svg {...svgProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>);
+const ICON_CLOCK = (<svg {...svgProps}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>);
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
@@ -48,7 +50,7 @@ const X_ICON = (
 
 /* ── Helpers ── */
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
-const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const cur = (x: unknown) => { const n = Number(x); return n > 0 ? `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : DASH; };
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const isPaid = (v: unknown) => v === 1 || v === '1' || String(v).toLowerCase() === 'paid';
 const isPdf = (u: string) => /\.pdf($|\?)/i.test(u);
@@ -350,8 +352,8 @@ const COLS: Col[] = [
   { id: 'date', header: 'Date', exportVal: (r) => r.date || '', render: (r) => r.date || DASH },
   { id: 'lights', header: 'No of Lights', exportVal: (r) => r.no_of_lights ?? '', num: true,
     render: (r) => <span style={{ color: BLUE_PRIMARY, fontWeight: 600 }}>{num(r.no_of_lights)}</span> },
-  { id: 'amount', header: 'Amount', exportVal: (r) => r.amount ?? '', num: true,
-    render: (r) => <span style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{cur(r.amount)}</span> },
+  { id: 'amount', header: 'Amount', exportVal: (r) => Number(r.amount) > 0 ? cur(r.amount) : DASH, num: true,
+    render: (r) => Number(r.amount) > 0 ? <span style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{cur(r.amount)}</span> : DASH },
   { id: 'remark', header: 'Inspection Remark', exportVal: (r) => r.remarks || r.inspection_remark || '',
     render: (r) => <span title={r.remarks || r.inspection_remark || ''}>{r.remarks || r.inspection_remark || DASH}</span>, td: truncCell(200) },
   { id: 'file', header: 'File', exportVal: (r) => (r.file ? getMediaUrl(r.file) : ''), render: (r, _i, ctx) => <FileCell path={r.file} onPreview={ctx.onPreview} /> },
@@ -485,13 +487,13 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   }, [inspections, search, selectedDistrict, selectedStatus]);
 
   const metrics = useMemo(() => {
-    let totalLights = 0, totalAmount = 0, verifiedCount = 0;
+    let totalLights = 0, verifiedCount = 0;
     inspections.forEach((i) => {
       totalLights += Number(i.no_of_lights) || 0;
-      totalAmount += Number(i.amount) || 0;
-      if (i.verify_status === 1) verifiedCount++;
+      if (i.inspection_status === 1 || i.verify_status === 1) verifiedCount++;
     });
-    return { totalCount: inspections.length, totalLights, totalAmount, verifiedCount };
+    const pendingCount = Math.max(0, inspections.length - verifiedCount);
+    return { totalCount: inspections.length, totalLights, verifiedCount, pendingCount };
   }, [inspections]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
@@ -616,8 +618,8 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   const kpis = [
     { label: 'Total Inspections', value: num(metrics.totalCount), sub: 'Site inspection batches', icon: ICON_INSPECTION, color: BLUE_PRIMARY, bg: 'rgba(37, 99, 235, 0.12)' },
     { label: 'Total Inspected Lights', value: num(metrics.totalLights), sub: 'Verified installed light units', icon: ICON_LIGHTS, color: GREEN_EMERALD, bg: 'rgba(16, 185, 129, 0.14)' },
-    { label: 'Inspected Amount', value: cur(metrics.totalAmount), sub: 'Cumulative installation value', icon: ICON_RUPEE, color: 'var(--ax-text-strong)', bg: 'rgba(100, 116, 139, 0.12)' },
     { label: 'Verified Status', value: num(metrics.verifiedCount), sub: 'Approved field inspections', icon: ICON_VERIFIED, color: GREEN_EMERALD, bg: 'rgba(16, 185, 129, 0.14)' },
+    { label: 'Pending Verification', value: num(metrics.pendingCount), sub: 'Awaiting inspection approval', icon: ICON_CLOCK, color: AMBER_WARNING, bg: 'rgba(245, 158, 11, 0.14)' },
   ];
 
   return (
@@ -731,8 +733,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                   onExportCSV={() => exportToCSV(filtered, activeCols, `Bihar_SSL_Installation_Inspection_${stamp}`)}
                   onExportExcel={() => exportToExcel(filtered, activeCols, `Bihar_SSL_Installation_Inspection_${stamp}`)}
                   onExportPDF={() => exportToPDF(filtered, activeCols, 'Bihar SSL Installation Inspection')}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+                
                 />
               </div>
             </div>

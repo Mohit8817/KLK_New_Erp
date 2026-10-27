@@ -448,9 +448,13 @@ class BiharUlaInstallationService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(json?.message || `Failed to upload document (HTTP ${res.status})`);
+      const errDetail =
+        json?.errors && typeof json.errors === 'object'
+          ? Object.values(json.errors).flat().join(' ')
+          : json?.message || `Failed to upload document (HTTP ${res.status})`;
+      throw new Error(errDetail);
     }
     return json;
   }

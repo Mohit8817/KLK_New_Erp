@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharComplaintService,
-  getMediaUrl,
   type BiharComplaintItem,
 } from '../../bihar-services';
 import {
@@ -77,7 +76,6 @@ function KpiCard({
 /* ── Table column config (display + export from one list) ── */
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
-const todayStr = () => new Date().toISOString().split('T')[0];
 
 interface Col { key: string; th: string; get: (r: Row) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
 
@@ -110,26 +108,6 @@ const FILTER_TABS: { key: StatusFilter; label: string }[] = [
   { key: 'resolved', label: 'Resolved' },
 ];
 
-const MODAL_OVERLAY: CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(211, 211, 211, 0.65)',
-  backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
-  zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: 'var(--ax-space-4)',
-};
-
-const LABEL_STYLE: CSSProperties = { fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' };
-
-function Field({ label, value, col = 6 }: { label: string; value: ReactNode; col?: number }) {
-  return (
-    <div className={`ax-col--${col}`}>
-      <div style={LABEL_STYLE}>{label}</div>
-      <div style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', marginTop: 2 }}>{value}</div>
-    </div>
-  );
-}
-
-const Req = () => <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>;
-
 export function Bihar_Complaint_SRT_ViewComplaint() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -144,21 +122,6 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
   // Column Visibility
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
   const isVisible = (key: string) => !hiddenCols.includes(key);
-
-  // Detail Modal
-  const [viewItem, setViewItem] = useState<Row | null>(null);
-
-  // Close Request Modal (API 9)
-  const [closeItem, setCloseItem] = useState<Row | null>(null);
-  const [closeSubmitting, setCloseSubmitting] = useState(false);
-  const [closeError, setCloseError] = useState<string | null>(null);
-  const [closeForm, setCloseForm] = useState({
-    resolved_by: '', contact_person: '', contact_number: '', r_mobile: '', r_email: '',
-    manual_close_date: todayStr(), remarks: '', close_sms: 'Yes',
-  });
-  const [closeFiles, setCloseFiles] = useState<{
-    r_file: File | null; r_file2: File | null; r_file3: File | null; r_file4: File | null;
-  }>({ r_file: null, r_file2: null, r_file3: null, r_file4: null });
 
   const loadComplaints = async () => {
     setLoading(true);
@@ -251,83 +214,12 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
     }
   };
 
-  /* ── Close request ── */
-  const openCloseModal = (item: Row) => {
-    setCloseItem(item);
-    setCloseError(null);
-    setCloseForm({
-      resolved_by: item.resolved_by || '',
-      contact_person: item.contact_person || '',
-      contact_number: item.contact_number || '',
-      r_mobile: item.r_mobile || '',
-      r_email: item.r_email || '',
-      manual_close_date: todayStr(),
-      remarks: item.remarks || '',
-      close_sms: 'Yes',
-    });
-    setCloseFiles({ r_file: null, r_file2: null, r_file3: null, r_file4: null });
-  };
-
-  // API 9: POST /bihar/srt/complaint/close-update
-  const handleSubmitClose = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!closeItem) return;
-    setCloseError(null);
-
-    if (!closeForm.resolved_by.trim()) return setCloseError('Technician / Resolved By name is required.');
-    if (!/^\d{10}$/.test(closeForm.r_mobile.trim())) return setCloseError('Technician mobile number must be exactly 10 digits.');
-    if (!closeForm.contact_person.trim()) return setCloseError('Contact person name is required.');
-    if (!/^\d{10}$/.test(closeForm.contact_number.trim())) return setCloseError('Contact number must be exactly 10 digits.');
-    if (!closeForm.remarks.trim()) return setCloseError('Resolution remarks are required.');
-    if (!closeFiles.r_file || !closeFiles.r_file2 || !closeFiles.r_file3 || !closeFiles.r_file4) {
-      return setCloseError('All 4 rectification proof files are required to raise close request.');
-    }
-
-    setCloseSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append('srt_id', String(closeItem.id));
-      fd.append('resolved_by', closeForm.resolved_by);
-      fd.append('contact_person', closeForm.contact_person);
-      fd.append('contact_number', closeForm.contact_number);
-      fd.append('r_mobile', closeForm.r_mobile);
-      fd.append('r_email', closeForm.r_email);
-      fd.append('manual_close_date', closeForm.manual_close_date);
-      fd.append('remarks', closeForm.remarks);
-      fd.append('close_sms', closeForm.close_sms);
-      fd.append('r_file', closeFiles.r_file);
-      fd.append('r_file2', closeFiles.r_file2);
-      fd.append('r_file3', closeFiles.r_file3);
-      fd.append('r_file4', closeFiles.r_file4);
-
-      const res = await biharComplaintService.closeUpdateSrtComplaint(fd);
-      if (res.success) {
-        alert(res.message || 'Complaint close request raised successfully.');
-        setCloseItem(null);
-        loadComplaints();
-      } else {
-        setCloseError(res.message);
-      }
-    } catch (err: any) {
-      setCloseError(err?.message || 'Failed to submit close request');
-    } finally {
-      setCloseSubmitting(false);
-    }
-  };
-
   const hasFilters = !!search || statusFilter !== 'all' || selectedDistrict !== 'all';
   const clearFilters = () => {
     setSearch(''); setStatusFilter('all'); setSelectedDistrict('all'); setCurrentPage(1);
   };
 
   const visibleCols = COLS.filter((c) => isVisible(c.key));
-
-  const closeFileFields = [
-    { key: 'r_file', label: '1. Inverter Normal Display Photo' },
-    { key: 'r_file2', label: '2. Repaired Component Photo' },
-    { key: 'r_file3', label: '3. Site In-charge Sign Sheet' },
-    { key: 'r_file4', label: '4. Generation Log / Service Report' },
-  ] as const;
 
   return (
     <div className="ax-page bsv-page">
@@ -336,7 +228,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
       {/* ── Page Head ── */}
       <PageHead
         title="View SRT Complaints"
-        subtitle="Solar Rooftop grievance tickets, plant breakdowns, inverter errors, and closure tracking"
+        subtitle=" plant breakdowns, inverter errors, and closure tracking"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
@@ -400,7 +292,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT Complaints">
           <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
             <div className="ax-card__titles">
-              <h2 className="ax-card__title">SRT Rooftop Grievance Records</h2>
+              <h2 className="ax-card__title">View SRT Vendor Complaints Data</h2>
               <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
                 {filteredComplaints.length} of {complaints.length} records
               </p>
@@ -496,10 +388,13 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
                           )}
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', gap: 6 }}>
-                              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setViewItem(item)}>View</button>
-                              {!resolved && (
-                                <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => openCloseModal(item)}>Raise Close</button>
-                              )}
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => navigate(`/v/complaint/bihar/srt-add-complaint?edit=${item.id}`)}
+                              >
+                                Edit
+                              </button>
                               <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => handleDelete(item.id)} style={{ color: 'var(--ax-danger, #ef4444)' }}>
                                 Delete
                               </button>
@@ -523,209 +418,6 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
           )}
         </section>
       </div>
-
-      {/* ── View Detail Modal ── */}
-      {viewItem && (
-        <div style={MODAL_OVERLAY} onClick={() => setViewItem(null)}>
-          <div
-            className="ax-card"
-            style={{ position: 'relative', padding: 'var(--ax-space-4)', width: '100%', maxWidth: 750, maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-3)' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-strong)', fontWeight: 'var(--ax-weight-semibold)' as any }}>
-                  SRT Rooftop Complaint #{viewItem.complaint_id}
-                </h4>
-                <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Registered on {viewItem.start_date || DASH}
-                </div>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setViewItem(null)} aria-label="Close details">✕</button>
-            </div>
-
-            <div className="ax-dash-grid">
-              <Field label="Site / Building Name" value={viewItem.site_name || 'Rooftop Site'} />
-              <Field label="Department" value={txt(viewItem.dept_name)} />
-              <Field col={4} label="District" value={txt(viewItem.district)} />
-              <Field col={4} label="Discom" value={viewItem.discom || 'NBPDCL'} />
-              <Field col={4} label="CA Number" value={txt(viewItem.ca_no)} />
-              <Field col={4} label="Sanction Load" value={viewItem.sanction_load ? `${viewItem.sanction_load} kW` : DASH} />
-              <Field col={4} label="Plant SC" value={txt(viewItem.plant_sc)} />
-              <Field col={4} label="Phase" value={viewItem.phase || '3'} />
-              <Field col={12} label="Location / Address" value={txt(viewItem.location || viewItem.address)} />
-              <div className="ax-col--12">
-                <div style={LABEL_STYLE}>Defect Description</div>
-                <div style={{ background: 'var(--ax-surface-subtle)', padding: 12, borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)', marginTop: 4, fontSize: 'var(--ax-text-sm)', lineHeight: 1.5 }}>
-                  {viewItem.complaint}
-                </div>
-              </div>
-
-              <div className="ax-col--12">
-                <div style={{ ...LABEL_STYLE, marginBottom: 8 }}>Proof Documents (up to 4 files)</div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {[
-                    { key: 'file', label: '1. Inverter Photo', val: viewItem.file },
-                    { key: 'file2', label: '2. Array Photo', val: viewItem.file2 },
-                    { key: 'file3', label: '3. Panel Photo', val: viewItem.file3 },
-                    { key: 'file4', label: '4. Sheet / Test', val: viewItem.file4 },
-                  ].map((f) => (
-                    <div key={f.key} style={{ border: '1px solid var(--ax-border)', borderRadius: 'var(--ax-radius-md)', padding: '8px 12px', fontSize: 'var(--ax-text-xs)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span>{f.label}:</span>
-                      {f.val ? (
-                        <a href={getMediaUrl(f.val)} target="_blank" rel="noopener noreferrer" className="ax-badge ax-badge--soft ax-badge--neutral" style={{ textDecoration: 'none' }}>
-                          View File ↗
-                        </a>
-                      ) : (
-                        <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {isResolved(viewItem) && (
-                <div className="ax-col--12">
-                  <div className="ax-alert ax-alert--success">
-                    <strong>Resolution Details:</strong>
-                    <div style={{ marginTop: 4, fontSize: 'var(--ax-text-sm)' }}>
-                      Closed by: {viewItem.resolved_by || 'Technician'} | Date: {viewItem.close_date || viewItem.manual_close_date || DASH}
-                    </div>
-                    {viewItem.remarks && <div style={{ marginTop: 4, fontSize: 'var(--ax-text-sm)' }}>Remarks: {viewItem.remarks}</div>}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--ax-space-4)' }}>
-              <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setViewItem(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Close Update Modal (API 9) ── */}
-      {closeItem && (
-        <div style={MODAL_OVERLAY} onClick={() => setCloseItem(null)}>
-          <div
-            className="ax-card"
-            style={{ position: 'relative', padding: 'var(--ax-space-4)', width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <form onSubmit={handleSubmitClose}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-3)' }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: 'var(--ax-text-base)', color: 'var(--ax-text-strong)', fontWeight: 'var(--ax-weight-semibold)' as any }}>
-                    Raise Close Request for Rooftop Complaint #{closeItem.complaint_id}
-                  </h4>
-                  <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Site: {closeItem.site_name} ({closeItem.district})
-                  </div>
-                </div>
-                <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm" onClick={() => setCloseItem(null)} aria-label="Close">✕</button>
-              </div>
-
-              {closeError && <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }}>{closeError}</div>}
-
-              <div className="ax-dash-grid">
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Technician / Resolved By <Req /></label>
-                    <input type="text" className="ax-form-control" required value={closeForm.resolved_by}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, resolved_by: e.target.value }))} placeholder="e.g. Amit Kumar" />
-                  </div>
-                </div>
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Technician Mobile (10 Digits) <Req /></label>
-                    <input type="tel" maxLength={10} className="ax-form-control" required value={closeForm.r_mobile}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, r_mobile: e.target.value }))} placeholder="e.g. 9811111111" />
-                  </div>
-                </div>
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Contact Person (Site In-charge) <Req /></label>
-                    <input type="text" className="ax-form-control" required value={closeForm.contact_person}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, contact_person: e.target.value }))} placeholder="e.g. Principal / Engineer" />
-                  </div>
-                </div>
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Contact Number (10 Digits) <Req /></label>
-                    <input type="tel" maxLength={10} className="ax-form-control" required value={closeForm.contact_number}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, contact_number: e.target.value }))} placeholder="e.g. 9876543210" />
-                  </div>
-                </div>
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Technician Email <Req /></label>
-                    <input type="email" className="ax-form-control" required value={closeForm.r_email}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, r_email: e.target.value }))} placeholder="tech@example.com" />
-                  </div>
-                </div>
-                <div className="ax-col--6">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Closure Date <Req /></label>
-                    <input type="date" className="ax-form-control" required value={closeForm.manual_close_date}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, manual_close_date: e.target.value }))} />
-                  </div>
-                </div>
-                <div className="ax-col--12">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Resolution Remarks / Root Cause Fixed <Req /></label>
-                    <textarea rows={3} className="ax-form-control" required value={closeForm.remarks}
-                      onChange={(e) => setCloseForm((p) => ({ ...p, remarks: e.target.value }))}
-                      placeholder="Explain root cause resolved (e.g. Replaced defective fuse, recalibrated inverter grid sync, generation tested at 5.2 kW)..." />
-                  </div>
-                </div>
-                <div className="ax-col--12">
-                  <div className="ax-form-group">
-                    <label className="ax-form-label">Send Closure SMS / WhatsApp?</label>
-                    <div style={{ display: 'flex', gap: 20, marginTop: 4 }}>
-                      {['Yes', 'No'].map((v) => (
-                        <label key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                          <input type="radio" name="close_sms" value={v} checked={closeForm.close_sms === v}
-                            onChange={(e) => setCloseForm((p) => ({ ...p, close_sms: e.target.value }))} />
-                          {v}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="ax-col--12" style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-                    Attach 4 Rectification Proofs (All Required)
-                  </div>
-                </div>
-
-                {closeFileFields.map((field) => (
-                  <div key={field.key} className="ax-col--6">
-                    <div className="ax-form-group">
-                      <label className="ax-form-label" style={{ fontSize: 11 }}>{field.label} <Req /></label>
-                      <input
-                        type="file" accept="image/*,application/pdf" required
-                        className="ax-form-control" style={{ fontSize: 12, padding: 6 }}
-                        onChange={(e) => {
-                          const fl = e.target.files?.[0] || null;
-                          setCloseFiles((p) => ({ ...p, [field.key]: fl }));
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 'var(--ax-space-4)' }}>
-                <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setCloseItem(null)}>Cancel</button>
-                <button type="submit" className="ax-btn ax-btn--primary" disabled={closeSubmitting}>
-                  {closeSubmitting ? 'Submitting Close Request...' : 'Submit Close Request'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

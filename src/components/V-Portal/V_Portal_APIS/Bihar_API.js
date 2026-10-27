@@ -154,11 +154,8 @@ export const BIHAR_AMC_API = {
   },
 };
 
-/**
- * ═══════════════════════════════════════════════════════════════════════════
- * 4. BIHAR COMPLAINTS APIS
- * ═══════════════════════════════════════════════════════════════════════════
- */
+
+
 export const BIHAR_COMPLAINT_API = {
   // ── SSL Complaints (14 APIs) ──
   SSL: {
@@ -206,9 +203,7 @@ export const BIHAR_COMPLAINT_API = {
   },
 };
 
-/**
- * Unified Master Bihar API Object
- */
+
 export const BIHAR_API = {
   // Backward compatibility: SRT_200MW at root
   SRT_200MW: BIHAR_SURVEY_API.SRT_200MW,

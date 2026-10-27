@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { biharComplaintService, type SslPoleDataResponse } from '../../bihar-services';
+import { biharComplaintService, getMediaUrl, type SslPoleDataResponse } from '../../bihar-services';
 
 const SECTIONS = [
   { id: 'sec-location', num: '1', title: 'Location Hierarchy' },
@@ -27,8 +27,27 @@ const SOURCE_OPTIONS: Option[] = [
   { value: 'Letter', label: 'Panchayat Letter' },
 ];
 
+// In edit mode, display the saved value even if it is not present in the options list.
+const withCurrent = (list: string[], current?: string) =>
+  current && !list.includes(current) ? [current, ...list] : list;
+
+// Latitude / Longitude helpers: allow only valid numeric values.
+const isNum = (v: unknown) => {
+  const s = String(v ?? '').trim();
+  return s !== '' && Number.isFinite(Number(s));
+};
+const cleanNum = (v: unknown) => (isNum(v) ? String(v).trim() : '');
+
 export function Bihar_Complaint_SSL_AddComplaint() {
   const navigate = useNavigate();
+
+  // Edit mode: /v/complaint/bihar/ssl-add-complaint?edit=<id>
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = !!editId;
+  const [existingFile, setExistingFile] = useState('');
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [fetchingLoc, setFetchingLoc] = useState(false);
 
   // Cascade dropdown states (API 1 to 5)
   const [districts, setDistricts] = useState<string[]>([]);
@@ -94,6 +113,72 @@ export function Bihar_Complaint_SSL_AddComplaint() {
       }
     })();
   }, []);
+
+  // 1b. Edit mode: load the complaint, prefill the form, and load cascading dropdowns.
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      setLoadingEdit(true);
+      try {
+        // The backend /edit endpoint may be unavailable, so retrieve the record from the view-data list.
+        // Once the backend endpoint is available, use: await biharComplaintService.getEditSslComplaint(editId)
+        const list = await biharComplaintService.getViewSslComplaints();
+        const d: any = list.find((x) => String(x.id) === String(editId));
+        if (!d) {
+          setErrorMsg('Unable to load complaint data.');
+          return;
+        }
+
+        const district = d.district || '';
+        const block = d.block || '';
+        const panchyat = d.panchyat || d.panchayat || '';
+        const ward_no = d.ward_no != null ? String(d.ward_no) : '';
+        const pole_no = d.pole_no != null ? String(d.pole_no) : '';
+
+        setFormData((prev) => ({
+          ...prev,
+          uid: d.uid || prev.uid,
+          complaint_id: d.complaint_id != null ? String(d.complaint_id) : prev.complaint_id,
+          district,
+          block,
+          panchyat,
+          ward_no,
+          pole_no,
+          light_no: d.light_no || '',
+          phase: d.phase != null && d.phase !== '' ? String(d.phase) : '1',
+          beneficiary_name: d.beneficiary_name || '',
+          contact_no: d.contact_no || '',
+          latitude: cleanNum(d.latitude),
+          longitude: cleanNum(d.longitude),
+          complaint_source: d.complaint_source || 'Phone',
+          complaint_issue: d.complaint_issue || 'Light not working',
+          luminary_no: d.luminary_no || '',
+          sim_no: d.sim_no || '',
+          battery_serial_no: d.battery_serial_no || '',
+          module_no: d.module_no || '',
+          date_of_installation: d.date_of_installation || d.inst_date || '',
+          complaint: d.complaint || '',
+          complaint_date: d.complaint_date || d.start_date || prev.complaint_date,
+          sms: 'Yes',
+          mobile: '',
+        }));
+        setExistingFile(d.file || '');
+
+        // Load cascading dropdowns using the saved values.
+        if (district) setBlocks(withCurrent(await biharComplaintService.getSslBlocks(district), block));
+        if (district && block) setPanchayats(withCurrent(await biharComplaintService.getSslPanchayats(district, block), panchyat));
+        if (district && block && panchyat) setWards(withCurrent(await biharComplaintService.getSslWards(district, block, panchyat), ward_no));
+        if (district && block && panchyat && ward_no) {
+          setPoles(withCurrent(await biharComplaintService.getSslPoles(district, block, panchyat, ward_no), pole_no));
+        }
+      } catch (err: any) {
+        console.error('Error loading complaint for edit:', err);
+        setErrorMsg(err?.message || 'Failed to load complaint for edit.');
+      } finally {
+        setLoadingEdit(false);
+      }
+    })();
+  }, [editId]);
 
   // 2. District change -> GET /bihar/ssl/complaint/getblocks?district=...
   const handleDistrictChange = async (district: string) => {
@@ -233,8 +318,8 @@ export function Bihar_Complaint_SSL_AddComplaint() {
           ...prev,
           beneficiary_name: poleData.beneficiary_name || prev.beneficiary_name,
           contact_no: poleData.contact_no || prev.contact_no,
-          latitude: String(poleData.latitude || prev.latitude || '25.5941'),
-          longitude: String(poleData.longitude || prev.longitude || '85.1376'),
+          latitude: cleanNum(poleData.latitude) || prev.latitude,
+          longitude: cleanNum(poleData.longitude) || prev.longitude,
           luminary_no: poleData.luminary_no || prev.luminary_no,
           sim_no: poleData.sim_no || prev.sim_no,
           light_no: poleData.light_no || prev.light_no,
@@ -271,6 +356,38 @@ export function Bihar_Complaint_SSL_AddComplaint() {
     error: errors[name],
   });
 
+  // Retrieve the current Latitude / Longitude using browser GPS (HTTPS and location permission are required).
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+      setErrors((prev) => ({ ...prev, latitude: 'Location services are not supported by this browser. Please enter the coordinates manually.' }));
+      return;
+    }
+    setFetchingLoc(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        }));
+        clearError('latitude');
+        clearError('longitude');
+        setFetchingLoc(false);
+      },
+      (err) => {
+        const msg =
+          err.code === 1
+            ? 'Location permission denied. Please allow location access in your browser.'
+            : err.code === 3
+            ? 'The location request timed out. Please try again.'
+            : 'Unable to retrieve your location. Please enter the coordinates manually.';
+        setErrors((prev) => ({ ...prev, latitude: msg }));
+        setFetchingLoc(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -286,8 +403,18 @@ export function Bihar_Complaint_SSL_AddComplaint() {
     if (!formData.contact_no || !/^\d{10}$/.test(formData.contact_no.trim())) {
       newErrors.contact_no = 'Contact number must be exactly 10 digits.';
     }
+    if (!isNum(formData.latitude)) {
+      newErrors.latitude = 'Latitude must be a valid number. Use "Fetch Current Location" or enter it manually.';
+    } else if (Math.abs(Number(formData.latitude)) > 90) {
+      newErrors.latitude = 'Latitude must be between -90 and 90.';
+    }
+    if (!isNum(formData.longitude)) {
+      newErrors.longitude = 'Longitude must be a valid number. Use "Fetch Current Location" or enter it manually.';
+    } else if (Math.abs(Number(formData.longitude)) > 180) {
+      newErrors.longitude = 'Longitude must be between -180 and 180.';
+    }
     if (!formData.complaint.trim()) newErrors.complaint = 'Please describe the breakdown complaint.';
-    if (!file) newErrors.file = 'Defect / Street Light Photo (file) is required.';
+    if (!isEdit && !file) newErrors.file = 'Defect / Street Light Photo (file) is required.';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -307,6 +434,7 @@ export function Bihar_Complaint_SSL_AddComplaint() {
     setSubmitting(true);
     try {
       const fd = new FormData();
+      if (editId) fd.append('ssl_id', editId);
       fd.append('complaint_id', formData.complaint_id);
       fd.append('uid', formData.uid);
       fd.append('district', formData.district);
@@ -318,8 +446,8 @@ export function Bihar_Complaint_SSL_AddComplaint() {
       fd.append('light_no', formData.light_no || 'L1');
       fd.append('beneficiary_name', formData.beneficiary_name);
       fd.append('contact_no', formData.contact_no);
-      fd.append('latitude', formData.latitude || '25.5941');
-      fd.append('longitude', formData.longitude || '85.1376');
+      fd.append('latitude', formData.latitude.trim());
+      fd.append('longitude', formData.longitude.trim());
       fd.append('complaint_source', formData.complaint_source);
       fd.append('complaint_issue', formData.complaint_issue);
       fd.append('luminary_no', formData.luminary_no || 'LUM-1');
@@ -335,14 +463,17 @@ export function Bihar_Complaint_SSL_AddComplaint() {
         fd.append('mobile', formData.mobile);
       }
 
+      // Upload only the newly selected file.
       if (file) {
         fd.append('file', file);
       }
 
-      const resp = await biharComplaintService.storeSslComplaint(fd);
+      const resp = isEdit
+        ? await biharComplaintService.updateSslComplaint(fd)
+        : await biharComplaintService.storeSslComplaint(fd);
 
       if (resp.success) {
-        setSuccessMsg(resp.message || 'SSL Complaint registered successfully!');
+        setSuccessMsg(resp.message || (isEdit ? 'Complaint updated successfully!' : 'SSL Complaint registered successfully!'));
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           navigate('/v/complaint/bihar/ssl-view-complaint');
@@ -367,10 +498,12 @@ export function Bihar_Complaint_SSL_AddComplaint() {
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
-        title="Register SSL Complaint"
+        title={isEdit ? 'Edit SSL Complaint' : 'Register SSL Complaint'}
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Log street light breakdown issues, luminary not glowing, damaged pole, or theft ticket
+            {isEdit
+              ? 'Update location, light details, grievance description or defect photo of this complaint'
+              : 'Log street light breakdown issues, luminary not glowing, damaged pole, or theft ticket'}
           </span>
         }
         breadcrumbs={[
@@ -378,7 +511,7 @@ export function Bihar_Complaint_SSL_AddComplaint() {
           { label: 'Bihar' },
           { label: 'Complaints' },
           { label: 'SSL', href: '/v/complaint/bihar/ssl-view-complaint' },
-          { label: 'Add Complaint' },
+          { label: isEdit ? 'Edit Complaint' : 'Add Complaint' },
         ]}
         actions={
           <Link to="/v/complaint/bihar/ssl-view-complaint" className="ax-btn ax-btn--secondary ax-btn--pill">
@@ -414,9 +547,13 @@ export function Bihar_Complaint_SSL_AddComplaint() {
         <div className="ax-card">
           <div className="ax-card__header">
             <div>
-              <h2 className="ax-card__title" style={{ margin: 0 }}>Solar Street Light (SSL) Grievance Registration</h2>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>
+                Add Vendor SSL Complaint
+              </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
-                Select District ➔ Block ➔ Panchayat ➔ Ward ➔ Pole to auto-populate light parameters.
+                {loadingEdit
+                  ? 'Loading complaint data...'
+                  : 'Select District ➔ Block ➔ Panchayat ➔ Ward ➔ Pole to auto-populate light parameters.'}
               </p>
             </div>
 
@@ -441,7 +578,7 @@ export function Bihar_Complaint_SSL_AddComplaint() {
                   required
                   placeholder={loadingDistricts ? 'Loading districts...' : '-- Select District --'}
                   value={formData.district}
-                  options={opts(districts)}
+                  options={opts(withCurrent(districts, formData.district))}
                   disabled={loadingDistricts}
                   onChange={handleDistrictChange}
                   error={errors.district}
@@ -496,8 +633,6 @@ export function Bihar_Complaint_SSL_AddComplaint() {
                   options={[{ value: '1', label: '1 (Single Phase)' }, { value: '3', label: '3 (3 Phase)' }]}
                   {...f('phase')}
                 />
-                {/* <FloatingInput id="cs-uid" label="System UID" readOnly value={formData.uid} />
-                <FloatingInput id="cs-cid" label="Complaint Ref ID" readOnly value={formData.complaint_id} /> */}
               </div>
             </div>
 
@@ -520,9 +655,27 @@ export function Bihar_Complaint_SSL_AddComplaint() {
                 <FloatingInput id="cs-battery" label="Battery Serial No" placeholder="e.g. BAT123" {...f('battery_serial_no')} />
                 <FloatingInput id="cs-module" label="Module No" placeholder="e.g. MOD123" {...f('module_no')} />
                 <FloatingInput id="cs-sim" label="SIM No" placeholder="e.g. SIM123" {...f('sim_no')} />
-                <div />
-                <FloatingInput id="cs-lat" label="Latitude" placeholder="25.5941" {...f('latitude')} />
-                <FloatingInput id="cs-lng" label="Longitude" placeholder="85.1376" {...f('longitude')} />
+                <FloatingInput id="cs-lat" label="Latitude" required placeholder="25.5941" {...f('latitude')} />
+                <FloatingInput id="cs-lng" label="Longitude" required placeholder="85.1376" {...f('longitude')} />
+                <div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary"
+                    onClick={fetchLocation}
+                    disabled={fetchingLoc}
+                    style={{ height: 46, width: '100%' }}
+                  >
+                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M12 2v3" />
+                      <path d="M12 19v3" />
+                      <path d="M2 12h3" />
+                      <path d="M19 12h3" />
+                    </svg>
+                    <span className="ax-btn__label">{fetchingLoc ? 'Fetching location...' : 'Fetch Current Location'}</span>
+                  </button>
+                  <span className="ax-field-feedback" />
+                </div>
               </div>
             </div>
 
@@ -552,12 +705,34 @@ export function Bihar_Complaint_SSL_AddComplaint() {
 
             {/* Section 4 */}
             <div id="sec-documents" className="bihar-section-block">
-              <SectionHeader num="4" total={T} title="Upload Breakdown / Defect Photo" desc="Attach site photograph showing non-glowing luminaire or defective pole." />
+              <SectionHeader
+                num="4"
+                total={T}
+                title="Upload Breakdown / Defect Photo"
+                desc={
+                  isEdit
+                    ? 'Select a new photo only if you want to replace the existing one. Otherwise, the current photo will be retained.'
+                    : 'Attach site photograph showing non-glowing luminaire or defective pole.'
+                }
+              />
+              {isEdit && existingFile && (
+                <div style={{ marginBottom: 'var(--ax-space-3)', fontSize: 'var(--ax-text-xs)' }}>
+                  <a
+                    href={getMediaUrl(existingFile)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ax-badge ax-badge--soft ax-badge--neutral"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    Current Photo ↗
+                  </a>
+                </div>
+              )}
               <div className="bihar-form-grid bihar-form-grid--3col">
                 <FloatingFileInput
                   id="file"
                   label="Breakdown / Street Light Photo (File)"
-                  required
+                  required={!isEdit}
                   file={file}
                   onChange={(x) => {
                     setFile(x);
@@ -572,21 +747,21 @@ export function Bihar_Complaint_SSL_AddComplaint() {
 
         {/* Sticky Action Footer */}
         <div className="bihar-form-sticky-bar">
-          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">New Complaint</span>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">{isEdit ? 'Edit Complaint' : 'New Complaint'}</span>
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate('/v/complaint/bihar/ssl-view-complaint')}>
               <span className="ax-btn__label">Cancel</span>
             </button>
-            <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+            <button type="submit" disabled={submitting || loadingEdit} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
               {submitting ? (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
-                  <span className="ax-btn__label">Submitting Ticket...</span>
+                  <span className="ax-btn__label">{isEdit ? 'Updating...' : 'Submitting Ticket...'}</span>
                 </>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Complaint Ticket</span>
+                  <span className="ax-btn__label">{isEdit ? 'Update Complaint' : 'Submit Complaint Ticket'}</span>
                 </>
               )}
             </button>

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { biharComplaintService, type SrtSiteDetailsResponse } from '../../bihar-services';
+import { biharComplaintService, getMediaUrl, type SrtSiteDetailsResponse } from '../../bihar-services';
 
 type FileKey = 'file' | 'file2' | 'file3' | 'file4';
+
+const FILE_KEYS: FileKey[] = ['file', 'file2', 'file3', 'file4'];
 
 const SECTIONS = [
   { id: 'sec-location', num: '1', title: 'Site Selection' },
@@ -14,6 +16,13 @@ const SECTIONS = [
 
 export function Bihar_Complaint_SRT_AddComplaint() {
   const navigate = useNavigate();
+
+  // Edit mode: /v/complaint/bihar/srt-add-complaint?edit=<id>
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = !!editId;
+  const [existingFiles, setExistingFiles] = useState<Record<FileKey, string>>({ file: '', file2: '', file3: '', file4: '' });
+  const [loadingEdit, setLoadingEdit] = useState(false);
 
   // Cascade dropdown states (API 1, 2)
   const [districts, setDistricts] = useState<string[]>([]);
@@ -41,7 +50,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     sms: 'Yes',
   });
 
-  // Files: All 4 files required as per SRT Store API doc
+  // Files: All 4 files required on add; optional on edit (only new ones are sent)
   const [files, setFiles] = useState<Record<FileKey, File | null>>({
     file: null,
     file2: null,
@@ -68,6 +77,49 @@ export function Bihar_Complaint_SRT_AddComplaint() {
       }
     })();
   }, []);
+
+  // 1b. Edit mode: load complaint (GET /bihar/srt/complaint/edit?srt_id=...) and prefill form
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      setLoadingEdit(true);
+      try {
+        // Backend ka /edit endpoint abhi missing hai, isliye view-data list se row uthate hain.
+        // Backend fix ho jaye to: await biharComplaintService.getEditSrtComplaint(editId)
+        const list = await biharComplaintService.getViewSrtComplaints();
+        const d: any = list.find((x) => String(x.id) === String(editId));
+        if (!d) {
+          setErrorMsg('Complaint data load nahi hua.');
+          return;
+        }
+        setFormData({
+          district: d.district || '',
+          site_name: d.site_name || '',
+          discom: d.discom || 'NBPDCL',
+          dept_name: d.dept_name || '',
+          location: d.location || '',
+          firm_name: d.firm_name || '',
+          ca_no: d.ca_no || '',
+          sanction_load: d.sanction_load != null ? String(d.sanction_load) : '',
+          plant_sc: d.plant_sc != null ? String(d.plant_sc) : '',
+          wo_no: d.wo_no || '',
+          phase: d.phase != null ? String(d.phase) : '3',
+          complaint: d.complaint || '',
+          sms: 'Yes',
+        });
+        setExistingFiles({ file: d.file || '', file2: d.file2 || '', file3: d.file3 || '', file4: d.file4 || '' });
+        if (d.district) {
+          const list = await biharComplaintService.getSrtSiteNames(d.district);
+          setSiteNames(d.site_name && !list.includes(d.site_name) ? [d.site_name, ...list] : list);
+        }
+      } catch (err: any) {
+        console.error('Error loading complaint for edit:', err);
+        setErrorMsg(err?.message || 'Failed to load complaint for edit.');
+      } finally {
+        setLoadingEdit(false);
+      }
+    })();
+  }, [editId]);
 
   // 2. District change -> GET /bihar/srt/complaint/get-site-names?district=...
   const handleDistrictChange = async (district: string) => {
@@ -173,10 +225,12 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     if (!formData.phase) newErrors.phase = 'Phase is required.';
     if (!formData.complaint.trim()) newErrors.complaint = 'Please describe the rooftop plant complaint.';
 
-    if (!files.file) newErrors.file = 'File 1 (Inverter / Meter Photo) is required.';
-    if (!files.file2) newErrors.file2 = 'File 2 (Rooftop Array Photo) is required.';
-    if (!files.file3) newErrors.file3 = 'File 3 (ACDB / DCDB Panel Photo) is required.';
-    if (!files.file4) newErrors.file4 = 'File 4 (Test Sheet / Document) is required.';
+    if (!isEdit) {
+      if (!files.file) newErrors.file = 'File 1 (Inverter / Meter Photo) is required.';
+      if (!files.file2) newErrors.file2 = 'File 2 (Rooftop Array Photo) is required.';
+      if (!files.file3) newErrors.file3 = 'File 3 (ACDB / DCDB Panel Photo) is required.';
+      if (!files.file4) newErrors.file4 = 'File 4 (Test Sheet / Document) is required.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -196,6 +250,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     setSubmitting(true);
     try {
       const fd = new FormData();
+      if (editId) fd.append('srt_id', editId);
       fd.append('discom', formData.discom);
       fd.append('district', formData.district);
       fd.append('dept_name', formData.dept_name);
@@ -213,15 +268,20 @@ export function Bihar_Complaint_SRT_AddComplaint() {
         fd.append('site_name', formData.site_name);
       }
 
+      // Only newly chosen files are sent
       if (files.file) fd.append('file', files.file);
       if (files.file2) fd.append('file2', files.file2);
       if (files.file3) fd.append('file3', files.file3);
       if (files.file4) fd.append('file4', files.file4);
 
-      const resp = await biharComplaintService.storeSrtComplaint(fd);
+      const resp = isEdit
+        ? await biharComplaintService.updateSrtComplaint(fd)
+        : await biharComplaintService.storeSrtComplaint(fd);
 
       if (resp.success) {
-        setSuccessMsg(resp.message || 'SRT Rooftop Complaint registered successfully!');
+        setSuccessMsg(
+          resp.message || (isEdit ? 'Complaint updated successfully!' : 'SRT Rooftop Complaint registered successfully!')
+        );
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           navigate('/v/complaint/bihar/srt-view-complaint');
@@ -246,10 +306,12 @@ export function Bihar_Complaint_SRT_AddComplaint() {
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
-        title="Register SRT Rooftop Complaint"
+        title={isEdit ? 'Edit SRT Rooftop Complaint' : 'Register SRT Rooftop Complaint'}
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Log grid-tied inverter errors, generation drop, net-meter or RMS faults for Solar Rooftop plants in Bihar
+            {isEdit
+              ? 'Update plant details, grievance description or proof files of this Solar Rooftop complaint'
+              : 'Log grid-tied inverter errors, generation drop, net-meter or RMS faults for Solar Rooftop plants in Bihar'}
           </span>
         }
         breadcrumbs={[
@@ -257,7 +319,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
           { label: 'Bihar' },
           { label: 'Complaints' },
           { label: 'SRT', href: '/v/complaint/bihar/srt-view-complaint' },
-          { label: 'Add Complaint' },
+          { label: isEdit ? 'Edit Complaint' : 'Add Complaint' },
         ]}
         actions={
           <Link to="/v/complaint/bihar/srt-view-complaint" className="ax-btn ax-btn--secondary ax-btn--pill">
@@ -293,9 +355,13 @@ export function Bihar_Complaint_SRT_AddComplaint() {
         <div className="ax-card">
           <div className="ax-card__header">
             <div>
-              <h2 className="ax-card__title" style={{ margin: 0 }}>Solar Rooftop (SRT) Grievance Registration</h2>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>
+             Add Vendor SRT Complaint
+              </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
-                Select District and Site Name to auto-populate plant parameters and CA connection info.
+                {loadingEdit
+                  ? 'Loading complaint data...'
+                  : 'Select District and Site Name to auto-populate plant parameters and CA connection info.'}
               </p>
             </div>
 
@@ -392,12 +458,39 @@ export function Bihar_Complaint_SRT_AddComplaint() {
 
             {/* Section 4 */}
             <div id="sec-documents" className="bihar-section-block">
-              <SectionHeader num="4" total={T} title="Upload Proof Documents (All 4 Files Required)" desc="Attach photographs of inverter error, solar panels, control panel, and inspection sheet." />
+              <SectionHeader
+                num="4"
+                total={T}
+                title={isEdit ? 'Proof Documents' : 'Upload Proof Documents (All 4 Files Required)'}
+                desc={
+                  isEdit
+                    ? 'Sirf badalna ho to naya file chuno, warna purani file rahegi.'
+                    : 'Attach photographs of inverter error, solar panels, control panel, and inspection sheet.'
+                }
+              />
+              {isEdit && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 'var(--ax-space-3)', fontSize: 'var(--ax-text-xs)' }}>
+                  {FILE_KEYS.map((k, i) =>
+                    existingFiles[k] ? (
+                      <a
+                        key={k}
+                        href={getMediaUrl(existingFiles[k])}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ax-badge ax-badge--soft ax-badge--neutral"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        Current File {i + 1} ↗
+                      </a>
+                    ) : null
+                  )}
+                </div>
+              )}
               <div className="bihar-form-grid bihar-form-grid--3col">
-                <FloatingFileInput id="srt-file" label="1. Inverter / Defect Display" required file={files.file} onChange={(x) => handleFileChange('file', x)} error={errors.file} />
-                <FloatingFileInput id="srt-file2" label="2. Solar Rooftop Array Photo" required file={files.file2} onChange={(x) => handleFileChange('file2', x)} error={errors.file2} />
-                <FloatingFileInput id="srt-file3" label="3. ACDB / DCDB / RMS Panel" required file={files.file3} onChange={(x) => handleFileChange('file3', x)} error={errors.file3} />
-                <FloatingFileInput id="srt-file4" label="4. Net Meter / Test Sheet" required file={files.file4} onChange={(x) => handleFileChange('file4', x)} error={errors.file4} />
+                <FloatingFileInput id="srt-file" label="1. Inverter / Defect Display" required={!isEdit} file={files.file} onChange={(x) => handleFileChange('file', x)} error={errors.file} />
+                <FloatingFileInput id="srt-file2" label="2. Solar Rooftop Array Photo" required={!isEdit} file={files.file2} onChange={(x) => handleFileChange('file2', x)} error={errors.file2} />
+                <FloatingFileInput id="srt-file3" label="3. ACDB / DCDB / RMS Panel" required={!isEdit} file={files.file3} onChange={(x) => handleFileChange('file3', x)} error={errors.file3} />
+                <FloatingFileInput id="srt-file4" label="4. Net Meter / Test Sheet" required={!isEdit} file={files.file4} onChange={(x) => handleFileChange('file4', x)} error={errors.file4} />
               </div>
             </div>
           </div>
@@ -405,21 +498,21 @@ export function Bihar_Complaint_SRT_AddComplaint() {
 
         {/* Sticky Action Footer */}
         <div className="bihar-form-sticky-bar">
-          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">New Complaint</span>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">{isEdit ? 'Edit Complaint' : 'New Complaint'}</span>
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate('/v/complaint/bihar/srt-view-complaint')}>
               <span className="ax-btn__label">Cancel</span>
             </button>
-            <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+            <button type="submit" disabled={submitting || loadingEdit} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
               {submitting ? (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
-                  <span className="ax-btn__label">Submitting Ticket...</span>
+                  <span className="ax-btn__label">{isEdit ? 'Updating...' : 'Submitting Ticket...'}</span>
                 </>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Complaint Ticket</span>
+                  <span className="ax-btn__label">{isEdit ? 'Update Complaint' : 'Submit Complaint Ticket'}</span>
                 </>
               )}
             </button>

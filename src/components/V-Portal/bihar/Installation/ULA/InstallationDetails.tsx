@@ -1,10 +1,79 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
   type SiteDetailResponse,
 } from '../../bihar-services';
+
+
+/* ── Media and image helpers ── */
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getUlaImageCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/ula/structure/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/ula/foundation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/ula/module_serial/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/ula/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/installation/ula/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
+
+  return Array.from(new Set(candidates));
+}
+
+const mediaUrl = (path?: string | null): string => {
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  const candidates = getUlaImageCandidates(path);
+  return candidates[0] || `${BACKEND_BASE}/${path.replace(/^\/+/, '')}`;
+};
+
+const parseList = (raw: unknown): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      } catch {
+        // fall through to comma-split
+      }
+    }
+    return trimmed.split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  }
+  return [];
+};
 
 // CSS for Unified Single-Card Layout with Floating Labels & Section Dividers (same as Jammu form)
 const SINGLE_CARD_FORM_CSS = `
@@ -309,23 +378,27 @@ const formatInfo = (v: unknown): string => {
 
 export function Bihar_Installation_ULA_InstallationDetails() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
+  const { id: paramId } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const stateSite = (location.state as any)?.site;
+  const id = paramId || searchParams.get('id') || searchParams.get('site_id') || (stateSite?.id ? String(stateSite.id) : '');
 
   // ── Step 1: Site Selection ──
   const [siteOptions, setSiteOptions] = useState<{ id: number; beneficiary_name: string }[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-  const [siteDetails, setSiteDetails] = useState<SiteDetailResponse | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(id || '');
+  const [siteDetails, setSiteDetails] = useState<SiteDetailResponse | any>(stateSite || null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   // ── Step 2: Installation & GPS ──
-  const [beneficiaryName, setBeneficiaryName] = useState('');
-  const [contactNo, setContactNo] = useState('');
-  const [caNumber, setCaNumber] = useState('');
+  const [beneficiaryName, setBeneficiaryName] = useState(stateSite?.beneficiary_name || '');
+  const [contactNo, setContactNo] = useState(stateSite?.contact_no || '');
+  const [caNumber, setCaNumber] = useState(stateSite?.ca_no || '');
   const [moduleSerial1, setModuleSerial1] = useState('');
   const [moduleSerial2, setModuleSerial2] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
+  const [latitude, setLatitude] = useState(stateSite?.inst_latitude || stateSite?.latitude || '');
+  const [longitude, setLongitude] = useState(stateSite?.inst_longitude || stateSite?.longitude || '');
   const [gpsDetecting, setGpsDetecting] = useState(false);
   const [gpsStatusMsg, setGpsStatusMsg] = useState<string | null>(null);
 
@@ -333,18 +406,22 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   // 1. Foundation & Fastener (1 to 4 photos)
   const [fastenerPhotos, setFastenerPhotos] = useState<File[]>([]);
   const [fastenerPreviews, setFastenerPreviews] = useState<string[]>([]);
+  const [existingFastenerImages, setExistingFastenerImages] = useState<string[]>([]);
 
   // 2. Structure (1 photo)
   const [structurePhoto, setStructurePhoto] = useState<File | null>(null);
   const [structurePreview, setStructurePreview] = useState<string | null>(null);
+  const [existingStructureImage, setExistingStructureImage] = useState<string | null>(null);
 
   // 3. Module Serial Number 1 (1 photo)
   const [module1Photo, setModule1Photo] = useState<File | null>(null);
   const [module1Preview, setModule1Preview] = useState<string | null>(null);
+  const [existingModule1Image, setExistingModule1Image] = useState<string | null>(null);
 
   // 4. Module Serial Number 2 (1 photo)
   const [module2Photo, setModule2Photo] = useState<File | null>(null);
   const [module2Preview, setModule2Preview] = useState<string | null>(null);
+  const [existingModule2Image, setExistingModule2Image] = useState<string | null>(null);
 
   // Preview Modal for clicked image
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
@@ -357,30 +434,110 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Helper to apply site data to state (used for edit prefill)
+  const applySiteData = useCallback((data: any, siteIdStr: string) => {
+    if (!data) return;
+
+    // Ensure site is in dropdown options
+    setSiteOptions((prev) => {
+      const exists = prev.some((o) => String(o.id) === String(siteIdStr));
+      if (!exists) {
+        const label = data.beneficiary_name
+          ? `${data.beneficiary_name} (Site #${siteIdStr})`
+          : `Site #${siteIdStr}`;
+        return [{ id: Number(siteIdStr), beneficiary_name: label }, ...prev];
+      }
+      return prev;
+    });
+
+    setSiteDetails(data);
+    if (data.beneficiary_name) setBeneficiaryName(String(data.beneficiary_name));
+    if (data.contact_no) setContactNo(String(data.contact_no));
+    if (data.ca_no) setCaNumber(String(data.ca_no));
+
+    // Preserve saved GPS coordinates from DB
+    const savedLat = data.inst_latitude || data.latitude;
+    const savedLng = data.inst_longitude || data.longitude;
+    if (savedLat && String(savedLat).trim() !== '' && String(savedLat).trim() !== '0') {
+      setLatitude(String(savedLat));
+    }
+    if (savedLng && String(savedLng).trim() !== '' && String(savedLng).trim() !== '0') {
+      setLongitude(String(savedLng));
+    }
+
+    // Module Serial Numbers
+    const serials = parseList(data.module_serial_no);
+    if (serials[0]) setModuleSerial1(serials[0]);
+    if (serials[1]) setModuleSerial2(serials[1]);
+
+    // Structure Photo
+    if (data.structure_image) {
+      setExistingStructureImage(data.structure_image);
+      setStructurePreview(mediaUrl(data.structure_image));
+    }
+
+    // Module Serial Photos
+    const modImgs = parseList(data.module_serial_image);
+    if (modImgs[0]) {
+      setExistingModule1Image(modImgs[0]);
+      setModule1Preview(mediaUrl(modImgs[0]));
+    }
+    if (modImgs[1]) {
+      setExistingModule2Image(modImgs[1]);
+      setModule2Preview(mediaUrl(modImgs[1]));
+    }
+
+    // Foundation & Fastener Photos
+    const fastImgs = parseList(data.foundation_fastener_images || data.foundation_and_fastner);
+    if (fastImgs.length > 0) {
+      setExistingFastenerImages(fastImgs);
+      setFastenerPreviews(fastImgs.map(mediaUrl));
+    }
+
+    setErrors({});
+  }, []);
+
   // Load site dropdown options
   const loadSites = useCallback(async () => {
     setLoadingSites(true);
     try {
       const names = await biharUlaInstallationService.fetchSiteNames();
-      setSiteOptions(names || []);
+      setSiteOptions((prev) => {
+        const fetched = Array.isArray(names) ? names : [];
+        if (id && !fetched.some((s) => String(s.id) === String(id))) {
+          const fallbackLabel = stateSite?.beneficiary_name
+            ? `${stateSite.beneficiary_name} (Site #${id})`
+            : `Site #${id}`;
+          return [{ id: Number(id), beneficiary_name: fallbackLabel }, ...fetched];
+        }
+        return fetched;
+      });
     } catch (err: any) {
       console.error('[ULA Installation] fetchSiteNames error:', err);
     } finally {
       setLoadingSites(false);
     }
-  }, []);
+  }, [id, stateSite]);
 
   useEffect(() => {
     loadSites();
   }, [loadSites]);
 
+  // If passed stateSite from router Link, apply immediately!
+  useEffect(() => {
+    if (stateSite && id) {
+      applySiteData(stateSite, String(id));
+    }
+  }, [stateSite, id, applySiteData]);
+
+  // Load full details when id is available
   useEffect(() => {
     if (id) {
       handleSiteChange(String(id));
     }
   }, [id]);
 
-  // Auto GPS location on initial page load
+  // Auto GPS location: ONLY if new installation without existing coords
   const handleDetectGps = useCallback(() => {
     if (!navigator.geolocation) {
       setGpsStatusMsg('Geolocation is not supported by your browser.');
@@ -407,8 +564,11 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   }, []);
 
   useEffect(() => {
-    handleDetectGps();
-  }, [handleDetectGps]);
+    // Only auto-trigger GPS if site is NOT being edited and coordinates are empty
+    if (!id && !latitude && !longitude) {
+      handleDetectGps();
+    }
+  }, [id, latitude, longitude, handleDetectGps]);
 
   /* ───────── Validation helpers ───────── */
   const textMessages: Record<string, string> = {
@@ -442,7 +602,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     return { className: '', isValid: false, isInvalid: false };
   };
 
-  // Load site details when dropdown changes
+  // Load site details when dropdown changes or when editing
   const handleSiteChange = async (siteIdStr: string) => {
     setSelectedSiteId(siteIdStr);
     setErrors((prev) => ({ ...prev, site: validateText('site', siteIdStr) }));
@@ -454,28 +614,53 @@ export function Bihar_Installation_ULA_InstallationDetails() {
       setBeneficiaryName('');
       setContactNo('');
       setCaNumber('');
+      setLatitude('');
+      setLongitude('');
+      setModuleSerial1('');
+      setModuleSerial2('');
+      setFastenerPhotos([]);
+      setFastenerPreviews([]);
+      setExistingFastenerImages([]);
+      setStructurePhoto(null);
+      setStructurePreview(null);
+      setExistingStructureImage(null);
+      setModule1Photo(null);
+      setModule1Preview(null);
+      setExistingModule1Image(null);
+      setModule2Photo(null);
+      setModule2Preview(null);
+      setExistingModule2Image(null);
       return;
     }
 
     setLoadingDetails(true);
     try {
-      const details = await biharUlaInstallationService.fetchSiteDetails(siteIdStr);
-      setSiteDetails(details);
-      if (details) {
-        if (details.beneficiary_name) setBeneficiaryName(details.beneficiary_name);
-        if (details.contact_no) setContactNo(details.contact_no);
-        if (details.ca_no) setCaNumber(details.ca_no);
-        setErrors((prev) => ({
-          ...prev,
-          beneficiaryName: details.beneficiary_name ? '' : prev.beneficiaryName,
-          contactNo: details.contact_no ? '' : prev.contactNo,
-          caNumber: details.ca_no ? '' : prev.caNumber,
-        }));
+      // Query both edit endpoints and site details concurrently
+      const [editRes, pendingRes, fetchRes] = await Promise.allSettled([
+        biharUlaInstallationService.getStructureEditSite(siteIdStr),
+        biharUlaInstallationService.getInstallationEditSite(siteIdStr),
+        biharUlaInstallationService.fetchSiteDetails(siteIdStr),
+      ]);
+
+      const editData = editRes.status === 'fulfilled' ? editRes.value : null;
+      const pendingData = pendingRes.status === 'fulfilled' ? pendingRes.value : null;
+      const fetchDetailData = fetchRes.status === 'fulfilled' ? fetchRes.value : null;
+
+      const mergedDetails: any = {
+        ...(stateSite || {}),
+        ...(fetchDetailData || {}),
+        ...(pendingData || {}),
+        ...(editData || {}),
+      };
+
+      if (mergedDetails && Object.keys(mergedDetails).length > 0) {
+        applySiteData(mergedDetails, siteIdStr);
       }
     } catch (err: any) {
-      console.error('[ULA Installation] fetchSiteDetails error:', err);
-      setSiteDetails(null);
-      setErrorMsg('Failed to load beneficiary details for this site.');
+      console.error('[ULA Installation] handleSiteChange error:', err);
+      if (!siteDetails) {
+        setErrorMsg('Failed to load site details.');
+      }
     } finally {
       setLoadingDetails(false);
     }
@@ -530,6 +715,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   const removeFastenerPhoto = (index: number) => {
     setFastenerPhotos((prev) => prev.filter((_, i) => i !== index));
     setFastenerPreviews((prev) => prev.filter((_, i) => i !== index));
+    setExistingFastenerImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   // ── Single Photo Handler ──
@@ -559,15 +745,24 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     previewSetter(null);
   };
 
-  // Calculate captured photos count out of 4 sections
+  // Calculate captured photos count out of 4 sections (accounting for both new files and existing photos)
   const capturedCount = useMemo(() => {
     let count = 0;
-    if (fastenerPhotos.length > 0) count++;
-    if (structurePhoto) count++;
-    if (module1Photo) count++;
-    if (module2Photo) count++;
+    if (fastenerPhotos.length > 0 || existingFastenerImages.length > 0) count++;
+    if (structurePhoto || existingStructureImage) count++;
+    if (module1Photo || existingModule1Image) count++;
+    if (module2Photo || existingModule2Image) count++;
     return count;
-  }, [fastenerPhotos.length, structurePhoto, module1Photo, module2Photo]);
+  }, [
+    fastenerPhotos.length,
+    existingFastenerImages.length,
+    structurePhoto,
+    existingStructureImage,
+    module1Photo,
+    existingModule1Image,
+    module2Photo,
+    existingModule2Image,
+  ]);
 
   // Completion (required text fields + 4 photo groups + site)
   const textValues: Record<string, string> = {
@@ -609,10 +804,18 @@ export function Bihar_Installation_ULA_InstallationDetails() {
       const err = validateText(k, textValues[k]);
       if (err) newErrors[k] = err;
     });
-    if (fastenerPhotos.length === 0) newErrors.fastener = 'Please capture at least 1 photo for Foundation & Fastener (1 to 4 allowed).';
-    if (!structurePhoto) newErrors.structure = 'Structure photo is required.';
-    if (!module1Photo) newErrors.module1 = 'Photo for Module with Serial Number 1 is required.';
-    if (!module2Photo) newErrors.module2 = 'Photo for Module with Serial Number 2 is required.';
+    if (fastenerPhotos.length === 0 && existingFastenerImages.length === 0) {
+      newErrors.fastener = 'Please capture at least 1 photo for Foundation & Fastener (1 to 4 allowed).';
+    }
+    if (!structurePhoto && !existingStructureImage) {
+      newErrors.structure = 'Structure photo is required.';
+    }
+    if (!module1Photo && !existingModule1Image) {
+      newErrors.module1 = 'Photo for Module with Serial Number 1 is required.';
+    }
+    if (!module2Photo && !existingModule2Image) {
+      newErrors.module2 = 'Photo for Module with Serial Number 2 is required.';
+    }
 
     setErrors(newErrors);
 
@@ -651,18 +854,46 @@ export function Bihar_Installation_ULA_InstallationDetails() {
       fd.append('module_serial_no[]', moduleSerial2.trim());
 
       // Structure Photo
-      fd.append('structure_image', structurePhoto as File);
+      if (structurePhoto) {
+        fd.append('structure_image', structurePhoto);
+      } else if (existingStructureImage) {
+        fd.append('existing_structure_image', existingStructureImage);
+      }
 
       // Foundation & Fastener (1 to 4 photos)
-      fastenerPhotos.forEach((file) => {
-        fd.append('foundation_fastener_images[]', file);
-      });
+      if (fastenerPhotos.length > 0) {
+        fastenerPhotos.forEach((file) => {
+          fd.append('foundation_fastener_images[]', file);
+        });
+      } else if (existingFastenerImages.length > 0) {
+        existingFastenerImages.forEach((img) => {
+          fd.append('existing_foundation_fastener_images[]', img);
+        });
+      }
 
       // Module Serial Photos (exactly 2 photos)
-      fd.append('module_serial_image[]', module1Photo as File);
-      fd.append('module_serial_image[]', module2Photo as File);
+      if (module1Photo) {
+        fd.append('module_serial_image[]', module1Photo);
+      } else if (existingModule1Image) {
+        fd.append('existing_module_serial_image[]', existingModule1Image);
+      }
+      if (module2Photo) {
+        fd.append('module_serial_image[]', module2Photo);
+      } else if (existingModule2Image) {
+        fd.append('existing_module_serial_image[]', existingModule2Image);
+      }
 
-      const resp = await biharUlaInstallationService.storeStructureInstall(fd);
+      const isEditMode = Boolean(id || existingStructureImage || (siteDetails && (siteDetails.structure_status === 1 || siteDetails.module_serial_no)));
+      let resp: any;
+      if (isEditMode) {
+        try {
+          resp = await biharUlaInstallationService.updateStructureSite(fd);
+        } catch {
+          resp = await biharUlaInstallationService.storeStructureInstall(fd);
+        }
+      } else {
+        resp = await biharUlaInstallationService.storeStructureInstall(fd);
+      }
       setSuccessMsg(resp.message || 'Site Structure Installation saved successfully!');
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -959,7 +1190,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   hint="Select 1 to 4 photos."
                   multiple
                   previews={fastenerPreviews}
-                  count={fastenerPhotos.length}
+                  count={fastenerPhotos.length || existingFastenerImages.length}
                   max={4}
                   submitted={submitted}
                   error={errors.fastener}
@@ -972,7 +1203,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   title="3. Structure"
                   hint=" "
                   previews={structurePreview ? [structurePreview] : []}
-                  count={structurePhoto ? 1 : 0}
+                  count={structurePhoto ? 1 : existingStructureImage ? 1 : 0}
                   max={1}
                   submitted={submitted}
                   error={errors.structure}
@@ -985,7 +1216,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   title="Module with Serial Number 1"
                   hint="Serial number must match the allocation."
                   previews={module1Preview ? [module1Preview] : []}
-                  count={module1Photo ? 1 : 0}
+                  count={module1Photo ? 1 : existingModule1Image ? 1 : 0}
                   max={1}
                   submitted={submitted}
                   error={errors.module1}
@@ -998,7 +1229,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   title="Module with Serial Number 2"
                   hint="Serial number must match the allocation."
                   previews={module2Preview ? [module2Preview] : []}
-                  count={module2Photo ? 1 : 0}
+                  count={module2Photo ? 1 : existingModule2Image ? 1 : 0}
                   max={1}
                   submitted={submitted}
                   error={errors.module2}

@@ -338,9 +338,11 @@ const MENU_H = 118;
 function RowActionDropdown({
   site,
   onOpenDoc,
+  onOpenElectric,
 }: {
   site: StructureSiteItem;
   onOpenDoc: () => void;
+  onOpenElectric?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -425,14 +427,29 @@ function RowActionDropdown({
           >
             <Link
               to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
+              state={{ site }}
               className="ula-menu__item"
               role="menuitem"
               onClick={() => setOpen(false)}
             >
               Edit Structure
             </Link>
+            {onOpenElectric && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenElectric();
+                }}
+              >
+                Electrical Commissioning
+              </button>
+            )}
             <Link
               to={`/v/bihar/ula-installation-pending-site/${site.id}`}
+              state={{ site }}
               className="ula-menu__item"
               role="menuitem"
               onClick={() => setOpen(false)}
@@ -976,6 +993,11 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     try {
       const fd = new FormData();
       fd.append('site_id', String(docModalSite.id));
+      // Primary fields as required by POST /bihar/ula/installation/doc-store
+      fd.append('document', docFile);
+      fd.append('date', docDate);
+      fd.append('remarks', docRemarks.trim());
+      // Backwards-compatible aliases in case other backend handlers look for them:
       fd.append('file', docFile);
       fd.append('doc_date', docDate);
       fd.append('doc_remarks', docRemarks.trim());
@@ -1455,7 +1477,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
                         {/* Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <RowActionDropdown site={s} onOpenDoc={() => handleOpenDocModal(s)} />
+                          <RowActionDropdown site={s} onOpenDoc={() => handleOpenDocModal(s)} onOpenElectric={() => handleOpenElectricModal(s)} />
                         </td>
                       </tr>
                     );

@@ -816,12 +816,12 @@ export function Bihar_Installation_ULA_AddPayment() {
     try {
       const fd = new FormData();
       fd.append('payment_type', paymentType);
-      selectedSiteIds.forEach((id, idx) => {
-        fd.append(`site_id[${idx}]`, String(id));
+      selectedSiteIds.forEach((id) => {
+        fd.append('site_id[]', String(id));
       });
       fd.append('date', claimDate);
       fd.append('remarks', remarks.trim());
-      fd.append('total_amount', totalAmount);
+      fd.append('amount', totalAmount);
       if (invoiceFile) fd.append('file', invoiceFile);
 
       const resp = await biharUlaInstallationService.storeClaim(fd);
@@ -831,7 +831,13 @@ export function Bihar_Installation_ULA_AddPayment() {
       }, 1500);
     } catch (err: any) {
       console.error('Failed to submit claim:', err);
-      setErrorMsg(err?.message || 'Failed to submit payment claim.');
+      const data = err?.response?.data ?? err?.data;
+      const fieldErrors = data?.errors
+        ? Object.values(data.errors).flat().join(' | ')
+        : null;
+      setErrorMsg(
+        fieldErrors || data?.message || err?.message || 'Failed to submit payment claim.'
+      );
     } finally {
       setSubmitting(false);
     }

@@ -132,6 +132,100 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   // Detail Modal
   const [selectedItem, setSelectedItem] = useState<BiharComplaintItem | null>(null);
 
+  // ── Resolve / Close Complaint Modal State ──
+  const [resolvingItem, setResolvingItem] = useState<BiharComplaintItem | null>(null);
+  const [resolvedBy, setResolvedBy] = useState('');
+  const [beneficiaryName, setBeneficiaryName] = useState('');
+  const [contactNo, setContactNo] = useState('');
+  const [rEmail, setREmail] = useState('');
+  const [rMobile, setRMobile] = useState('');
+  const [closingDate, setClosingDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [closeSms, setCloseSms] = useState<'Yes' | 'No'>('Yes');
+  const [rFile, setRFile] = useState<File | null>(null);
+  const [rFile2, setRFile2] = useState<File | null>(null);
+  const [resolveSubmitting, setResolveSubmitting] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  const openResolveModal = (item: BiharComplaintItem) => {
+    setResolvingItem(item);
+    setResolveError(null);
+    setResolvedBy(assignedData?.name || (assignedData as any)?.vendor?.name || 'App Testing');
+    setBeneficiaryName(item.beneficiary_name || '');
+    setContactNo(item.contact_no || '');
+    setREmail((assignedData as any)?.vendor?.email || '');
+    setRMobile((assignedData as any)?.vendor?.contact || '');
+    setClosingDate(new Date().toISOString().split('T')[0]);
+    setRemarks('');
+    setCloseSms('Yes');
+    setRFile(null);
+    setRFile2(null);
+  };
+
+  const handleResolveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resolvingItem) return;
+
+    if (!resolvedBy.trim()) {
+      setResolveError('Resolved By is required.');
+      return;
+    }
+    if (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) {
+      setResolveError('Please enter a valid resolver email address.');
+      return;
+    }
+    const cleanMobile = rMobile.trim().replace(/\D/g, '');
+    if (cleanMobile.length !== 10) {
+      setResolveError('Resolver mobile must be exactly 10 digits.');
+      return;
+    }
+    if (!closingDate) {
+      setResolveError('Closing date is required.');
+      return;
+    }
+    if (!remarks.trim()) {
+      setResolveError('Remarks are required.');
+      return;
+    }
+    const cleanContact = contactNo.trim().replace(/\D/g, '');
+    if (cleanContact.length !== 10) {
+      setResolveError('Beneficiary contact number must be exactly 10 digits.');
+      return;
+    }
+
+    setResolveSubmitting(true);
+    setResolveError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append('ssl_id', String(resolvingItem.id));
+      fd.append('resolved_by', resolvedBy.trim());
+      fd.append('r_email', rEmail.trim());
+      fd.append('r_mobile', cleanMobile);
+      fd.append('manual_close_date', closingDate);
+      fd.append('remarks', remarks.trim());
+      fd.append('close_sms', closeSms);
+      fd.append('beneficiary_name', beneficiaryName.trim());
+      fd.append('contact_no', cleanContact);
+      if (rFile) fd.append('r_file', rFile);
+      if (rFile2) fd.append('r_file2', rFile2);
+
+      const res = await biharComplaintService.closeUpdateSslComplaint(fd);
+      if (res.success) {
+        setSuccessToast(res.message || 'Complaint Resolved successfully.');
+        setResolvingItem(null);
+        await loadData();
+      } else {
+        setResolveError(res.message || 'Failed to resolve complaint.');
+      }
+    } catch (err: any) {
+      setResolveError(err?.message || 'Error occurred while resolving complaint.');
+    } finally {
+      setResolveSubmitting(false);
+    }
+  };
+
   const deferredQuery = useDeferredValue(searchQuery);
 
   const loadData = useCallback(async () => {
@@ -282,6 +376,33 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
           </div>
         }
       />
+
+      {successToast && (
+        <div
+          style={{
+            padding: '12px 16px',
+            marginBottom: 16,
+            borderRadius: 8,
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            fontSize: 13.5,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✓ {successToast}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {errorMsg && (
         <div
@@ -540,9 +661,32 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                           </span>
                         </td>
                         <td style={{ ...TD, textAlign: 'center' }}>
-                          <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => setSelectedItem(item)}>
-                            View
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              onClick={() => setSelectedItem(item)}
+                              title="View Complaint Details"
+                            >
+                              View
+                            </button>
+                            {item.close_status !== 1 && (
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--primary ax-btn--sm"
+                                style={{
+                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                  borderColor: '#059669',
+                                  color: '#ffffff',
+                                  fontWeight: 600,
+                                }}
+                                onClick={() => openResolveModal(item)}
+                                title="Resolve this complaint"
+                              >
+                                Resolve
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -673,14 +817,351 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 borderTop: '1px solid var(--ax-border, #e2e8f0)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-end',
+                justifyContent: 'space-between',
                 gap: 10,
               }}
             >
+              <div>
+                {selectedItem.close_status !== 1 && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary ax-btn--sm"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderColor: '#059669',
+                      color: '#ffffff',
+                      fontWeight: 600,
+                    }}
+                    onClick={() => {
+                      const item = selectedItem;
+                      setSelectedItem(null);
+                      openResolveModal(item);
+                    }}
+                  >
+                    Resolve This Complaint
+                  </button>
+                )}
+              </div>
               <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedItem(null)}>
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Vendor Close / Resolve Complaint Modal ── */}
+      {resolvingItem && (
+        <div
+          className="ax-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20,
+          }}
+          onClick={() => !resolveSubmitting && setResolvingItem(null)}
+        >
+          <div
+            className="ax-modal__dialog"
+            style={{
+              background: 'var(--ax-surface-solid, #ffffff)',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 760,
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="ax-modal__header"
+              style={{
+                padding: '16px 24px',
+                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
+              }}
+            >
+              <div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    color: '#059669',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Vendor Close Complaints
+                </span>
+                <h4 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                  Resolve Complaint #{resolvingItem.complaint_id}
+                </h4>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                onClick={() => setResolvingItem(null)}
+                disabled={resolveSubmitting}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleResolveSubmit}>
+              <div className="ax-modal__body" style={{ padding: '20px 24px' }}>
+                {resolveError && (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      marginBottom: 16,
+                      borderRadius: 8,
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#991b1b',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠ {resolveError}
+                  </div>
+                )}
+
+                {/* ── Read-only Complaint Overview Card ── */}
+                <div
+                  style={{
+                    background: 'var(--ax-surface-subtle, #f8fafc)',
+                    border: '1px solid var(--ax-border, #e2e8f0)',
+                    borderRadius: 10,
+                    padding: '14px 18px',
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', marginBottom: 8 }}>
+                    Complaint Information
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '8px 16px',
+                      fontSize: 12.5,
+                    }}
+                  >
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{resolvingItem.state || 'bihar'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{resolvingItem.district || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Block:</span> <b>{resolvingItem.block || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Panchayat:</span> <b>{resolvingItem.panchyat || resolvingItem.panchayat || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Created By:</span> <b>{resolvingItem.created_by || assignedData?.name || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Ward No:</span> <b>{resolvingItem.ward_no || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Pole No:</span> <b>{resolvingItem.pole_no || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Name:</span> <b>{resolvingItem.beneficiary_name || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Mobile:</span> <b>{resolvingItem.contact_no || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Complaint Date:</span> <b>{resolvingItem.start_date || '—'}</b></div>
+                  </div>
+                </div>
+
+                {/* ── Resolution Inputs Grid ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px 16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolved By <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="ax-input"
+                      value={resolvedBy}
+                      onChange={(e) => setResolvedBy(e.target.value)}
+                      placeholder="e.g. App Testing"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Beneficiary Name <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="ax-input"
+                      value={beneficiaryName}
+                      onChange={(e) => setBeneficiaryName(e.target.value)}
+                      placeholder="e.g. testing ssl"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Beneficiary Contact (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="ax-input"
+                      value={contactNo}
+                      onChange={(e) => setContactNo(e.target.value)}
+                      placeholder="e.g. 9205041431"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolver Email <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="ax-input"
+                      value={rEmail}
+                      onChange={(e) => setREmail(e.target.value)}
+                      placeholder="e.g. resolver@gmail.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolver Mobile (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="ax-input"
+                      value={rMobile}
+                      onChange={(e) => setRMobile(e.target.value)}
+                      placeholder="e.g. 9454969296"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Closing Date <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="ax-input"
+                      value={closingDate}
+                      onChange={(e) => setClosingDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Light Image (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Document (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile2(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Remarks <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <textarea
+                      className="ax-input"
+                      rows={3}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Enter resolution notes and actions taken..."
+                      required
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                      Send SMS Notification <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                        <input
+                          type="radio"
+                          name="close_sms"
+                          value="Yes"
+                          checked={closeSms === 'Yes'}
+                          onChange={() => setCloseSms('Yes')}
+                        />
+                        <span>Yes</span>
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                        <input
+                          type="radio"
+                          name="close_sms"
+                          value="No"
+                          checked={closeSms === 'No'}
+                          onChange={() => setCloseSms('No')}
+                        />
+                        <span>No</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="ax-modal__footer"
+                style={{
+                  padding: '14px 24px',
+                  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: 10,
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                }}
+              >
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  onClick={() => setResolvingItem(null)}
+                  disabled={resolveSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  disabled={resolveSubmitting}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderColor: '#059669',
+                    minWidth: 160,
+                  }}
+                >
+                  {resolveSubmitting ? 'Resolving…' : 'Confirm & Resolve Complaint'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
