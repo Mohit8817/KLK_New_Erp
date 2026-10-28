@@ -15,7 +15,13 @@ export interface Option { value: string; label: string }
 /** Backend response kuch bhi ho (array / {data: []}) -> hamesha array */
 export const toArray = (json: any): any[] => {
   if (Array.isArray(json)) return json;
-  const KEYS = ['assign', 'assigns', 'users', 'volumes', 'districts', 'blocks', 'panchayats', 'list', 'rows', 'records', 'items', 'data'];
+  if (!json || typeof json !== 'object') return [];
+  const KEYS = [
+    'districts', 'f_districts', 'district', 'f_district',
+    'blocks', 'f_blocks', 'block', 'f_block',
+    'panchayats', 'f_panchayats', 'panchayat', 'f_panchayat',
+    'assign', 'assigns', 'users', 'volumes', 'list', 'rows', 'records', 'items', 'data'
+  ];
   const walk = (d: any, depth: number): any[] => {
     if (Array.isArray(d)) return d;
     if (!d || typeof d !== 'object' || depth > 3) return [];
@@ -32,7 +38,7 @@ export const toArray = (json: any): any[] => {
   return walk(json, 0);
 };
 
-/** {volume:"2"} / {district:"Patna"} / {id,name} / "text" -> {value,label}. null/khali values hata deta hai, duplicates bhi. */
+/** {f_district:"Velit non architecto"} / {district:"Patna"} / {id,name} / "text" -> {value,label} */
 export const toOptions = (json: any): Option[] => {
   const seen = new Set<string>();
   const out: Option[] = [];
@@ -41,10 +47,45 @@ export const toOptions = (json: any): Option[] => {
     if (o === null || o === undefined) return;
     if (typeof o === 'string' || typeof o === 'number') { value = o; label = o; }
     else {
-      value = o.id ?? o.value ?? o.user_id ?? o.district_id ?? o.block_id ?? o.panchayat_id ??
-        o.volume ?? o.district ?? o.block ?? o.panchayat ?? o.name;
-      label = o.name ?? o.label ?? o.user_name ?? o.district_name ?? o.block_name ?? o.panchayat_name ??
-        o.volume_name ?? o.volume ?? o.district ?? o.block ?? o.panchayat ?? value;
+      const geo =
+        o.f_district ??
+        o.f_block ??
+        o.f_panchayat ??
+        o.district ??
+        o.district_name ??
+        o.block ??
+        o.block_name ??
+        o.panchayat ??
+        o.panchayat_name ??
+        o.volume ??
+        o.volume_name;
+
+      value =
+        geo ??
+        o.id ??
+        o.value ??
+        o.user_id ??
+        o.district_id ??
+        o.block_id ??
+        o.panchayat_id ??
+        o.name;
+
+      label =
+        o.name ??
+        o.label ??
+        o.user_name ??
+        o.f_district ??
+        o.district_name ??
+        o.district ??
+        o.f_block ??
+        o.block_name ??
+        o.block ??
+        o.f_panchayat ??
+        o.panchayat_name ??
+        o.panchayat ??
+        o.volume_name ??
+        o.volume ??
+        value;
     }
     if (value === null || value === undefined || String(value).trim() === '') return;
     const v = String(value);
@@ -91,7 +132,7 @@ async function request<T = any>(url: string, options: RequestInit = {}, params?:
   return json;
 }
 
-/* ───────────── Uttar Pradesh ───────────── */
+/* ───────────── Uttar Pradesh: SSL AMC ───────────── */
 export const upSslAmc = {
   getDistricts: (signal?: AbortSignal) => request(`${UP_SSL_AMC_BASE}/district`, { method: 'GET', signal }),                         // GET
   getBlocks: (district: string, signal?: AbortSignal) => request(`${UP_SSL_AMC_BASE}/fetch-block`, { method: 'GET', signal }, { district, district_id: district }),       // GET
@@ -100,7 +141,7 @@ export const upSslAmc = {
   viewAssignLight: (signal?: AbortSignal) => request(`${UP_SSL_AMC_BASE}/view-assign-light`, { method: 'GET', signal }),              // GET
 };
 
-/* ───────────── Bihar ───────────── */
+/* ───────────── Bihar: SSL AMC ───────────── */
 export const biharSslAmc = {
   getVolumes: (signal?: AbortSignal) => request(BIHAR_API.AMC.SSL.VOLUMES, { method: 'GET', signal }),                           // GET
   getDistricts: (volume: string, signal?: AbortSignal) => request(`${BIHAR_SSL_AMC_BASE}/fetch-district`, { method: 'GET', signal }, { volume }),       // GET

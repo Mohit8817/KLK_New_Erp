@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+﻿import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -20,12 +20,12 @@ import {
 // Code-split ApexCharts so the shell and tables render instantly
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
 
-/* ───────── Colors ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Colors ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
 
-/* ───────── Summary & District Types ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Summary & District Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 interface SslSummary {
   site_count: number;
   complete: number;
@@ -58,13 +58,13 @@ interface DistrictRow {
   payment_done: number;
 }
 
-/* ───────── Helpers ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const num = (x: number) => (x ?? 0).toLocaleString('en-IN');
-const cur = (x: number) => `₹${(x ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const cur = (x: number) => `Γé╣${(x ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
 const n = (v: unknown) => Number(v ?? 0) || 0;
 const pad = (x: number) => String(x).padStart(2, '0');
-const fmtDate = (d: Date | null) => (d ? `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` : '—');
+const fmtDate = (d: Date | null) => (d ? `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}` : 'ΓÇö');
 const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
 const cv = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -95,7 +95,7 @@ const useIsMobile = (breakpoint = 640) => {
   return m;
 };
 
-/* ───────── DLE Layout CSS ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ DLE Layout CSS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const PAGE_CSS = `
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -107,7 +107,7 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ssl-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* ───── Card header: title fixed, actions squeeze ───── */
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇ Card header: title fixed, actions squeeze ΓöÇΓöÇΓöÇΓöÇΓöÇ */
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -237,7 +237,7 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── Icons (Tabler design) ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Icons (Tabler design) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
 );
@@ -267,7 +267,7 @@ const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 
 const I_COIN = svg(<><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 7v10" /></>);
 const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 
-/* ───────── DLE Exact KPI Card ───────── */
+/* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ DLE Exact KPI Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
 interface KpiProps {
   icon: React.ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -419,7 +419,7 @@ export function Bihar_Installation_SSL_Dashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  /* ───────── Raw API resolution ───────── */
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Raw API resolution ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
   const rawApiSsl: any = (data as any)?.ssl || {};
   const pickVal = (...keys: string[]) => {
     for (const k of keys) {
@@ -527,8 +527,8 @@ export function Bihar_Installation_SSL_Dashboard() {
     pD.setPage(1);
   }, [qDistrict, selectedDistrict]);
 
-  /* ───────── Derived Values ───────── */
-  const dash = (v: number) => (loading && !data ? '…' : num(v));
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Derived Values ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+  const dash = (v: number) => (loading && !data ? 'ΓÇª' : num(v));
   const instPct = pctOf(ssl.complete, ssl.site_count);
   const approvedPct = pctOf(ssl.verify_approved, ssl.site_count);
   const claimPct = pctOf(ssl.claim_raised, ssl.complete);
@@ -550,7 +550,7 @@ export function Bihar_Installation_SSL_Dashboard() {
 
 
 
-  /* ───────── Export Columns & Helpers ───────── */
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Export Columns & Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
   const [hiddenDistrictColumns, setHiddenDistrictColumns] = useState<string[]>([]);
 
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
@@ -653,7 +653,7 @@ export function Bihar_Installation_SSL_Dashboard() {
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
     setter((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
 
-  /* ───────── Chart Options ───────── */
+  /* ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ Chart Options ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
   const instStatusSeries = [ssl.verify_approved, ssl.verify_pending, ssl.verify_reject, ssl.pending];
   const instStatusLabels = ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'];
 
@@ -674,7 +674,7 @@ export function Bihar_Installation_SSL_Dashboard() {
         title="Bihar SSL Installation Dashboard"
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Bihar State Operations · SSL installation tracking — last updated {updatedAt ? fmtTime(updatedAt) : '—'}
+            Bihar State Operations ┬╖ SSL installation tracking ΓÇö last updated {updatedAt ? fmtTime(updatedAt) : 'ΓÇö'}
           </span>
         }
         breadcrumbs={[{ label: 'Bihar' }, { label: 'Installation' }, { label: 'SSL' }, { label: 'Dashboard' }]}
@@ -741,7 +741,7 @@ export function Bihar_Installation_SSL_Dashboard() {
 
             <div className="ax-cluster ssl-filter-scope" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Showing Company <b style={{ color: 'var(--ax-accent)' }}>#{activeCompanyId}</b> · <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
+                Showing Company <b style={{ color: 'var(--ax-accent)' }}>#{activeCompanyId}</b> ┬╖ <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights ┬╖ Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
               </span>
             </div>
           </div>
@@ -751,7 +751,7 @@ export function Bihar_Installation_SSL_Dashboard() {
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Bihar SSL Installation Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
-              <p className="ax-welcome__eyebrow">Solar Street Light Installation Management System · Bihar State Hub</p>
+              <p className="ax-welcome__eyebrow">Solar Street Light Installation Management System ┬╖ Bihar State Hub</p>
               <h2 className="ax-card__title">Welcome to Bihar SSL Installation Dashboard</h2>
               <p className="ax-welcome__lede">
                 Bihar state solar street light installation overview for Company #{activeCompanyId}: <b>{dash(ssl.site_count)} lights</b> allocated across <b>{dash(filtersActive ? 1 : districtwise.length)} districts</b>.
@@ -784,9 +784,9 @@ export function Bihar_Installation_SSL_Dashboard() {
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════════════════════
+        {/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
             4. THE 13 EXACT DLE-STYLE KPI CARDS (ALL REQUIRED METRICS)
-            ══════════════════════════════════════════════════════════════ */}
+            ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */}
 
 
 
@@ -795,7 +795,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_BOLT}
           tone="cyan"
           label="Installation Status"
-          value={loading && !data ? '…' : `${ssl.complete} / ${ssl.pending}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.complete} / ${ssl.pending}`}
           sub="Installed / Pending"
           badge={`${instPct}% Done`}
           spark={spk((d) => n(d.inst_complete))}
@@ -807,7 +807,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_DONE}
           tone="emerald"
           label="Verification Status"
-          value={loading && !data ? '…' : `${ssl.verify_approved} / ${ssl.verify_pending} / ${ssl.verify_reject}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.verify_approved} / ${ssl.verify_pending} / ${ssl.verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={`${approvedPct}% Approved`}
           spark={spk((d) => n(d.verify_approved))}
@@ -819,7 +819,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_LIST}
           tone="amber"
           label="Site Assignment Status"
-          value={loading && !data ? '…' : `${ssl.site_assigned} / ${ssl.site_not_assigned}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.site_assigned} / ${ssl.site_not_assigned}`}
           sub="Assigned / Not Assigned"
           badge={ssl.site_assigned > 0 ? 'Assigned' : undefined}
           spark={spk((d) => n(d.total_light))}
@@ -831,7 +831,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_DOC}
           tone="violet"
           label="CMS Upload Status"
-          value={loading && !data ? '…' : `${Math.max(0, ssl.complete - ssl.cms_upload_pending)} / ${ssl.cms_upload_pending}`}
+          value={loading && !data ? 'ΓÇª' : `${Math.max(0, ssl.complete - ssl.cms_upload_pending)} / ${ssl.cms_upload_pending}`}
           sub="Uploaded / Pending"
           badge={ssl.cms_upload_pending > 0 ? `${ssl.cms_upload_pending} Pending` : 'Up-to-date'}
           spark={spk((d) => n(d.inst_complete))}
@@ -843,7 +843,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_LIST}
           tone="amber"
           label="Claim Status"
-          value={loading && !data ? '…' : `${ssl.claim_applicable} / ${ssl.claim_raised}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.claim_applicable} / ${ssl.claim_raised}`}
           sub="Applicable / Raised"
           badge={ssl.claim_raised > 0 ? `${ssl.claim_raised} Raised` : undefined}
           spark={spk((d) => n(d.claim_raised))}
@@ -855,7 +855,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_DONE}
           tone="emerald"
           label="Claim Verification"
-          value={loading && !data ? '…' : `${ssl.claim_verify_approved} / ${ssl.claim_verify_pending} / ${ssl.claim_verify_reject}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.claim_verify_approved} / ${ssl.claim_verify_pending} / ${ssl.claim_verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ssl.claim_verify_approved > 0 ? 'Verified' : undefined}
           onClick={() => navigate('/v/bihar/ssl/view-claim-request-deatils')}
@@ -866,7 +866,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_COIN}
           tone="cyan"
           label="Payment Status"
-          value={loading && !data ? '…' : `${ssl.inst_pay_done} / ${ssl.inst_pay_pending}`}
+          value={loading && !data ? 'ΓÇª' : `${ssl.inst_pay_done} / ${ssl.inst_pay_pending}`}
           sub="Paid / Pending"
           badge={ssl.inst_pay_done > 0 ? 'Disbursed' : undefined}
           spark={spk((d) => n(d.payment_done))}
@@ -878,7 +878,7 @@ export function Bihar_Installation_SSL_Dashboard() {
           icon={I_COIN}
           tone="emerald"
           label="Disbursed Billing Amount"
-          value={loading && !data ? '…' : cur(ssl.payment_amount || ssl.inst_pay_done * 12500)}
+          value={loading && !data ? 'ΓÇª' : cur(ssl.payment_amount || ssl.inst_pay_done * 12500)}
           sub="Vendor Billing Disbursed"
           badge="Verified"
           onClick={() => navigate('/v/bihar/ssl/view-ssl-complete-site#payment')}
@@ -937,7 +937,7 @@ export function Bihar_Installation_SSL_Dashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Execution Throughput</span>
               <h2 className="ax-card__title">Monthly Installation Trend</h2>
-              <p className="ax-card__subtitle">{num(monthTotal)} installations across {monthly.length} month{monthly.length === 1 ? '' : 's'} · {num(todayTotal)} today</p>
+              <p className="ax-card__subtitle">{num(monthTotal)} installations across {monthly.length} month{monthly.length === 1 ? '' : 's'} ┬╖ {num(todayTotal)} today</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
@@ -1043,7 +1043,7 @@ export function Bihar_Installation_SSL_Dashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
               <h2 className="ax-card__title">District-wise Installation Statistics</h2>
-              <p className="ax-card__subtitle">Installations by progress across Bihar districts · click bar to filter</p>
+              <p className="ax-card__subtitle">Installations by progress across Bihar districts ┬╖ click bar to filter</p>
             </div>
             <div className="ax-card__actions">
               <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{dash(districtwise.length)} Districts</span>
@@ -1110,9 +1110,9 @@ export function Bihar_Installation_SSL_Dashboard() {
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════════════════════
+        {/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
             7. DISTRICT WISE DATA TABLE (EXACT DLE STYLING & TOOLBAR)
-            ══════════════════════════════════════════════════════════════ */}
+            ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */}
         <section className="ax-card ax-col--12" role="region" aria-label="District wise data">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -1150,7 +1150,7 @@ export function Bihar_Installation_SSL_Dashboard() {
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
+                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}><span className="ax-spinner" /> Loading district recordsΓÇª</td></tr>
                 ) : pD.paginatedData.length === 0 ? (
                   <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}>No districts match the filters.</td></tr>
                 ) : (
@@ -1266,7 +1266,7 @@ export function Bihar_Installation_SSL_Dashboard() {
         <section className="ax-card ax-col--8" role="region" aria-label="Today's installations">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Site Operations · Live {todayLabel}</span>
+              <span className="ax-card__eyebrow">Site Operations ┬╖ Live {todayLabel}</span>
               <h2 className="ax-card__title">Today&apos;s Installation Activity</h2>
               <p className="ax-card__subtitle">{todayTotal} solar street lights installed today across field execution partners</p>
             </div>
@@ -1283,7 +1283,7 @@ export function Bihar_Installation_SSL_Dashboard() {
               </thead>
               <tbody>
                 {today.length === 0 ? (
-                  <tr><td className="ax-table__td" colSpan={4} style={emptyCellStyle}>{loading ? 'Loading…' : 'No installations reported today yet.'}</td></tr>
+                  <tr><td className="ax-table__td" colSpan={4} style={emptyCellStyle}>{loading ? 'LoadingΓÇª' : 'No installations reported today yet.'}</td></tr>
                 ) : (
                   today.map((t, idx) => (
                     <tr key={idx} className="ax-table__row">
@@ -1318,7 +1318,7 @@ export function Bihar_Installation_SSL_Dashboard() {
                 <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{today.length} Active Today</span>
               </div>
               <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-3)' }}>
-                {today.length === 0 && <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{loading ? 'Loading…' : 'No partner data today.'}</div>}
+                {today.length === 0 && <div style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>{loading ? 'LoadingΓÇª' : 'No partner data today.'}</div>}
                 {today.map((s, i) => {
                   const c = AVATAR_COLORS[i % AVATAR_COLORS.length];
                   const partnerName = s.name || `Team #${s.inst_vendor || i + 1}`;
@@ -1352,7 +1352,7 @@ export function Bihar_Installation_SSL_Dashboard() {
                 className="ax-btn ax-btn--secondary ax-btn--sm"
                 onClick={() => navigate('/v/ssl/view-ssl-complete-site')}
               >
-                View Installations →
+                View Installations ΓåÆ
               </button>
             </div>
           </div>
