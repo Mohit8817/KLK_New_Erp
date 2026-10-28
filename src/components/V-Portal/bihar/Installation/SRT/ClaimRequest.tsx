@@ -273,15 +273,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
-
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 0;
@@ -460,7 +451,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
 
   // Modals
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
@@ -805,7 +796,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
+            <table className="ax-table ax-table--hover " style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
               <thead>
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
@@ -988,6 +979,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                   setPageSize(sz);
                   setCurrentPage(1);
                 }}
+                pageSizeOptions={[100, 200, 300]}
               />
             </div>
           </div>

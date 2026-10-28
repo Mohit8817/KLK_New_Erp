@@ -122,13 +122,6 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions .ax-export-toolbar,
     .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
     .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
-
-    .solar-erp-page .ula-sticky-first th:first-child,
-    .solar-erp-page .ula-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1;
-      background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
   }
 
   @media (max-width: 490px) {
@@ -231,7 +224,7 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
 
   /* ───────── Pagination (common) ───────── */
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 10 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -335,7 +328,7 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--wide ula-sticky-first">
+            <table className="ax-table ax-table--hover ula-table--wide">
               <caption className="ax-visually-hidden">View Assign Site Detail</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -381,7 +374,7 @@ export function Bihar_Installation_ULA_AssignSiteDetail() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 20, 40]}
+                pageSizeOptions={[100, 200, 300]}
               />
             </div>
           </div>

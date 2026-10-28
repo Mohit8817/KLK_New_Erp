@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -20,7 +22,9 @@ import {
   type ColumnDef,
 } from '../../../../../common';
 
-/* ───────── KPI card (same as SSL Claim Request) ───────── */
+const DASH = '—';
+
+/* ───────── KPI Card (same as SRT Claim Request) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -60,6 +64,266 @@ function KpiCard({
         {sub}
       </div>
     </div>
+  );
+}
+
+/* ───────── Responsive page CSS (same as SRT Claim Request) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
+`;
+
+const OVERLAY_CSS = `
+  .ax-modal img { border-radius: 0 !important; }
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+`;
+
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
+const ICON_PLUS = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 5l0 14" />
+    <path d="M5 12l14 0" />
+  </svg>
+);
+
+/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  dialogClass = '',
+  closeOnBackdrop = true,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  dialogClass?: string;
+  closeOnBackdrop?: boolean;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return createPortal(
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image preview modal with zoom ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="ula-survey-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="ula-survey-preview-title">{title || 'Media Preview'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div className="ula-m-stage">
+          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
+          {status === 'error' && <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Preview'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              borderRadius: 0,
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -108,6 +372,7 @@ function getSurveyImageCandidates(path?: string | null): string[] {
   return Array.from(new Set(candidates));
 }
 
+/* ── Robust Table Image: strict NO BORDER RADIUS ── */
 function SurveyThumbnail({
   src,
   alt,
@@ -115,7 +380,7 @@ function SurveyThumbnail({
 }: {
   src?: string | null;
   alt: string;
-  onPreview: (url: string) => void;
+  onPreview: (url: string, title: string) => void;
 }) {
   const candidates = useMemo(() => getSurveyImageCandidates(src), [src]);
   const [candidateIdx, setCandidateIdx] = useState(0);
@@ -127,7 +392,7 @@ function SurveyThumbnail({
   }, [src]);
 
   if (!src || failed || candidateIdx >= candidates.length) {
-    return <span style={{ color: 'var(--ax-text-subtle)' }}>—</span>;
+    return <span style={{ color: 'var(--ax-text-subtle)', fontSize: '11px' }}>{DASH}</span>;
   }
 
   const currentUrl = candidates[candidateIdx];
@@ -137,12 +402,13 @@ function SurveyThumbnail({
       src={currentUrl}
       alt={alt}
       style={{
-        width: 34,
-        height: 34,
+        width: 38,
+        height: 38,
         objectFit: 'cover',
-        cursor: 'pointer',
+        borderRadius: 0,
         border: '1px solid var(--ax-border)',
-        background: 'var(--ax-surface-subtle)',
+        cursor: 'pointer',
+        display: 'inline-block',
       }}
       onError={() => {
         if (candidateIdx + 1 < candidates.length) {
@@ -151,7 +417,7 @@ function SurveyThumbnail({
           setFailed(true);
         }
       }}
-      onClick={() => onPreview(currentUrl)}
+      onClick={() => onPreview(currentUrl, alt)}
       title="Click to preview"
     />
   );
@@ -166,6 +432,10 @@ const DEFAULT_KPIS: UlaSurveyKpis = {
   rejected: 0,
 };
 
+const mono = { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } as const;
+
+const yesNo = (v: unknown) => (v === 1 || v === '1' ? 'Yes' : 'No');
+
 export function Bihar_Survey_ULA_ViewData() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -173,9 +443,11 @@ export function Bihar_Survey_ULA_ViewData() {
   const [kpis, setKpis] = useState<UlaSurveyKpis>(DEFAULT_KPIS);
   const [surveys, setSurveys] = useState<BiharUlaSurveyItem[]>([]);
   const [search, setSearch] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState(100);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
   // Column Visibility
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
@@ -204,22 +476,50 @@ export function Bihar_Survey_ULA_ViewData() {
     loadData();
   }, []);
 
-  // Filtered surveys based on search query
+  // Districts list for filter dropdown
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    surveys.forEach((s) => {
+      if (s.district) set.add(String(s.district).trim());
+    });
+    return Array.from(set).sort();
+  }, [surveys]);
+
+  // Filtered surveys (district + verify status + search)
   const filteredSurveys = useMemo(() => {
-    if (!search.trim()) return surveys;
-    const q = search.toLowerCase();
-    return surveys.filter((item) =>
-      Object.values(item).some((val) => {
-        if (val === null || val === undefined) return false;
-        if (typeof val === 'object') {
-          return Object.values(val).some(
-            (subVal) => subVal !== null && subVal !== undefined && String(subVal).toLowerCase().includes(q)
-          );
-        }
-        return String(val).toLowerCase().includes(q);
-      })
-    );
-  }, [surveys, search]);
+    let list = surveys;
+
+    if (districtFilter !== 'all') {
+      list = list.filter((s) => String(s.district || '').toLowerCase() === districtFilter.toLowerCase());
+    }
+
+    if (statusFilter !== 'all') {
+      list = list.filter((s) => {
+        const v = Number(s.verify_status);
+        if (statusFilter === 'approved') return v === 1;
+        if (statusFilter === 'rejected') return v === 2;
+        if (statusFilter === 'pending') return v !== 1 && v !== 2;
+        return true;
+      });
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((item) =>
+        Object.values(item).some((val) => {
+          if (val === null || val === undefined) return false;
+          if (typeof val === 'object') {
+            return Object.values(val).some(
+              (subVal) => subVal !== null && subVal !== undefined && String(subVal).toLowerCase().includes(q)
+            );
+          }
+          return String(val).toLowerCase().includes(q);
+        })
+      );
+    }
+
+    return list;
+  }, [surveys, search, districtFilter, statusFilter]);
 
   // Pagination slice
   const pagedSurveys = useMemo(() => {
@@ -229,7 +529,7 @@ export function Bihar_Survey_ULA_ViewData() {
 
   // Format date helper
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return DASH;
     try {
       const d = new Date(dateStr);
       return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-GB');
@@ -237,6 +537,13 @@ export function Bihar_Survey_ULA_ViewData() {
       return dateStr;
     }
   };
+
+  const getVerifierName = (r: BiharUlaSurveyItem) =>
+    typeof r.verifier === 'object' && r.verifier?.name
+      ? r.verifier.name
+      : typeof r.verifier === 'string'
+      ? r.verifier
+      : '';
 
   // Export column definitions
   const exportCols: ExportColumn<BiharUlaSurveyItem>[] = useMemo(
@@ -266,15 +573,7 @@ export function Bihar_Survey_ULA_ViewData() {
           r.verify_status === 1 ? 'Approved' : r.verify_status === 2 ? 'Rejected' : 'Pending',
       },
       { header: 'Verify Remarks', accessor: (r) => r.verify_remarks ?? '' },
-      {
-        header: 'Verify By',
-        accessor: (r) =>
-          typeof r.verifier === 'object' && r.verifier?.name
-            ? r.verifier.name
-            : typeof r.verifier === 'string'
-            ? r.verifier
-            : '',
-      },
+      { header: 'Verify By', accessor: (r) => getVerifierName(r) },
     ],
     []
   );
@@ -308,8 +607,24 @@ export function Bihar_Survey_ULA_ViewData() {
   const feasiblePct = kpis.total > 0 ? Math.round((kpis.feasible / kpis.total) * 100) : 0;
   const verifiedPct = kpis.total > 0 ? Math.round((kpis.verified / kpis.total) * 100) : 0;
 
+  const colCount =
+    1 +
+    ['Survey Date', 'District', 'Block', 'Panchayat', 'Village', 'Address', 'Consumer Name', 'Gender', 'Contact No.',
+      'Aadhaar No.', 'CA No.', 'Smart Meter', 'Smart Meter No.', 'Meter Functional', 'Feasible', 'Latitude', 'Longitude',
+      'Remarks', 'Status', 'Verification', 'Verify Remarks', 'Verify By'].filter(isVisible).length +
+    3 + 1;
+
+  const preview = (item: BiharUlaSurveyItem, url: string, label: string) =>
+    setPreviewImage({ url, title: `${item.consumer_name || item.ca_number || ''} - ${label}` });
+
+  const th = (key: string) =>
+    isVisible(key) ? <th className="ax-table__th" scope="col">{key}</th> : null;
+
   return (
-    <div className="ax-page">
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
       {/* ── Page Head ── */}
       <PageHead
         title="Bihar ULA Survey Records"
@@ -321,36 +636,21 @@ export function Bihar_Survey_ULA_ViewData() {
           { label: 'ULA' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadData}
-              disabled={loading}
-            >
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-              </svg>
+          <div className="ax-cluster">
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
+              {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={() => navigate('/v/bihar/ula-surveys/create')}
-            >
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 5l0 14" />
-                <path d="M5 12l14 0" />
-              </svg>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/ula-surveys/create')}>
+              {ICON_PLUS}
               <span className="ax-btn__label">Add Survey</span>
             </button>
           </div>
         }
       />
 
+      {/* ── KPI Summary Grid ── */}
       <div className="ax-dash-grid">
-        {/* ── KPI Row (Claim Request style) ── */}
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
@@ -386,342 +686,278 @@ export function Bihar_Survey_ULA_ViewData() {
           </>
         )}
 
-        {/* ── Main Table Card (Template DataTables pattern) ── */}
+        {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">SITE SURVEY</span>
               <h2 className="ax-card__title">Bihar ULA Survey Records</h2>
               <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
                 {filteredSurveys.length} of {surveys.length} records
               </p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <SearchInput
-                value={search}
-                onChange={(val) => {
-                  setSearch(val);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search records…"
-                ariaLabel="Search records"
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-                columns={toolbarColumns}
-                onToggleColumn={toggleColumn}
-              />
+
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={districtFilter}
+                  onChange={(e) => {
+                    setDistrictFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Filter by district"
+                >
+                  <option value="all">All Districts</option>
+                  {districts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                <select
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Filter by verification status"
+                >
+                  <option value="all">All Status</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+
+                {(search || districtFilter !== 'all' || statusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => {
+                      setSearch('');
+                      setDistrictFilter('all');
+                      setStatusFilter('all');
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
+                <SearchInput
+                  value={search}
+                  onChange={(val) => {
+                    setSearch(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search consumer, district, CA..."
+                  size="sm"
+                  ariaLabel="Search survey records"
+                />
+
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                  columns={toolbarColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              </div>
             </div>
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: 'var(--ax-space-10) var(--ax-space-5)' }}>
-              <span className="ax-spinner" style={{ width: 24, height: 24, margin: '0 auto var(--ax-space-3)' }} />
-              <p style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-sm)' }}>
-                Loading Bihar ULA Survey records…
-              </p>
-            </div>
-          ) : filteredSurveys.length === 0 ? (
-            <TableEmptyState
-              title="No records found"
-              message={
-                search
-                  ? 'No survey records match your search filter. Try clearing your query.'
-                  : errorMsg || 'No survey records available.'
-              }
-              onClear={search ? () => setSearch('') : undefined}
-              clearLabel="Clear search"
-            />
-          ) : (
-            <>
-              <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-                  <caption className="ax-visually-hidden">Bihar ULA Survey Records</caption>
-                  <thead className="ax-table__head">
-                    <tr>
-                      <th className="ax-table__th" scope="col">Sr. No.</th>
-                      {isVisible('Survey Date') && <th className="ax-table__th" scope="col">Survey Date</th>}
-                      {isVisible('District') && <th className="ax-table__th" scope="col">District</th>}
-                      {isVisible('Block') && <th className="ax-table__th" scope="col">Block</th>}
-                      {isVisible('Panchayat') && <th className="ax-table__th" scope="col">Panchayat</th>}
-                      {isVisible('Village') && <th className="ax-table__th" scope="col">Village</th>}
-                      {isVisible('Address') && <th className="ax-table__th" scope="col">Address</th>}
-                      {isVisible('Consumer Name') && <th className="ax-table__th" scope="col">Consumer Name</th>}
-                      {isVisible('Gender') && <th className="ax-table__th" scope="col">Gender</th>}
-                      {isVisible('Contact No.') && <th className="ax-table__th" scope="col">Contact No.</th>}
-                      {isVisible('Aadhaar No.') && <th className="ax-table__th" scope="col">Aadhaar No.</th>}
-                      {isVisible('CA No.') && <th className="ax-table__th" scope="col">CA No.</th>}
-                      {isVisible('Smart Meter') && <th className="ax-table__th" scope="col">Smart Meter</th>}
-                      {isVisible('Smart Meter No.') && <th className="ax-table__th" scope="col">Smart Meter No.</th>}
-                      {isVisible('Meter Functional') && <th className="ax-table__th" scope="col">Meter Functional</th>}
-                      {isVisible('Feasible') && <th className="ax-table__th" scope="col">Feasible</th>}
-                      {isVisible('Latitude') && <th className="ax-table__th" scope="col">Latitude</th>}
-                      {isVisible('Longitude') && <th className="ax-table__th" scope="col">Longitude</th>}
-                      <th className="ax-table__th" scope="col">Electricity Bill Photo</th>
-                      <th className="ax-table__th" scope="col">Consent Form Photo</th>
-                      <th className="ax-table__th" scope="col">Aadhaar Card Photo</th>
-                      {isVisible('Remarks') && <th className="ax-table__th" scope="col">Remarks</th>}
-                      {isVisible('Status') && <th className="ax-table__th" scope="col">Status</th>}
-                      {isVisible('Verification') && <th className="ax-table__th" scope="col">Verification</th>}
-                      {isVisible('Verify Remarks') && <th className="ax-table__th" scope="col">Verify Remarks</th>}
-                      {isVisible('Verify By') && <th className="ax-table__th" scope="col">Verify By</th>}
-                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedSurveys.map((item, idx) => {
-                      const srNo = (currentPage - 1) * pageSize + idx + 1;
-                      const verifierName =
-                        typeof item.verifier === 'object' && item.verifier?.name
-                          ? item.verifier.name
-                          : typeof item.verifier === 'string'
-                          ? item.verifier
-                          : '—';
-
-                      return (
-                        <tr key={item.id || idx} className="ax-table__row">
-                          <td className="ax-table__td">{srNo}</td>
-                          {isVisible('Survey Date') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {formatDate(item.survey_date || item.created_at)}
-                            </td>
-                          )}
-                          {isVisible('District') && <td className="ax-table__td">{item.district || '—'}</td>}
-                          {isVisible('Block') && <td className="ax-table__td">{item.block || '—'}</td>}
-                          {isVisible('Panchayat') && <td className="ax-table__td">{item.panchayat || '—'}</td>}
-                          {isVisible('Village') && <td className="ax-table__td">{item.village || '—'}</td>}
-                          {isVisible('Address') && <td className="ax-table__td">{item.address || '—'}</td>}
-                          {isVisible('Consumer Name') && (
-                            <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>
-                              {item.consumer_name || '—'}
-                            </td>
-                          )}
-                          {isVisible('Gender') && <td className="ax-table__td">{item.gender || '—'}</td>}
-                          {isVisible('Contact No.') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {item.contact_no || '—'}
-                            </td>
-                          )}
-                          {isVisible('Aadhaar No.') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {item.aadhar_no || '—'}
-                            </td>
-                          )}
-                          {isVisible('CA No.') && (
-                            <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                              {item.ca_number || '—'}
-                            </td>
-                          )}
-                          {isVisible('Smart Meter') && (
-                            <td className="ax-table__td">
-                              {item.smart_meter === 1 ? 'Yes' : 'No'}
-                            </td>
-                          )}
-                          {isVisible('Smart Meter No.') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {item.smart_meter_no || '—'}
-                            </td>
-                          )}
-                          {isVisible('Meter Functional') && (
-                            <td className="ax-table__td">
-                              {item.smart_meter_functional === 1 ? 'Yes' : 'No'}
-                            </td>
-                          )}
-                          {isVisible('Feasible') && (
-                            <td className="ax-table__td">
-                              <span
-                                className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                  item.feasible_status === 1 ? 'ax-badge--success' : 'ax-badge--danger'
-                                }`}
-                              >
-                                <span className="ax-badge__dot" />
-                                {item.feasible_status === 1 ? 'Feasible' : 'Not Feasible'}
-                              </span>
-                            </td>
-                          )}
-                          {isVisible('Latitude') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {item.latitude ?? '—'}
-                            </td>
-                          )}
-                          {isVisible('Longitude') && (
-                            <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                              {item.longitude ?? '—'}
-                            </td>
-                          )}
-
-                          {/* Electricity Bill Photo */}
-                          <td className="ax-table__td">
-                            <SurveyThumbnail
-                              src={item.electricity_bill_photo}
-                              alt="Electricity Bill"
-                              onPreview={setPreviewImg}
-                            />
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+              <caption className="ax-visually-hidden">Bihar ULA Survey Records</caption>
+              <thead>
+                <tr>
+                  <th className="ax-table__th" scope="col">Sr. No.</th>
+                  {th('Survey Date')}
+                  {th('District')}
+                  {th('Block')}
+                  {th('Panchayat')}
+                  {th('Village')}
+                  {th('Address')}
+                  {th('Consumer Name')}
+                  {th('Gender')}
+                  {th('Contact No.')}
+                  {th('Aadhaar No.')}
+                  {th('CA No.')}
+                  {th('Smart Meter')}
+                  {th('Smart Meter No.')}
+                  {th('Meter Functional')}
+                  {th('Feasible')}
+                  {th('Latitude')}
+                  {th('Longitude')}
+                  <th className="ax-table__th" scope="col">Electricity Bill Photo</th>
+                  <th className="ax-table__th" scope="col">Consent Form Photo</th>
+                  <th className="ax-table__th" scope="col">Aadhaar Card Photo</th>
+                  {th('Remarks')}
+                  {th('Status')}
+                  {th('Verification')}
+                  {th('Verify Remarks')}
+                  {th('Verify By')}
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                      Loading ULA survey records...
+                    </td>
+                  </tr>
+                ) : filteredSurveys.length === 0 ? (
+                  <tr>
+                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                      <TableEmptyState
+                        title="No survey records found"
+                        message={
+                          search || districtFilter !== 'all' || statusFilter !== 'all'
+                            ? 'No survey records match your filters. Try clearing them.'
+                            : errorMsg || 'No survey records available.'
+                        }
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  pagedSurveys.map((item, idx) => {
+                    const srNo = (currentPage - 1) * pageSize + idx + 1;
+                    return (
+                      <tr key={item.id || idx}>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
+                        {isVisible('Survey Date') && (
+                          <td className="ax-table__td" style={mono}>{formatDate(item.survey_date || item.created_at)}</td>
+                        )}
+                        {isVisible('District') && <td className="ax-table__td" style={{ fontWeight: 600 }}>{item.district || DASH}</td>}
+                        {isVisible('Block') && <td className="ax-table__td">{item.block || DASH}</td>}
+                        {isVisible('Panchayat') && <td className="ax-table__td">{item.panchayat || DASH}</td>}
+                        {isVisible('Village') && <td className="ax-table__td">{item.village || DASH}</td>}
+                        {isVisible('Address') && <td className="ax-table__td">{item.address || DASH}</td>}
+                        {isVisible('Consumer Name') && (
+                          <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                            {item.consumer_name || DASH}
                           </td>
-
-                          {/* Consent Form Photo */}
-                          <td className="ax-table__td">
-                            <SurveyThumbnail
-                              src={item.consent_form_photo}
-                              alt="Consent Form"
-                              onPreview={setPreviewImg}
-                            />
+                        )}
+                        {isVisible('Gender') && <td className="ax-table__td">{item.gender || DASH}</td>}
+                        {isVisible('Contact No.') && <td className="ax-table__td" style={mono}>{item.contact_no || DASH}</td>}
+                        {isVisible('Aadhaar No.') && <td className="ax-table__td" style={mono}>{item.aadhar_no || DASH}</td>}
+                        {isVisible('CA No.') && (
+                          <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                            {item.ca_number || DASH}
                           </td>
-
-                          {/* Aadhaar Card Photo */}
+                        )}
+                        {isVisible('Smart Meter') && <td className="ax-table__td">{yesNo(item.smart_meter)}</td>}
+                        {isVisible('Smart Meter No.') && <td className="ax-table__td" style={mono}>{item.smart_meter_no || DASH}</td>}
+                        {isVisible('Meter Functional') && <td className="ax-table__td">{yesNo(item.smart_meter_functional)}</td>}
+                        {isVisible('Feasible') && (
                           <td className="ax-table__td">
-                            <SurveyThumbnail
-                              src={item.aadhar_card_photo}
-                              alt="Aadhaar Card"
-                              onPreview={setPreviewImg}
-                            />
+                            <span className={`ax-badge ax-badge--soft ${item.feasible_status === 1 ? 'ax-badge--success' : 'ax-badge--danger'}`}>
+                              {item.feasible_status === 1 ? 'Feasible' : 'Not Feasible'}
+                            </span>
                           </td>
+                        )}
+                        {isVisible('Latitude') && <td className="ax-table__td" style={mono}>{item.latitude ?? DASH}</td>}
+                        {isVisible('Longitude') && <td className="ax-table__td" style={mono}>{item.longitude ?? DASH}</td>}
 
-                          {/* Remarks */}
-                          {isVisible('Remarks') && <td className="ax-table__td">{item.remarks || '—'}</td>}
+                        {/* Photos (NO BORDER RADIUS) */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <SurveyThumbnail
+                            src={item.electricity_bill_photo}
+                            alt="Electricity Bill"
+                            onPreview={(url, t) => preview(item, url, t)}
+                          />
+                        </td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <SurveyThumbnail
+                            src={item.consent_form_photo}
+                            alt="Consent Form"
+                            onPreview={(url, t) => preview(item, url, t)}
+                          />
+                        </td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <SurveyThumbnail
+                            src={item.aadhar_card_photo}
+                            alt="Aadhaar Card"
+                            onPreview={(url, t) => preview(item, url, t)}
+                          />
+                        </td>
 
-                          {/* Status */}
-                          {isVisible('Status') && (
-                            <td className="ax-table__td">
-                              <span
-                                className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                  item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'
-                                }`}
-                              >
-                                <span className="ax-badge__dot" />
-                                {item.survey_status === 1 ? 'Complete' : 'Pending'}
-                              </span>
-                            </td>
-                          )}
+                        {isVisible('Remarks') && <td className="ax-table__td">{item.remarks || DASH}</td>}
 
-                          {/* Verification */}
-                          {isVisible('Verification') && (
-                            <td className="ax-table__td">
-                              <span
-                                className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                  item.verify_status === 1
-                                    ? 'ax-badge--success'
-                                    : item.verify_status === 2
-                                    ? 'ax-badge--danger'
-                                    : 'ax-badge--warning'
-                                }`}
-                              >
-                                <span className="ax-badge__dot" />
-                                {item.verify_status === 1
-                                  ? 'Approved'
+                        {isVisible('Status') && (
+                          <td className="ax-table__td">
+                            <span className={`ax-badge ax-badge--soft ${item.survey_status === 1 ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                              {item.survey_status === 1 ? 'Complete' : 'Pending'}
+                            </span>
+                          </td>
+                        )}
+
+                        {isVisible('Verification') && (
+                          <td className="ax-table__td">
+                            <span
+                              className={`ax-badge ax-badge--soft ${
+                                item.verify_status === 1
+                                  ? 'ax-badge--success'
                                   : item.verify_status === 2
-                                  ? 'Rejected'
-                                  : 'Pending'}
-                              </span>
-                            </td>
-                          )}
-
-                          {/* Verify Remarks */}
-                          {isVisible('Verify Remarks') && (
-                            <td className="ax-table__td">{item.verify_remarks || '—'}</td>
-                          )}
-
-                          {/* Verify By */}
-                          {isVisible('Verify By') && (
-                            <td className="ax-table__td">{verifierName}</td>
-                          )}
-
-                          {/* Action */}
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => navigate(`/v/bihar/ula-surveys/create?id=${item.id}`)}
+                                  ? 'ax-badge--danger'
+                                  : 'ax-badge--warning'
+                              }`}
                             >
-                              Edit
-                            </button>
+                              {item.verify_status === 1 ? 'Approved' : item.verify_status === 2 ? 'Rejected' : 'Pending'}
+                            </span>
                           </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        )}
 
-              {/* Template Pagination */}
+                        {isVisible('Verify Remarks') && <td className="ax-table__td">{item.verify_remarks || DASH}</td>}
+                        {isVisible('Verify By') && <td className="ax-table__td">{getVerifierName(item) || DASH}</td>}
+
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            onClick={() => navigate(`/v/bihar/ula-surveys/create?id=${item.id}`)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="ax-card__footer">
+            <div className="ula-pagination-left">
               <Pagination
                 page={currentPage}
                 pageSize={pageSize}
                 total={filteredSurveys.length}
                 onChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+                pageSizeOptions={[100, 200, 300]}
               />
-            </>
-          )}
+            </div>
+          </div>
         </section>
       </div>
 
-
-      {previewImg && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(211, 211, 211, 0.65)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 'var(--ax-space-4)',
-          }}
-          onClick={() => setPreviewImg(null)}
-        >
-          <div
-            className="ax-card"
-            style={{
-              position: 'relative',
-              padding: 'var(--ax-space-4)',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--ax-space-3)' }}>
-              <h4 style={{ margin: 0, fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 'var(--ax-weight-semibold)' }}>
-                Document Preview
-              </h4>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
-                onClick={() => setPreviewImg(null)}
-                aria-label="Close preview"
-              >
-                ✕
-              </button>
-            </div>
-            <img
-              src={previewImg}
-              alt="Document Preview"
-              style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 'var(--ax-radius-md)' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-              <a
-                href={previewImg}
-                target="_blank"
-                rel="noreferrer"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-              >
-                Open in New Tab ↗
-              </a>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary ax-btn--sm"
-                onClick={() => setPreviewImg(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ── Image Preview Modal with Zoom ── */}
+      {previewImage && (
+        <ImagePreviewModal
+          url={previewImage.url}
+          title={previewImage.title}
+          onClose={() => setPreviewImage(null)}
+        />
       )}
     </div>
   );

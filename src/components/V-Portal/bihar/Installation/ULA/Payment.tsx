@@ -172,14 +172,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -310,7 +302,7 @@ export function Bihar_Installation_ULA_Payment() {
 
   /* ───────── Pagination (common) ───────── */
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredClaims, initialPageSize: 10 });
+    usePagination({ data: filteredClaims, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -502,7 +494,7 @@ export function Bihar_Installation_ULA_Payment() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
               <caption className="ax-visually-hidden">Payment Claims History</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -623,7 +615,7 @@ export function Bihar_Installation_ULA_Payment() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 20, 40]}
+                pageSizeOptions={[100, 200, 300]}
               />
             </div>
           </div>

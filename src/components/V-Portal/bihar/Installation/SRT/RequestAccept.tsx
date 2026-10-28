@@ -93,14 +93,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -299,7 +291,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const [districtFilter, setDistrictFilter] = useState('all');
   const [tabFilter, setTabFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
   // Selected batch for viewing site list in modal
@@ -569,7 +561,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
                   <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
                   <thead className="ax-table__head">
                     <tr>
@@ -661,7 +653,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                       setPageSize(size);
                       setCurrentPage(1);
                     }}
-                    pageSizeOptions={[10, 25, 50, 100]}
+                    pageSizeOptions={[100,200,300]}
                   />
                 </div>
               </div>

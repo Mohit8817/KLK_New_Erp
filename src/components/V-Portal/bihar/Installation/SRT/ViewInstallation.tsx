@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharSrtInstallationService,
+  getSrtInstallationImageCandidates,
   type SrtViewInstallSummary,
   type SrtInstalledSiteItem,
 } from '../../bihar-services/biharSrtInstallationService';
@@ -16,60 +17,6 @@ import {
   TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
-
-/* ── Base URLs for media assets ── */
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/+$/, '');
-
-const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
-
-function getSrtInstallationImageCandidates(path?: string | null): string[] {
-  if (!path || typeof path !== 'string') return [];
-  const clean = path.trim();
-  if (!clean) return [];
-
-  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
-    return [clean];
-  }
-
-  if (clean.startsWith('r2:')) {
-    const key = clean.slice(3).replace(/^\/+/, '');
-    const urls: string[] = [];
-    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
-    urls.push(`${BACKEND_BASE}/uploads/${key}`);
-    return urls;
-  }
-
-  const normalized = clean.replace(/^\/+/, '');
-  const filename = normalized.split('/').pop() || normalized;
-  const candidates: string[] = [];
-
-  if (normalized.startsWith('uploads/')) {
-    candidates.push(`${BACKEND_BASE}/${normalized}`);
-  } else if (normalized.startsWith('storage/')) {
-    candidates.push(`${BACKEND_BASE}/${normalized}`);
-  }
-
-  // SRT specific paths
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/panel/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/system/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/inverter/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/nm_sm/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/loger/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
-  candidates.push(`${BACKEND_BASE}/${normalized}`);
-
-  if (R2_BASE) {
-    candidates.push(`${R2_BASE}/uploads/bihar/installation/srt/${filename}`);
-    candidates.push(`${R2_BASE}/${filename}`);
-  }
-  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
-
-  return Array.from(new Set(candidates));
-}
 
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -282,101 +229,7 @@ function InstallationThumbnail({
   );
 }
 
-/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ── */
-const MENU_W = 180;
-const MENU_H = 48;
-
-function RowActionDropdown({ onEdit }: { onEdit: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const toggle = () => {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    const b = btnRef.current;
-    if (!b) return;
-    const r = b.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
-    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
-    setPos({ top, left });
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const close = () => setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [open]);
-
-  return (
-    <>
-      <button
-        type="button"
-        ref={btnRef}
-        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
-        onClick={toggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <span>Action</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ width: 12, height: 12, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
-          aria-hidden="true"
-        >
-          <path d="M6 9l6 6l6 -6" />
-        </svg>
-      </button>
-
-      {open && pos &&
-        createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              Edit Details
-            </button>
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
-/* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
+/* ───────── Overlay CSS (modals; global because they render in <body>) ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
 
@@ -499,14 +352,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -600,54 +445,6 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
-
-function TextField({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  required,
-  full,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  full?: boolean;
-}) {
-  return (
-    <div className={`ax-field${full ? ' ula-m-full' : ''}`}>
-      <label className="ax-label" htmlFor={id}>{label} {required && <Req />}</label>
-      <input
-        id={id}
-        type="text"
-        className="ax-input"
-        placeholder={placeholder}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-const EMPTY_EDIT_FORM = {
-  contact_person: '',
-  contact_number: '',
-  ca_no: '',
-  solarmeter_no: '',
-  nm_sm_no: '',
-  loger_no: '',
-  inverter_no: '',
-  inst_latitude: '',
-  inst_longitude: '',
-  inst_remarks: '',
-};
-
 /* ───────── Tabs (one page, two datasets; URL hash: #Completed / #Payment) ───────── */
 type TabKey = 'completed' | 'payment';
 
@@ -684,14 +481,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
-
-  // Edit modal
-  const [editSite, setEditSite] = useState<SrtInstalledSiteItem | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
-  const closeEdit = useCallback(() => setEditSite(null), []);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -730,69 +519,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   );
   const activeSites = tab === 'completed' ? completeSites : paymentSites;
   const isCompleted = tab === 'completed';
-
-  // Open Edit Modal
-  const openEditModal = async (site: SrtInstalledSiteItem) => {
-    setEditSite(site);
-    setEditError(null);
-    setEditForm(EMPTY_EDIT_FORM);
-    setEditLoading(true);
-    try {
-      const s = await biharSrtInstallationService.getEditInstallSite(site.id);
-      if (s) {
-        setEditForm({
-          contact_person: s.contact_person || '',
-          contact_number: s.contact_number || '',
-          ca_no: s.ca_no || '',
-          solarmeter_no: s.solarmeter_no || '',
-          nm_sm_no: s.nm_sm_no || '',
-          loger_no: s.loger_no || '',
-          inverter_no: s.inverter_no || '',
-          inst_latitude: String(s.inst_latitude || ''),
-          inst_longitude: String(s.inst_longitude || ''),
-          inst_remarks: s.inst_remarks || '',
-        });
-      }
-    } catch (err: any) {
-      setEditError(err?.message || 'Failed to load site details.');
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  const setEditField = (key: keyof typeof EMPTY_EDIT_FORM) => (v: string) =>
-    setEditForm((p) => ({ ...p, [key]: v }));
-
-  // Submit Edit Form
-  const handleEditSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editSite) return;
-    setEditError(null);
-    setEditSaving(true);
-    try {
-      const fd = new FormData();
-      fd.append('id', String(editSite.id));
-      fd.append('contact_person', editForm.contact_person);
-      fd.append('contact_number', editForm.contact_number);
-      fd.append('ca_no', editForm.ca_no);
-      fd.append('solarmeter_no', editForm.solarmeter_no);
-      fd.append('nm_sm_no', editForm.nm_sm_no);
-      fd.append('loger_no', editForm.loger_no);
-      fd.append('inverter_no', editForm.inverter_no);
-      fd.append('inst_latitude', editForm.inst_latitude);
-      fd.append('inst_longitude', editForm.inst_longitude);
-      if (editForm.inst_remarks) fd.append('inst_remarks', editForm.inst_remarks);
-
-      await biharSrtInstallationService.updateInstallSite(fd);
-      setToastMsg({ type: 'success', text: 'Installation details updated successfully!' });
-      setEditSite(null);
-      await loadData();
-    } catch (err: any) {
-      setEditError(err?.message || 'Failed to update details.');
-    } finally {
-      setEditSaving(false);
-    }
-  };
 
   // Filtered (verify-status filter applies to the Completed tab only)
   const filteredSites = useMemo(() => {
@@ -1097,7 +823,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
 
           <div className="ax-table-wrap">
             <table
-              className="ax-table ax-table--hover ula-table--wide ula-sticky-first"
+              className="ax-table ax-table--hover ula-table--wide"
               style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2900 : 2500 }}
             >
               <caption className="ax-visually-hidden">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</caption>
@@ -1213,7 +939,29 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                               {Number(row.inst_verify_status) === 1 ? (
                                 <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
                               ) : (
-                                <RowActionDropdown onEdit={() => openEditModal(row)} />
+                                <Link
+                                  to={`/v/srt/installationsite?id=${row.id}`}
+                                  state={{ site: row, mode: 'edit' }}
+                                  className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+                                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                  title="Edit Installation Details"
+                                >
+                                  <svg
+                                    width="13"
+                                    height="13"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                  <span>Edit</span>
+                                </Link>
                               )}
                             </td>
                           </>
@@ -1242,60 +990,6 @@ export function Bihar_Installation_SRT_ViewInstallation() {
 
       {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
-
-      {/* ── Edit Details Modal ── */}
-      <Modal open={!!editSite} onClose={closeEdit} labelledBy="srt-edit-title" dialogClass="ax-modal__dialog--lg">
-        {editSite && (
-          <form onSubmit={handleEditSubmit}>
-            <div className="ax-modal__header">
-              <div>
-                <h2 className="ax-modal__title" id="srt-edit-title">Edit installation details</h2>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Site: <b>{editSite.site_name || DASH}</b> (#{editSite.id})
-                </p>
-              </div>
-              <button type="button" className="ax-modal__close" onClick={closeEdit} aria-label="Close dialog">{X_ICON}</button>
-            </div>
-
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-              {editError && (
-                <div className="ax-alert ax-alert--danger" role="alert">
-                  <div className="ax-alert__text">{editError}</div>
-                </div>
-              )}
-
-              {editLoading ? (
-                <div style={{ textAlign: 'center', padding: 'var(--ax-space-6)', color: 'var(--ax-text-muted)' }}>
-                  <span className="ax-spinner" /> Loading site details…
-                </div>
-              ) : (
-                <>
-                  <p className="ula-m-note">The field labels marked with * are required fields.</p>
-                  <div className="ula-m-grid">
-                    <TextField id="srt-e-cp" label="Contact Person" value={editForm.contact_person} onChange={setEditField('contact_person')} required />
-                    <TextField id="srt-e-cn" label="Contact Number" value={editForm.contact_number} onChange={setEditField('contact_number')} required />
-                    <TextField id="srt-e-ca" label="CA Number" value={editForm.ca_no} onChange={setEditField('ca_no')} required />
-                    <TextField id="srt-e-sm" label="Solar Meter No." value={editForm.solarmeter_no} onChange={setEditField('solarmeter_no')} required />
-                    <TextField id="srt-e-nm" label="Net / Smart Meter No." value={editForm.nm_sm_no} onChange={setEditField('nm_sm_no')} required />
-                    <TextField id="srt-e-inv" label="Inverter No." value={editForm.inverter_no} onChange={setEditField('inverter_no')} required />
-                    <TextField id="srt-e-log" label="Logger No." value={editForm.loger_no} onChange={setEditField('loger_no')} required />
-                    <TextField id="srt-e-lat" label="Latitude" value={editForm.inst_latitude} onChange={setEditField('inst_latitude')} required />
-                    <TextField id="srt-e-lng" label="Longitude" value={editForm.inst_longitude} onChange={setEditField('inst_longitude')} required />
-                    <TextField id="srt-e-rem" label="Remarks" value={editForm.inst_remarks} onChange={setEditField('inst_remarks')} full />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeEdit} disabled={editSaving}>Cancel</button>
-              <button type="submit" className="ax-btn ax-btn--primary" disabled={editSaving || editLoading}>
-                {editSaving ? <span className="ax-spinner" /> : 'Save updates'}
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
     </div>
   );
 }

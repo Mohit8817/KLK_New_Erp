@@ -215,12 +215,6 @@ const PAGE_CSS = `
       max-width: 130px;
     }
 
-    .solar-erp-page .ssl-sticky-first th:first-child,
-    .solar-erp-page .ssl-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1;
-      background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
   }
 
   @media (max-width: 480px) {
@@ -1135,7 +1129,7 @@ export function Bihar_Installation_SSL_Dashboard() {
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ssl-table--md ssl-sticky-first">
+            <table className="ax-table ax-table--hover ssl-table--md ">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
@@ -1272,7 +1266,7 @@ export function Bihar_Installation_SSL_Dashboard() {
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ssl-table--sm ssl-sticky-first">
+            <table className="ax-table ax-table--hover ssl-table--sm ">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr.</th>

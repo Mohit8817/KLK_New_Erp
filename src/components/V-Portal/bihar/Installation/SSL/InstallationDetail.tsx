@@ -1,4 +1,4 @@
-﻿import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -6,7 +6,6 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharSslInstallationService,
   getMediaUrl,
-  getCompanyId,
   type InstalledLightsSummary,
   type InstalledLightItem,
 } from '../../bihar-services';
@@ -15,29 +14,18 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
+  usePagination,
   type ExportColumn,
 } from '../../../../../common';
 
 const DASH = '—';
-const MAX_FILE = 2 * 1024 * 1024;
-
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
     <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-  </svg>
-);
-
-const ICON_CROSSHAIR = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M22 12h-4M6 12H2M12 6V2M12 22v-4" />
   </svg>
 );
 
@@ -50,7 +38,7 @@ const X_ICON = (
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone} ax-badge--pill`}>{children}</span>
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
 const vStatusOf = (r: InstalledLightItem) => Number(r.inst_verify_status ?? r.verify_status ?? 0);
@@ -155,7 +143,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ── Image thumbnail (NO BORDER RADIUS) ── */
+/* ───────── Image thumbnail (NO BORDER RADIUS) ───────── */
 function LightThumbnail({ url, alt, onPreview }: { url: string; alt: string; onPreview: (url: string, title: string) => void }) {
   const [failed, setFailed] = useState(false);
 
@@ -184,104 +172,7 @@ function LightThumbnail({ url, alt, onPreview }: { url: string; alt: string; onP
   );
 }
 
-/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ── */
-const MENU_W = 180;
-
-function RowActionDropdown({ items }: { items: { label: string; onClick: () => void }[] }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuH = items.length * 36 + 8;
-
-  const toggle = () => {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    const b = btnRef.current;
-    if (!b) return;
-    const r = b.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < menuH + 8 && r.top > menuH + 8 ? r.top - menuH - 4 : r.bottom + 4;
-    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
-    setPos({ top, left });
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const close = () => setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [open]);
-
-  return (
-    <>
-      <button
-        type="button"
-        ref={btnRef}
-        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
-        onClick={toggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <span>Action</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ width: 12, height: 12, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
-          aria-hidden="true"
-        >
-          <path d="M6 9l6 6l6 -6" />
-        </svg>
-      </button>
-
-      {open && pos &&
-        createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
-            {items.map((it) => (
-              <button
-                key={it.label}
-                type="button"
-                className="ula-menu__item"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  it.onClick();
-                }}
-              >
-                {it.label}
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
-/* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
+/* ───────── Overlay CSS (modals) ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
 
@@ -296,49 +187,17 @@ const OVERLAY_CSS = `
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 
-  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
-  .ula-m-full { grid-column: 1 / -1; }
-  .ula-m-note { margin: 0; font-size: var(--ax-text-sm, 13px); color: var(--ax-text-muted, #64748b); }
-  .ula-m-hint { margin: 0; font-size: 12px; color: var(--ax-text-muted, #64748b); }
-  .ula-m-info {
-    display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; font-size: 12px;
-    background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
-  }
-  .ula-m-info span { color: var(--ax-text-muted, #64748b); }
-  .ula-m-info b { color: var(--ax-text-strong, #0f172a); font-weight: 600; }
-  .ula-m-kv {
-    padding: 8px 12px; min-width: 0;
-    background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
-  }
-  .ula-m-kv__k { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted, #64748b); }
-  .ula-m-kv__v { margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--ax-text-strong, #0f172a); overflow-wrap: anywhere; }
-  .ax-modal textarea.ax-input { resize: vertical; min-height: 84px; line-height: 1.45; }
-
-  .ula-action-btn {
-    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
-    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
-  }
-  .ula-menu {
-    position: fixed; z-index: 99999; box-sizing: border-box;
-    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
-    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
-  }
-  .ula-menu__item {
-    display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
-    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
-    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
-  }
-  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
-
   @media (max-width: 560px) {
-    .ula-m-grid { grid-template-columns: 1fr; }
     .ula-m-stage { height: 56vh; }
   }
 `;
 
-/* ───────── Responsive page CSS (same as ULA / SRT view) ───────── */
+/* ───────── Responsive page CSS (Exact Bihar reference) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -347,6 +206,7 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page img,
+  .solar-erp-page .ula-table--wide img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
   }
@@ -410,14 +270,6 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-  }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
   }
 
   @media (max-width: 1100px) {
@@ -511,41 +363,7 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
-
-function TextField({
-  id,
-  label,
-  value,
-  onChange,
-  type = 'text',
-  required = true,
-  full,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  required?: boolean;
-  full?: boolean;
-}) {
-  return (
-    <div className={`ax-field${full ? ' ula-m-full' : ''}`}>
-      <label className="ax-label" htmlFor={id}>{label} {required && <Req />}</label>
-      <input
-        id={id}
-        type={type}
-        className="ax-input"
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-/* ───────── Tabs (one page, two datasets; URL hash: #Completed / #Payment) ───────── */
+/* ───────── Tabs (URL hash: #Completed / #Payment) ───────── */
 type TabKey = 'Completed' | 'Payment';
 
 const TABS: { key: TabKey; label: string; hash: string }[] = [
@@ -553,7 +371,7 @@ const TABS: { key: TabKey; label: string; hash: string }[] = [
   { key: 'Payment', label: 'Payment Lights', hash: '#Payment' },
 ];
 
-/* ───────── Column config: one source for table + export ───────── */
+/* ───────── Column config ───────── */
 interface Col {
   header: string;
   text: (r: InstalledLightItem) => string;
@@ -626,9 +444,8 @@ const PAYMENT_COLS: Col[] = [
   paymentStatusCol,
 ];
 
-
 /* =========================================================================
- * Main page
+ * Main Component
  * ========================================================================= */
 export function Bihar_Installation_SSL_InstallationDetail() {
   const location = useLocation();
@@ -649,26 +466,21 @@ export function Bihar_Installation_SSL_InstallationDetail() {
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
   const [districtFilter, setDistrictFilter] = useState(() => searchParams.get('district') || 'all');
   const [verifyFilter, setVerifyFilter] = useState(() => searchParams.get('verify') || searchParams.get('status') || 'all');
-  const [hiddenByTab, setHiddenByTab] = useState<Record<TabKey, string[]>>({ Completed: [], Payment: [] });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
   // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
-  // Toast / feedback message
-  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const deferredQuery = useDeferredValue(searchQuery);
 
   useEffect(() => {
     if (!toastMsg) return;
     const t = window.setTimeout(() => setToastMsg(null), 4000);
     return () => window.clearTimeout(t);
   }, [toastMsg]);
-
-  const deferredQuery = useDeferredValue(searchQuery);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -717,46 +529,108 @@ export function Bihar_Installation_SSL_InstallationDetail() {
     });
   }, [currentList, deferredQuery, districtFilter, verifyFilter, isCompleted]);
 
-  // Pagination
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [deferredQuery, districtFilter, verifyFilter, tab]);
+  // Universal Pagination with 100 items by default
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filtered, initialPageSize: 100 });
 
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
+  useEffect(() => {
+    setPage(1);
+  }, [deferredQuery, districtFilter, verifyFilter, tab, setPage]);
 
   const hasFilters = searchQuery.trim() !== '' || districtFilter !== 'all' || (isCompleted && verifyFilter !== 'all');
   const resetFilters = () => {
     setSearchQuery('');
     setDistrictFilter('all');
     setVerifyFilter('all');
+    setPage(1);
   };
 
-  /* ───────── Export (derived from the same column config as the table) ───────── */
+  /* ───────── Export ───────── */
   const cols = isCompleted ? COMPLETED_COLS : PAYMENT_COLS;
 
   const exportCols: ExportColumn<InstalledLightItem>[] = useMemo(
-    () => cols.map((c) => ({ header: c.header, accessor: (r: InstalledLightItem) => c.text(r) })),
+    () => [
+      { header: 'Sr. No.', accessor: (_r: InstalledLightItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      ...cols.map((c) => ({ header: c.header, accessor: (r: InstalledLightItem) => c.text(r) })),
+    ],
     [cols]
   );
-  const hiddenColumns = hiddenByTab[tab];
-  const toolbarColumns = exportCols.map((c, i) => ({
-    key: `${c.header}-${i}`,
-    label: c.header,
-    visible: !hiddenColumns.includes(`${c.header}-${i}`),
-  }));
-  const activeCols = exportCols.filter((c, i) => !hiddenColumns.includes(`${c.header}-${i}`));
-  const toggleColumn = (key: string) =>
-    setHiddenByTab((prev) => ({
-      ...prev,
-      [tab]: prev[tab].includes(key) ? prev[tab].filter((k) => k !== key) : [...prev[tab], key],
-    }));
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = isCompleted ? 'Bihar_SSL_Completed_Lights' : 'Bihar_SSL_Payment_Lights';
   const fileTitle = isCompleted ? 'Bihar SSL Completed Lights' : 'Bihar SSL Payment Lights';
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => c.header),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee6;padding:6px 6px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
 
   const TOTAL_COLUMNS = 1 + cols.length + (isCompleted ? 1 : 0);
 
@@ -770,6 +644,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         title="Installation Details"
         subtitle="View installed lights and payment status for Bihar Solar Street Light sites"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/ssl/installation-dashboard' },
@@ -777,7 +652,6 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-          
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
@@ -793,222 +667,222 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         </div>
       )}
 
-      <div className="ax-dash-grid">
-        {/* ── Tabs: Lights Completed / Payment Lights ── */}
-        <div className="ax-col--12">
-          <div className="ax-cluster" role="tablist" aria-label="Installed lights" style={{ gap: 'var(--ax-space-2)' }}>
-            {TABS.map((t) => {
-              const active = t.key === tab;
-              const count = t.key === 'Completed' ? completeLights.length : paymentLights.length;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  id={`ssl-tab-${t.key}`}
-                  aria-selected={active}
-                  aria-controls="ssl-tabpanel"
-                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-                  onClick={() => setTab(t.key)}
-                >
-                  <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
-                </button>
-              );
-            })}
-          </div>
+      {/* ── Tabs ABOVE Table (per requirement) ── */}
+      <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
+        <div className="ax-cluster" role="tablist" aria-label="Installed lights tabs" style={{ gap: 'var(--ax-space-2)' }}>
+          {TABS.map((t) => {
+            const active = t.key === tab;
+            const count = t.key === 'Completed' ? completeLights.length : paymentLights.length;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`ssl-tab-${t.key}`}
+                aria-selected={active}
+                aria-controls="ssl-tabpanel"
+                className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                onClick={() => setTab(t.key)}
+              >
+                <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* ── Main Table Card ── */}
-        <section className="ax-card ax-col--12" id="ssl-tabpanel" role="tabpanel" aria-labelledby={`ssl-tab-${tab}`}>
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <h2 className="ax-card__title">{isCompleted ? 'Lights Completed' : 'Payment Lights'}</h2>
-              <p className="ax-card__subtitle">
-                <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{currentList.length}</span> lights
-                {summary && isCompleted && (
-                  <>
-                    {' '}· Completed <b className="ax-num">{num(summary.complete)}</b> / {num(summary.total)} · Approved <b className="ax-num">{num(summary.verify_approved)}</b> · Verify pending <b className="ax-num">{num(summary.verify_pending)}</b> · Claims raised <b className="ax-num">{num(summary.claim_raised)}</b> / {num(summary.claim_applicable)}
-                  </>
-                )}
-                {summary && !isCompleted && (
-                  <>
-                    {' '}· Payment complete <b className="ax-num">{num(summary.payment_complete)}</b> · Pending <b className="ax-num">{num(summary.payment_pending)}</b>
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                <select
-                  id="ssl_district_filter"
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={districtFilter}
-                  onChange={(e) => setDistrictFilter(e.target.value)}
-                  aria-label="Filter by district"
-                >
-                  <option value="all">All Districts</option>
-                  {districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-
-                {isCompleted && (
-                  <select
-                    id="ssl_verify_filter"
-                    className="ax-input ax-input--sm"
-                    style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                    value={verifyFilter}
-                    onChange={(e) => setVerifyFilter(e.target.value)}
-                    aria-label="Filter by verification"
-                  >
-                    <option value="all">All Verification</option>
-                    <option value="1">Approved</option>
-                    <option value="0">Pending</option>
-                    <option value="2">Rejected</option>
-                  </select>
-                )}
-
-                {hasFilters && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={resetFilters}
-                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  >
-                    Reset
-                  </button>
-                )}
-
-                <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Search UID, contact, pole…"
-                  size="sm"
-                  ariaLabel="Search installed lights"
-                />
-
-                <TableExportToolbar
-                  onCopy={() => copyTableDataToClipboard(filtered, activeCols)}
-                  onExportCSV={() => exportDataToCSV(`${fileBase}_${stamp}`, filtered, activeCols)}
-                  onExportExcel={() => exportDataToExcel(`${fileBase}_${stamp}`, filtered, activeCols)}
-                  onExportPDF={() => printTableData(fileTitle, filtered, activeCols)}
-               
-                />
-              </div>
-            </div>
+      {/* ── Main Table Card (exact reference design) ── */}
+      <section className="ax-card ax-col--12" id="ssl-tabpanel" role="tabpanel" aria-labelledby={`ssl-tab-${tab}`}>
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">{isCompleted ? 'Lights Completed' : 'Payment Lights'}</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{currentList.length}</span> lights
+              {summary && isCompleted && (
+                <>
+                  {' '}· Completed <b className="ax-num">{num(summary.complete)}</b> / {num(summary.total)} · Approved <b className="ax-num">{num(summary.verify_approved)}</b> · Verify pending <b className="ax-num">{num(summary.verify_pending)}</b> · Claims raised <b className="ax-num">{num(summary.claim_raised)}</b> / {num(summary.claim_applicable)}
+                </>
+              )}
+              {summary && !isCompleted && (
+                <>
+                  {' '}· Payment complete <b className="ax-num">{num(summary.payment_complete)}</b> · Pending <b className="ax-num">{num(summary.payment_pending)}</b>
+                </>
+              )}
+            </p>
           </div>
-
-          <div className="ax-table-wrap">
-            <table
-              className="ax-table ax-table--hover ula-sticky-first"
-              style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2600 : 2200 }}
-            >
-              <caption className="ax-visually-hidden">{isCompleted ? 'Lights Completed' : 'Payment Lights'}</caption>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col">Sr. No.</th>
-                  {cols.map((c) => (
-                    <th key={c.header} className="ax-table__th" scope="col">{c.header}</th>
-                  ))}
-                  {isCompleted && <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>}
-                </tr>
-              </thead>
-              <tbody aria-busy={loading}>
-                {loading && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installed lights…
-                    </td>
-                  </tr>
-                )}
-                {!loading && filtered.length === 0 && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
-                      <TableEmptyState
-                        title={isCompleted ? 'No completed lights found' : 'No payment lights found'}
-                        message={
-                          hasFilters
-                            ? 'No records match your filters or search. Try clearing your query.'
-                            : isCompleted
-                            ? 'Lights will appear here once installation is completed.'
-                            : 'Lights will appear here once they reach the payment stage.'
-                        }
-                        onClear={hasFilters ? resetFilters : undefined}
-                        clearLabel="Clear filters"
-                      />
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  paginated.map((r, idx) => (
-                    <tr key={r.id || idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                      {cols.map((c) => {
-                        const content = c.render ? c.render(r, { preview: openPreview }) : c.text(r) || DASH;
-                        return (
-                          <td
-                            key={c.header}
-                            className="ax-table__td"
-                            title={c.wrap ? c.text(r) : undefined}
-                            style={{
-                              ...(c.strong ? { fontWeight: 600, color: 'var(--ax-text-strong)' } : null),
-                              ...(c.mono ? { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } : null),
-                              ...(c.wrap ? { maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' } : null),
-                            }}
-                          >
-                            {content}
-                          </td>
-                        );
-                      })}
-                      {isCompleted && (
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--xs"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '5px 12px',
-                              fontWeight: 600,
-                              borderRadius: 6,
-                              cursor: 'pointer',
-                            }}
-                            title="Edit installed light details"
-                            onClick={() => navigate(`/v/ssl/update-ssl-site-deatils?id=${r.id}&edit=true`)}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                            </svg>
-                            <span>Edit</span>
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="ax-card__footer" style={footerStyle}>
-            <div className="ula-pagination-left">
-              <Pagination
-                currentPage={currentPage}
-                totalItems={filtered.length}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={(sz) => {
-                  setPageSize(sz);
-                  setCurrentPage(1);
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="ssl_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setPage(1);
                 }}
-                pageSizeOptions={[10, 15, 25, 50, 100]}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              {isCompleted && (
+                <select
+                  id="ssl_verify_filter"
+                  className="ax-input ax-input--sm"
+                  style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={verifyFilter}
+                  onChange={(e) => {
+                    setVerifyFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  aria-label="Filter by verification"
+                >
+                  <option value="all">All Verification</option>
+                  <option value="1">Approved</option>
+                  <option value="0">Pending</option>
+                  <option value="2">Rejected</option>
+                </select>
+              )}
+
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
+
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search UID, contact, pole…"
+                size="sm"
+                ariaLabel="Search installed lights"
+              />
+
+              <TableExportToolbar
+                onCopy={() => copyToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportToCSV(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filtered, exportCols, fileTitle)}
               />
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2600 : 2200 }}
+          >
+            <caption className="ax-visually-hidden">{isCompleted ? 'Lights Completed' : 'Payment Lights'}</caption>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th" scope="col">Sr. No.</th>
+                {cols.map((c) => (
+                  <th key={c.header} className="ax-table__th" scope="col">{c.header}</th>
+                ))}
+                {isCompleted && <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installed lights from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title={isCompleted ? 'No completed lights found' : 'No payment lights found'}
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search. Try clearing your query.'
+                          : isCompleted
+                          ? 'Lights will appear here once installation is completed.'
+                          : 'Lights will appear here once they reach the payment stage.'
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((r, idx) => (
+                  <tr key={r.id || idx} className="ax-table__row">
+                    <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
+                    {cols.map((c) => {
+                      const content = c.render ? c.render(r, { preview: openPreview }) : c.text(r) || DASH;
+                      return (
+                        <td
+                          key={c.header}
+                          className="ax-table__td"
+                          title={c.wrap ? c.text(r) : undefined}
+                          style={{
+                            ...(c.strong ? { fontWeight: 600, color: 'var(--ax-text-strong)' } : null),
+                            ...(c.mono ? { fontFamily: 'var(--ax-font-mono)', fontSize: 12 } : null),
+                            ...(c.wrap ? { maxWidth: 200, whiteSpace: 'normal', fontSize: 12 } : null),
+                          }}
+                        >
+                          {content}
+                        </td>
+                      );
+                    })}
+                    {isCompleted && (
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--secondary ax-btn--sm"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '4px 10px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                          title="Edit installed light details"
+                          onClick={() => navigate(`/v/ssl/update-ssl-site-deatils?id=${r.id}&edit=true`)}
+                        >
+                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                          <span>Edit</span>
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Table Footer ── */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[25, 50, 100, 200]}
+            />
+          </div>
+        </div>
+      </section>
 
       {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}

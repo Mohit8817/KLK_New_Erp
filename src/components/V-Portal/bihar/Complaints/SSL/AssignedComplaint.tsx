@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -16,102 +17,202 @@ import {
   TableSkeleton,
   KpiSkeleton,
   type ExportColumn,
+  type ColumnDef,
   exportDataToCSV,
   exportDataToExcel,
   copyTableDataToClipboard,
   printTableData,
+  Modal,
 } from '../../../../../common';
 
-const BLUE_PRIMARY = '#2563eb';
-const GREEN_EMERALD = '#10b981';
-const AMBER_WARNING = '#f59e0b';
-const CYAN_INFO = '#0891b2';
+type Row = BiharComplaintItem;
+type TabKey = 'open' | 'approved' | 'closed';
 
-const ICON_TOTAL = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
+interface Toast { id: number; msg: string; }
+let TID = 0;
+
+const X = (
+  <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
   </svg>
 );
-const ICON_ALERT = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-);
-const ICON_CLOCK = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-const ICON_CHECK = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
+
+/* ───────── Responsive page CSS (same as View Complaint) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .solar-erp-page img, .solar-erp-page .ax-card img { border-radius: 0 !important; }
+
+  .solar-erp-page .ax-card__header {
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 200px; max-width: 240px; }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  /* ── Floating labels (.ax-float) ── */
+  .solar-erp-page .ax-float,
+  .ax-modal .ax-float { position: relative; width: 100%; }
+  .solar-erp-page .ax-float__input::placeholder,
+  .ax-modal .ax-float__input::placeholder { color: transparent; }
+  .solar-erp-page .ax-float__label,
+  .ax-modal .ax-float__label {
+    position: absolute;
+    inset-inline-start: var(--ax-space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    padding-inline: 4px;
+    font-size: var(--ax-text-sm);
+    color: var(--ax-text-subtle);
+    background: var(--ax-surface-overlay, var(--ax-surface-solid, var(--ax-surface)));
+    border-radius: var(--ax-radius-xs);
+    pointer-events: none;
+    z-index: 2;
+    transition:
+      top var(--ax-motion-fast) var(--ax-ease-standard),
+      font-size var(--ax-motion-fast) var(--ax-ease-standard),
+      color var(--ax-motion-fast) var(--ax-ease-standard);
+  }
+  .solar-erp-page .ax-float--icon .ax-float__label,
+  .ax-modal .ax-float--icon .ax-float__label { inset-inline-start: var(--ax-space-8); }
+  .solar-erp-page .ax-float--area .ax-float__label,
+  .ax-modal .ax-float--area .ax-float__label { top: calc(var(--ax-space-3) + 9px); transform: none; }
+  .solar-erp-page .ax-float__input:focus + .ax-float__label,
+  .solar-erp-page .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .solar-erp-page .ax-float--select .ax-float__label,
+  .solar-erp-page .ax-float--date .ax-float__label,
+  .solar-erp-page .ax-float--file .ax-float__label,
+  .solar-erp-page .ax-float--locked .ax-float__label,
+  .solar-erp-page .ax-float--area .ax-float__input:focus + .ax-float__label,
+  .solar-erp-page .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .ax-modal .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .ax-modal .ax-float--select .ax-float__label,
+  .ax-modal .ax-float--date .ax-float__label,
+  .ax-modal .ax-float--file .ax-float__label,
+  .ax-modal .ax-float--locked .ax-float__label,
+  .ax-modal .ax-float--area .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+    top: 0;
+    font-size: var(--ax-text-2xs);
+    color: var(--ax-text-muted);
+  }
+  .solar-erp-page .ax-float--icon .ax-float__input:focus + .ax-float__label,
+  .solar-erp-page .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .ax-modal .ax-float--icon .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+    inset-inline-start: var(--ax-space-3);
+  }
+  .solar-erp-page .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
+  .solar-erp-page .ax-float__input.is-invalid + .ax-float__label,
+  .ax-modal .ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500); }
+  .solar-erp-page .ax-float__input.is-valid + .ax-float__label,
+  .ax-modal .ax-float__input.is-valid + .ax-float__label { color: var(--ax-success-500); }
+  .solar-erp-page .ax-float--file .ax-float__input,
+  .ax-modal .ax-float--file .ax-float__input {
+    display: flex;
+    align-items: center;
+    padding-top: 6px;
+    font-size: var(--ax-text-xs);
+    cursor: pointer;
+  }
+  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button,
+  .ax-modal .ax-float--file .ax-float__input::file-selector-button {
+    margin-inline-end: var(--ax-space-3);
+    padding: 3px 10px;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-xs);
+    background: var(--ax-surface-subtle);
+    color: var(--ax-text);
+    font-size: var(--ax-text-xs);
+    cursor: pointer;
+    transition: background var(--ax-motion-fast);
+  }
+  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button:hover,
+  .ax-modal .ax-float--file .ax-float__input::file-selector-button:hover {
+    background: var(--ax-fill-hover);
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__actions { width: 100%; justify-content: stretch; margin-left: 0; }
+    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+  }
+`;
+
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 
-const TH: React.CSSProperties = {
-  padding: '12px 14px',
-  fontSize: 11,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  color: 'var(--ax-text-subtle)',
-  textAlign: 'left',
+/* ───────── KPI card ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
 };
-const TD: React.CSSProperties = { padding: '12px 14px' };
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
 function KpiCard({
-  icon,
-  bg,
-  fg,
-  label,
-  value,
-  sub,
+  icon, tone, label, value, sub,
 }: {
-  icon: React.ReactNode;
-  bg: string;
-  fg: string;
-  label: string;
-  value: number | string;
-  sub: string;
+  icon: ReactNode; tone: KpiTone; label: string; value: ReactNode; sub: string;
 }) {
+  const t = TONE[tone];
   return (
-    <div
-      className="ax-card ax-col--3"
-      style={{ padding: '14px 18px', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 12 }}
-    >
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: bg,
-            color: fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {icon}
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: fg, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
     </div>
   );
 }
 
-function Field({ label, span, children }: { label: string; span: number; children: React.ReactNode }) {
+function Field({ label, span, children }: { label: string; span: number; children: ReactNode }) {
   return (
     <div className={`ax-col--${span}`}>
       <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
@@ -129,26 +230,76 @@ const isItemRejected = (item: BiharComplaintItem | any): boolean => {
   const remarksStr = String(item.reject_reason ?? item.reject_remarks ?? item.admin_remarks ?? '').toLowerCase().trim();
 
   return (
-    statusStr === '2' ||
-    statusStr === '-1' ||
-    statusStr === '3' ||
-    statusStr === 'rejected' ||
-    statusStr === 'reject' ||
-    closeStatusStr === '-1' ||
-    closeStatusStr === '2' ||
-    closeStatusStr === 'rejected' ||
-    closeStatusStr === 'reject' ||
-    approvalStatusStr === 'rejected' ||
-    approvalStatusStr === 'reject' ||
-    approvalStatusStr === '2' ||
-    rejectStatusStr === '1' ||
-    rejectStatusStr === 'true' ||
-    rejectStatusStr === 'rejected' ||
+    statusStr === '2' || statusStr === '-1' || statusStr === '3' ||
+    statusStr === 'rejected' || statusStr === 'reject' ||
+    closeStatusStr === '-1' || closeStatusStr === '2' ||
+    closeStatusStr === 'rejected' || closeStatusStr === 'reject' ||
+    approvalStatusStr === 'rejected' || approvalStatusStr === 'reject' || approvalStatusStr === '2' ||
+    rejectStatusStr === '1' || rejectStatusStr === 'true' || rejectStatusStr === 'rejected' ||
     (remarksStr.length > 0 && (remarksStr.includes('reject') || statusStr === '2'))
   );
 };
 
-type TabKey = 'open' | 'approved' | 'closed';
+/* ── Table column config ── */
+const DASH = '—';
+const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
+
+interface Col { key: string; th: string; get: (r: Row) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
+
+const ellipsis = (maxWidth: number, v: unknown) => (
+  <div title={v ? String(v) : undefined} style={{ maxWidth, overflow: 'hidden', textOverflow: 'ellipsis' }}>{txt(v)}</div>
+);
+
+const COLS: Col[] = [
+  { key: 'Complaint ID', th: 'Complaint ID', get: (r) => `#${r.complaint_id}`, exp: (r) => r.complaint_id ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' } },
+  { key: 'Complaint Date', th: 'Complaint Date', get: (r) => txt(r.start_date), exp: (r) => r.start_date ?? '' },
+  { key: 'Complaint Issue', th: 'Complaint Issue', get: (r) => txt(r.complaint_issue), exp: (r) => r.complaint_issue ?? '', style: { fontWeight: 'var(--ax-weight-medium)' as any } },
+  { key: 'Complaint', th: 'Complaint', get: (r) => ellipsis(240, r.complaint), exp: (r) => r.complaint ?? '' },
+  { key: 'Complaint Source', th: 'Complaint Source', get: (r) => txt(r.complaint_source), exp: (r) => r.complaint_source ?? '' },
+  { key: 'State', th: 'State', get: (r) => txt(r.state || 'Bihar'), exp: (r) => r.state || 'Bihar' },
+  { key: 'District', th: 'District', get: (r) => txt(r.district), exp: (r) => r.district ?? '', style: { fontWeight: 'var(--ax-weight-medium)' as any } },
+  { key: 'Block', th: 'Block', get: (r) => txt(r.block), exp: (r) => r.block ?? '' },
+  { key: 'Panchayat', th: 'Panchayat', get: (r) => txt(r.panchyat || r.panchayat), exp: (r) => r.panchyat || r.panchayat || '' },
+  { key: 'Phase', th: 'Phase', get: (r) => txt(r.phase), exp: (r) => r.phase ?? '' },
+  { key: 'Address', th: 'Address', get: (r) => ellipsis(200, r.address), exp: (r) => r.address ?? '' },
+  { key: 'Ward No', th: 'Ward No', get: (r) => txt(r.ward_no), exp: (r) => r.ward_no ?? '' },
+  { key: 'Pole No', th: 'Pole No', get: (r) => txt(r.pole_no), exp: (r) => r.pole_no ?? '' },
+  { key: 'Light No', th: 'Light No', get: (r) => txt(r.light_no), exp: (r) => r.light_no ?? '', style: { fontWeight: 'var(--ax-weight-medium)' as any } },
+  { key: 'Beneficiary Name', th: 'Beneficiary Name', get: (r) => txt(r.beneficiary_name), exp: (r) => r.beneficiary_name ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' } },
+  {
+    key: 'Contact No', th: 'Contact No',
+    get: (r) => (r.contact_no ? <a href={`tel:${r.contact_no}`} style={{ color: 'var(--ax-accent)', textDecoration: 'none' }}>{r.contact_no}</a> : DASH),
+    exp: (r) => r.contact_no ?? '',
+  },
+  { key: 'Latitude', th: 'Latitude', get: (r) => txt(r.latitude), exp: (r) => r.latitude ?? '' },
+  { key: 'Longitude', th: 'Longitude', get: (r) => txt(r.longitude), exp: (r) => r.longitude ?? '' },
+  { key: 'Along with Pole', th: 'Along with Pole', get: (r) => txt(r.along_with_pole), exp: (r) => r.along_with_pole ?? '' },
+  { key: 'Luminary No', th: 'Luminary No', get: (r) => txt(r.luminary_no), exp: (r) => r.luminary_no ?? '' },
+  { key: 'SIM No', th: 'SIM No', get: (r) => txt(r.sim_no), exp: (r) => r.sim_no ?? '' },
+  { key: 'Battery Serial No', th: 'Battery Serial No', get: (r) => txt(r.battery_serial_no), exp: (r) => r.battery_serial_no ?? '' },
+  { key: 'Module No', th: 'Module No', get: (r) => txt(r.module_no), exp: (r) => r.module_no ?? '' },
+  { key: 'Date of Installation', th: 'Date of Installation', get: (r) => txt(r.date_of_installation || r.inst_date), exp: (r) => r.date_of_installation || r.inst_date || '' },
+  {
+    key: 'Document', th: 'Document',
+    get: (r) => {
+      const url = r.file ? getMediaUrl(r.file) : '';
+      return url ? (
+        <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-accent)', textDecoration: 'none' }} title="View Proof">View</a>
+      ) : DASH;
+    },
+    exp: (r) => (r.file ? getMediaUrl(r.file) : ''),
+  },
+  {
+    key: 'Assign Complaint', th: 'Assign Complaint',
+    get: (r) => (r.assigned_vendor_name
+      ? <span className="ax-badge ax-badge--soft ax-badge--pill"><span className="ax-badge__dot" />{r.assigned_vendor_name}</span>
+      : DASH),
+    exp: (r) => r.assigned_vendor_name ?? '',
+  },
+];
+
+const approvalLabel = (r: Row) =>
+  isItemRejected(r) ? 'Rejected' : r.close_status === 1 ? 'Approved' : r.status === 1 ? 'Pending Approval' : 'Open';
 
 export function Bihar_Complaint_SSL_AssignedComplaint() {
   const navigate = useNavigate();
@@ -158,6 +309,10 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const [searchQuery, setSearchQuery] = useState('');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Column Visibility
+  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
+  const isVisible = (key: string) => !hiddenCols.includes(key);
 
   // Detail Modal
   const [selectedItem, setSelectedItem] = useState<BiharComplaintItem | null>(null);
@@ -177,8 +332,17 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const [resolveSubmitting, setResolveSubmitting] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const timers = useRef<Record<number, number>>({});
+  const showToast = useCallback((msg: string, ttl = 3500) => {
+    const id = ++TID;
+    setToasts((t) => [...t, { id, msg }]);
+    timers.current[id] = window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ttl);
+  }, []);
 
   const openResolveModal = (item: BiharComplaintItem) => {
+    setAttempted(false);
     setResolvingItem(item);
     setResolveError(null);
     setResolvedBy(assignedData?.name || (assignedData as any)?.vendor?.name || 'App Testing');
@@ -196,33 +360,16 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const handleResolveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvingItem) return;
+    setAttempted(true);
 
-    if (!resolvedBy.trim()) {
-      setResolveError('Resolved By is required.');
-      return;
-    }
-    if (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) {
-      setResolveError('Please enter a valid resolver email address.');
-      return;
-    }
+    if (!resolvedBy.trim()) { setResolveError('Resolved By is required.'); return; }
+    if (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) { setResolveError('Please enter a valid resolver email address.'); return; }
     const cleanMobile = rMobile.trim().replace(/\D/g, '');
-    if (cleanMobile.length !== 10) {
-      setResolveError('Resolver mobile must be exactly 10 digits.');
-      return;
-    }
-    if (!closingDate) {
-      setResolveError('Closing date is required.');
-      return;
-    }
-    if (!remarks.trim()) {
-      setResolveError('Remarks are required.');
-      return;
-    }
+    if (cleanMobile.length !== 10) { setResolveError('Resolver mobile must be exactly 10 digits.'); return; }
+    if (!closingDate) { setResolveError('Closing date is required.'); return; }
+    if (!remarks.trim()) { setResolveError('Remarks are required.'); return; }
     const cleanContact = contactNo.trim().replace(/\D/g, '');
-    if (cleanContact.length !== 10) {
-      setResolveError('Beneficiary contact number must be exactly 10 digits.');
-      return;
-    }
+    if (cleanContact.length !== 10) { setResolveError('Beneficiary contact number must be exactly 10 digits.'); return; }
 
     setResolveSubmitting(true);
     setResolveError(null);
@@ -243,7 +390,9 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
 
       const res = await biharComplaintService.closeUpdateSslComplaint(fd);
       if (res.success) {
-        setSuccessToast(res.message || 'Complaint Resolved successfully.');
+        const msg = res.message || 'Complaint Resolved successfully.';
+        setSuccessToast(msg);
+        showToast(msg, 3500);
         setResolvingItem(null);
         await loadData();
       } else {
@@ -265,13 +414,9 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
       // API 13: GET /bihar/ssl/complaint/assign
       const resp = await biharComplaintService.getAssignedSslComplaints();
       setAssignedData(resp);
-      if (resp.open && resp.open.length > 0) {
-        setActiveTab('open');
-      } else if (resp.approved && resp.approved.length > 0) {
-        setActiveTab('approved');
-      } else {
-        setActiveTab('closed');
-      }
+      if (resp.open && resp.open.length > 0) setActiveTab('open');
+      else if (resp.approved && resp.approved.length > 0) setActiveTab('approved');
+      else setActiveTab('closed');
     } catch (err) {
       console.error('Error loading SSL assigned complaints:', err);
       setErrorMsg('Failed to load assigned complaints.');
@@ -280,9 +425,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const tabItems = useMemo(() => {
     if (!assignedData) return [];
@@ -295,9 +438,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     if (!assignedData) return [];
     const all = [...(assignedData.open || []), ...(assignedData.approved || []), ...(assignedData.data || [])];
     const s = new Set<string>();
-    all.forEach((i) => {
-      if (i.district) s.add(i.district);
-    });
+    all.forEach((i) => { if (i.district) s.add(i.district); });
     return Array.from(s).sort();
   }, [assignedData]);
 
@@ -307,28 +448,16 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
       if (districtFilter !== 'all' && item.district !== districtFilter) return false;
       if (q) {
         const str = [
-          item.complaint_id,
-          item.uid,
-          item.beneficiary_name,
-          item.contact_no,
-          item.light_no,
-          item.pole_no,
-          item.district,
-          item.block,
-          item.panchyat || item.panchayat,
-          item.complaint,
-          item.complaint_issue,
-          item.luminary_no,
-        ]
-          .join(' ')
-          .toLowerCase();
+          item.complaint_id, item.uid, item.beneficiary_name, item.contact_no, item.light_no, item.pole_no,
+          item.district, item.block, item.panchyat || item.panchayat, item.complaint, item.complaint_issue, item.luminary_no,
+        ].join(' ').toLowerCase();
         if (!str.includes(q)) return false;
       }
       return true;
     });
   }, [tabItems, districtFilter, deferredQuery]);
 
-  const pagination = usePagination({ data: filtered, initialPageSize: 15 });
+  const pagination = usePagination({ data: filtered, initialPageSize: 100 });
 
   // Counts from API response #13
   const totalCount = assignedData?.total_complaint ?? 0;
@@ -336,40 +465,30 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const approvedCount = assignedData?.approved_complaint ?? 0;
   const closedCount = assignedData?.close_complaint ?? 0;
 
-  const exportCols: ExportColumn<BiharComplaintItem>[] = [
-    { header: 'Complaint ID', accessor: 'complaint_id' },
-    { header: 'Complaint Date', accessor: 'start_date' },
-    { header: 'Complaint Issue', accessor: 'complaint_issue' },
-    { header: 'Complaint', accessor: 'complaint' },
-    { header: 'Complaint Source', accessor: 'complaint_source' },
-    { header: 'State', accessor: 'state' },
-    { header: 'District', accessor: 'district' },
-    { header: 'Block', accessor: 'block' },
-    { header: 'Panchayat', accessor: (r) => r.panchyat || r.panchayat || '' },
-    { header: 'Phase', accessor: 'phase' },
-    { header: 'Address', accessor: 'address' },
-    { header: 'Ward No', accessor: 'ward_no' },
-    { header: 'Pole No', accessor: 'pole_no' },
-    { header: 'Light No', accessor: 'light_no' },
-    { header: 'Beneficiary Name', accessor: 'beneficiary_name' },
-    { header: 'Contact No', accessor: 'contact_no' },
-    { header: 'Latitude', accessor: 'latitude' },
-    { header: 'Longitude', accessor: 'longitude' },
-    { header: 'Along with Pole', accessor: 'along_with_pole' },
-    { header: 'Luminary No', accessor: 'luminary_no' },
-    { header: 'SIM No', accessor: 'sim_no' },
-    { header: 'Battery Serial No', accessor: 'battery_serial_no' },
-    { header: 'Module No', accessor: 'module_no' },
-    { header: 'Date of Installation', accessor: 'date_of_installation' },
-    { header: 'Assign Complaint', accessor: 'assigned_vendor_name' },
-    { header: 'Approval Status', accessor: (r) => (isItemRejected(r) ? 'Rejected' : r.close_status === 1 ? 'Approved' : r.status === 1 ? 'Pending Approval' : 'Open') },
-    { header: 'Status', accessor: (r) => (r.close_status === 1 ? 'Closed' : 'Open') },
-  ];
+  /* ── Export ── */
+  const exportCols: ExportColumn<Row>[] = useMemo(
+    () => [
+      ...COLS.filter((c) => c.key !== 'Document').map((c) => ({ header: c.key, accessor: c.exp })),
+      { header: 'Approval Status', accessor: (r: Row) => approvalLabel(r) },
+      { header: 'Status', accessor: (r: Row) => (r.close_status === 1 ? 'Closed' : 'Open') },
+    ],
+    []
+  );
+  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
+  const toolbarColumns: ColumnDef[] = useMemo(
+    () => [
+      ...COLS.map((c) => ({ key: c.key, label: c.th, visible: !hiddenCols.includes(c.key) })),
+      { key: 'Approval Status', label: 'Approval Status', visible: !hiddenCols.includes('Approval Status') },
+    ],
+    [hiddenCols]
+  );
+  const toggleColumn = (key: string) =>
+    setHiddenCols((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
-  const handleCopy = () => copyTableDataToClipboard(filtered, exportCols);
-  const handleExportCSV = () => exportDataToCSV(`Bihar_SSL_Assigned_${activeTab}`, filtered, exportCols);
-  const handleExportExcel = () => exportDataToExcel(`Bihar_SSL_Assigned_${activeTab}`, filtered, exportCols);
-  const handleExportPDF = () => printTableData(`Bihar SSL Assigned Complaints (${activeTab})`, filtered, exportCols);
+  const handleCopy = () => copyTableDataToClipboard(filtered, activeExportCols);
+  const handleExportCSV = () => exportDataToCSV(`Bihar_SSL_Assigned_${activeTab}`, filtered, activeExportCols);
+  const handleExportExcel = () => exportDataToExcel(`Bihar_SSL_Assigned_${activeTab}`, filtered, activeExportCols);
+  const handleExportPDF = () => printTableData(`Bihar SSL Assigned Complaints (${activeTab})`, filtered, activeExportCols);
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: 'open', label: 'Open', count: openCount },
@@ -377,540 +496,308 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     { key: 'closed', label: 'Closed', count: closedCount },
   ];
 
+  const hasFilters = !!searchQuery || districtFilter !== 'all';
+  const clearFilters = () => { setSearchQuery(''); setDistrictFilter('all'); pagination.setPage(1); };
+  const visibleCols = COLS.filter((c) => isVisible(c.key));
+  const tabTitle = activeTab === 'open' ? 'Open Assigned Complaints' : activeTab === 'approved' ? 'Pending Approval Complaints' : 'Closed Assigned Complaints';
+
+  const renderApproval = (item: Row) => {
+    if (isItemRejected(item)) {
+      return (
+        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger" title={(item as any).reject_reason || (item as any).reject_remarks || 'Complaint rejected from main portal'}>
+          <span className="ax-badge__dot" />Rejected
+        </span>
+      );
+    }
+    if (activeTab === 'approved' || (item.status === 1 && item.close_status !== 1)) {
+      return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--info"><span className="ax-badge__dot" />Pending</span>;
+    }
+    if (activeTab === 'closed' || item.close_status === 1) {
+      return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success"><span className="ax-badge__dot" />Approved</span>;
+    }
+    return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--warning"><span className="ax-badge__dot" />Open</span>;
+  };
+
   return (
-    <div className="ax-page solar-erp-page">
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+
+      {/* ── Page Head ── */}
       <PageHead
         title="Assigned Complaints"
         subtitle="Manage and inspect all Solar Street Light breakdown complaints assigned to vendor in Bihar"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Complaints' },
           { label: 'SSL', href: '/v/complaint/bihar/ssl-view-complaint' },
           { label: 'Assigned Complaints' },
         ]}
         actions={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={loadData} title="Refresh list">
-              <svg
-                width={14}
-                height={14}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
-              >
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
+              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
               </svg>
-              <span>Refresh</span>
+              <span className="ax-btn__label">Refresh</span>
             </button>
           </div>
         }
       />
 
       {successToast && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: 16,
-            borderRadius: 8,
-            background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            fontSize: 13.5,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>✓ {successToast}</span>
-          <button
-            type="button"
-            onClick={() => setSuccessToast(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 700 }}
-          >
-            ✕
-          </button>
+          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSuccessToast(null)}>✕</button>
         </div>
       )}
 
       {errorMsg && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: 16,
-            borderRadius: 8,
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            fontSize: 13.5,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>⚠ {errorMsg}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMsg(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 700 }}
-          >
-            ✕
-          </button>
+          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setErrorMsg(null)}>✕</button>
         </div>
       )}
 
-      {/* ── KPI Row ── */}
-      {loading ? (
-        <KpiSkeleton count={4} />
-      ) : (
-        <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
-          <KpiCard icon={ICON_TOTAL} bg="rgba(37, 99, 235, 0.12)" fg={BLUE_PRIMARY} label="Total Complaints" value={num(totalCount)} sub="Overall assigned tickets" />
-          <KpiCard icon={ICON_ALERT} bg="rgba(245, 158, 11, 0.14)" fg={AMBER_WARNING} label="Open Complaints" value={num(openCount)} sub="Pending field action" />
-          <KpiCard icon={ICON_CLOCK} bg="rgba(6, 182, 212, 0.14)" fg={CYAN_INFO} label="Pending Approval" value={num(approvedCount)} sub="Resolution under review" />
-          <KpiCard icon={ICON_CHECK} bg="rgba(16, 185, 129, 0.14)" fg={GREEN_EMERALD} label="Resolved Complaints" value={num(closedCount)} sub="Resolved & closed" />
-        </div>
-      )}
-
-      {/* ── Table Container ── */}
-      <section className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        <style>{`
-          .assigned-complaints-header {
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--ax-border, #e2e8f0);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: nowrap;
-            gap: 16px;
-            overflow-x: auto;
-            white-space: nowrap;
-          }
-          .assigned-complaints-header .ax-export-toolbar {
-            width: auto !important;
-            margin-left: 0 !important;
-            flex: 0 0 auto !important;
-            gap: 6px !important;
-          }
-          .assigned-complaints-header .ax-search-input {
-            margin-left: 0 !important;
-          }
-        `}</style>
-
-        <div className="ax-card__header assigned-complaints-header">
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className={`ax-btn ax-btn--sm ${activeTab === t.key ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-                onClick={() => {
-                  setActiveTab(t.key);
-                  pagination.setPage(1);
-                }}
-              >
-                {t.label} ({t.count})
-              </button>
-            ))}
-          </div>
-
-          {/* District Filter + Search + Export in ONE line */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'nowrap', flexShrink: 0 }}>
-            <select
-              className="ax-input ax-input--sm"
-              value={districtFilter}
-              onChange={(e) => {
-                setDistrictFilter(e.target.value);
-                pagination.setPage(1);
-              }}
-              style={{ width: 'auto', minWidth: 140, height: 32, borderRadius: 8, fontSize: 13 }}
-            >
-              <option value="all">All Districts</option>
-              {districts.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-
-            <SearchInput
-              value={searchQuery}
-              onChange={(val) => {
-                setSearchQuery(val);
-                pagination.setPage(1);
-              }}
-              placeholder="Search complaint, light no, pole no…"
-              style={{ width: 260, maxWidth: 260, flex: '0 0 260px', marginLeft: 0 }}
-            />
-
-            <TableExportToolbar onCopy={handleCopy} onExportCSV={handleExportCSV} onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
-          </div>
-        </div>
-
-        {/* Data Table */}
+      <div className="ax-dash-grid">
+        {/* ── KPI Row ── */}
         {loading ? (
-          <TableSkeleton columns={29} rows={8} showCard={false} />
+          <KpiSkeleton count={4} />
         ) : (
-          <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
-            <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 3200 }}>
-              <thead>
-                <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <th style={{ ...TH, width: 50 }}>Sr. No.</th>
-                  <th style={TH}>Complaint ID</th>
-                  <th style={TH}>Complaint Date</th>
-                  <th style={TH}>Complaint Issue</th>
-                  <th style={{ ...TH, minWidth: 200 }}>Complaint</th>
-                  <th style={TH}>Complaint Source</th>
-                  <th style={TH}>State</th>
-                  <th style={TH}>District</th>
-                  <th style={TH}>Block</th>
-                  <th style={TH}>Panchayat</th>
-                  <th style={TH}>Phase</th>
-                  <th style={{ ...TH, minWidth: 180 }}>Address</th>
-                  <th style={TH}>Ward No</th>
-                  <th style={TH}>Pole No</th>
-                  <th style={TH}>Light No</th>
-                  <th style={TH}>Beneficiary Name</th>
-                  <th style={TH}>Contact No</th>
-                  <th style={TH}>Latitude</th>
-                  <th style={TH}>Longitude</th>
-                  <th style={TH}>Along with Pole</th>
-                  <th style={TH}>Luminary No</th>
-                  <th style={TH}>SIM No</th>
-                  <th style={TH}>Battery Serial No</th>
-                  <th style={TH}>Module No</th>
-                  <th style={TH}>Date of Installation</th>
-                  <th style={{ ...TH, textAlign: 'center' }}>Document</th>
-                  <th style={TH}>Assign Complaint</th>
-                  <th style={{ ...TH, textAlign: 'center', minWidth: 130 }}>Approval Status</th>
-                  <th style={{ ...TH, textAlign: 'center', minWidth: 120 }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagination.paged.length === 0 ? (
-                  <tr>
-                    <td colSpan={29} style={{ padding: 40, textAlign: 'center' }}>
-                      <TableEmptyState
-                        title="No Assigned Complaints Found"
-                        message={searchQuery ? `No records match "${searchQuery}"` : 'There are currently no tickets matching this status tab.'}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  pagination.paged.map((item, idx) => {
-                    const rowNum = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
-                    const fileUrl = item.file ? getMediaUrl(item.file) : '';
-                    return (
-                      <tr key={item.id || idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
-                        <td style={{ ...TD, fontSize: 12, color: 'var(--ax-text-subtle)' }}>{rowNum}</td>
-                        <td style={{ ...TD, fontWeight: 700 }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            onClick={() => setSelectedItem(item)}
-                            style={{ fontWeight: 700, color: BLUE_PRIMARY }}
-                          >
-                            #{item.complaint_id}
-                          </button>
-                        </td>
-                        <td style={{ ...TD, fontSize: 12.5 }}>{item.start_date || '—'}</td>
-                        <td style={{ ...TD, fontWeight: 600, color: 'var(--ax-text-strong)' }}>{item.complaint_issue || '—'}</td>
-                        <td
-                          style={{ ...TD, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          title={item.complaint}
-                        >
-                          {item.complaint || '—'}
-                        </td>
-                        <td style={{ ...TD, fontSize: 12.5 }}>{item.complaint_source || '—'}</td>
-                        <td style={TD}>{item.state || 'Bihar'}</td>
-                        <td style={{ ...TD, fontWeight: 600 }}>{item.district || '—'}</td>
-                        <td style={TD}>{item.block || '—'}</td>
-                        <td style={TD}>{item.panchyat || item.panchayat || '—'}</td>
-                        <td style={TD}>{item.phase || '—'}</td>
-                        <td
-                          style={{ ...TD, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          title={item.address}
-                        >
-                          {item.address || '—'}
-                        </td>
-                        <td style={TD}>{item.ward_no || '—'}</td>
-                        <td style={TD}>{item.pole_no || '—'}</td>
-                        <td style={{ ...TD, fontWeight: 600 }}>{item.light_no || '—'}</td>
-                        <td style={{ ...TD, fontWeight: 700, color: 'var(--ax-text-strong)' }}>{item.beneficiary_name || '—'}</td>
-                        <td style={TD}>
-                          {item.contact_no ? (
-                            <a href={`tel:${item.contact_no}`} style={{ color: BLUE_PRIMARY, textDecoration: 'none' }}>
-                              {item.contact_no}
-                            </a>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td style={TD}>{item.latitude || '—'}</td>
-                        <td style={TD}>{item.longitude || '—'}</td>
-                        <td style={TD}>{item.along_with_pole || '—'}</td>
-                        <td style={TD}>{item.luminary_no || '—'}</td>
-                        <td style={TD}>{item.sim_no || '—'}</td>
-                        <td style={TD}>{item.battery_serial_no || '—'}</td>
-                        <td style={TD}>{item.module_no || '—'}</td>
-                        <td style={{ ...TD, fontSize: 12.5 }}>{item.date_of_installation || item.inst_date || '—'}</td>
-
-                        <td style={{ ...TD, textAlign: 'center' }}>
-                          {fileUrl ? (
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: BLUE_PRIMARY }}
-                              title="View Proof"
-                            >
-                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                              <span>View</span>
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--ax-text-subtle)', fontSize: 12 }}>—</span>
-                          )}
-                        </td>
-                        <td style={TD}>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              background: '#eff6ff',
-                              color: BLUE_PRIMARY,
-                            }}
-                          >
-                            {item.assigned_vendor_name || '—'}
-                          </span>
-                        </td>
-
-                        {/* Approval Status Column */}
-                        <td style={{ ...TD, textAlign: 'center' }}>
-                          {isItemRejected(item) ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 10px',
-                                borderRadius: 12,
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                background: '#fef2f2',
-                                color: '#b91c1c',
-                                border: '1px solid #fecaca',
-                              }}
-                              title={(item as any).reject_reason || (item as any).reject_remarks || 'Complaint rejected from main portal'}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b91c1c' }} />
-                              Rejected
-                            </span>
-                          ) : activeTab === 'approved' || (item.status === 1 && item.close_status !== 1) ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 10px',
-                                borderRadius: 12,
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                background: '#ecfeff',
-                                color: '#0891b2',
-                                border: '1px solid #a5f3fc',
-                              }}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0891b2' }} />
-                              Pending
-                            </span>
-                          ) : activeTab === 'closed' || item.close_status === 1 ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 10px',
-                                borderRadius: 12,
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                background: '#ecfdf5',
-                                color: '#047857',
-                                border: '1px solid #a7f3d0',
-                              }}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#047857' }} />
-                              Approved
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '3px 10px',
-                                borderRadius: 12,
-                                fontSize: 11.5,
-                                fontWeight: 700,
-                                background: '#fffbeb',
-                                color: '#b45309',
-                                border: '1px solid #fde68a',
-                              }}
-                            >
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b45309' }} />
-                              Open
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Action Column */}
-                        <td style={{ ...TD, textAlign: 'center' }}>
-                          {activeTab === 'approved' || isItemRejected(item) ? (
-                            /* Pending Approval / Rejected: Edit button to fix and View button */
-                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                onClick={() => navigate(`/v/complaint/bihar/ssl-add-complaint?edit=${item.id}`)}
-                                title="Edit Complaint"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--ghost ax-btn--sm"
-                                onClick={() => setSelectedItem(item)}
-                                title="View Details"
-                              >
-                                View
-                              </button>
-                            </div>
-                          ) : activeTab === 'closed' ? (
-                            /* Closed: View button */
-                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                onClick={() => setSelectedItem(item)}
-                                title="View Complaint Details"
-                              >
-                                View
-                              </button>
-                            </div>
-                          ) : (
-                            /* Open: View and Resolve buttons */
-                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                onClick={() => setSelectedItem(item)}
-                                title="View Complaint Details"
-                              >
-                                View
-                              </button>
-                              {item.close_status !== 1 && (
-                                <button
-                                  type="button"
-                                  className="ax-btn ax-btn--primary ax-btn--sm"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                    borderColor: '#059669',
-                                    color: '#ffffff',
-                                    fontWeight: 600,
-                                  }}
-                                  onClick={() => openResolveModal(item)}
-                                  title="Resolve this complaint"
-                                >
-                                  Resolve
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <KpiCard
+              tone="accent" label="Total Complaints" value={num(totalCount)} sub="Overall assigned tickets"
+              icon={svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></>)}
+            />
+            <KpiCard
+              tone="amber" label="Open Complaints" value={num(openCount)} sub="Pending field action"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></>)}
+            />
+            <KpiCard
+              tone="cyan" label="Pending Approval" value={num(approvedCount)} sub="Resolution under review"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>)}
+            />
+            <KpiCard
+              tone="emerald" label="Resolved Complaints" value={num(closedCount)} sub="Resolved & closed"
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+          </>
         )}
 
-        <div className="ax-card__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <Pagination {...pagination} />
+        {/* ── Filter Tabs ── */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Assigned complaints tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {tabs.map((t) => {
+              const active = t.key === activeTab;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => { setActiveTab(t.key); pagination.setPage(1); }}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : t.count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </section>
 
-      {/* ── View Detail Modal ── */}
-      {selectedItem && (
-        <div
-          className="ax-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: 20,
-          }}
-          onClick={() => setSelectedItem(null)}
-        >
-          <div
-            className="ax-modal__dialog"
-            style={{
-              background: 'var(--ax-surface-solid, #ffffff)',
-              borderRadius: 14,
-              width: '100%',
-              maxWidth: 780,
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="ax-modal__header"
-              style={{
-                padding: '16px 22px',
-                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-                  Assigned Complaint #{selectedItem.complaint_id}
-                  {selectedItem.uid ? ` (${selectedItem.uid})` : ''}
-                </h4>
-                <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                  Assigned to: {selectedItem.assigned_vendor_name || '—'} | Date: {selectedItem.start_date || '—'}
+        {/* ── Main Table Card ── */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Bihar SSL Assigned Complaints">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">{tabTitle}</h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{tabItems.length}</span> complaints
+                {' '}· Open <b className="ax-num">{openCount}</b> · Pending Approval <b className="ax-num">{approvedCount}</b> · Closed <b className="ax-num">{closedCount}</b>
+              </p>
+            </div>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-input ax-input--sm"
+                  aria-label="Filter by district"
+                  value={districtFilter}
+                  onChange={(e) => { setDistrictFilter(e.target.value); pagination.setPage(1); }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                >
+                  <option value="all">All Districts</option>
+                  {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={clearFilters}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
+                <SearchInput
+                  value={searchQuery}
+                  onChange={(val) => { setSearchQuery(val); pagination.setPage(1); }}
+                  placeholder="Search records…"
+                  size="sm"
+                  ariaLabel="Search records"
+                />
+
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleExportCSV}
+                  onExportExcel={handleExportExcel}
+                  onExportPDF={handleExportPDF}
+                  columns={toolbarColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <TableSkeleton columns={12} rows={8} showCard={false} />
+          ) : filtered.length === 0 ? (
+            <TableEmptyState
+              title="No records found"
+              message={
+                hasFilters
+                  ? 'No complaints match your filters. Try clearing filters or search term.'
+                  : 'There are currently no tickets matching this status tab.'
+              }
+              onClear={hasFilters ? clearFilters : undefined}
+              clearLabel="Clear filters"
+            />
+          ) : (
+            <>
+              <div className="ax-table-wrap">
+                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                  <caption className="ax-visually-hidden">Bihar SSL Assigned Complaints</caption>
+                  <thead className="ax-table__head">
+                    <tr>
+                      <th className="ax-table__th" scope="col">Sr. No.</th>
+                      {visibleCols.map((c) => <th key={c.key} className="ax-table__th" scope="col">{c.th}</th>)}
+                      {isVisible('Approval Status') && <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Approval Status</th>}
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagination.paged.map((item, idx) => {
+                      const srNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                      const rejected = isItemRejected(item);
+                      return (
+                        <tr key={item.id || idx} className="ax-table__row">
+                          <td className="ax-table__td ax-num">{srNo}</td>
+                          {visibleCols.map((c) => (
+                            <td key={c.key} className="ax-table__td" style={c.style}>
+                              {c.key === 'Complaint ID' ? (
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                                  onClick={() => setSelectedItem(item)}
+                                  style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' }}
+                                >
+                                  {c.get(item)}
+                                </button>
+                              ) : c.get(item)}
+                            </td>
+                          ))}
+                          {isVisible('Approval Status') && (
+                            <td className="ax-table__td" style={{ textAlign: 'center' }}>{renderApproval(item)}</td>
+                          )}
+                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                              {(activeTab === 'approved' || rejected) ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="ax-btn ax-btn--secondary ax-btn--sm"
+                                    onClick={() => navigate(`/v/complaint/bihar/ssl-add-complaint?edit=${item.id}`)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSelectedItem(item)}>
+                                    View
+                                  </button>
+                                </>
+                              ) : activeTab === 'closed' ? (
+                                <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedItem(item)}>
+                                  View
+                                </button>
+                              ) : (
+                                <>
+                                  <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedItem(item)}>
+                                    View
+                                  </button>
+                                  {item.close_status !== 1 && (
+                                    <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => openResolveModal(item)} title="Resolve this complaint">
+                                      Resolve
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="ax-card__footer">
+                <div className="ula-pagination-left">
+                  <Pagination {...pagination} onPageSizeChange={pagination.setPageSize} pageSizeOptions={[100, 200, 300]} />
                 </div>
               </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSelectedItem(null)}>
-                ✕
+            </>
+          )}
+        </section>
+      </div>
+
+      {/* ── View Detail Modal ── */}
+      <Modal
+        open={Boolean(selectedItem)}
+        onClose={() => setSelectedItem(null)}
+        labelledBy="m-ssl-view-title"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+      >
+        {selectedItem && (
+          <>
+            <div className="ax-modal__header">
+              <div>
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)' }}>
+                  SSL Complaint Details
+                </span>
+                <h2 className="ax-modal__title" id="m-ssl-view-title">
+                  Assigned Complaint #{selectedItem.complaint_id}
+                  {selectedItem.uid ? ` (${selectedItem.uid})` : ''}
+                </h2>
+                <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: '4px' }}>
+                  Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Date: {selectedItem.start_date || '—'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => setSelectedItem(null)}
+                aria-label="Close dialog"
+              >
+                {X}
               </button>
             </div>
 
-            <div className="ax-modal__body" style={{ padding: '20px 24px' }}>
+            <div className="ax-modal__body">
               <div className="ax-dash-grid">
                 <Field label="Beneficiary" span={4}>{selectedItem.beneficiary_name || '—'}</Field>
                 <Field label="Contact No" span={4}>{selectedItem.contact_no || '—'}</Field>
                 <Field label="Light No" span={4}>{selectedItem.light_no || '—'}</Field>
-                <Field label="District / Block" span={4}>
-                  {selectedItem.district || '—'} / {selectedItem.block || '—'}
-                </Field>
+                <Field label="District / Block" span={4}>{selectedItem.district || '—'} / {selectedItem.block || '—'}</Field>
                 <Field label="Panchayat / Ward" span={4}>
                   {selectedItem.panchyat || selectedItem.panchayat || '—'} (Ward {selectedItem.ward_no || '—'})
                 </Field>
@@ -918,68 +805,57 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 <Field label="Luminary No" span={4}>{selectedItem.luminary_no || '—'}</Field>
                 <Field label="Battery Serial No" span={4}>{selectedItem.battery_serial_no || '—'}</Field>
                 <Field label="Module No" span={4}>{selectedItem.module_no || '—'}</Field>
-                <Field label="GPS Coordinates" span={4}>
-                  {selectedItem.latitude || '—'}, {selectedItem.longitude || '—'}
-                </Field>
+                <Field label="GPS Coordinates" span={4}>{selectedItem.latitude || '—'}, {selectedItem.longitude || '—'}</Field>
                 <Field label="Installation Date" span={4}>{selectedItem.date_of_installation || '—'}</Field>
                 <Field label="Complaint Source" span={4}>{selectedItem.complaint_source || '—'}</Field>
                 <Field label="Full Address" span={12}>{selectedItem.address || '—'}</Field>
 
                 {isItemRejected(selectedItem) && (
                   <div className="ax-col--12">
-                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#991b1b', fontSize: 13 }}>
-                      <strong>Complaint Rejected by Main Portal</strong>
-                      {((selectedItem as any).reject_reason || (selectedItem as any).reject_remarks) && (
-                        <div style={{ marginTop: 4 }}>Reason: {(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks}</div>
-                      )}
+                    <div className="ax-alert ax-alert--danger" role="alert">
+                      <span className="ax-alert__icon">
+                        <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 9v4" /><path d="M12 16v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" /></svg>
+                      </span>
+                      <div className="ax-alert__content">
+                        <p className="ax-alert__title">Complaint Rejected by Main Portal</p>
+                        {((selectedItem as any).reject_reason || (selectedItem as any).reject_remarks) && (
+                          <p className="ax-alert__message">Reason: {(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
 
                 <div className="ax-col--12">
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
                     Complaint Details
                   </div>
-                  <div
-                    style={{
-                      background: 'var(--ax-surface-subtle, #f8fafc)',
-                      padding: 12,
-                      borderRadius: 8,
-                      border: '1px solid var(--ax-border, #e2e8f0)',
-                      marginTop: 4,
-                      fontSize: 13,
-                    }}
-                  >
-                    <strong>Issue: {selectedItem.complaint_issue || '—'}</strong>
-                    <div style={{ marginTop: 4 }}>{selectedItem.complaint || '—'}</div>
+                  <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)', background: 'var(--ax-surface-subtle)', fontSize: 'var(--ax-text-sm)' }}>
+                    <b style={{ color: 'var(--ax-text-strong)' }}>Issue: {selectedItem.complaint_issue || '—'}</b>
+                    <div style={{ marginTop: '4px', color: 'var(--ax-text)' }}>{selectedItem.complaint || '—'}</div>
                   </div>
                 </div>
 
                 {selectedItem.close_status === 1 && (
                   <div className="ax-col--12">
-                    <div className="ax-alert ax-alert--success">
-                      <strong>Resolution Details:</strong>
-                      <div style={{ marginTop: 4, fontSize: 13 }}>
-                        Resolved by: {selectedItem.resolved_by || '—'} | Date: {selectedItem.close_date || '—'}
+                    <div className="ax-alert ax-alert--success" role="status">
+                      <span className="ax-alert__icon">
+                        <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10" /></svg>
+                      </span>
+                      <div className="ax-alert__content">
+                        <p className="ax-alert__title">Resolution Details</p>
+                        <p className="ax-alert__message">
+                          Resolved by: <b>{selectedItem.resolved_by || '—'}</b> | Date: {selectedItem.close_date || '—'}
+                          {selectedItem.remarks && <><br />Remarks: {selectedItem.remarks}</>}
+                        </p>
                       </div>
-                      {selectedItem.remarks && <div style={{ marginTop: 4, fontSize: 13 }}>Remarks: {selectedItem.remarks}</div>}
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div
-              className="ax-modal__footer"
-              style={{
-                padding: '14px 22px',
-                borderTop: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-              }}
-            >
+            <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
               <div>
                 {isItemRejected(selectedItem) ? (
                   <button
@@ -991,25 +867,21 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                       navigate(`/v/complaint/bihar/ssl-add-complaint?edit=${id}`);
                     }}
                   >
-                    Edit & Fix Complaint
+                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
+                    <span className="ax-btn__label">Edit & Fix Complaint</span>
                   </button>
                 ) : activeTab === 'open' && selectedItem.close_status !== 1 && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--primary ax-btn--sm"
-                    style={{
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      borderColor: '#059669',
-                      color: '#ffffff',
-                      fontWeight: 600,
-                    }}
                     onClick={() => {
                       const item = selectedItem;
                       setSelectedItem(null);
                       openResolveModal(item);
                     }}
                   >
-                    Resolve This Complaint
+                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10" /></svg>
+                    <span className="ax-btn__label">Resolve This Complaint</span>
                   </button>
                 )}
               </div>
@@ -1017,330 +889,357 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* ── Vendor Close / Resolve Complaint Modal ── */}
-      {resolvingItem && (
-        <div
-          className="ax-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.72)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: 20,
-          }}
-          onClick={() => !resolveSubmitting && setResolvingItem(null)}
-        >
-          <div
-            className="ax-modal__dialog"
-            style={{
-              background: 'var(--ax-surface-solid, #ffffff)',
-              borderRadius: 14,
-              width: '100%',
-              maxWidth: 760,
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="ax-modal__header"
-              style={{
-                padding: '16px 24px',
-                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--ax-surface-subtle, #f8fafc)',
-              }}
-            >
+      <Modal
+        open={Boolean(resolvingItem)}
+        onClose={() => !resolveSubmitting && setResolvingItem(null)}
+        labelledBy="m-ssl-resolve-title"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+        closeOnBackdrop={!resolveSubmitting}
+      >
+        {resolvingItem && (
+          <form onSubmit={handleResolveSubmit} noValidate>
+            <div className="ax-modal__header">
               <div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: '#059669',
-                    letterSpacing: '0.05em',
-                  }}
-                >
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-viz-emerald, #1042d7)' }}>
                   Vendor Close Complaints
                 </span>
-                <h4 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                <h2 className="ax-modal__title" id="m-ssl-resolve-title">
                   Resolve Complaint #{resolvingItem.complaint_id}
-                </h4>
+                </h2>
+                <p style={{ margin: '2px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                  Enter resolution information, attach proof images and submit to close.
+                </p>
               </div>
               <button
                 type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setResolvingItem(null)}
+                className="ax-modal__close"
+                onClick={() => !resolveSubmitting && setResolvingItem(null)}
                 disabled={resolveSubmitting}
+                aria-label="Close dialog"
               >
-                ✕
+                {X}
               </button>
             </div>
 
-            <form onSubmit={handleResolveSubmit}>
-              <div className="ax-modal__body" style={{ padding: '20px 24px' }}>
-                {resolveError && (
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      marginBottom: 16,
-                      borderRadius: 8,
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#991b1b',
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    ⚠ {resolveError}
-                  </div>
-                )}
-
-                {/* ── Read-only Complaint Overview Card ── */}
-                <div
-                  style={{
-                    background: 'var(--ax-surface-subtle, #f8fafc)',
-                    border: '1px solid var(--ax-border, #e2e8f0)',
-                    borderRadius: 10,
-                    padding: '14px 18px',
-                    marginBottom: 20,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', marginBottom: 8 }}>
-                    Complaint Information
-                  </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: '8px 16px',
-                      fontSize: 12.5,
-                    }}
-                  >
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{resolvingItem.state || 'bihar'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{resolvingItem.district || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Block:</span> <b>{resolvingItem.block || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Panchayat:</span> <b>{resolvingItem.panchyat || resolvingItem.panchayat || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Created By:</span> <b>{resolvingItem.created_by || assignedData?.name || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Ward No:</span> <b>{resolvingItem.ward_no || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Pole No:</span> <b>{resolvingItem.pole_no || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Name:</span> <b>{resolvingItem.beneficiary_name || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Mobile:</span> <b>{resolvingItem.contact_no || '—'}</b></div>
-                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Complaint Date:</span> <b>{resolvingItem.start_date || '—'}</b></div>
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
+              {resolveError && (
+                <div className="ax-alert ax-alert--danger" role="alert">
+                  <span className="ax-alert__icon">
+                    <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 9v4" /><path d="M12 16v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" />
+                    </svg>
+                  </span>
+                  <div className="ax-alert__content">
+                    <p className="ax-alert__message">{resolveError}</p>
                   </div>
                 </div>
+              )}
 
-                {/* ── Resolution Inputs Grid ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px 16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Resolved By <span style={{ color: '#ef4444' }}>*</span> (Locked)
-                    </label>
-                    <input
-                      type="text"
-                      className="ax-input"
-                      value={resolvedBy}
-                      readOnly
-                      disabled
-                      style={{
-                        background: 'var(--ax-surface-subtle, #f1f5f9)',
-                        color: 'var(--ax-text-muted, #64748b)',
-                        cursor: 'not-allowed',
-                      }}
-                      placeholder="e.g. App Testing"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Beneficiary Name <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="ax-input"
-                      value={beneficiaryName}
-                      onChange={(e) => setBeneficiaryName(e.target.value)}
-                      placeholder="e.g. testing ssl"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Beneficiary Contact (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      maxLength={10}
-                      className="ax-input"
-                      value={contactNo}
-                      onChange={(e) => setContactNo(e.target.value)}
-                      placeholder="e.g. 9205041431"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Resolver Email <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="email"
-                      className="ax-input"
-                      value={rEmail}
-                      onChange={(e) => setREmail(e.target.value)}
-                      placeholder="e.g. resolver@gmail.com"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Resolver Mobile (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      maxLength={10}
-                      className="ax-input"
-                      value={rMobile}
-                      onChange={(e) => setRMobile(e.target.value)}
-                      placeholder="e.g. 9454969296"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Closing Date <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="date"
-                      className="ax-input"
-                      value={closingDate}
-                      onChange={(e) => setClosingDate(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Light Image (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="ax-input"
-                      style={{ fontSize: 12 }}
-                      onChange={(e) => setRFile(e.target.files?.[0] || null)}
-                    />
-                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Document (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="ax-input"
-                      style={{ fontSize: 12 }}
-                      onChange={(e) => setRFile2(e.target.files?.[0] || null)}
-                    />
-                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Remarks <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <textarea
-                      className="ax-input"
-                      rows={3}
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Enter resolution notes and actions taken..."
-                      required
-                    />
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
-                      Send SMS Notification <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <div style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                        <input
-                          type="radio"
-                          name="close_sms"
-                          value="Yes"
-                          checked={closeSms === 'Yes'}
-                          onChange={() => setCloseSms('Yes')}
-                        />
-                        <span>Yes</span>
-                      </label>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                        <input
-                          type="radio"
-                          name="close_sms"
-                          value="No"
-                          checked={closeSms === 'No'}
-                          onChange={() => setCloseSms('No')}
-                        />
-                        <span>No</span>
-                      </label>
-                    </div>
-                  </div>
+              {/* ── Read-only Complaint Overview ── */}
+              <div style={{
+                background: 'var(--ax-surface-subtle)',
+                border: '1px solid var(--ax-border)',
+                borderRadius: 'var(--ax-radius-md)',
+                padding: 'var(--ax-space-4)',
+              }}>
+                <div style={{ fontSize: 'var(--ax-text-2xs)', fontWeight: 'var(--ax-weight-bold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-text-muted)', marginBottom: 'var(--ax-space-3)' }}>
+                  Complaint Information
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px 16px', fontSize: 'var(--ax-text-xs)' }}>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{resolvingItem.state || 'bihar'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{resolvingItem.district || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Block:</span> <b>{resolvingItem.block || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Panchayat:</span> <b>{resolvingItem.panchyat || resolvingItem.panchayat || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Created By:</span> <b>{resolvingItem.created_by || assignedData?.name || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Ward No:</span> <b>{resolvingItem.ward_no || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Pole No:</span> <b>{resolvingItem.pole_no || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Name:</span> <b>{resolvingItem.beneficiary_name || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Mobile:</span> <b>{resolvingItem.contact_no || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Complaint Date:</span> <b>{resolvingItem.start_date || '—'}</b></div>
                 </div>
               </div>
 
-              <div
-                className="ax-modal__footer"
-                style={{
-                  padding: '14px 24px',
-                  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+              {/* ── Resolution Inputs with Floating Labels ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--ax-space-5)' }}>
+                {/* Resolved By */}
+                <div className="ax-float ax-float--locked">
+                  <input
+                    id="res-resolved-by"
+                    type="text"
+                    className="ax-input ax-float__input"
+                    placeholder=" "
+                    value={resolvedBy}
+                    readOnly
+                    disabled
+                    style={{ cursor: 'not-allowed', opacity: 0.85 }}
+                  />
+                  <label className="ax-float__label" htmlFor="res-resolved-by">
+                    Resolved By <span style={{ color: 'var(--ax-danger-500)' }}>*</span> (Locked)
+                  </label>
+                </div>
+
+                {/* Beneficiary Name */}
+                <div className="ax-float">
+                  <input
+                    id="res-ben-name"
+                    type="text"
+                    className={`ax-input ax-float__input${attempted && !beneficiaryName.trim() ? ' is-invalid' : ''}${attempted && beneficiaryName.trim() ? ' is-valid' : ''}`}
+                    placeholder=" "
+                    value={beneficiaryName}
+                    onChange={(e) => setBeneficiaryName(e.target.value)}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-ben-name">
+                    Beneficiary Name <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && !beneficiaryName.trim() && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Enter beneficiary name.</span>
+                  )}
+                </div>
+
+                {/* Beneficiary Contact */}
+                <div className="ax-float">
+                  <input
+                    id="res-contact-no"
+                    type="tel"
+                    maxLength={10}
+                    className={`ax-input ax-float__input ax-num${attempted && contactNo.trim().replace(/\D/g, '').length !== 10 ? ' is-invalid' : ''}${attempted && contactNo.trim().replace(/\D/g, '').length === 10 ? ' is-valid' : ''}`}
+                    placeholder=" "
+                    value={contactNo}
+                    onChange={(e) => setContactNo(e.target.value)}
+                    style={{ fontFamily: 'var(--ax-font-mono)' }}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-contact-no">
+                    Beneficiary Contact (10 Digits) <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && contactNo.trim().replace(/\D/g, '').length !== 10 && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Contact must be exactly 10 digits.</span>
+                  )}
+                </div>
+
+                {/* Resolver Email */}
+                <div className="ax-float">
+                  <input
+                    id="res-remail"
+                    type="email"
+                    className={`ax-input ax-float__input${attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) ? ' is-invalid' : ''}${attempted && rEmail.trim() && /\S+@\S+\.\S+/.test(rEmail) ? ' is-valid' : ''}`}
+                    placeholder=" "
+                    value={rEmail}
+                    onChange={(e) => setREmail(e.target.value)}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-remail">
+                    Resolver Email <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Enter a valid email address.</span>
+                  )}
+                </div>
+
+                {/* Resolver Mobile */}
+                <div className="ax-float">
+                  <input
+                    id="res-rmobile"
+                    type="tel"
+                    maxLength={10}
+                    className={`ax-input ax-float__input ax-num${attempted && rMobile.trim().replace(/\D/g, '').length !== 10 ? ' is-invalid' : ''}${attempted && rMobile.trim().replace(/\D/g, '').length === 10 ? ' is-valid' : ''}`}
+                    placeholder=" "
+                    value={rMobile}
+                    onChange={(e) => setRMobile(e.target.value)}
+                    style={{ fontFamily: 'var(--ax-font-mono)' }}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-rmobile">
+                    Resolver Mobile (10 Digits) <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && rMobile.trim().replace(/\D/g, '').length !== 10 && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Resolver mobile must be 10 digits.</span>
+                  )}
+                </div>
+
+                {/* Closing Date */}
+                <div className="ax-float ax-float--date">
+                  <input
+                    id="res-closing-date"
+                    type="date"
+                    className={`ax-input ax-float__input${attempted && !closingDate ? ' is-invalid' : ''}${attempted && closingDate ? ' is-valid' : ''}`}
+                    placeholder=" "
+                    value={closingDate}
+                    onChange={(e) => setClosingDate(e.target.value)}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-closing-date">
+                    Closing Date <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && !closingDate && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Select closing date.</span>
+                  )}
+                </div>
+
+                {/* Light Image (Optional) */}
+                <div className="ax-float ax-float--file">
+                  <input
+                    id="res-rfile"
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="ax-input ax-float__input"
+                    placeholder=" "
+                    onChange={(e) => setRFile(e.target.files?.[0] || null)}
+                  />
+                  <label className="ax-float__label" htmlFor="res-rfile">
+                    Light Image (Optional)
+                  </label>
+                  {rFile && (
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--xs"
+                      onClick={() => setRFile(null)}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
+                      title="Clear file"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                    {rFile && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile.name} ({(rFile.size / 1024).toFixed(1)} KB)</span>}
+                  </span>
+                </div>
+
+                {/* Document (Optional) */}
+                <div className="ax-float ax-float--file">
+                  <input
+                    id="res-rfile2"
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="ax-input ax-float__input"
+                    placeholder=" "
+                    onChange={(e) => setRFile2(e.target.files?.[0] || null)}
+                  />
+                  <label className="ax-float__label" htmlFor="res-rfile2">
+                    Document (Optional)
+                  </label>
+                  {rFile2 && (
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--xs"
+                      onClick={() => setRFile2(null)}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
+                      title="Clear file"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                    {rFile2 && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile2.name} ({(rFile2.size / 1024).toFixed(1)} KB)</span>}
+                  </span>
+                </div>
+
+                {/* Remarks */}
+                <div className="ax-float ax-float--area" style={{ gridColumn: '1 / -1' }}>
+                  <textarea
+                    id="res-remarks"
+                    className={`ax-textarea ax-float__input${attempted && !remarks.trim() ? ' is-invalid' : ''}${attempted && remarks.trim() ? ' is-valid' : ''}`}
+                    rows={3}
+                    placeholder=" "
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    required
+                  />
+                  <label className="ax-float__label" htmlFor="res-remarks">
+                    Remarks <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </label>
+                  {attempted && !remarks.trim() && (
+                    <span className="ax-field__message ax-field__message--error" role="alert">Please enter remarks / resolution notes.</span>
+                  )}
+                </div>
+
+                {/* Send SMS Notification */}
+                <div style={{
+                  gridColumn: '1 / -1',
+                  padding: 'var(--ax-space-3) var(--ax-space-4)',
+                  background: 'var(--ax-surface-subtle)',
+                  borderRadius: 'var(--ax-radius-sm)',
+                  border: '1px solid var(--ax-border)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  gap: 10,
-                  background: 'var(--ax-surface-subtle, #f8fafc)',
-                }}
-              >
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setResolvingItem(null)}
-                  disabled={resolveSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={resolveSubmitting}
-                  style={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    borderColor: '#059669',
-                    minWidth: 160,
-                  }}
-                >
-                  {resolveSubmitting ? 'Resolving…' : 'Confirm & Resolve Complaint'}
-                </button>
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 'var(--ax-space-3)'
+                }}>
+                  <div style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                    Send SMS Notification <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                  </div>
+                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-5)' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-2)', cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text)' }}>
+                      <input
+                        type="radio"
+                        className="ax-radio"
+                        name="close_sms"
+                        value="Yes"
+                        checked={closeSms === 'Yes'}
+                        onChange={() => setCloseSms('Yes')}
+                      />
+                      <span>Yes</span>
+                    </label>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-2)', cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text)' }}>
+                      <input
+                        type="radio"
+                        className="ax-radio"
+                        name="close_sms"
+                        value="No"
+                        checked={closeSms === 'No'}
+                        onChange={() => setCloseSms('No')}
+                      />
+                      <span>No</span>
+                    </label>
+                  </div>
+                </div>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost"
+                onClick={() => setResolvingItem(null)}
+                disabled={resolveSubmitting}
+              >
+                <span className="ax-btn__label">Cancel</span>
+              </button>
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={resolveSubmitting}
+                aria-busy={resolveSubmitting}
+                style={{ minWidth: 160 }}
+              >
+                {resolveSubmitting && <span className="ax-spinner ax-spinner--xs" aria-hidden="true" />}
+                <span className="ax-btn__label">{resolveSubmitting ? 'Resolving…' : 'Confirm & Resolve Complaint'}</span>
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* ───── Toast region ───── */}
+      {toasts.length > 0 && createPortal(
+        <div className="ax-toast-region" aria-live="polite" style={{ position: 'fixed', insetBlockEnd: 'var(--ax-space-6)', insetInlineEnd: 'var(--ax-space-6)', zIndex: 99999, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-2)' }}>
+          {toasts.map((t) => (
+            <div key={t.id} className="ax-toast" role="status">
+              <div className="ax-toast__content"><p className="ax-toast__message">{t.msg}</p></div>
+              <button type="button" className="ax-toast__dismiss" onClick={() => setToasts((cur) => cur.filter((x) => x.id !== t.id))} aria-label="Dismiss">{X}</button>
+            </div>
+          ))}
+        </div>,
+        document.body,
       )}
     </div>
   );

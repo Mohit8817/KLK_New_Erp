@@ -669,7 +669,7 @@ export function Bihar_Installation_ULA_AddPayment() {
   // Search & Pagination
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
 
   // Status & Feedback
   const [submitting, setSubmitting] = useState(false);
@@ -1168,7 +1168,9 @@ export function Bihar_Installation_ULA_AddPayment() {
                     currentPage={currentPage}
                     pageSize={pageSize}
                     onPageChange={setCurrentPage}
+                    totalItems={filteredSites.length}
                     onPageSizeChange={setPageSize}
+                    pageSizeOptions={[100, 200, 300]}
                   />
                 </div>
               )}

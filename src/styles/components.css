@@ -3287,6 +3287,90 @@
     border: 0;
   }
 
+  .ax-float {
+    position: relative;
+    width: 100%;
+  }
+  .ax-float__input::placeholder {
+    color: transparent;
+  }
+  .ax-float__label {
+    position: absolute;
+    inset-inline-start: var(--ax-space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    padding-inline: 4px;
+    font-size: var(--ax-text-sm);
+    color: var(--ax-text-subtle);
+    background: var(--ax-surface-overlay, var(--ax-surface-solid, var(--ax-surface)));
+    border-radius: var(--ax-radius-xs);
+    pointer-events: none;
+    z-index: 2;
+    transition:
+      top var(--ax-motion-fast) var(--ax-ease-standard),
+      font-size var(--ax-motion-fast) var(--ax-ease-standard),
+      color var(--ax-motion-fast) var(--ax-ease-standard);
+  }
+  .ax-float--icon .ax-float__label {
+    inset-inline-start: var(--ax-space-8);
+  }
+  .ax-float--area .ax-float__label {
+    top: calc(var(--ax-space-3) + 9px);
+    transform: none;
+  }
+  .ax-float__input:focus + .ax-float__label,
+  .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .ax-float--select .ax-float__label,
+  .ax-float--date .ax-float__label,
+  .ax-float--file .ax-float__label,
+  .ax-float--locked .ax-float__label,
+  .ax-float--area .ax-float__input:focus + .ax-float__label,
+  .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+    top: 0;
+    font-size: var(--ax-text-2xs);
+    color: var(--ax-text-muted);
+  }
+  .ax-float--icon .ax-float__input:focus + .ax-float__label,
+  .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+    inset-inline-start: var(--ax-space-3);
+  }
+  .ax-float__input:focus + .ax-float__label {
+    color: var(--ax-accent);
+  }
+  .ax-float__input.is-invalid + .ax-float__label {
+    color: var(--ax-danger-500);
+  }
+  .ax-float__input.is-valid + .ax-float__label {
+    color: var(--ax-success-500);
+  }
+  .ax-float--file .ax-float__input {
+    display: flex;
+    align-items: center;
+    padding-top: 6px;
+    font-size: var(--ax-text-xs);
+    cursor: pointer;
+  }
+  .ax-float--file .ax-float__input::file-selector-button {
+    margin-inline-end: var(--ax-space-3);
+    padding: 3px 10px;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-xs);
+    background: var(--ax-surface-subtle);
+    color: var(--ax-text);
+    font-size: var(--ax-text-xs);
+    cursor: pointer;
+    transition: background var(--ax-motion-fast);
+  }
+  .ax-float--file .ax-float__input::file-selector-button:hover {
+    background: var(--ax-fill-hover);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ax-float__label {
+      transition: none;
+    }
+  }
+
   .ax-input--floating {
     position: relative;
   }

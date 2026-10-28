@@ -233,13 +233,6 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] {
       max-width: 130px;
     }
-
-    .solar-erp-page .ula-sticky-first th:first-child,
-    .solar-erp-page .ula-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1;
-      background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
   }
 
   @media (max-width: 480px) {
@@ -1184,7 +1177,7 @@ export function Bihar_Installation_ULA_Dashboard() {
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--md ula-sticky-first">
+            <table className="ax-table ax-table--hover ula-table--md">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
@@ -1351,7 +1344,7 @@ export function Bihar_Installation_ULA_Dashboard() {
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--sm ula-sticky-first">
+            <table className="ax-table ax-table--hover ula-table--sm">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr.</th>

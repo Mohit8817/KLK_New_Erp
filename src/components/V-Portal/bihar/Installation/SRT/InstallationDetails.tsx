@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSrtInstallationService,
+  getSrtInstallationImageCandidates,
   type SrtSiteDropdownItem,
   type SrtSiteDetailItem,
 } from '../../bihar-services/biharSrtInstallationService';
@@ -223,6 +224,54 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
 }
 
 /* ───────── Modern Upload Dropzone (matching Survey ULA / SRT200MW AddData) ───────── */
+function ExistingThumbnail({ src, alt }: { src: string; alt: string }) {
+  const candidates = useMemo(() => getSrtInstallationImageCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (failed || candidateIdx >= candidates.length) {
+    return (
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 6,
+          background: '#f1f5f9',
+          color: '#64748b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          border: '1px solid var(--ax-border)',
+          flexShrink: 0,
+        }}
+      >
+        Photo
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={candidates[candidateIdx]}
+      alt={alt}
+      style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)', flexShrink: 0 }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
+  );
+}
+
 interface UploadDropzoneProps {
   id: string;
   label: string;
@@ -230,6 +279,7 @@ interface UploadDropzoneProps {
   accept?: string;
   file: File | null;
   preview?: string;
+  existingUrl?: string;
   onSelect: (file: File) => void;
   onRemove: () => void;
   error?: string;
@@ -242,6 +292,7 @@ function UploadDropzone({
   accept = 'image/*',
   file,
   preview,
+  existingUrl,
   onSelect,
   onRemove,
   error,
@@ -264,6 +315,9 @@ function UploadDropzone({
       onSelect(chosen);
     }
   };
+
+  const hasNewFile = Boolean(file || preview);
+  const hasExisting = Boolean(!hasNewFile && existingUrl);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -320,6 +374,8 @@ function UploadDropzone({
             ? '1.5px dashed var(--ax-danger-500, #ef4444)'
             : isHovered
             ? '1.5px dashed #94a3b8'
+            : hasExisting
+            ? '1.5px solid #cbd5e1'
             : '1.5px dashed #cbd5e1',
           borderRadius: 8,
           background: isDragging
@@ -328,8 +384,10 @@ function UploadDropzone({
             ? '#fef2f2'
             : isHovered
             ? '#fbfcfd'
+            : hasExisting
+            ? '#f8fafc'
             : '#ffffff',
-          padding: file || preview ? '12px 14px' : '22px 16px',
+          padding: hasNewFile || hasExisting ? '12px 14px' : '22px 16px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -340,14 +398,14 @@ function UploadDropzone({
           minHeight: 110,
         }}
       >
-        {file || preview ? (
+        {hasNewFile ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
               {preview ? (
                 <img
                   src={preview}
                   alt={label}
-                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)' }}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)', flexShrink: 0 }}
                 />
               ) : (
                 <div
@@ -373,7 +431,7 @@ function UploadDropzone({
                   {file ? file.name : label}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Photo captured'}
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'New photo selected'}
                 </div>
               </div>
             </div>
@@ -385,6 +443,32 @@ function UploadDropzone({
               title="Remove photo"
             >
               Remove
+            </button>
+          </div>
+        ) : hasExisting ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              <ExistingThumbnail src={existingUrl!} alt={label} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: 11, color: '#059669', marginTop: 2, fontWeight: 500 }}>
+                  ✓ Existing Photo Attached
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--ax-text-muted)' }}>
+                  Click or drop to replace
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0, fontSize: 11 }}
+              title="Clear attached photo"
+            >
+              Clear
             </button>
           </div>
         ) : (
@@ -429,11 +513,18 @@ function UploadDropzone({
 
 export function Bihar_Installation_SRT_InstallationDetails() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { id: paramId } = useParams<{ id?: string }>();
+
+  const stateSite = (location.state as any)?.site;
+  const editId = paramId || searchParams.get('id') || searchParams.get('site_id') || (stateSite?.id ? String(stateSite.id) : '');
+  const isEditMode = Boolean(editId);
 
   // Site Dropdown & Detail State
   const [sitesList, setSitesList] = useState<SrtSiteDropdownItem[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(editId || '');
   const [siteDetail, setSiteDetail] = useState<SrtSiteDetailItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -480,6 +571,15 @@ export function Bihar_Installation_SRT_InstallationDetails() {
     loger_image: '',
   });
 
+  // Existing photo URLs from backend (for edit mode)
+  const [existingPhotos, setExistingPhotos] = useState<{
+    panel_image?: string;
+    system_image?: string;
+    inverter_image?: string;
+    nm_sm_image?: string;
+    loger_image?: string;
+  }>({});
+
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -503,7 +603,15 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       try {
         setLoadingSites(true);
         const data = await biharSrtInstallationService.fetchSiteNames();
-        setSitesList(Array.isArray(data) ? data : []);
+        let list = Array.isArray(data) ? data : [];
+        if (isEditMode && editId) {
+          const exists = list.some((s) => String(s.id) === String(editId));
+          if (!exists) {
+            const fallbackLabel = stateSite?.site_name ? `${stateSite.site_name} (#${editId})` : `Site #${editId}`;
+            list = [{ id: Number(editId), site_name: fallbackLabel }, ...list];
+          }
+        }
+        setSitesList(list);
       } catch (err: any) {
         console.error('[SRT Installation] fetchSiteNames error:', err);
       } finally {
@@ -511,9 +619,84 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       }
     };
     fetchSites();
-  }, []);
+  }, [isEditMode, editId, stateSite?.site_name]);
 
-  // 2. Load site details on site selection
+  // 2. Load edit record when editId is provided
+  useEffect(() => {
+    if (!editId) return;
+
+    let active = true;
+    setLoadingDetail(true);
+
+    const loadEditRecord = async () => {
+      try {
+        const [editRes, specRes] = await Promise.allSettled([
+          biharSrtInstallationService.getEditInstallSite(editId),
+          biharSrtInstallationService.fetchSiteDetail(editId),
+        ]);
+
+        if (!active) return;
+
+        const editData = editRes.status === 'fulfilled' ? editRes.value : null;
+        const specData = specRes.status === 'fulfilled' ? specRes.value : null;
+
+        const merged: SrtSiteDetailItem = {
+          id: Number(editId),
+          ...(specData || {}),
+          ...(stateSite || {}),
+          ...(editData || {}),
+        };
+
+        setSiteDetail(merged);
+        setSelectedSiteId(String(editId));
+
+        // Prepopulate form fields
+        setFormData({
+          contact_person: editData?.contact_person ?? specData?.contact_person ?? stateSite?.contact_person ?? '',
+          contact_number: editData?.contact_number ?? specData?.contact_number ?? stateSite?.contact_number ?? '',
+          ca_no: editData?.ca_no ?? specData?.ca_no ?? stateSite?.ca_no ?? '',
+          solarmeter_no: editData?.solarmeter_no ?? specData?.solarmeter_no ?? stateSite?.solarmeter_no ?? '',
+          nm_sm_no: editData?.nm_sm_no ?? specData?.nm_sm_no ?? stateSite?.nm_sm_no ?? '',
+          loger_no: editData?.loger_no ?? specData?.loger_no ?? stateSite?.loger_no ?? '',
+          inverter_no: editData?.inverter_no ?? specData?.inverter_no ?? stateSite?.inverter_no ?? '',
+          inst_latitude: String(editData?.inst_latitude ?? specData?.inst_latitude ?? stateSite?.inst_latitude ?? ''),
+          inst_longitude: String(editData?.inst_longitude ?? specData?.inst_longitude ?? stateSite?.inst_longitude ?? ''),
+          inst_remarks: editData?.inst_remarks ?? specData?.inst_remarks ?? stateSite?.inst_remarks ?? '',
+        });
+
+        // Prepopulate existing component photos
+        setExistingPhotos({
+          panel_image: editData?.panel_image || specData?.panel_image || stateSite?.panel_image || '',
+          system_image: editData?.system_image || specData?.system_image || stateSite?.system_image || '',
+          inverter_image: editData?.inverter_image || specData?.inverter_image || stateSite?.inverter_image || '',
+          nm_sm_image: editData?.nm_sm_image || specData?.nm_sm_image || stateSite?.nm_sm_image || '',
+          loger_image: editData?.loger_image || specData?.loger_image || stateSite?.loger_image || '',
+        });
+
+        // Ensure site dropdown displays the site
+        const siteLabel = merged.site_name ? `${merged.site_name} (#${editId})` : `Site #${editId}`;
+        setSitesList((prev) => {
+          if (!prev.some((s) => String(s.id) === String(editId))) {
+            return [{ id: Number(editId), site_name: siteLabel }, ...prev];
+          }
+          return prev;
+        });
+      } catch (err: any) {
+        console.error('[SRT Installation] loadEditRecord error:', err);
+        setFeedback({ type: 'danger', text: 'Failed to load installation details for editing.' });
+      } finally {
+        if (active) setLoadingDetail(false);
+      }
+    };
+
+    loadEditRecord();
+
+    return () => {
+      active = false;
+    };
+  }, [editId]);
+
+  // 3. Load site details on manual site selection (new mode)
   const handleSiteSelect = async (siteId: string) => {
     setSelectedSiteId(siteId);
     setSiteDetail(null);
@@ -549,14 +732,14 @@ export function Bihar_Installation_SRT_InstallationDetails() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-
-
   const removeFile = (field: keyof typeof files) => {
     setFiles((prev) => ({ ...prev, [field]: null }));
     if (previews[field]) {
       URL.revokeObjectURL(previews[field]);
       setPreviews((prev) => ({ ...prev, [field]: '' }));
     }
+    // Also clear existing photo when user clicks clear
+    setExistingPhotos((prev) => ({ ...prev, [field]: '' }));
   };
 
   // Geolocation
@@ -593,8 +776,14 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       return;
     }
 
-    if (!files.panel_image || !files.system_image || !files.inverter_image || !files.nm_sm_image || !files.loger_image) {
-      setFeedback({ type: 'danger', text: 'All 5 installation photos are required. Please upload them.' });
+    const hasPanel = Boolean(files.panel_image || existingPhotos.panel_image);
+    const hasSystem = Boolean(files.system_image || existingPhotos.system_image);
+    const hasInverter = Boolean(files.inverter_image || existingPhotos.inverter_image);
+    const hasNmSm = Boolean(files.nm_sm_image || existingPhotos.nm_sm_image);
+    const hasLoger = Boolean(files.loger_image || existingPhotos.loger_image);
+
+    if (!hasPanel || !hasSystem || !hasInverter || !hasNmSm || !hasLoger) {
+      setFeedback({ type: 'danger', text: 'All 5 installation photos are required. Please upload the missing photos.' });
       scrollTo(sec6);
       return;
     }
@@ -604,7 +793,8 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       setFeedback(null);
 
       const fd = new FormData();
-      fd.append('srt_id', selectedSiteId);
+      fd.append('id', String(selectedSiteId));
+      fd.append('srt_id', String(selectedSiteId));
       fd.append('contact_person', formData.contact_person);
       fd.append('contact_number', formData.contact_number);
       fd.append('ca_no', formData.ca_no);
@@ -618,21 +808,29 @@ export function Bihar_Installation_SRT_InstallationDetails() {
         fd.append('inst_remarks', formData.inst_remarks);
       }
 
-      fd.append('panel_image', files.panel_image);
-      fd.append('system_image', files.system_image);
-      fd.append('inverter_image', files.inverter_image);
-      fd.append('nm_sm_image', files.nm_sm_image);
-      fd.append('loger_image', files.loger_image);
+      if (files.panel_image) fd.append('panel_image', files.panel_image);
+      if (files.system_image) fd.append('system_image', files.system_image);
+      if (files.inverter_image) fd.append('inverter_image', files.inverter_image);
+      if (files.nm_sm_image) fd.append('nm_sm_image', files.nm_sm_image);
+      if (files.loger_image) fd.append('loger_image', files.loger_image);
 
-      const res = await biharSrtInstallationService.storeInstallation(fd);
-      setFeedback({ type: 'success', text: res.message || 'SRT Site Installed Successfully!' });
+      if (isEditMode) {
+        const res = await biharSrtInstallationService.updateInstallSite(fd);
+        setFeedback({ type: 'success', text: res.message || 'Installation details updated successfully!' });
+      } else {
+        const res = await biharSrtInstallationService.storeInstallation(fd);
+        setFeedback({ type: 'success', text: res.message || 'SRT Site Installed Successfully!' });
+      }
 
       setTimeout(() => {
         navigate('/v/srt/allassignsite');
       }, 1500);
     } catch (err: any) {
       console.error('[SRT Installation] submit error:', err);
-      setFeedback({ type: 'danger', text: err?.message || 'Failed to submit SRT installation.' });
+      setFeedback({
+        type: 'danger',
+        text: err?.message || (isEditMode ? 'Failed to update installation.' : 'Failed to submit SRT installation.'),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -644,19 +842,30 @@ export function Bihar_Installation_SRT_InstallationDetails() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="SRT-Installation Details"
-        subtitle="Capture rooftop solar installation execution data, serial numbers, geocoordinates, and verification photos."
+        title={isEditMode ? 'Edit SRT-Installation Details' : 'SRT-Installation Details'}
+        subtitle={
+          isEditMode
+            ? `Editing installed site #${editId}. Modify details, component serial numbers, and component photos below.`
+            : 'Capture rooftop solar installation execution data, serial numbers, geocoordinates, and verification photos.'
+        }
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'SRT' },
-          { label: 'Installation Details' },
+          { label: isEditMode ? 'Edit Installation' : 'Installation Details' },
         ]}
         actions={
-          <Link to="/v/srt/allassignsite" className="ax-btn ax-btn--secondary ax-btn--sm">
-            View Installed Sites
-          </Link>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            {isEditMode && (
+              <Link to="/v/srt/installationsite" className="ax-btn ax-btn--ghost ax-btn--sm">
+                + New Installation
+              </Link>
+            )}
+            <Link to="/v/srt/allassignsite" className="ax-btn ax-btn--secondary ax-btn--sm">
+              View Installed Sites
+            </Link>
+          </div>
         }
       />
 
@@ -673,17 +882,23 @@ export function Bihar_Installation_SRT_InstallationDetails() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                Rooftop Solar Installation Form
+                {isEditMode ? 'Edit Rooftop Solar Installation' : 'Rooftop Solar Installation Form'}
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted)' }}>
-                Fill out installation details and upload site completion evidence for department verification.
+                {isEditMode
+                  ? 'Update installation details, equipment serials, and evidence photos for this site.'
+                  : 'Fill out installation details and upload site completion evidence for department verification.'}
               </p>
             </div>
-            {siteDetail && (
+            {isEditMode ? (
+              <span className="ax-badge ax-badge--soft ax-badge--warning">
+                Editing Mode #{editId}
+              </span>
+            ) : siteDetail ? (
               <span className="ax-badge ax-badge--soft ax-badge--info">
                 Site ID #{siteDetail.id}
               </span>
-            )}
+            ) : null}
           </div>
 
           {/* Quick Nav Pills */}
@@ -716,7 +931,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
               <div className="srt-section-title-wrap">
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Select Rooftop Site</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
-                  Choose from accepted sites pending installation
+                  {isEditMode ? 'Selected site for editing' : 'Choose from accepted sites pending installation'}
                 </span>
               </div>
             </div>
@@ -728,7 +943,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   className="ax-float__input"
                   value={selectedSiteId}
                   onChange={(e) => handleSiteSelect(e.target.value)}
-                  disabled={loadingSites || submitting}
+                  disabled={loadingSites || submitting || isEditMode}
                   required
                 >
                   <option value="">-- Choose Assigned SRT Site --</option>
@@ -743,6 +958,12 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 </label>
               </div>
             </div>
+
+            {isEditMode && (
+              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                Site selection is fixed while editing site #{editId}. <Link to="/v/srt/installationsite" style={{ color: 'var(--ax-primary-default, #2563eb)' }}>Switch to new installation</Link>
+              </p>
+            )}
 
             {loadingDetail && (
               <div style={{ padding: '16px 0', color: 'var(--ax-accent)', fontSize: '13px' }}>
@@ -927,6 +1148,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   required
                   file={files.panel_image}
                   preview={previews.panel_image}
+                  existingUrl={existingPhotos.panel_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, panel_image: f }));
                     setPreviews((prev) => ({ ...prev, panel_image: URL.createObjectURL(f) }));
@@ -939,6 +1161,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   required
                   file={files.system_image}
                   preview={previews.system_image}
+                  existingUrl={existingPhotos.system_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, system_image: f }));
                     setPreviews((prev) => ({ ...prev, system_image: URL.createObjectURL(f) }));
@@ -951,6 +1174,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   required
                   file={files.inverter_image}
                   preview={previews.inverter_image}
+                  existingUrl={existingPhotos.inverter_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, inverter_image: f }));
                     setPreviews((prev) => ({ ...prev, inverter_image: URL.createObjectURL(f) }));
@@ -963,6 +1187,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   required
                   file={files.nm_sm_image}
                   preview={previews.nm_sm_image}
+                  existingUrl={existingPhotos.nm_sm_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, nm_sm_image: f }));
                     setPreviews((prev) => ({ ...prev, nm_sm_image: URL.createObjectURL(f) }));
@@ -975,6 +1200,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   required
                   file={files.loger_image}
                   preview={previews.loger_image}
+                  existingUrl={existingPhotos.loger_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, loger_image: f }));
                     setPreviews((prev) => ({ ...prev, loger_image: URL.createObjectURL(f) }));
@@ -994,7 +1220,9 @@ export function Bihar_Installation_SRT_InstallationDetails() {
               className="ax-btn ax-btn--primary"
               disabled={submitting || !selectedSiteId}
             >
-              {submitting ? 'Submitting Installation...' : 'Submit Installation Report'}
+              {submitting
+                ? (isEditMode ? 'Updating Installation...' : 'Submitting Installation...')
+                : (isEditMode ? 'Update Installation Details' : 'Submit Installation Report')}
             </button>
           </div>
         </div>

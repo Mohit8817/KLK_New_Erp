@@ -108,14 +108,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -247,7 +239,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(100);
 
   // Column Visibility
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
@@ -513,7 +505,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
                   <caption className="ax-visually-hidden">Bihar SRT Complaints</caption>
                   <thead className="ax-table__head">
                     <tr>
@@ -553,7 +545,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
                                   <rect x="5" y="11" width="14" height="10" rx="2" />
                                   <path d="M8 11V7a4 4 0 0 1 8 0v4" />
                                 </svg>
-                                Assigned (Locked)
+                                Assigned 
                               </span>
                             ) : (
                               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
@@ -590,6 +582,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
                     totalItems={filteredComplaints.length}
                     onPageChange={setCurrentPage}
                     onPageSizeChange={setPageSize}
+                    pageSizeOptions={[100, 200, 300]}
                   />
                 </div>
               </div>

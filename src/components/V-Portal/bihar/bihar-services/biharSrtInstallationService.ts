@@ -1,6 +1,60 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
 
+/* ── Base URLs for media assets ── */
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+export function getSrtInstallationImageCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  if (clean.startsWith('r2:')) {
+    const key = clean.slice(3).replace(/^\/+/, '');
+    const urls: string[] = [];
+    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/uploads/${key}`);
+    return urls;
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  // SRT specific paths
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/panel/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/system/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/inverter/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/nm_sm/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/loger/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/srt/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/bihar/installation/srt/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
+
+  return Array.from(new Set(candidates));
+}
+
 /* ───────── TypeScript Interfaces for Bihar SRT Installation ───────── */
 export interface SrtBatchSiteNameItem {
   id: number;

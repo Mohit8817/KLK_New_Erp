@@ -588,21 +588,12 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* Table: sideways scroll with sticky first column */
+  /* Table: sideways scroll */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
   .solar-erp-page .ula-table--wide { min-width: 2800px; }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
-
   /* Tablet */
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -791,7 +782,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
   // Pagination hook from common
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredSites, initialPageSize: 10 });
+    usePagination({ data: filteredSites, initialPageSize: 100 });
 
   // Reset page on search or filter change
   useEffect(() => {
@@ -1121,7 +1112,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--wide ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
+            <table className="ax-table ax-table--hover ula-table--wide " style={{ whiteSpace: 'nowrap' }}>
               <caption className="ax-visually-hidden">ULA Installation Records</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -1351,7 +1342,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 20, 40, 100]}
+                pageSizeOptions={[100,200,300]}
               />
             </div>
           </div>

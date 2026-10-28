@@ -1,9 +1,8 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useDeferredValue, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSslInstallationService,
   getMediaUrl,
-  getCompanyId,
   type SslClaimRaisedItem,
 } from '../../bihar-services';
 import {
@@ -11,48 +10,265 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  TableSkeleton,
-  KpiSkeleton,
+  usePagination,
   type ExportColumn,
-  exportDataToCSV,
-  exportDataToExcel,
-  copyTableDataToClipboard,
-  printTableData,
 } from '../../../../../common';
 
-const BLUE_PRIMARY = '#2563eb';
-const GREEN_EMERALD = '#10b981';
-const AMBER_WARNING = '#f59e0b';
-const RED_DANGER = '#ef4444';
+const DASH = '—';
 
-const ICON_CLAIMS = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-  </svg>
-);
-const ICON_RUPEE = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" />
-  </svg>
-);
-const ICON_APPROVED = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-const ICON_ELIGIBLE = (
-  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" />
-  </svg>
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
 
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 const cur = (x: unknown) => `₹${(Number(x) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ───────── Responsive page CSS (exact Bihar reference) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page img,
+  .solar-erp-page .ula-table--wide img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
+    .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
+      width: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+`;
+
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
 
 const MODAL_FIELD_STYLES = `
   .ax-modern-field {
@@ -184,6 +400,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
   const [claims, setClaims] = useState<SslClaimRaisedItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
   const raiseFileRef = useRef<HTMLInputElement>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
@@ -208,6 +425,12 @@ export function Bihar_Installation_SSL_ClaimRequest() {
 
   const deferredQuery = useDeferredValue(searchQuery);
 
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = window.setTimeout(() => setToastMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toastMsg]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -220,8 +443,9 @@ export function Bihar_Installation_SSL_ClaimRequest() {
         setEligibleSiteIds(installedData.claimed_applicable_ids);
         setSiteIdsInput(installedData.claimed_applicable_ids.join(', '));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[ClaimRequest] error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load claim requests.' });
     } finally {
       setLoading(false);
     }
@@ -273,18 +497,20 @@ export function Bihar_Installation_SSL_ClaimRequest() {
     };
   }, [claims, eligibleSiteIds]);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  // Universal Pagination with 100 items by default
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [deferredQuery, statusFilter]);
+    setPage(1);
+  }, [searchQuery, statusFilter, setPage]);
 
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
+  const hasFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setPage(1);
+  };
 
   // Handle Raise Claim Submit
   const handleRaiseSubmit = async (e: FormEvent) => {
@@ -319,12 +545,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
 
       const res = await biharSslInstallationService.raiseClaim(fd);
       setRaiseSuccess(res.message || 'Claim Raised Successfully!!!');
+      setToastMsg({ type: 'success', text: 'Claim Raised Successfully!' });
       await loadData();
       setTimeout(() => {
         setRaiseModalOpen(false);
         setClaimAmount('');
         setClaimInvoiceFile(null);
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       console.error('[Raise Claim] error:', err);
       setRaiseError(err.message || 'Failed to raise claim request.');
@@ -363,6 +590,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
       }
 
       await biharSslInstallationService.updateClaimRaised(fd);
+      setToastMsg({ type: 'success', text: 'Claim updated successfully!' });
       await loadData();
       setEditModalOpen(false);
       setEditingClaim(null);
@@ -387,40 +615,144 @@ export function Bihar_Installation_SSL_ClaimRequest() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(`Could not download PDF: ${err.message}`);
+      setToastMsg({ type: 'danger', text: `Could not download PDF: ${err.message}` });
     }
   };
 
   // Export Columns
-  const exportCols: ExportColumn<SslClaimRaisedItem>[] = [
-    { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendor || '—' },
-    { header: 'State', accessor: 'state' },
-    { header: 'Claim Raised Date', accessor: 'claim_raised_date' },
-    { header: 'Site Count', accessor: 'claim_site_count' },
-    { header: 'Claim Amount', accessor: 'claim_amount' },
-    { header: 'Claim Update Date', accessor: 'claim_update_date' },
-    {
-      header: 'Claim Status',
-      accessor: (r) => (r.claim_status === 1 ? 'Approved' : r.claim_status === 2 ? 'Rejected' : 'Pending'),
-    },
-    { header: 'Payment Status', accessor: 'payment_status' },
-    { header: 'Payment Date', accessor: 'payment_date' },
-    { header: 'Payment Amount', accessor: 'payment_amount' },
+  const exportCols: ExportColumn<SslClaimRaisedItem>[] = useMemo(
+    () => [
+      { header: 'Sr. No.', accessor: (_r: SslClaimRaisedItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendor || DASH },
+      { header: 'State', accessor: (r) => r.state || 'Bihar' },
+      { header: 'Claim Raised Date', accessor: (r) => r.claim_raised_date || DASH },
+      { header: 'Site Count', accessor: (r) => String(r.claim_site_count || 0) },
+      { header: 'Claim Amount', accessor: (r) => String(r.claim_amount || 0) },
+      { header: 'Claim Update Date', accessor: (r) => r.claim_update_date || DASH },
+      {
+        header: 'Claim Status',
+        accessor: (r) => (r.claim_status === 1 ? 'Approved' : r.claim_status === 2 ? 'Rejected' : 'Pending'),
+      },
+      { header: 'Payment Status', accessor: (r) => r.payment_status || DASH },
+      { header: 'Payment Date', accessor: (r) => r.payment_date || DASH },
+      { header: 'Payment Amount', accessor: (r) => (r.payment_amount ? String(r.payment_amount) : DASH) },
+      { header: 'Payment Remark', accessor: (r) => r.payment_remark || DASH },
+    ],
+    []
+  );
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'Bihar_SSL_Claims';
+  const fileTitle = 'Bihar SSL Claim Requests Register';
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => c.header),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setToastMsg({ type: 'success', text: 'Table data copied to clipboard!' });
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #d8dee6;padding:6px 6px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  const HEADERS = [
+    'Sr. No.',
+    'Vendor Name',
+    'State',
+    'Claim Raised Date',
+    'Site Count',
+    'Claim Invoice',
+    'Claim Amount',
+    'Claim Update Date',
+    'Claim Status',
+    'Payment Status',
+    'Payment Date',
+    'Payment Amount',
+    'Payment Remark',
+    'Action',
   ];
+  const TOTAL_COLUMNS = HEADERS.length;
 
   return (
-    <div className="ax-page solar-erp-page">
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{MODAL_FIELD_STYLES}</style>
+
+      {/* ── Page Head ── */}
       <PageHead
         title="View SSL Claim Request"
         subtitle="Manage vendor installation payment claims and billing certifications (Min. 100 Sites)"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Bihar' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/ssl/installation-dashboard' },
           { label: 'Claim Request' },
         ]}
         actions={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
@@ -459,290 +791,311 @@ export function Bihar_Installation_SSL_ClaimRequest() {
         }
       />
 
-      {/* ── KPI Row ── */}
-      {loading ? (
-        <KpiSkeleton count={4} />
-      ) : (
-        <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(37, 99, 235, 0.12)', color: BLUE_PRIMARY, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_CLAIMS}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Total Claims Raised
-              </span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: BLUE_PRIMARY, marginTop: 4 }}>
-              {num(metrics.totalClaims)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Submitted invoices
-            </div>
-          </div>
-
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(100, 116, 139, 0.12)', color: 'var(--ax-text-strong)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_RUPEE}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Total Claim Amount
-              </span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--ax-text-strong)', marginTop: 4 }}>
-              {cur(metrics.totalClaimAmount)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              Combined billing value
-            </div>
-          </div>
-
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(16, 185, 129, 0.14)', color: GREEN_EMERALD, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_APPROVED}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Claims Approved
-              </span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: GREEN_EMERALD, marginTop: 4 }}>
-              {num(metrics.approvedCount)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              {num(metrics.pendingCount)} pending approval
-            </div>
-          </div>
-
-          <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ width: 28, height: 28, borderRadius: 8, background: metrics.eligibleSitesCount >= 100 ? 'rgba(16, 185, 129, 0.14)' : 'rgba(245, 158, 11, 0.14)', color: metrics.eligibleSitesCount >= 100 ? GREEN_EMERALD : AMBER_WARNING, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {ICON_ELIGIBLE}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Eligible Sites Available
-              </span>
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: metrics.eligibleSitesCount >= 100 ? GREEN_EMERALD : AMBER_WARNING, marginTop: 4 }}>
-              {num(metrics.eligibleSitesCount)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-              {metrics.eligibleSitesCount >= 100 ? 'Eligible to raise claim' : 'Need min 100 sites'}
-            </div>
-          </div>
+      {toastMsg && (
+        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
 
-      {/* ── Table Container ── */}
-      <section className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        <div
-          className="ax-card__header"
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-        >
-          {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              type="button"
-              className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('all'); setCurrentPage(1); }}
-            >
-              All Claims ({claims.length})
-            </button>
-            <button
-              type="button"
-              className={`ax-btn ax-btn--sm ${statusFilter === '0' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('0'); setCurrentPage(1); }}
-            >
-              Pending ({metrics.pendingCount})
-            </button>
-            <button
-              type="button"
-              className={`ax-btn ax-btn--sm ${statusFilter === '1' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-              onClick={() => { setStatusFilter('1'); setCurrentPage(1); }}
-            >
-              Approved ({metrics.approvedCount})
-            </button>
-          </div>
+      {/* ── Top Metric KPI Cards (4 cards in 1 row) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone="accent"
+          label="Total Claims Raised"
+          value={num(metrics.totalClaims)}
+          sub="Submitted invoices"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          }
+        />
 
-          {/* Search & Export Toolbar */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <SearchInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder="Search vendor, amount…"
-              size="sm"
-              ariaLabel="Search claim requests"
-            />
-            <TableExportToolbar
-              onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
-              onExportCSV={() => exportDataToCSV('Bihar_SSL_Claims', filtered, exportCols)}
-              onExportExcel={() => exportDataToExcel('Bihar_SSL_Claims', filtered, exportCols)}
-              onExportPDF={() => printTableData('Bihar SSL Claim Requests', filtered, exportCols)}
-            />
+        <KpiCard
+          tone="violet"
+          label="Total Claim Amount"
+          value={cur(metrics.totalClaimAmount)}
+          sub="Combined billing value"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3h12M6 8h12M6 13l8.5 8M6 13h3a4 4 0 0 0 0-8" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Claims Approved"
+          value={num(metrics.approvedCount)}
+          sub={`${num(metrics.pendingCount)} pending approval`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone={metrics.eligibleSitesCount >= 100 ? 'cyan' : 'amber'}
+          label="Eligible Sites Available"
+          value={num(metrics.eligibleSitesCount)}
+          sub={metrics.eligibleSitesCount >= 100 ? 'Eligible to raise claim' : 'Min 100 sites needed'}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Status Tabs ABOVE Table (per requirement) ── */}
+      <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
+        <div className="ax-cluster" role="tablist" aria-label="Claim request status tabs" style={{ gap: 'var(--ax-space-2)' }}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === 'all'}
+            className={`ax-btn ax-btn--sm ${statusFilter === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('all');
+              setPage(1);
+            }}
+          >
+            <span className="ax-btn__label">All Claims ({claims.length})</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === '0'}
+            className={`ax-btn ax-btn--sm ${statusFilter === '0' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('0');
+              setPage(1);
+            }}
+          >
+            <span className="ax-btn__label">Pending ({metrics.pendingCount})</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === '1'}
+            className={`ax-btn ax-btn--sm ${statusFilter === '1' ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+            onClick={() => {
+              setStatusFilter('1');
+              setPage(1);
+            }}
+          >
+            <span className="ax-btn__label">Approved ({metrics.approvedCount})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main Table Card (exact reference design) ── */}
+      <section className="ax-card ax-col--12" id="ssl-claim-tabpanel" role="tabpanel" aria-label="Claim Request">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Completed Claim Request Data</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{claims.length}</span> claims
+              {' '}· Total Claim Amount <b className="ax-num">{cur(metrics.totalClaimAmount)}</b> · Approved <b className="ax-num">{num(metrics.approvedCount)}</b> · Pending <b className="ax-num">{num(metrics.pendingCount)}</b>
+            </p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
+
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, amount…"
+                size="sm"
+                ariaLabel="Search claim requests"
+              />
+
+              <TableExportToolbar
+                onCopy={() => copyToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportToCSV(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filtered, exportCols, fileTitle)}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Data Table */}
-        {loading ? (
-          <TableSkeleton columns={14} rows={6} showCard={false} />
-        ) : (
-          <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
-            <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
-              <thead>
-                <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', width: 50 }}>Sr. No.</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Vendor Name</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>State</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Claim Raised Date</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'right' }}>Site Count</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Claim Invoice</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'right' }}>Claim Amount</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Claim Update Date</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Claim Status</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center' }}>Payment Status</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Payment Date</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'right' }}>Payment Amount</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'left' }}>Payment Remark</th>
-                  <th style={{ padding: '10px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-subtle)', textAlign: 'center', width: 120 }}>Action</th>
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: 1350 }}
+          >
+            <caption className="ax-visually-hidden">Completed Claim Request Data</caption>
+            <thead className="ax-table__head">
+              <tr>
+                {HEADERS.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={
+                      h === 'Action' || h === 'Claim Invoice' || h === 'Claim Status' || h === 'Payment Status'
+                        ? { textAlign: 'center' }
+                        : h === 'Site Count' || h === 'Claim Amount' || h === 'Payment Amount'
+                        ? { textAlign: 'right' }
+                        : undefined
+                    }
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading claim requests from server…
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={14} style={{ padding: 40, textAlign: 'center' }}>
-                      <TableEmptyState
-                        title="No Claims Found"
-                        message={searchQuery ? `No records match "${searchQuery}"` : 'No claim requests available.'}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((r, idx) => {
-                    const rowNum = (currentPage - 1) * pageSize + idx + 1;
-                    const invoiceUrl = getMediaUrl(r.claim_invoice);
-                    const isApproved = r.claim_status === 1;
-                    const isRejected = r.claim_status === 2;
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No claims found"
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search. Try clearing your query.'
+                          : 'No claim requests available.'
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((r, index) => {
+                  const invoiceUrl = getMediaUrl(r.claim_invoice);
+                  const isApproved = r.claim_status === 1;
+                  const isRejected = r.claim_status === 2;
+                  const isPaid = r.payment_status === 1 || String(r.payment_status).toLowerCase() === 'paid';
 
-                    return (
-                      <tr key={r.id || idx} style={{ borderBottom: '1px solid var(--ax-border, #f1f5f9)' }}>
-                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--ax-text-subtle)' }}>{rowNum}</td>
-                        <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-                          {r.vendor_name || r.vendor || '—'}
-                        </td>
-                        <td style={{ padding: '10px 12px', textTransform: 'capitalize' }}>{r.state || 'Bihar'}</td>
-                        <td style={{ padding: '10px 12px', fontSize: 12.5 }}>{r.claim_raised_date || '—'}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: BLUE_PRIMARY }}>
-                          {num(r.claim_site_count)}
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          {invoiceUrl ? (
-                            <a
-                              href={invoiceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: BLUE_PRIMARY }}
-                            >
-                              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                              </svg>
-                              <span>Invoice</span>
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--ax-text-subtle)', fontSize: 12 }}>—</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>
-                          {cur(r.claim_amount)}
-                        </td>
-                        <td style={{ padding: '10px 12px', fontSize: 12.5 }}>{r.claim_update_date || '—'}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              background: isApproved ? '#ecfdf5' : isRejected ? '#fef2f2' : '#fffbeb',
-                              color: isApproved ? GREEN_EMERALD : isRejected ? RED_DANGER : AMBER_WARNING,
-                            }}
+                  return (
+                    <tr key={r.id || index} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="ax-table__td">
+                        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {r.vendor_name || r.vendor || DASH}
+                        </span>
+                      </td>
+                      <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{r.state || 'Bihar'}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.claim_raised_date || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--asw-primary)' }}>
+                        {num(r.claim_site_count)}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {invoiceUrl ? (
+                          <a
+                            href={invoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--asw-primary)' }}
+                            title="View claim invoice"
                           >
-                            {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              background: r.payment_status === 1 || r.payment_status === 'Paid' ? '#ecfdf5' : '#fffbeb',
-                              color: r.payment_status === 1 || r.payment_status === 'Paid' ? GREEN_EMERALD : AMBER_WARNING,
-                            }}
+                            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <span>Invoice</span>
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                        )}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {cur(r.claim_amount)}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.claim_update_date || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={isApproved ? 'success' : isRejected ? 'danger' : 'warning'}>
+                          {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
+                        </Badge>
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={isPaid ? 'success' : 'warning'}>
+                          {r.payment_status || (isPaid ? 'Paid' : 'Pending')}
+                        </Badge>
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.payment_date || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {r.payment_amount ? cur(r.payment_amount) : DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }} title={r.payment_remark || ''}>
+                        {r.payment_remark || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            onClick={() => handleOpenEdit(r)}
+                            title="Update claim details"
                           >
-                            {r.payment_status || 'Pending'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', fontSize: 12.5 }}>{r.payment_date || '—'}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600 }}>
-                          {r.payment_amount ? cur(r.payment_amount) : '—'}
-                        </td>
-                        <td style={{ padding: '10px 12px', fontSize: 12, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.payment_remark || ''}>
-                          {r.payment_remark || '—'}
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                         
+                            Edit
+                          </button>
+                          {r.id && (
                             <button
                               type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => handleOpenEdit(r)}
-                              title="Update claim details"
+                              className="ax-btn ax-btn--ghost ax-btn--sm"
+                              onClick={() => handleDownloadPdf(r.id)}
+                              title="Download claim summary PDF"
                             >
-                              Edit
+                              PDF
                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="ax-card__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
+        {/* ── Table Footer ── */}
+        <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
-              totalItems={filtered.length}
+              totalItems={totalItems}
               pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(sz) => {
-                setPageSize(sz);
-                setCurrentPage(1);
-              }}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
-
-            <style>{MODAL_FIELD_STYLES}</style>
 
       {/* ── Raise Claim Modal (Minimum 100 Sites Rule) ── */}
       {raiseModalOpen && (
@@ -817,7 +1170,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
               )}
               {raiseError && (
                 <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
-                  ⚠ {raiseError}
+                  ✕ {raiseError}
                 </div>
               )}
 
@@ -866,18 +1219,18 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                         tabIndex={0}
                       >
                         <div className="ax-modern-dropzone__icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--asw-primary)' }}>
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
+                            <line x1={12} y1={3} x2={12} y2={15} />
                           </svg>
                         </div>
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-                            Click to upload invoice document
+                            Click to upload signed invoice document
                           </div>
                           <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-                            PDF or Image formats allowed (Max 5 MB)
+                            PDF, JPG, PNG or WEBP (Max 5 MB)
                           </div>
                         </div>
                       </div>
@@ -914,36 +1267,25 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                     )}
                   </div>
 
-                  {/* Site IDs */}
+                  {/* Eligible Site IDs Input */}
                   <div className="ax-modern-field">
                     <div className="ax-modern-label">
-                      <span>Site IDs (Comma-separated) <span className="ax-modern-req">*</span></span>
-                      <span
-                        style={{
-                          fontSize: 11.5,
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          background: siteIdsInput.split(',').filter((s) => s.trim()).length >= 100 ? '#ecfdf5' : '#fef2f2',
-                          color: siteIdsInput.split(',').filter((s) => s.trim()).length >= 100 ? '#065f46' : '#991b1b',
-                          border: '1px solid #cbd5e1',
-                        }}
-                      >
-                        Count: {siteIdsInput.split(',').filter((s) => s.trim()).length} / 100 required
+                      <span>Eligible Site IDs (Comma separated)</span>
+                      <span style={{ fontSize: 11.5, color: eligibleSiteIds.length >= 100 ? '#059669' : '#d97706', fontWeight: 700 }}>
+                        {eligibleSiteIds.length} Eligible Available
                       </span>
                     </div>
                     <textarea
                       className="ax-modern-textarea"
                       rows={4}
-                      placeholder="e.g. 101, 102, 103..."
                       value={siteIdsInput}
                       onChange={(e) => setSiteIdsInput(e.target.value)}
+                      placeholder="e.g. 101, 102, 103..."
                       required
-                      style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 12.5 }}
                     />
-                    <small style={{ color: 'var(--ax-text-muted, #64748b)', fontSize: 11.5, marginTop: 2 }}>
-                      Auto-populated from your {eligibleSiteIds.length} eligible installed sites.
-                    </small>
+                    <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                      Total IDs provided: <b>{siteIdsInput.split(',').filter((s) => s.trim()).length}</b> (Minimum 100 required)
+                    </div>
                   </div>
                 </div>
 
@@ -961,7 +1303,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                     className="ax-btn ax-btn--primary"
                     disabled={raiseSubmitting}
                   >
-                    {raiseSubmitting ? 'Submitting…' : 'Submit Claim Request'}
+                    {raiseSubmitting ? 'Raising Claim…' : 'Submit Claim'}
                   </button>
                 </div>
               </form>
@@ -970,7 +1312,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
         </div>
       )}
 
-      {/* ── Edit Claim Raised Modal (API 12) ── */}
+      {/* ── Edit Claim Modal ── */}
       {editModalOpen && editingClaim && (
         <div
           className="ax-modal"
@@ -994,7 +1336,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             style={{
               background: '#fff',
               borderRadius: 16,
-              maxWidth: 520,
+              maxWidth: 580,
               width: '100%',
               overflow: 'hidden',
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
@@ -1015,10 +1357,10 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             >
               <div>
                 <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
-                  Update Claim Request (#{editingClaim.id})
+                  Edit Claim Raised (#{editingClaim.id})
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                  Modify claim amount or replace the invoice document
+                  Update claim amount or replace invoice document
                 </p>
               </div>
               <button
@@ -1038,13 +1380,13 @@ export function Bihar_Installation_SSL_ClaimRequest() {
             <div className="ax-modal__body" style={{ padding: 24 }}>
               {editError && (
                 <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
-                  ⚠ {editError}
+                  ✕ {editError}
                 </div>
               )}
 
               <form onSubmit={handleEditSubmit}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* Amount Field */}
+                  {/* Claim Amount */}
                   <div className="ax-modern-field">
                     <label className="ax-modern-label" htmlFor="ec-claim-amount">
                       <span>Claim Amount (₹)</span>
@@ -1065,7 +1407,7 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                     </div>
                   </div>
 
-                  {/* Document Upload */}
+                  {/* Replace Invoice */}
                   <div className="ax-modern-field">
                     <div className="ax-modern-label">
                       <span>Replace Invoice Document</span>
@@ -1086,10 +1428,10 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                         tabIndex={0}
                       >
                         <div className="ax-modern-dropzone__icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--ax-primary, #3b82f6)' }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: 'var(--asw-primary)' }}>
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                             <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
+                            <line x1={12} y1={3} x2={12} y2={15} />
                           </svg>
                         </div>
                         <div style={{ textAlign: 'center' }}>
@@ -1108,8 +1450,8 @@ export function Bihar_Installation_SSL_ClaimRequest() {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
                               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                               <polyline points="14 2 14 8 20 8" />
-                              <line x1="16" y1="13" x2="8" y2="13" />
-                              <line x1="16" y1="17" x2="8" y2="17" />
+                              <line x1={16} y1="13" x2="8" y2="13" />
+                              <line x1={16} y1="17" x2="8" y2="17" />
                               <polyline points="10 9 9 9 8 9" />
                             </svg>
                           </span>
