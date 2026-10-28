@@ -989,14 +989,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     w.focus();
   };
 
-  const toolbarColumns = exportCols.map((c, i) => ({
-    key: `${c.header}-${i}`,
-    label: c.header,
-    visible: !hiddenColumns.includes(`${c.header}-${i}`),
-  }));
   const activeCols = exportCols.filter((c, i) => !hiddenColumns.includes(`${c.header}-${i}`));
-  const toggleColumn = (key: string) =>
-    setHiddenColumns((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const TOTAL_COLUMNS = 31;
 
@@ -1104,8 +1097,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                   onExportCSV={() => exportToCSV(filteredSites, activeCols, `Bihar_ULA_Installation_${stamp}`)}
                   onExportExcel={() => exportToExcel(filteredSites, activeCols, `Bihar_ULA_Installation_${stamp}`)}
                   onExportPDF={() => exportToPDF(filteredSites, activeCols, 'Bihar ULA Installation')}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+
                 />
               </div>
             </div>

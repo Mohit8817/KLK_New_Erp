@@ -1,5 +1,4 @@
-import { useState, useRef } from 'react';
-import { useClickOutside } from '../hooks/useClickOutside';
+import { useState } from 'react';
 
 export interface ColumnDef {
   key: string;
@@ -93,39 +92,6 @@ const ICON_PDF = (
   </svg>
 );
 
-const ICON_COLUMNS = (
-  <svg
-    viewBox="0 0 24 24"
-    width="14"
-    height="14"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="18" height="18" rx="2" />
-    <line x1="12" y1="3" x2="12" y2="21" />
-  </svg>
-);
-
-const ICON_CHEVRON = (
-  <svg
-    viewBox="0 0 24 24"
-    width="12"
-    height="12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
-);
-
 const TOOLBAR_CSS = `
   .ax-export-toolbar {
     width: 100%;
@@ -150,24 +116,6 @@ const TOOLBAR_CSS = `
     gap: 6px;
   }
 
-  .ax-export-toolbar__columns {
-    position: relative;
-    min-width: 0;
-    flex: 0 0 auto;
-  }
-
-  .ax-export-toolbar__menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 1000;
-    width: 220px;
-    max-width: min(220px, calc(100vw - 24px));
-    max-height: min(300px, 60vh);
-    overflow-y: auto;
-    box-sizing: border-box;
-  }
-
   /* Tablet */
   @media (max-width: 900px) {
     .ax-export-toolbar {
@@ -175,7 +123,7 @@ const TOOLBAR_CSS = `
     }
   }
 
-  /* Mobile: export buttons ek row mein, Columns neeche full width */
+  /* Mobile */
   @media (max-width: 640px) {
     .ax-export-toolbar {
       display: grid;
@@ -195,48 +143,39 @@ const TOOLBAR_CSS = `
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    .ax-export-toolbar__columns {
-      grid-column: 1 / -1;
-    }
-
-    /* Columns menu: bottom sheet, thumb se easily reachable */
-    .ax-export-toolbar__menu {
-      position: fixed;
-      left: 12px;
-      right: 12px;
-      top: auto;
-      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-      width: auto;
-      max-width: none;
-      max-height: 60vh;
-    }
-
-    .ax-export-toolbar__item {
-      min-height: 44px;
-      padding: 10px 8px !important;
-      font-size: 14px !important;
-    }
-
-    .ax-export-toolbar__item input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-    }
   }
 
-  /* Very small phones */
-  @media (max-width: 380px) {
+  @media (max-width: 480px) {
     .ax-export-toolbar {
-      grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 6px;
     }
 
     .ax-export-toolbar__button {
-      font-size: 10px !important;    
-        padding: 3px 4px !important;
-      gap: 2px;
+      min-height: 38px;
+      font-size: var(--ax-text-xs, 12px) !important;
+      padding: 6px 8px !important;
     }
 
+    .ax-export-toolbar__button svg {
+      width: 13px !important;
+      height: 13px !important;
+      flex-shrink: 0;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .ax-export-toolbar {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+
+    .ax-export-toolbar__button {
+      min-height: 36px;
+      font-size: 11px !important;
+      padding: 4px 6px !important;
+      gap: 4px;
+    }
 
     .ax-export-toolbar__button svg {
       width: 12px !important;
@@ -251,20 +190,9 @@ export function TableExportToolbar({
   onExportCSV,
   onExportExcel,
   onExportPDF,
-  columns,
-  onToggleColumn,
   className = '',
 }: TableExportToolbarProps) {
   const [copied, setCopied] = useState(false);
-  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
-
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useClickOutside(
-    menuRef,
-    showColumnsMenu,
-    () => setShowColumnsMenu(false)
-  );
 
   const handleCopyClick = () => {
     if (!onCopy) return;
@@ -285,7 +213,7 @@ export function TableExportToolbar({
       <div
         className={`ax-export-toolbar ${className}`.trim()}
         role="toolbar"
-        aria-label="Export and table controls"
+        aria-label="Export controls"
       >
         {onCopy && (
           <button
@@ -335,115 +263,6 @@ export function TableExportToolbar({
             {ICON_PDF}
             <span className="ax-btn__label">PDF</span>
           </button>
-        )}
-
-        {columns && columns.length > 0 && onToggleColumn && (
-          <div
-            ref={menuRef}
-            className="ax-export-toolbar__columns"
-          >
-            <button
-              type="button"
-              className={`
-                ax-btn
-                ax-btn--secondary
-                ax-btn--sm
-                ax-export-toolbar__button
-                ${showColumnsMenu ? 'is-active' : ''}
-              `.trim()}
-              onClick={() =>
-                setShowColumnsMenu((prev) => !prev)
-              }
-              aria-expanded={showColumnsMenu}
-              aria-haspopup="true"
-              title="Toggle visible columns"
-            >
-              {ICON_COLUMNS}
-
-              <span className="ax-btn__label">
-                Columns
-              </span>
-
-              {ICON_CHEVRON}
-            </button>
-
-            {showColumnsMenu && (
-              <div
-                className="ax-dropdown-menu ax-export-toolbar__menu"
-                style={{
-                  background:
-                    'var(--ax-surface-overlay, #ffffff)',
-                  border:
-                    '1px solid var(--ax-border, #d9dee7)',
-                  borderRadius:
-                    'var(--ax-radius-md, 10px)',
-                  boxShadow:
-                    'var(--ax-shadow-lg, 0 12px 30px rgba(0,0,0,.12))',
-                  padding:
-                    'var(--ax-space-2, 8px)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 'var(--ax-text-xs, 12px)',
-                    fontWeight: 600,
-                    color: 'var(--ax-text-muted, #667085)',
-                    padding: '6px 8px',
-                    borderBottom:
-                      '1px solid var(--ax-border-subtle, #eef1f5)',
-                    marginBottom: 4,
-                  }}
-                >
-                  Toggle Columns
-                </div>
-
-                {columns.map((column) => (
-                  <label
-                    key={column.key}
-                    className="ax-dropdown-item"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '7px 8px',
-                      fontSize:
-                        'var(--ax-text-xs, 12px)',
-                      color:
-                        'var(--ax-text, #344054)',
-                      cursor: 'pointer',
-                      borderRadius:
-                        'var(--ax-radius-sm, 6px)',
-                      userSelect: 'none',
-                      minWidth: 0,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={column.visible}
-                      onChange={() =>
-                        onToggleColumn(column.key)
-                      }
-                      style={{
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    />
-
-                    <span
-                      style={{
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {column.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
         )}
       </div>
     </>

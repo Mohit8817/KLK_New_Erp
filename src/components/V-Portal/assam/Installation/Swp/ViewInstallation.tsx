@@ -40,17 +40,19 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
-const VerifyBadge = ({ value }: { value: number }) =>
-  value === 1 ? <Badge tone="success">Approved</Badge>
-  : value === 2 ? <Badge tone="danger">Rejected</Badge>
-  : <Badge tone="warning">Pending</Badge>;
+const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
+  const r = String(raw ?? '').toLowerCase().trim();
+  if (value === 1 || r === '1' || r === 'approved') return <Badge tone="success">Approved</Badge>;
+  if (value === 2 || r === '2' || r === 'rejected' || r === 'reject') return <Badge tone="danger">Rejected</Badge>;
+  return <Badge tone="warning">Pending</Badge>;
+};
 
 const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string | null }) => {
   const s = Number(status ?? 0);
   const hasDoc = Boolean(docUrl && docUrl !== '—' && docUrl.trim() !== '');
   if (s === 2) return <Badge tone="success">Approved</Badge>;
   if (s === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (s === 1 || hasDoc) return <Badge tone="warning">Pending</Badge>;
+  if (s === 1 || hasDoc) return <Badge tone="warning">Submitted (Pending)</Badge>;
   return <Badge tone="neutral">Not Submitted</Badge>;
 };
 
@@ -359,7 +361,7 @@ function RowActionDropdown({
                 onEdit();
               }}
             >
-              ✏️ Edit Details
+             Edit Details
             </button>
             <button
               type="button"
@@ -370,7 +372,7 @@ function RowActionDropdown({
                 onSubmitDoc();
               }}
             >
-              📄 Submit Document
+              Submit Document
             </button>
           </div>,
           document.body
@@ -381,6 +383,88 @@ function RowActionDropdown({
 
 /* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
 const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__dialog--md { max-width: 580px; }
+  .ax-modal__dialog--lg { max-width: 900px; }
+  .ax-modal__header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body {
+    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
+  }
+  .ax-modal__footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  }
+
+  /* ── Modern Form Controls & Dropzone (Matching Bihar SSL Supply Inspection design) ── */
+  .ax-modern-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em; margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444; font-weight: 700; margin-left: 3px;
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px; padding: 18px 16px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    text-align: center; cursor: pointer; transition: all 0.2s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #2563eb);
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+  }
+  .ax-modern-dropzone__icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 9px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #dcfce7; display: flex; align-items: center; justify-content: center;
+  }
+
   .ax-modal img { border-radius: 0 !important; }
 
   .ula-m-stage {
@@ -677,7 +761,7 @@ function KpiCard({
 
 // Columns for Assam SWP
 const COMMON_HEADERS = [
-  'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number', 'Customer No.',
+  'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number',
   'Pump Capacity', 'Pump Type', 'Inverter No.', 'VFD No.', 'Module Serials',
   'Module Photo', 'Inverter & VFD Photo', 'Running Water Photo',
   'Latitude', 'Longitude', 'Remark', 'Verify Status', 'Document Status', 'Claim Status', 'Action',
@@ -701,10 +785,12 @@ export function ViewInstallation() {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docSubmitting, setDocSubmitting] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+  const docFileRef = useRef<HTMLInputElement>(null);
   const closeDocModal = useCallback(() => {
     setDocModalSite(null);
     setDocFile(null);
     setDocError(null);
+    if (docFileRef.current) docFileRef.current.value = '';
   }, []);
 
   // Toast / feedback message
@@ -716,19 +802,76 @@ export function ViewInstallation() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
+  // Persistent storage key for uploaded installation documents
+  const UPLOADED_DOCS_KEY = 'assam_swp_uploaded_docs';
+
+  const getUploadedDocsFromStorage = useCallback((): Record<string, { siteId: string; id: string; fileName: string; uploadedAt: string; status: number }> => {
+    try {
+      const raw = localStorage.getItem(UPLOADED_DOCS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+  }, []);
+
+  const saveUploadedDocToStorage = useCallback((item: { siteId: string; id: string; fileName: string; uploadedAt: string; status: number }) => {
+    try {
+      const map = getUploadedDocsFromStorage();
+      map[item.id] = item;
+      if (item.siteId && item.siteId !== item.id) {
+        map[item.siteId] = item;
+      }
+      localStorage.setItem(UPLOADED_DOCS_KEY, JSON.stringify(map));
+    } catch {}
+  }, [getUploadedDocsFromStorage]);
+
   // Load real data from API 7
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await assamSwpService.getViewInstallSite();
-      setData(res);
+      const cachedDocs = getUploadedDocsFromStorage();
+
+      // Merge local persistence so uploaded docs aren't wiped out if backend status lags
+      const mergedSites = (res.sites || []).map((s) => {
+        const rowId = String(s.id);
+        const siteId = s.site_id ? String(s.site_id) : '';
+        const cached = cachedDocs[rowId] || (siteId ? cachedDocs[siteId] : null);
+
+        if (cached) {
+          const currentStatus = Number(s.inst_doc_status ?? 0);
+          if (currentStatus !== 2 && currentStatus !== 3) {
+            return {
+              ...s,
+              inst_doc_status: 1,
+              document_status: 1,
+              documentStatus: 'Submitted',
+              inst_doc: s.inst_doc || s.doc_file || cached.fileName,
+              doc_file: s.doc_file || s.inst_doc || cached.fileName,
+            };
+          }
+        }
+        return s;
+      });
+
+      const docPendingCount = mergedSites.filter((s) => Number(s.inst_doc_status) === 1).length;
+      const docApprovedCount = mergedSites.filter((s) => Number(s.inst_doc_status) === 2).length;
+
+      setData({
+        ...res,
+        sites: mergedSites,
+        install_detail: {
+          ...res.install_detail,
+          doc_pending: docPendingCount,
+          doc_approved: docApprovedCount,
+        },
+      });
     } catch (err: any) {
       console.error('[Assam SWP ViewInstallation] load error:', err);
       setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites from server.' });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getUploadedDocsFromStorage]);
 
   useEffect(() => {
     loadData();
@@ -750,33 +893,70 @@ export function ViewInstallation() {
     setDocError(null);
     setDocSubmitting(true);
     try {
+      const rowId = String(docModalSite.id);
       const siteId = String(docModalSite.site_id || docModalSite.id);
+      const todayStr = new Date().toISOString().slice(0, 10);
+
       const fd = new FormData();
-      // Backend validates site_id and doc_file
+      // Backend validates site_id and doc_file (append all ID aliases)
       fd.append('site_id', siteId);
-      fd.append('id', siteId);
+      fd.append('id', rowId);
+      fd.append('install_id', rowId);
+      fd.append('installation_id', rowId);
+
+      // Append all file aliases
       fd.append('doc_file', docFile);
       fd.append('inst_doc', docFile);
+      fd.append('document', docFile);
+      fd.append('file', docFile);
+      fd.append('doc', docFile);
+
+      // Append metadata
+      fd.append('date', todayStr);
+      fd.append('doc_date', todayStr);
+      fd.append('remarks', 'Installation document uploaded');
+      fd.append('doc_remarks', 'Installation document uploaded');
 
       await assamSwpService.submitInstallationDoc(fd);
       setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${siteId}!` });
 
+      // Save to localStorage so status persists across reload & API refresh
+      saveUploadedDocToStorage({
+        siteId,
+        id: rowId,
+        fileName: docFile.name,
+        uploadedAt: todayStr,
+        status: 1,
+      });
+
       // Optimistically update document status to Pending in local table
       setData((prev) => {
         if (!prev || !prev.sites) return prev;
+        const updatedSites = prev.sites.map((s) => {
+          const isMatch =
+            String(s.id) === rowId ||
+            String(s.id) === siteId ||
+            (s.site_id && (String(s.site_id) === siteId || String(s.site_id) === rowId));
+          if (isMatch) {
+            return {
+              ...s,
+              inst_doc_status: 1,
+              document_status: 1,
+              documentStatus: 'Submitted',
+              inst_doc: docFile.name,
+              doc_file: docFile.name,
+            };
+          }
+          return s;
+        });
+
         return {
           ...prev,
-          sites: prev.sites.map((s) =>
-            String(s.id) === siteId || String(s.site_id) === siteId
-              ? {
-                  ...s,
-                  inst_doc_status: 1,
-                  document_status: 1,
-                  inst_doc: docFile.name,
-                  doc_file: docFile.name,
-                }
-              : s
-          ),
+          sites: updatedSites,
+          install_detail: {
+            ...prev.install_detail,
+            doc_pending: updatedSites.filter((s) => Number(s.inst_doc_status) === 1).length,
+          },
         };
       });
 
@@ -792,9 +972,9 @@ export function ViewInstallation() {
   // Filtered sites
   const filteredSites = useMemo(() => {
     let list = allSites;
-    if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1);
-    else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2);
-    else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0);
+    if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'approved');
+    else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'rejected');
+    else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'pending');
 
     const q = search.trim().toLowerCase();
     if (q) {
@@ -868,7 +1048,6 @@ export function ViewInstallation() {
     { header: 'Farmer Name', accessor: (r) => txt(r, 'farmer_name') },
     { header: 'Father Name', accessor: (r) => txt(r, 'father_name') },
     { header: 'Contact Number', accessor: (r) => txt(r, 'farmer_contact') },
-    { header: 'Customer No.', accessor: (r) => txt(r, 'customer_no') },
     { header: 'Pump Capacity', accessor: (r) => txt(r, 'pump_capacity') },
     { header: 'Pump Type', accessor: (r) => `${txt(r, 'pump_type')} ${txt(r, 'pump_sub_type')}`.trim() },
     { header: 'Inverter No.', accessor: (r) => txt(r, 'inverter_no') },
@@ -882,11 +1061,24 @@ export function ViewInstallation() {
     { header: 'Remark', accessor: (r) => r.inst_remarks || r.remarks || '' },
     {
       header: 'Verify Status',
-      accessor: (r) => (Number(r.inst_verify_status ?? r.verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status ?? r.verify_status) === 2 ? 'Rejected' : 'Pending'),
+      accessor: (r) => {
+        const v = Number(r.inst_verify_status ?? r.verify_status);
+        const str = String(r.inst_verify_status ?? r.verify_status ?? '').toLowerCase().trim();
+        if (v === 1 || str === '1' || str === 'approved') return 'Approved';
+        if (v === 2 || str === '2' || str === 'rejected') return 'Rejected';
+        return 'Pending';
+      },
     },
     {
       header: 'Document Status',
-      accessor: (r) => (Number(r.inst_doc_status ?? r.document_status) === 2 ? 'Approved' : Number(r.inst_doc_status ?? r.document_status) === 3 ? 'Rejected' : Number(r.inst_doc_status ?? r.document_status) === 1 ? 'Pending' : 'Not Submitted'),
+      accessor: (r) => {
+        const s = Number(r.inst_doc_status ?? r.document_status);
+        const hasDoc = Boolean(r.inst_doc || r.doc_file || r.document);
+        if (s === 2) return 'Approved';
+        if (s === 3) return 'Rejected';
+        if (s === 1 || hasDoc) return 'Submitted (Pending)';
+        return 'Not Submitted';
+      },
     },
     {
       header: 'Claim Status',
@@ -1175,6 +1367,8 @@ export function ViewInstallation() {
                   const ser = fmtSerials(row.module_serial_no || row.module_serials);
                   const blockText = txt(row, 'block') || txt(row, 'tehsil');
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
+                  const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
+                  const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
                   const dStatus = Number(row.inst_doc_status ?? row.document_status ?? 0);
                   const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
 
@@ -1191,7 +1385,6 @@ export function ViewInstallation() {
                       </td>
                       <td className="ax-table__td">{row.father_name || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.farmer_contact || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{row.customer_no || DASH}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--asw-primary)' }}>
                         {row.pump_capacity || DASH}
                       </td>
@@ -1252,7 +1445,7 @@ export function ViewInstallation() {
 
                       {/* Status Badges */}
                       <td className="ax-table__td">
-                        <VerifyBadge value={vStatus} />
+                        <VerifyBadge value={vStatus} raw={row.inst_verify_status ?? row.verify_status} />
                       </td>
                       <td className="ax-table__td">
                         <DocBadge status={dStatus} docUrl={docUrl} />
@@ -1261,16 +1454,52 @@ export function ViewInstallation() {
                         <ClaimBadge status={cStatus} />
                       </td>
 
-                      {/* Portal-based RowActionDropdown (Open Document button removed) */}
+                      {/* Action: Locked if Verify Status is Approved, otherwise RowActionDropdown */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <RowActionDropdown
-                          onEdit={() => navigate(`/v/assam/installation/swp/site?edit_id=${row.id}`)}
-                          onSubmitDoc={() => {
-                            setDocModalSite(row);
-                            setDocFile(null);
-                            setDocError(null);
-                          }}
-                        />
+                        {isVerifyApproved ? (
+                          <span
+                            className="ax-badge ax-badge--soft"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              padding: '5px 11px',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              color: 'var(--ax-text-muted, #64748b)',
+                              background: 'var(--ax-surface-subtle, #f1f5f9)',
+                              border: '1px solid var(--ax-border, #cbd5e1)',
+                              borderRadius: 6,
+                              cursor: 'not-allowed',
+                              userSelect: 'none',
+                            }}
+                            title="Installation Verified & Approved. Actions are locked."
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              style={{ width: 13, height: 13, color: '#64748b' }}
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Locked</span>
+                          </span>
+                        ) : (
+                          <RowActionDropdown
+                            onEdit={() => navigate(`/v/assam/installation/swp/site?edit_id=${row.id}`)}
+                            onSubmitDoc={() => {
+                              setDocModalSite(row);
+                              setDocFile(null);
+                              setDocError(null);
+                            }}
+                          />
+                        )}
                       </td>
                     </tr>
                   );
@@ -1303,52 +1532,123 @@ export function ViewInstallation() {
           <form onSubmit={handleDocSubmit}>
             <div className="ax-modal__header">
               <div>
-                <h2 className="ax-modal__title" id="swp-doc-title">Submit Installation Document</h2>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Site: <b>{docModalSite.farmer_name || DASH}</b> (#{docModalSite.id})
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="swp-doc-title">
+                  Submit Installation Document
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  Site: <b>{docModalSite.farmer_name || DASH}</b> (#{docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
                 </p>
               </div>
-              <button type="button" className="ax-modal__close" onClick={closeDocModal} aria-label="Close dialog">{X_ICON}</button>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={closeDocModal}
+                disabled={docSubmitting}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {docError && (
-                <div className="ax-alert ax-alert--danger" role="alert">
-                  <div className="ax-alert__text">{docError}</div>
+                <div style={{ padding: 12, borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 600, border: '1px solid #fecaca' }}>
+                  ✕ {docError}
                 </div>
               )}
 
-              <p className="ula-m-note">
-                Upload installation handover sheet, joint inspection report or invoice document (PDF, PNG, JPG).
-              </p>
-
-              <div className="ax-field">
-                <label className="ax-label" htmlFor="swp-doc-file">
-                  Document File <Req />
-                </label>
-                <input
-                  id="swp-doc-file"
-                  type="file"
-                  className="ax-input"
-                  accept=".pdf,image/*"
-                  required
-                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                />
+              <div style={{ fontSize: 12.5, color: 'var(--ax-text-muted, #64748b)', background: 'var(--ax-surface-subtle, #f8fafc)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)' }}>
+                Upload installation handover sheet, joint inspection report or signed invoice document (PDF, JPG, PNG).
               </div>
 
-              {docFile && (
-                <div className="ula-m-info">
-                  <span>Selected file:</span> <b>{docFile.name}</b> ({(docFile.size / 1024).toFixed(1)} KB)
-                </div>
-              )}
+              {/* Modern Document Upload */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label">
+                  <span>Installation Document (File)</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <input
+                  ref={docFileRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                />
+                {!docFile ? (
+                  <div
+                    className="ax-modern-dropzone"
+                    onClick={() => docFileRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="ax-modern-dropzone__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                        Click to upload installation document
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                        Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ax-modern-file-chip">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span className="ax-modern-file-chip__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {docFile.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                          {(docFile.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                      onClick={() => {
+                        setDocFile(null);
+                        if (docFileRef.current) docFileRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeDocModal} disabled={docSubmitting}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={closeDocModal}
+                disabled={docSubmitting}
+              >
                 Cancel
               </button>
-              <button type="submit" className="ax-btn ax-btn--primary" disabled={docSubmitting || !docFile}>
-                {docSubmitting ? <span className="ax-spinner" /> : 'Upload Document'}
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={docSubmitting || !docFile}
+              >
+                {docSubmitting ? 'Uploading…' : 'Upload Document'}
               </button>
             </div>
           </form>

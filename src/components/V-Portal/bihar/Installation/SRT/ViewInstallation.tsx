@@ -679,17 +679,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   };
 
   const hiddenColumns = hiddenByTab[tab];
-  const toolbarColumns = exportCols.map((c, i) => ({
-    key: `${c.header}-${i}`,
-    label: c.header,
-    visible: !hiddenColumns.includes(`${c.header}-${i}`),
-  }));
   const activeCols = exportCols.filter((c, i) => !hiddenColumns.includes(`${c.header}-${i}`));
-  const toggleColumn = (key: string) =>
-    setHiddenByTab((prev) => ({
-      ...prev,
-      [tab]: prev[tab].includes(key) ? prev[tab].filter((k) => k !== key) : [...prev[tab], key],
-    }));
 
   const headers = isCompleted ? [...COMMON_HEADERS, 'Verify Status', 'Claim Status', 'Action'] : COMMON_HEADERS;
   const TOTAL_COLUMNS = headers.length;
@@ -814,8 +804,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                   onExportCSV={() => exportToCSV(filteredSites, activeCols, `${fileBase}_${stamp}`)}
                   onExportExcel={() => exportToExcel(filteredSites, activeCols, `${fileBase}_${stamp}`)}
                   onExportPDF={() => exportToPDF(filteredSites, activeCols, fileTitle)}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+
                 />
               </div>
             </div>

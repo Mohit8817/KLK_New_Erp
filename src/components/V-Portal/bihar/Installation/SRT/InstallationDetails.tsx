@@ -725,7 +725,6 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       setLoadingDetail(false);
     }
   };
-
   // Text inputs handler
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -890,15 +889,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   : 'Fill out installation details and upload site completion evidence for department verification.'}
               </p>
             </div>
-            {isEditMode ? (
-              <span className="ax-badge ax-badge--soft ax-badge--warning">
-                Editing Mode #{editId}
-              </span>
-            ) : siteDetail ? (
-              <span className="ax-badge ax-badge--soft ax-badge--info">
-                Site ID #{siteDetail.id}
-              </span>
-            ) : null}
+     
           </div>
 
           {/* Quick Nav Pills */}

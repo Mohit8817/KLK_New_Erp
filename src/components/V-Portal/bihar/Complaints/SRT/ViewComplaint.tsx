@@ -16,7 +16,6 @@ import {
   exportDataToExcel,
   printTableData,
   type ExportColumn,
-  type ColumnDef,
 } from '../../../../../common';
 
 type Row = BiharSrtComplaintItem;
@@ -310,12 +309,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
     []
   );
   const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
-  const toolbarColumns: ColumnDef[] = useMemo(
-    () => exportCols.map((c) => ({ key: c.header, label: c.header, visible: !hiddenCols.includes(c.header) })),
-    [exportCols, hiddenCols]
-  );
-  const toggleColumn = (key: string) =>
-    setHiddenCols((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
 
   const handleCopy = () => copyTableDataToClipboard(filteredComplaints, activeExportCols);
   const handleCsv = () => exportDataToCSV('Bihar_SRT_Complaints', filteredComplaints, activeExportCols);
@@ -479,8 +473,7 @@ export function Bihar_Complaint_SRT_ViewComplaint() {
                   onExportCSV={handleCsv}
                   onExportExcel={handleExcel}
                   onExportPDF={handlePdf}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+
                 />
               </div>
             </div>

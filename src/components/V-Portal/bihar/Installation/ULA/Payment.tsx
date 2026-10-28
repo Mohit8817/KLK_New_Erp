@@ -11,6 +11,7 @@ import {
   Pagination,
   usePagination,
   TableEmptyState,
+  KpiSkeleton,
   copyTableDataToClipboard,
   exportDataToCSV,
   exportDataToExcel,
@@ -42,56 +43,44 @@ const ICON_EYE = (
 const inr = (v: unknown) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 
 
-type KpiTone = 'blue' | 'cyan' | 'emerald' | 'amber';
+/* ───────── KPI Card (exact same as ULA/SRT Request Accept & standard V-Portal) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
-const KPI_TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  blue: { bg: 'color-mix(in srgb, var(--ax-accent) 12%, transparent)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in srgb, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in srgb, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in srgb, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
 };
 
-const KPI_ICON_PROPS = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.75,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
-  'aria-hidden': true,
-};
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
-function PaymentKpiCard({
-  icon, tone, label, value, unit, sub, badge,
+function KpiCard({
+  icon, tone, label, value, sub,
 }: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  unit?: string;
-  sub: string;
-  badge: string;
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; sub: string;
 }) {
-  const t = KPI_TONE[tone];
+  const t = TONE[tone];
   return (
-    <div className="bsv-payment-kpi ax-col--3" role="region" aria-label={label}>
-      <div className="bsv-payment-kpi__body">
-        <div className="bsv-payment-kpi__head">
-          <div className="bsv-payment-kpi__title-wrap">
-            <span className="bsv-payment-kpi__icon" style={{ background: t.bg, color: t.fg }}>
-              <svg {...KPI_ICON_PROPS}>{icon}</svg>
-            </span>
-            <span className="bsv-payment-kpi__label">{label}</span>
-          </div>
-          <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill bsv-payment-kpi__badge">
-            {badge}
-          </span>
-        </div>
-        <div className="bsv-payment-kpi__value-row">
-          <span className="bsv-payment-kpi__value">{value}</span>
-          {unit && <span className="bsv-payment-kpi__unit">{unit}</span>}
-        </div>
-        <div className="bsv-payment-kpi__caption">{sub}</div>
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -360,39 +349,40 @@ export function Bihar_Installation_ULA_Payment() {
       />
 
       <div className="ax-dash-grid">
-        {/* KPI Summary Cards — same card structure as Bihar_Survey_SRT200MW_ViewData */}
-        <PaymentKpiCard
-          tone="blue"
-          label="Total Claims Raised"
-          value={totalClaims}
-          sub="Batches submitted for payout"
-          badge="All Claims"
-          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
-        />
-        <PaymentKpiCard
-          tone="cyan"
-          label="Total Claim Amount"
-          value={inr(totalClaimAmount)}
-          sub="Cumulative invoice claims"
-          badge="Invoiced"
-          icon={<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>}
-        />
-        <PaymentKpiCard
-          tone="emerald"
-          label="Total Paid Amount"
-          value={inr(totalPaidAmount)}
-          sub="Amount credited to vendor"
-          badge="Disbursed"
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M8 12l2.5 2.5L16 9" /></>}
-        />
-        <PaymentKpiCard
-          tone="amber"
-          label="Disbursement Balance"
-          value={inr(totalBalanceAmount)}
-          sub="Awaiting bank settlement"
-          badge="Pending Balance"
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-        />
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Claims Raised"
+              value={totalClaims.toLocaleString('en-IN')}
+              sub="Batches submitted for payout"
+              icon={svg(<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>)}
+            />
+            <KpiCard
+              tone="cyan"
+              label="Total Claim Amount"
+              value={inr(totalClaimAmount)}
+              sub="Cumulative invoice claims"
+              icon={svg(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Total Paid Amount"
+              value={inr(totalPaidAmount)}
+              sub="Amount credited to vendor"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M8 12l2.5 2.5L16 9" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Disbursement Balance"
+              value={inr(totalBalanceAmount)}
+              sub="Awaiting bank settlement"
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>)}
+            />
+          </>
+        )}
 
         {/* Tabs Row for quick filter */}
         <div className="ax-col--12">

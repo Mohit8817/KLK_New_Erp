@@ -19,7 +19,6 @@ import {
   exportDataToExcel,
   printTableData,
   type ExportColumn,
-  type ColumnDef,
 } from '../../../../../common';
 
 const DASH = '—';
@@ -583,21 +582,7 @@ export function Bihar_Survey_ULA_ViewData() {
     [exportCols, hiddenCols]
   );
 
-  const toolbarColumns: ColumnDef[] = useMemo(
-    () =>
-      exportCols.map((c) => ({
-        key: c.header,
-        label: c.header,
-        visible: !hiddenCols.includes(c.header),
-      })),
-    [exportCols, hiddenCols]
-  );
 
-  const toggleColumn = (key: string) => {
-    setHiddenCols((prev) =>
-      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
-    );
-  };
 
   const handleCopy = () => copyTableDataToClipboard(filteredSurveys, activeExportCols);
   const handleCsv = () => exportDataToCSV('Bihar_ULA_Surveys', filteredSurveys, activeExportCols);
@@ -763,8 +748,7 @@ export function Bihar_Survey_ULA_ViewData() {
                   onExportCSV={handleCsv}
                   onExportExcel={handleExcel}
                   onExportPDF={handlePdf}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+
                 />
               </div>
             </div>

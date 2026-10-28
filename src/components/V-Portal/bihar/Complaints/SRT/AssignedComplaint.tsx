@@ -17,7 +17,6 @@ import {
   TableSkeleton,
   KpiSkeleton,
   type ExportColumn,
-  type ColumnDef,
   exportDataToCSV,
   exportDataToExcel,
   copyTableDataToClipboard,
@@ -467,15 +466,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     []
   );
   const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
-  const toolbarColumns: ColumnDef[] = useMemo(
-    () => [
-      ...COLS.map((c) => ({ key: c.key, label: c.th, visible: !hiddenCols.includes(c.key) })),
-      { key: 'Approval Status', label: 'Approval Status', visible: !hiddenCols.includes('Approval Status') },
-    ],
-    [hiddenCols]
-  );
-  const toggleColumn = (key: string) =>
-    setHiddenCols((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
 
   const handleCopy = () => copyTableDataToClipboard(filtered, activeExportCols);
   const handleExportCSV = () => exportDataToCSV(`Bihar_SRT_Assigned_${activeTab}`, filtered, activeExportCols);
@@ -645,8 +636,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   onExportCSV={handleExportCSV}
                   onExportExcel={handleExportExcel}
                   onExportPDF={handleExportPDF}
-                  columns={toolbarColumns}
-                  onToggleColumn={toggleColumn}
+
                 />
               </div>
             </div>

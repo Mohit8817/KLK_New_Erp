@@ -221,6 +221,12 @@ export interface ClaimItem {
 export interface ClaimEligibleSite {
   id: number;
   farmer_name: string;
+  district?: string;
+  state?: string;
+  inst_verify_status?: number;
+  inst_doc_status?: number;
+  inst_claim_status?: number;
+  inst_status?: number;
 }
 
 export interface ViewClaimResponse {
@@ -541,12 +547,50 @@ class AssamSwpService {
 
     // Normalize site fields (e.g. module_serial_no, latitude, longitude, string status codes)
     sites = sites.map((s: any) => {
-      const rawDoc = s.inst_doc || s.doc_file || s.document || s.doc || s.file || '';
-      const rawDocStatus = s.inst_doc_status ?? s.doc_status ?? s.document_status;
-      const numDocStatus =
-        rawDocStatus !== undefined && rawDocStatus !== null && rawDocStatus !== ''
-          ? Number(rawDocStatus)
-          : (rawDoc ? 1 : 0);
+      const rawDoc =
+        s.inst_doc ||
+        s.doc_file ||
+        s.document ||
+        s.doc ||
+        s.file ||
+        s.document_file ||
+        s.doc_path ||
+        s.file_path ||
+        s.attachment ||
+        s.doc_name ||
+        s.document_name ||
+        '';
+
+      const rawDocStatus =
+        s.inst_doc_status ??
+        s.doc_status ??
+        s.document_status ??
+        s.documentStatus ??
+        s.docStatus ??
+        s.instDocStatus;
+
+      let numDocStatus = 0;
+      if (rawDocStatus !== undefined && rawDocStatus !== null && rawDocStatus !== '') {
+        if (typeof rawDocStatus === 'string') {
+          const lower = rawDocStatus.trim().toLowerCase();
+          if (lower === 'approved' || lower === 'complete' || lower === 'verified' || lower === '2') {
+            numDocStatus = 2;
+          } else if (lower === 'rejected' || lower === 'reject' || lower === '3') {
+            numDocStatus = 3;
+          } else if (lower === 'pending' || lower === 'submitted' || lower === 'uploaded' || lower === '1') {
+            numDocStatus = 1;
+          } else if (lower === '0' || lower === 'not submitted' || lower === 'not_submitted') {
+            numDocStatus = rawDoc ? 1 : 0;
+          } else {
+            const parsed = Number(rawDocStatus);
+            numDocStatus = isNaN(parsed) ? (rawDoc ? 1 : 0) : parsed;
+          }
+        } else if (typeof rawDocStatus === 'number') {
+          numDocStatus = rawDocStatus === 0 && rawDoc ? 1 : rawDocStatus;
+        }
+      } else {
+        numDocStatus = rawDoc ? 1 : 0;
+      }
 
       return {
         ...s,
@@ -635,12 +679,25 @@ class AssamSwpService {
    * Required payload: site_id, doc_file
    */
   async submitInstallationDoc(formData: FormData): Promise<ApiResponse> {
-    // Ensure both site_id and doc_file are populated even if caller supplied alternative keys
+    // Ensure ID aliases are populated
     if (!formData.has('site_id') && formData.has('id')) {
       formData.append('site_id', formData.get('id') as string);
     }
-    if (!formData.has('doc_file') && formData.has('inst_doc')) {
-      formData.append('doc_file', formData.get('inst_doc') as Blob);
+    if (!formData.has('id') && formData.has('site_id')) {
+      formData.append('id', formData.get('site_id') as string);
+    }
+    // Ensure all file aliases are populated
+    const fileBlob =
+      formData.get('doc_file') ||
+      formData.get('inst_doc') ||
+      formData.get('document') ||
+      formData.get('file') ||
+      formData.get('doc');
+    if (fileBlob && fileBlob instanceof Blob) {
+      if (!formData.has('doc_file')) formData.append('doc_file', fileBlob);
+      if (!formData.has('inst_doc')) formData.append('inst_doc', fileBlob);
+      if (!formData.has('document')) formData.append('document', fileBlob);
+      if (!formData.has('file')) formData.append('file', fileBlob);
     }
 
     const res = await this.fetchWithFallback(ASSAM_SWP_API.DOC_SUBMIT, {
@@ -693,10 +750,107 @@ class AssamSwpService {
   }
 
   /**
+   * Fetch claim eligible completed sites:
+   * 1. Checks getViewClaims() for backend sites array.
+   * 2. If empty or alongside, pulls from completed installations (getViewInstallSite).
+   * 3. Falls back to installable site name list (getInstallableSiteNameList).
+   * Deduplicates by site ID.
+   */
+  async getClaimEligibleSites(): Promise<ClaimEligibleSite[]> {
+    const list: ClaimEligibleSite[] = [];
+    const seen = new Set<string | number>();
+
+    // 1. From view claim response
+    try {
+      const claimRes = await this.getViewClaims();
+      if (Array.isArray(claimRes.sites)) {
+        for (const s of claimRes.sites) {
+          const sid = Number(s.id);
+          if (sid && !seen.has(sid)) {
+            seen.add(sid);
+            list.push({
+              id: sid,
+              farmer_name: s.farmer_name || `Site #${sid}`,
+              district: s.district,
+              state: s.state,
+              inst_verify_status: s.inst_verify_status,
+              inst_doc_status: s.inst_doc_status,
+              inst_claim_status: s.inst_claim_status,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AssamSwpService] getViewClaims for sites warning:', e);
+    }
+
+    // 2. From completed installation sites (API 7)
+    try {
+      const installRes = await this.getViewInstallSite();
+      if (Array.isArray(installRes.sites)) {
+        for (const s of installRes.sites) {
+          const sid = Number(s.id || s.site_id);
+          if (sid && !seen.has(sid)) {
+            seen.add(sid);
+            list.push({
+              id: sid,
+              farmer_name: s.farmer_name || `Site #${sid}`,
+              district: s.district,
+              state: s.state,
+              inst_verify_status: Number(s.inst_verify_status ?? 0),
+              inst_doc_status: Number(s.inst_doc_status ?? 0),
+              inst_claim_status: Number(s.inst_claim_status ?? 0),
+              inst_status: Number(s.inst_status ?? 0),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AssamSwpService] getViewInstallSite for sites warning:', e);
+    }
+
+    // 3. Fallback to installable site names (API 4)
+    if (list.length === 0) {
+      try {
+        const nameRes = await this.getInstallableSiteNameList();
+        if (Array.isArray(nameRes)) {
+          for (const s of nameRes) {
+            const sid = Number(s.site_id || (s as any).id);
+            if (sid && !seen.has(sid)) {
+              seen.add(sid);
+              list.push({
+                id: sid,
+                farmer_name: s.site_name || (s as any).farmer_name || `Site #${sid}`,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[AssamSwpService] getInstallableSiteNameList for sites warning:', e);
+      }
+    }
+
+    return list;
+  }
+
+  /**
    * 12. Add Claim
    * POST /assam/swp-installation-add-claim (multipart/form-data)
    */
   async addClaim(formData: FormData): Promise<ApiResponse> {
+    // Backend validates 'site_id' as array. Delete scalar 'site_id' if present alongside 'site_id[]'
+    if (formData.has('site_id') && formData.has('site_id[]')) {
+      formData.delete('site_id');
+    }
+    // If only scalar site_id was provided, ensure site_id[] is appended
+    if (formData.has('site_id') && !formData.has('site_id[]')) {
+      const val = formData.get('site_id');
+      if (val) {
+        formData.append('site_id[]', String(val));
+        formData.delete('site_id');
+      }
+    }
+
     const res = await this.fetchWithFallback(ASSAM_SWP_API.ADD_CLAIM, {
       method: 'POST',
       headers: this.getHeaders(true),
@@ -793,16 +947,20 @@ class AssamSwpService {
   /**
    * 15. View Dashboard By Status
    * GET /assam/swp-installation-view-dashboard/{status}
+   * Allowed statuses: total, complete, pending, verify-pending, verify-approved, verify-reject,
+   * doc-approved, doc-pending, doc-reject, claim-raised, claim-approved, claim-reject,
+   * pay-complete, pay-partial, pay-pending
    */
   async getDashboardByStatus(status: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
-    const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(status);
+    const validStatus = normalizeAssamDashboardStatus(status);
+    const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(validStatus);
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
-      throw new Error(json.message || `Failed to fetch sites by status (${res.status})`);
+      throw new Error(json.message || `Failed to fetch sites by status "${validStatus}" (${res.status})`);
     }
     return {
       meta: json.meta,
@@ -815,20 +973,152 @@ class AssamSwpService {
    * GET /assam/swp-installation-view-districtwise/{status}/{district}
    */
   async getDistrictwiseByStatus(status: string, district: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
-    const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(status, district);
+    const validStatus = normalizeAssamDashboardStatus(status);
+    const cleanDistrict = (district || '').trim();
+    const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(validStatus, cleanDistrict);
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
-      throw new Error(json.message || `Failed to fetch district sites by status (${res.status})`);
+      throw new Error(json.message || `Failed to fetch district sites by status "${validStatus}" in "${cleanDistrict}" (${res.status})`);
     }
     return {
       meta: json.meta,
       data: Array.isArray(json.data) ? json.data : [],
     };
   }
+}
+
+/**
+ * Valid allowed status keys for Assam SWP Dashboard Drilldown APIs (APIs 15 & 16)
+ */
+export type AssamDashboardStatus =
+  | 'total'
+  | 'complete'
+  | 'pending'
+  | 'verify-pending'
+  | 'verify-approved'
+  | 'verify-reject'
+  | 'doc-approved'
+  | 'doc-pending'
+  | 'doc-reject'
+  | 'claim-raised'
+  | 'claim-approved'
+  | 'claim-reject'
+  | 'pay-complete'
+  | 'pay-partial'
+  | 'pay-pending';
+
+/**
+ * Normalizes any dashboard status string (e.g. 'Complete', 'VerifyApproved', 'PaymentComplete')
+ * to the exact backend-accepted string (API 15 & 16 specification).
+ */
+export function normalizeAssamDashboardStatus(rawStatus: string): AssamDashboardStatus {
+  if (!rawStatus) return 'total';
+  const clean = rawStatus.trim().toLowerCase();
+
+  const exactSet = new Set<AssamDashboardStatus>([
+    'total',
+    'complete',
+    'pending',
+    'verify-pending',
+    'verify-approved',
+    'verify-reject',
+    'doc-approved',
+    'doc-pending',
+    'doc-reject',
+    'claim-raised',
+    'claim-approved',
+    'claim-reject',
+    'pay-complete',
+    'pay-partial',
+    'pay-pending',
+  ]);
+  if (exactSet.has(clean as AssamDashboardStatus)) {
+    return clean as AssamDashboardStatus;
+  }
+
+  const aliasMap: Record<string, AssamDashboardStatus> = {
+    'all': 'total',
+    'allocated': 'total',
+    'total-sites': 'total',
+    'site-count': 'total',
+
+    'completed': 'complete',
+    'installed': 'complete',
+
+    'verify_pending': 'verify-pending',
+    'verifypending': 'verify-pending',
+    'audit-pending': 'verify-pending',
+
+    'verify_approved': 'verify-approved',
+    'verifyapproved': 'verify-approved',
+    'approved': 'verify-approved',
+    'audit-approved': 'verify-approved',
+
+    'verify_reject': 'verify-reject',
+    'verifyreject': 'verify-reject',
+    'verify-rejected': 'verify-reject',
+    'verify_rejected': 'verify-reject',
+    'rejected': 'verify-reject',
+    'rework': 'verify-reject',
+
+    'doc_approved': 'doc-approved',
+    'docapproved': 'doc-approved',
+
+    'doc_pending': 'doc-pending',
+    'docpending': 'doc-pending',
+
+    'doc_reject': 'doc-reject',
+    'docreject': 'doc-reject',
+    'doc-rejected': 'doc-reject',
+    'doc_rejected': 'doc-reject',
+
+    'claim_raised': 'claim-raised',
+    'claimraised': 'claim-raised',
+    'inst_claim_raised': 'claim-raised',
+
+    'claim_approved': 'claim-approved',
+    'claimapproved': 'claim-approved',
+    'inst_claim_approved': 'claim-approved',
+
+    'claim_reject': 'claim-reject',
+    'claimreject': 'claim-reject',
+    'claim-rejected': 'claim-reject',
+    'inst_claim_reject': 'claim-reject',
+
+    'paymentcomplete': 'pay-complete',
+    'payment-complete': 'pay-complete',
+    'pay_complete': 'pay-complete',
+    'inst_pay_complete': 'pay-complete',
+    'paid': 'pay-complete',
+    'settled': 'pay-complete',
+
+    'paymentpartial': 'pay-partial',
+    'payment-partial': 'pay-partial',
+    'payment-partially': 'pay-partial',
+    'pay_partial': 'pay-partial',
+    'pay-partially': 'pay-partial',
+    'inst_pay_partially': 'pay-partial',
+    'partial': 'pay-partial',
+
+    'paymentpending': 'pay-pending',
+    'payment-pending': 'pay-pending',
+    'pay_pending': 'pay-pending',
+    'inst_pay_pending': 'pay-pending',
+  };
+
+  const normalized = clean.replace(/[_\s]+/g, '-');
+  if (exactSet.has(normalized as AssamDashboardStatus)) {
+    return normalized as AssamDashboardStatus;
+  }
+  if (aliasMap[clean]) return aliasMap[clean];
+  if (aliasMap[normalized]) return aliasMap[normalized];
+  if (aliasMap[clean.replace(/[-_]/g, '')]) return aliasMap[clean.replace(/[-_]/g, '')];
+
+  return 'complete';
 }
 
 export const assamSwpService = new AssamSwpService();
