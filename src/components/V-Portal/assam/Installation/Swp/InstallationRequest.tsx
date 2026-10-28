@@ -195,32 +195,40 @@ const PAGE_CSS = `
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center;
+    padding: 20px;
   }
   .ax-modal__backdrop {
-    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(2px);
+    position: fixed; inset: 0; background: transparent;
   }
   .ax-modal__dialog {
-    position: relative; z-index: 1; background: var(--ax-surface-solid, #fff);
-    border-radius: var(--ax-radius-lg, 12px); border: 1px solid var(--ax-border, #e2e8f0);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden;
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
   }
   .ax-modal__header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
   }
   .ax-modal__close {
-    border: none; background: transparent; cursor: pointer; padding: 4px;
-    border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
-    color: var(--ax-text-muted);
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
   }
-  .ax-modal__close:hover { background: var(--ax-surface-hover, #e2e8f0); color: var(--ax-text-strong); }
-  .ax-modal__body { padding: 20px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
   .ax-modal__footer {
-    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-    padding: 12px 20px; border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
   }
 `;
