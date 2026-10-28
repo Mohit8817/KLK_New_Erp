@@ -30,28 +30,149 @@ const isAssigned = (r: Row) => {
   return a !== '' && a !== '0' && a.toLowerCase() !== 'null';
 };
 const isResolved = (r: Row) => Number(r.close_status) === 1;
-const isClosed = (r: Row) => isResolved(r); // Closed sirf tab jab vendor resolve kar de
-const isLocked = (r: Row) => isAssigned(r) || isResolved(r); // assigned hote hi edit/delete lock
+const isClosed = (r: Row) => isResolved(r);
+const isLocked = (r: Row) => isAssigned(r) || isResolved(r);
 const statusLabel = (r: Row) => (isClosed(r) ? 'Closed' : 'Pending');
 
-/* ── Styles: light table polish only (same as Survey view) ── */
-const VIEW_CSS = `
-.bsv-page .ax-card__header { background: var(--ax-surface-subtle); border-bottom: 1px solid var(--ax-border-subtle); }
-.bsv-page .ax-table__th { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ax-text-muted); background: var(--ax-surface-subtle); }
-.bsv-page .ax-table__td { font-size: var(--ax-text-sm); }
-.bsv-page .bsv-lock-btn { opacity: .75; cursor: not-allowed; display: inline-flex; align-items: center; gap: 6px; }
+/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-bg-surface, #ffffff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
 `;
 
-/* ───────── KPI card (same as Survey view) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+
+/* ───────── KPI card ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
 };
 
 const svg = (children: ReactNode) => (
@@ -81,7 +202,7 @@ function KpiCard({
   );
 }
 
-/* ── Table column config (display + export from one list) ── */
+/* ── Table column config ── */
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 
@@ -114,9 +235,9 @@ const COLS: Col[] = [
 ];
 
 const FILTER_TABS: { key: StatusFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'closed', label: 'Closed' },
+  { key: 'all', label: 'All Complaints' },
+  { key: 'pending', label: 'Pending Complaints' },
+  { key: 'closed', label: 'Closed Complaints' },
 ];
 
 export function Bihar_Complaint_SSL_ViewComplaint() {
@@ -231,8 +352,8 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
   const visibleCols = COLS.filter((c) => isVisible(c.key));
 
   return (
-    <div className="ax-page bsv-page">
-      <style>{VIEW_CSS}</style>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
 
       {/* ── Page Head ── */}
       <PageHead
@@ -245,7 +366,7 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
           { label: 'SSL' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadComplaints} disabled={loading}>
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
@@ -297,55 +418,81 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
           </>
         )}
 
+        {/* ── Filter Tabs ── */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Complaints filter tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {FILTER_TABS.map((t) => {
+              const active = t.key === statusFilter;
+              const count = t.key === 'all' ? kpis.total : t.key === 'pending' ? kpis.pending : kpis.closed;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => { setStatusFilter(t.key); setCurrentPage(1); }}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* ── Main Table Card ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SSL Complaints">
-          <div className="ax-card__header" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
+          <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 className="ax-card__title">
-View Vendor SSL Complaint Data
-</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredComplaints.length} of {complaints.length} records
+                {statusFilter === 'all' ? 'All SSL Complaints' : statusFilter === 'pending' ? 'Pending SSL Complaints' : 'Closed SSL Complaints'}
+              </h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredComplaints.length}</span> of <span className="ax-num">{complaints.length}</span> complaints
+                {' '}· Total <b className="ax-num">{kpis.total}</b> · Pending <b className="ax-num">{kpis.pending}</b> · Closed <b className="ax-num">{kpis.closed}</b>
               </p>
             </div>
-            <div className="ax-card__actions" style={{ flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
-              <select
-                className="ax-form-control"
-                aria-label="Filter by status"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setCurrentPage(1); }}
-                style={{ height: 36, fontSize: 'var(--ax-text-sm)', width: 'auto' }}
-              >
-                {FILTER_TABS.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.label} ({t.key === 'all' ? kpis.total : t.key === 'pending' ? kpis.pending : kpis.closed})
-                  </option>
-                ))}
-              </select>
-              <select
-                className="ax-form-control"
-                aria-label="Filter by district"
-                value={selectedDistrict}
-                onChange={(e) => { setSelectedDistrict(e.target.value); setCurrentPage(1); }}
-                style={{ height: 36, fontSize: 'var(--ax-text-sm)', width: 'auto' }}
-              >
-                <option value="all">All Districts</option>
-                {uniqueDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <SearchInput
-                value={search}
-                onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                placeholder="Search records…"
-                ariaLabel="Search records"
-              />
-              <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleCsv}
-                onExportExcel={handleExcel}
-                onExportPDF={handlePdf}
-                columns={toolbarColumns}
-                onToggleColumn={toggleColumn}
-              />
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-input ax-input--sm"
+                  aria-label="Filter by district"
+                  value={selectedDistrict}
+                  onChange={(e) => { setSelectedDistrict(e.target.value); setCurrentPage(1); }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                >
+                  <option value="all">All Districts</option>
+                  {uniqueDistricts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={clearFilters}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
+                <SearchInput
+                  value={search}
+                  onChange={(val) => { setSearch(val); setCurrentPage(1); }}
+                  placeholder="Search records…"
+                  size="sm"
+                  ariaLabel="Search records"
+                />
+
+                <TableExportToolbar
+                  onCopy={handleCopy}
+                  onExportCSV={handleCsv}
+                  onExportExcel={handleExcel}
+                  onExportPDF={handlePdf}
+                  columns={toolbarColumns}
+                  onToggleColumn={toggleColumn}
+                />
+              </div>
             </div>
           </div>
 
@@ -368,7 +515,7 @@ View Vendor SSL Complaint Data
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
                   <caption className="ax-visually-hidden">Bihar SSL Complaints</caption>
                   <thead className="ax-table__head">
                     <tr>
@@ -385,7 +532,7 @@ View Vendor SSL Complaint Data
                       const locked = isLocked(item);
                       return (
                         <tr key={item.id} className="ax-table__row">
-                          <td className="ax-table__td">{srNo}</td>
+                          <td className="ax-table__td ax-num">{srNo}</td>
                           {visibleCols.map((c) => (
                             <td key={c.key} className="ax-table__td" style={c.style}>{c.get(item)}</td>
                           ))}
@@ -399,22 +546,19 @@ View Vendor SSL Complaint Data
                           )}
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             {locked ? (
-                              /* Assigned / Closed → Edit & Delete hata kar lock button */
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm bsv-lock-btn"
-                                disabled
-                                aria-disabled="true"
+                              <span
+                                className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', fontSize: 11.5, cursor: 'not-allowed' }}
                                 title="Complaint assigned — edit/delete locked"
                               >
-                                <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                   <rect x="5" y="11" width="14" height="10" rx="2" />
                                   <path d="M8 11V7a4 4 0 0 1 8 0v4" />
                                 </svg>
-                                Assigned
-                              </button>
+                                Assigned (Locked)
+                              </span>
                             ) : (
-                              <div style={{ display: 'inline-flex', gap: 6 }}>
+                              <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
                                 <button
                                   type="button"
                                   className="ax-btn ax-btn--secondary ax-btn--sm"
@@ -422,7 +566,12 @@ View Vendor SSL Complaint Data
                                 >
                                   Edit
                                 </button>
-                                <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => handleDelete(item.id)} style={{ color: 'var(--ax-danger, #ef4444)' }}>
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                                  onClick={() => handleDelete(item.id)}
+                                  style={{ color: 'var(--ax-danger, #ef4444)' }}
+                                >
                                   Delete
                                 </button>
                               </div>
@@ -435,13 +584,17 @@ View Vendor SSL Complaint Data
                 </table>
               </div>
 
-              <Pagination
-                page={currentPage}
-                pageSize={pageSize}
-                total={filteredComplaints.length}
-                onChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
-              />
+              <div className="ax-card__footer">
+                <div className="ula-pagination-left">
+                  <Pagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={filteredComplaints.length}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </div>
+              </div>
             </>
           )}
         </section>

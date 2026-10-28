@@ -20,7 +20,6 @@ import {
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
   .replace(/\/+$/, '');
-
 const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
 
 function getInstallationImageCandidates(path?: string | null): string[] {
@@ -331,18 +330,17 @@ function ThumbnailGroup({
   );
 }
 
-/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ── */
+/* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ──
+   Only 3 actions: Edit Structure, Pending Installation, Document */
 const MENU_W = 180;
 const MENU_H = 118;
 
 function RowActionDropdown({
   site,
   onOpenDoc,
-  onOpenElectric,
 }: {
   site: StructureSiteItem;
   onOpenDoc: () => void;
-  onOpenElectric?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -434,21 +432,8 @@ function RowActionDropdown({
             >
               Edit Structure
             </Link>
-            {onOpenElectric && (
-              <button
-                type="button"
-                className="ula-menu__item"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onOpenElectric();
-                }}
-              >
-                Electrical Commissioning
-              </button>
-            )}
             <Link
-              to={`/v/bihar/ula-installation-pending-site/${site.id}`}
+              to={'/v/bihar/ula-installation-pending'}
               state={{ site }}
               className="ula-menu__item"
               role="menuitem"
@@ -490,11 +475,8 @@ const OVERLAY_CSS = `
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 
-  /* Form bits inside modals */
-  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
-  .ula-m-full { grid-column: 1 / -1; }
+  /* Form bits inside the document modal */
   .ula-m-note { margin: 0; font-size: var(--ax-text-sm, 13px); color: var(--ax-text-muted, #64748b); }
-  .ula-m-hint { margin: 0; font-size: 12px; color: var(--ax-text-muted, #64748b); word-break: break-all; }
   .ula-m-info {
     display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; font-size: 12px;
     background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
@@ -527,7 +509,6 @@ const OVERLAY_CSS = `
   .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
 
   @media (max-width: 560px) {
-    .ula-m-grid { grid-template-columns: 1fr; }
     .ula-m-stage { height: 56vh; }
   }
 `;
@@ -607,7 +588,7 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  /* Table: sideways scroll with sticky first column (no extra min-height / bottom padding) */
+  /* Table: sideways scroll with sticky first column */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -716,58 +697,7 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-/* Small form helpers used by the electrical modal */
 const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
-
-function TextField({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  required,
-  full,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-  required?: boolean;
-  full?: boolean;
-}) {
-  return (
-    <div className={`ax-field${full ? ' ula-m-full' : ''}`}>
-      <label className="ax-label" htmlFor={id}>{label} {required && <Req />}</label>
-      <input
-        id={id}
-        type={type}
-        className="ax-input"
-        placeholder={placeholder}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-function FileField({ id, label, onChange }: { id: string; label: string; onChange: (f: File | null) => void }) {
-  return (
-    <div className="ax-field">
-      <label className="ax-label" htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        type="file"
-        accept="image/*"
-        className="ax-input"
-        onChange={(e) => onChange(e.target.files?.[0] || null)}
-      />
-    </div>
-  );
-}
 
 export function Bihar_Installation_ULA_ViewInstallation() {
   const [searchParams] = useSearchParams();
@@ -782,27 +712,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
-
-  // Electrical Modal State
-  const [electricModalSite, setElectricModalSite] = useState<StructureSiteItem | null>(null);
-  const [instDate, setInstDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [solarMeterNo, setSolarMeterNo] = useState('');
-  const [inverterNo, setInverterNo] = useState('');
-  const [nmSmNo, setNmSmNo] = useState('');
-  const [logerNo, setLogerNo] = useState('');
-  const [instRemarks, setInstRemarks] = useState('');
-
-  // Electrical Upload Files
-  const [completePhoto, setCompletePhoto] = useState<File | null>(null);
-  const [inverterImage, setInverterImage] = useState<File | null>(null);
-  const [earthingImage, setEarthingImage] = useState<File | null>(null);
-  const [acdbImage, setAcdbImage] = useState<File | null>(null);
-  const [solarMeterImage, setSolarMeterImage] = useState<File | null>(null);
-  const [laImage, setLaImage] = useState<File | null>(null);
-
-  const [electricSubmitting, setElectricSubmitting] = useState(false);
-  const [electricError, setElectricError] = useState<string | null>(null);
-  const closeElectric = useCallback(() => setElectricModalSite(null), []);
 
   // Document Modal State
   const [docModalSite, setDocModalSite] = useState<StructureSiteItem | null>(null);
@@ -898,24 +807,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
     setPage(1);
   };
 
-  // Open Electrical Modal
-  const handleOpenElectricModal = (site: StructureSiteItem) => {
-    setElectricModalSite(site);
-    setInstDate(text(site, 'inst_date') || new Date().toISOString().split('T')[0]);
-    setSolarMeterNo(site.solarmeter_no || text(site, 'solar_meter_no') || '');
-    setInverterNo(site.inverter_no || '');
-    setNmSmNo(site.nm_sm_no || text(site, 'smart_meter_no') || '');
-    setLogerNo(site.loger_no || '');
-    setInstRemarks(site.inst_remarks || text(site, 'remarks') || '');
-    setCompletePhoto(null);
-    setInverterImage(null);
-    setEarthingImage(null);
-    setAcdbImage(null);
-    setSolarMeterImage(null);
-    setLaImage(null);
-    setElectricError(null);
-  };
-
   // Open Document Modal
   const handleOpenDocModal = (site: StructureSiteItem) => {
     setDocModalSite(site);
@@ -944,40 +835,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
       return;
     }
     setDocFile(file);
-  };
-
-  // Submit Electrical Installation
-  const handleSubmitElectric = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!electricModalSite) return;
-    setElectricError(null);
-    setElectricSubmitting(true);
-    try {
-      const fd = new FormData();
-      fd.append('site_id', String(electricModalSite.id));
-      fd.append('inst_date', instDate);
-      if (solarMeterNo) fd.append('solarmeter_no', solarMeterNo);
-      if (inverterNo) fd.append('inverter_no', inverterNo);
-      if (nmSmNo) fd.append('nm_sm_no', nmSmNo);
-      if (logerNo) fd.append('loger_no', logerNo);
-      if (instRemarks) fd.append('inst_remarks', instRemarks);
-
-      if (completePhoto) fd.append('complete_photo', completePhoto);
-      if (inverterImage) fd.append('inverter_image', inverterImage);
-      if (earthingImage) fd.append('earthing_image', earthingImage);
-      if (acdbImage) fd.append('acdb_image', acdbImage);
-      if (solarMeterImage) fd.append('solarmeter_image', solarMeterImage);
-      if (laImage) fd.append('la_image', laImage);
-
-      await biharUlaInstallationService.storeInstallation(fd);
-      setToastMsg({ type: 'success', text: 'Electrical installation saved successfully!' });
-      setElectricModalSite(null);
-      await loadData();
-    } catch (err: any) {
-      setElectricError(err?.message || 'Failed to save electrical installation.');
-    } finally {
-      setElectricSubmitting(false);
-    }
   };
 
   // Submit Commissioning Doc
@@ -1477,7 +1334,7 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
                         {/* Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <RowActionDropdown site={s} onOpenDoc={() => handleOpenDocModal(s)} onOpenElectric={() => handleOpenElectricModal(s)} />
+                          <RowActionDropdown site={s} onOpenDoc={() => handleOpenDocModal(s)} />
                         </td>
                       </tr>
                     );
@@ -1593,60 +1450,6 @@ export function Bihar_Installation_ULA_ViewInstallation() {
                 disabled={docSubmitting || !docFile || !docDate || !docRemarks.trim()}
               >
                 {docSubmitting ? <span className="ax-spinner" /> : 'Upload document'}
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
-
-      {/* ── Electrical Installation Modal ── */}
-      <Modal open={!!electricModalSite} onClose={closeElectric} labelledBy="ula-electric-title" dialogClass="ax-modal__dialog--lg">
-        {electricModalSite && (
-          <form onSubmit={handleSubmitElectric}>
-            <div className="ax-modal__header">
-              <div>
-                <h2 className="ax-modal__title" id="ula-electric-title">Electrical commissioning</h2>
-                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  Site: <b>{electricModalSite.beneficiary_name}</b> (CA #{electricModalSite.ca_no})
-                </p>
-              </div>
-              <button type="button" className="ax-modal__close" onClick={closeElectric} aria-label="Close dialog">{X_ICON}</button>
-            </div>
-
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-5)' }}>
-              {electricError && (
-                <div className="ax-alert ax-alert--danger" role="alert">
-                  <div className="ax-alert__text">{electricError}</div>
-                </div>
-              )}
-
-              <div className="ula-m-grid">
-                <TextField id="ula-e-date" label="Installation Date" type="date" value={instDate} onChange={setInstDate} required />
-                <TextField id="ula-e-sm" label="Solar Meter No." value={solarMeterNo} onChange={setSolarMeterNo} placeholder="e.g. SM-10023" />
-                <TextField id="ula-e-inv" label="Inverter No." value={inverterNo} onChange={setInverterNo} placeholder="e.g. INV-9081" />
-                <TextField id="ula-e-nm" label="Net Meter No." value={nmSmNo} onChange={setNmSmNo} placeholder="e.g. NM-4521" />
-                <TextField id="ula-e-log" label="Logger No." value={logerNo} onChange={setLogerNo} placeholder="e.g. LOG-3321" />
-                <TextField
-                  id="ula-e-rem"
-                  label="Installation Remarks"
-                  value={instRemarks}
-                  onChange={setInstRemarks}
-                  placeholder="e.g. Full electrical wiring and inverter synchronization complete"
-                  full
-                />
-                <FileField id="ula-e-f1" label="Complete Plant Photo" onChange={setCompletePhoto} />
-                <FileField id="ula-e-f2" label="Inverter Photo" onChange={setInverterImage} />
-                <FileField id="ula-e-f3" label="Earthing Photo" onChange={setEarthingImage} />
-                <FileField id="ula-e-f4" label="ACDB Photo" onChange={setAcdbImage} />
-                <FileField id="ula-e-f5" label="Solar Meter Photo" onChange={setSolarMeterImage} />
-                <FileField id="ula-e-f6" label="Lightning Arrester (LA) Photo" onChange={setLaImage} />
-              </div>
-            </div>
-
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeElectric} disabled={electricSubmitting}>Cancel</button>
-              <button type="submit" className="ax-btn ax-btn--primary" disabled={electricSubmitting}>
-                {electricSubmitting ? <span className="ax-spinner" /> : 'Save electrical installation'}
               </button>
             </div>
           </form>

@@ -150,6 +150,9 @@ const UPAMCSSL18WPending = lazy(() => import('./components/V-Portal/up/AMC/SSL18
 const UPAMCSSL18WCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/CompletedAMC'));
 const UPAMCSSL18WPay = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/Payment'));
 
+
+
+
 // ── Uttar Pradesh: Complaint ──
 const UPComplaintRescoAdd = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AddComplaint'));
 const UPComplaintRescoView = lazy(() => import('./components/V-Portal/up/Complaint/Resco/ViewComplaint'));
@@ -229,6 +232,12 @@ const BiharInstSSLClaim = lazy(() => import('./components/V-Portal/bihar/Install
 const BiharInstSSLSupplyInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/SupplyInspection'));
 const BiharInstSSLInstallInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallationInspection'));
 
+// ── Punjab: Installation ──
+const PunjabInstSSLDb = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/Dashboard'));
+const PunjabInstSSLAssign = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/AssignedLights'));
+const PunjabInstSSLInstall = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallLight'));
+const PunjabInstSSLDetail = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallationDetail'));
+
 const BiharInstSRTDb = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/Dashboard'));
 const BiharInstSRTRequest = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/RequestAccept'));
 const BiharInstSRTDetails = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/InstallationDetails'));
@@ -258,6 +267,10 @@ const BiharComplaintSSLAssign = lazy(() => import('./components/V-Portal/bihar/C
 const BiharComplaintSRTAdd = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AddComplaint'));
 const BiharComplaintSRTView = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/ViewComplaint'));
 const BiharComplaintSRTAssign = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AssignedComplaint'));
+
+const Bihar_Installation_ULA_PendingInstallation  = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/PenidngInstallation'));
+
+
 
 
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
@@ -862,6 +875,17 @@ const shell: Record<string, PageComponent> = {
   'v/bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
   'bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
 
+  // Punjab Installation - SSL
+  'v/punjab/ssl/installation/dashboard': PunjabInstSSLDb,
+  'punjab/ssl/installation/dashboard': PunjabInstSSLDb,
+  'v/punjab/ssl/installation/view-assigned-light': PunjabInstSSLAssign,
+  'punjab/ssl/installation/view-assigned-light': PunjabInstSSLAssign,
+  'v/punjab/ssl/installation/update-light-deatils': PunjabInstSSLInstall,
+  'punjab/ssl/installation/update-light-deatils': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/install-light': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+  'punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+
   // Installation - SRT
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
   'v/bihar/srt-installation-dashboard': BiharInstSRTDb,
@@ -912,7 +936,9 @@ const shell: Record<string, PageComponent> = {
   'v/bihar/ula-installation-claim': BiharInstULAAddPay,
   'bihar/ula-installation-claim': BiharInstULAAddPay,
   'v/bihar/ula-installation-view-payment': BiharInstULAPay,
+  '/v/bihar/ula-installation-pending':Bihar_Installation_ULA_PendingInstallation,
   'bihar/ula-installation-view-payment': BiharInstULAPay,
+  
 
   // AMC - SSL
   'v/edit-biharssl': BiharAMCSSLAdd,

@@ -144,6 +144,7 @@ const INITIAL_WORK_ORDERS: WorkOrder[] = [
 
 const STATE_SUMMARIES: StateOverview[] = [
   { state: 'Uttar Pradesh', totalSites: 1120, activeInstallations: 580, surveysDone: 340, amcUnits: 240, complaints: 28 },
+  { state: 'Punjab', totalSites: 860, activeInstallations: 430, surveysDone: 210, amcUnits: 160, complaints: 8 },
   { state: 'Jammu & Kashmir', totalSites: 980, activeInstallations: 520, surveysDone: 310, amcUnits: 190, complaints: 14 },
   { state: 'Assam', totalSites: 745, activeInstallations: 320, surveysDone: 242, amcUnits: 103, complaints: 6 },
 ];
@@ -657,6 +658,7 @@ export function VPortalDashboard() {
                 onClick={() => {
                   setSelectedState(st.state);
                   if (st.state === 'Uttar Pradesh') navigate('/up/survey/ssl/view-data');
+                  else if (st.state === 'Punjab') navigate('/v/punjab/ssl/installation/dashboard');
                   else if (st.state === 'Jammu & Kashmir') navigate('/jammu/installation/srt-70mw/dashboard');
                   else navigate('/assam/swp/dashboard');
                 }}
@@ -690,7 +692,7 @@ export function VPortalDashboard() {
                 }]}
                 options={{
                   chart: { toolbar: { show: false } },
-                  colors: ['#2563eb', '#10b981', '#f59e0b'],
+                  colors: ['#2563eb', '#ea580c', '#10b981', '#f59e0b'],
                   plotOptions: {
                     bar: {
                       borderRadius: 6,

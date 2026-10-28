@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharSrtInstallationService,
@@ -197,216 +199,251 @@ function ClaimStatusBadge({ status }: { status: unknown }) {
   return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
 }
 
-const VIEW_CSS = `
-.bsv-page .ax-dash-grid {
-  align-items: stretch;
-  gap: var(--ax-space-3);
-}
-.bsv-kpi {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-lg);
-  background: var(--ax-surface-solid);
-  box-shadow: var(--ax-shadow-sm);
-}
-.bsv-kpi__body {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.bsv-kpi__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-.bsv-kpi__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bsv-kpi__icon {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--ax-radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--bsv-accent);
-  background: color-mix(in srgb, var(--bsv-accent) 12%, transparent);
-}
-.bsv-kpi__icon svg { width: 14px; height: 14px; }
-.bsv-kpi__label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ax-text-muted);
-}
-.bsv-kpi__caption {
-  font-size: 10px;
-  color: var(--ax-text-subtle);
-}
-.bsv-kpi__value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--ax-text-strong);
-}
-
-/* Wide table styling for 24 columns */
-.srt-claim-table {
-  width: 100%;
-  border-collapse: collapse;
-  white-space: nowrap;
-}
-.srt-claim-table th {
-  background: var(--ax-surface-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ax-text-muted);
-  border-bottom: 1px solid var(--ax-border);
-  padding: 10px 12px;
-  white-space: nowrap;
-}
-.srt-claim-table td {
-  padding: 10px 12px;
-  vertical-align: middle;
-  font-size: 12px;
-  border-bottom: 1px solid var(--ax-border-subtle);
-  white-space: nowrap;
-}
-.srt-claim-table tr:hover td {
-  background: var(--ax-surface-subtle);
-}
-
-/* ── Card & Table Header (Exact pattern from RequestAccept / ViewInstallation) ── */
-.bsv-page .ax-card { min-width: 0; }
-
-.bsv-page .ax-card__header {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: var(--ax-space-4) var(--ax-space-6);
-  background: var(--ax-surface-subtle);
-  border-bottom: 1px solid var(--ax-border-subtle);
-}
-.bsv-page .ax-card__titles {
-  flex: 1 1 220px;
-  min-width: 220px;
-  max-width: 100%;
-}
-.bsv-page .ax-card__title,
-.bsv-page .ax-card__eyebrow,
-.bsv-page .ax-card__subtitle {
-  max-width: none;
-  word-break: normal;
-  overflow-wrap: normal;
-  hyphens: none;
-}
-.bsv-page .ax-card__subtitle { line-height: 1.45; }
-
-.bsv-page .ax-card__actions {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-.bsv-page .ax-card__actions .ax-cluster {
-  flex-wrap: nowrap !important;
-  min-width: 0;
-  justify-content: flex-end;
-  gap: var(--ax-space-2, 8px);
-}
-.bsv-page .ax-card__actions .ax-search,
-.bsv-page .ax-card__actions [class*="search"] {
-  flex: 1 1 160px;
-  min-width: 180px;
-  max-width: 240px;
-}
-.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
-.bsv-page .ax-card__actions .ax-export-toolbar,
-.bsv-page .ax-card__actions [class*="export-toolbar"] {
-  flex: 0 1 auto;
-  min-width: 0;
-  flex-wrap: nowrap;
-  gap: 4px;
-}
-.bsv-page .ax-export-toolbar__button {
-  padding-inline: 8px !important;
-  min-width: 0;
-}
-
-@media (max-width: 1100px) {
-  .bsv-page .ax-export-toolbar__button {
-    font-size: 0;
-    gap: 0;
-    padding: 0 8px !important;
-    justify-content: center;
+/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .bsv-page .ax-export-toolbar__button svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] { max-width: 180px; }
-}
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-@media (max-width: 760px) {
-  .bsv-page .ax-card__header {
-    flex-direction: column;
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
     flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 10px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .bsv-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: 100%;
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
     max-width: 100%;
   }
-  .bsv-page .ax-card__title {
-    font-family: var(--ax-font-display);
-    font-size: var(--ax-text-md);
-    line-height: var(--ax-leading-md);
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
   }
-  .bsv-page .ax-card__actions {
-    flex: 0 0 auto;
-    width: 100%;
-    margin-left: 0;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .bsv-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    width: 100%;
-    justify-content: flex-start;
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 8px;
   }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] {
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
     min-width: 0;
   }
-  .bsv-page .ax-card__actions .ax-export-toolbar,
-  .bsv-page .ax-card__actions [class*="export-toolbar"] {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
+
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-}
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-bg-surface, #ffffff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
 `;
+
+const OVERLAY_CSS = `
+  .ax-modal img { border-radius: 0 !important; }
+  .ula-m-stage {
+    position: relative; display: flex; overflow: auto;
+    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
+  }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+`;
+
+/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  dialogClass = '',
+  closeOnBackdrop = true,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  dialogClass?: string;
+  closeOnBackdrop?: boolean;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return createPortal(
+    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image preview modal with zoom ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="srt-claim-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="srt-claim-preview-title">{title || 'Media Preview'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div className="ula-m-stage">
+          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
+          {status === 'error' && <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Preview'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              borderRadius: 0,
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 const actionsRowStyle = {
   gap: 'var(--ax-space-2)',
@@ -421,6 +458,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [districtFilter, setDistrictFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -534,9 +572,21 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   const pay2Count = useMemo(() => claims.filter((c) => String(c.payment2_status).toLowerCase() === '1' || String(c.payment2_status).toLowerCase() === 'paid').length, [claims]);
   const pay3Count = useMemo(() => claims.filter((c) => String(c.payment3_status).toLowerCase() === '1' || String(c.payment3_status).toLowerCase() === 'paid').length, [claims]);
 
+  // Districts list for filter dropdown
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    claims.forEach((c) => {
+      if (c.district) set.add(c.district.trim());
+    });
+    return Array.from(set).sort();
+  }, [claims]);
+
   // Filtered Claims
   const filteredClaims = useMemo(() => {
     let list = claims;
+    if (districtFilter !== 'all') {
+      list = list.filter((c) => String(c.district || '').toLowerCase() === districtFilter.toLowerCase());
+    }
     if (statusFilter !== 'all') {
       list = list.filter((c) => {
         const st = String(c.inst_claim_status ?? c.claim_status ?? '').toLowerCase();
@@ -561,7 +611,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     }
 
     return list;
-  }, [claims, search, statusFilter]);
+  }, [claims, search, statusFilter, districtFilter]);
 
   const paginatedClaims = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -602,8 +652,9 @@ export function Bihar_Installation_SRT_ClaimRequest() {
 
 
   return (
-    <div className="ax-page bsv-page">
-      <style>{VIEW_CSS}</style>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
       {/* ── Page Head (Exact User Header Text) ── */}
       <PageHead
@@ -685,19 +736,52 @@ export function Bihar_Installation_SRT_ClaimRequest() {
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
                 <select
-                  className="ax-form-select"
-                  style={{ width: 130, height: 34, fontSize: '12px' }}
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={districtFilter}
+                  onChange={(e) => {
+                    setDistrictFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Filter by district"
+                >
+                  <option value="all">All Districts</option>
+                  {districts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                <select
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value);
                     setCurrentPage(1);
                   }}
+                  aria-label="Filter by status"
                 >
                   <option value="all">All Status</option>
                   <option value="approved">Approved / Paid</option>
                   <option value="pending">Pending</option>
                   <option value="rejected">Rejected</option>
                 </select>
+
+                {(search || districtFilter !== 'all' || statusFilter !== 'all') && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => {
+                      setSearch('');
+                      setDistrictFilter('all');
+                      setStatusFilter('all');
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
 
                 <SearchInput
                   value={search}
@@ -706,6 +790,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                     setCurrentPage(1);
                   }}
                   placeholder="Search site, district, ID..."
+                  size="sm"
                   ariaLabel="Search claim requests"
                 />
 
@@ -720,45 +805,45 @@ export function Bihar_Installation_SRT_ClaimRequest() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="srt-claim-table">
+            <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 45 }}>Sr. No.</th>
-                  <th>State</th>
-                  <th>District</th>
-                  <th>Site Name</th>
-                  <th>Claim Raised Date</th>
-                  <th>Claim Invoice</th>
-                  <th>Claim Amount</th>
-                  <th>Claim Update Date</th>
-                  <th>Claim Update by</th>
-                  <th>Claim Status</th>
-                  <th>Payment 1st 70% Date</th>
-                  <th>Payment 1st 70% Amount</th>
-                  <th>Payment 1st 70% Status</th>
-                  <th>Installation Inspection</th>
-                  <th>Document Submit</th>
-                  <th>Payment 2nd 15% Date</th>
-                  <th>Payment 2nd 15% Amount</th>
-                  <th>Payment 2nd 15% Status</th>
-                  <th>Raised 3rd Payment 15%</th>
-                  <th>Genration Image</th>
-                  <th>RMS Loger Image</th>
-                  <th>Payment 3rd 15% Date</th>
-                  <th>Payment 3rd 15% Amount</th>
-                  <th>Payment 3rd 15% Status</th>
+                  <th className="ax-table__th" scope="col">Sr. No.</th>
+                  <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Site Name</th>
+                  <th className="ax-table__th" scope="col">Claim Raised Date</th>
+                  <th className="ax-table__th" scope="col">Claim Invoice</th>
+                  <th className="ax-table__th" scope="col">Claim Amount</th>
+                  <th className="ax-table__th" scope="col">Claim Update Date</th>
+                  <th className="ax-table__th" scope="col">Claim Update by</th>
+                  <th className="ax-table__th" scope="col">Claim Status</th>
+                  <th className="ax-table__th" scope="col">Payment 1st 70% Date</th>
+                  <th className="ax-table__th" scope="col">Payment 1st 70% Amount</th>
+                  <th className="ax-table__th" scope="col">Payment 1st 70% Status</th>
+                  <th className="ax-table__th" scope="col">Installation Inspection</th>
+                  <th className="ax-table__th" scope="col">Document Submit</th>
+                  <th className="ax-table__th" scope="col">Payment 2nd 15% Date</th>
+                  <th className="ax-table__th" scope="col">Payment 2nd 15% Amount</th>
+                  <th className="ax-table__th" scope="col">Payment 2nd 15% Status</th>
+                  <th className="ax-table__th" scope="col">Raised 3rd Payment 15%</th>
+                  <th className="ax-table__th" scope="col">Genration Image</th>
+                  <th className="ax-table__th" scope="col">RMS Loger Image</th>
+                  <th className="ax-table__th" scope="col">Payment 3rd 15% Date</th>
+                  <th className="ax-table__th" scope="col">Payment 3rd 15% Amount</th>
+                  <th className="ax-table__th" scope="col">Payment 3rd 15% Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={24} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                    <td className="ax-table__td" colSpan={24} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
                       Loading claim requests...
                     </td>
                   </tr>
                 ) : paginatedClaims.length === 0 ? (
                   <tr>
-                    <td colSpan={24} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                    <td className="ax-table__td" colSpan={24} style={{ textAlign: 'center', padding: '36px 16px' }}>
                       <TableEmptyState title="No claim request records found" />
                     </td>
                   </tr>
@@ -769,18 +854,18 @@ export function Bihar_Installation_SRT_ClaimRequest() {
 
                     return (
                       <tr key={row.id}>
-                        <td style={{ fontWeight: 600 }}>{srNo}</td>
-                        <td>{row.state || 'Bihar'}</td>
-                        <td style={{ fontWeight: 600 }}>{row.district || '—'}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--ax-text-strong)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.site_name}>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
+                        <td className="ax-table__td">{row.state || 'Bihar'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.district || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.site_name}>
                           {row.site_name || '—'}
                         </td>
-                        <td style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>
                           {row.inst_claim_date || row.claim_raised_date || '—'}
                         </td>
 
                         {/* Claim Invoice Link */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {invoicePath ? (
                             <a
                               href={mediaUrl(invoicePath)}
@@ -796,33 +881,33 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                           )}
                         </td>
 
-                        <td style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
                           ₹{num(row.inst_claim_amount || row.claim_amount)}
                         </td>
-                        <td style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.claim_update_date || '—'}</td>
-                        <td>{row.claim_update_by || '—'}</td>
-                        <td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.claim_update_date || '—'}</td>
+                        <td className="ax-table__td">{row.claim_update_by || '—'}</td>
+                        <td className="ax-table__td">
                           <ClaimStatusBadge status={row.inst_claim_status ?? row.claim_status} />
                         </td>
 
                         {/* 1st 70% Payment */}
-                        <td style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment1_date || '—'}</td>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment1_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment1_amount ? `₹${num(row.payment1_amount)}` : DASH}
                         </td>
-                        <td>
+                        <td className="ax-table__td">
                           <ClaimStatusBadge status={row.payment1_status} />
                         </td>
 
                         {/* Inspection & Document */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {String(row.inst_inspection || '').toLowerCase() === '1' || String(row.inst_inspection || '').toLowerCase() === 'complete' ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                           )}
                         </td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {String(row.doc_submit || '').toLowerCase() === '1' || String(row.doc_submit || '').toLowerCase() === 'complete' ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success">Submitted</span>
                           ) : (
@@ -831,16 +916,16 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* 2nd 15% Payment */}
-                        <td style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment2_date || '—'}</td>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment2_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment2_amount ? `₹${num(row.payment2_amount)}` : DASH}
                         </td>
-                        <td>
+                        <td className="ax-table__td">
                           <ClaimStatusBadge status={row.payment2_status} />
                         </td>
 
                         {/* Raised 3rd Payment 15% */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {row.payment3_raised === 1 || row.payment3_raised === '1' ? (
                             <span className="ax-badge ax-badge--soft ax-badge--info">Raised</span>
                           ) : (
@@ -859,7 +944,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* Generation Image (NO BORDER RADIUS) */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
                             path={row.generation_image}
                             alt="Generation"
@@ -868,7 +953,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* RMS Logger Image (NO BORDER RADIUS) */}
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
                             path={row.rms_loger_image}
                             alt="RMS Logger"
@@ -877,11 +962,11 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* 3rd 15% Payment */}
-                        <td style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment3_date || '—'}</td>
-                        <td style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment3_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment3_amount ? `₹${num(row.payment3_amount)}` : DASH}
                         </td>
-                        <td>
+                        <td className="ax-table__td">
                           <ClaimStatusBadge status={row.payment3_status} />
                         </td>
                       </tr>
@@ -892,72 +977,30 @@ export function Bihar_Installation_SRT_ClaimRequest() {
             </table>
           </div>
 
-          <div className="ax-card__footer" style={{ padding: '12px 16px' }}>
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filteredClaims.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(sz) => {
-                setPageSize(sz);
-                setCurrentPage(1);
-              }}
-            />
+          <div className="ax-card__footer">
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={filteredClaims.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
           </div>
         </section>
       </div>
 
-      {/* ── Fullscreen Image Preview Modal ── */}
+      {/* ── Image Preview Modal with Zoom ── */}
       {previewImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setPreviewImage(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1050,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '90vw',
-              maxHeight: '85vh',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ color: '#fff', fontSize: '14px', marginBottom: 10, fontWeight: 600 }}>
-              {previewImage.title}
-            </div>
-            <img
-              src={previewImage.url}
-              alt="Preview"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '75vh',
-                objectFit: 'contain',
-                borderRadius: 0,
-              }}
-            />
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              style={{ marginTop: 12 }}
-              onClick={() => setPreviewImage(null)}
-            >
-              Close Preview
-            </button>
-          </div>
-        </div>
+        <ImagePreviewModal
+          url={previewImage.url}
+          title={previewImage.title}
+          onClose={() => setPreviewImage(null)}
+        />
       )}
 
       {/* ── Raise New Claim Modal ── */}

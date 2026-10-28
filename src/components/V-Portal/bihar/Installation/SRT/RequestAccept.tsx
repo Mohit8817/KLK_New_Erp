@@ -19,303 +19,139 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-/* ── Styles: KPI cards + single-line header (Search + Export with flex row & gap, identical to ViewInstallation.tsx) ── */
-const VIEW_CSS = `
-.bsv-page {
-  --bsv-card-radius: var(--ax-radius-lg);
-}
-.bsv-page .ax-dash-grid {
-  align-items: stretch;
-  gap: var(--ax-space-4);
-}
-.bsv-kpi {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--ax-border);
-  border-radius: var(--bsv-card-radius);
-  background: var(--ax-bg-surface, var(--ax-surface-solid));
-  box-shadow: var(--ax-shadow-sm);
-  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
-}
-.bsv-kpi:hover {
-  box-shadow: var(--ax-shadow-md);
-  border-color: var(--ax-border);
-  transform: translateY(-1px);
-}
-.bsv-kpi::before { display: none; }
-.bsv-kpi__body {
-  height: 100%;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bsv-kpi__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-width: 0;
-}
-.bsv-kpi__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.bsv-kpi__icon {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: var(--ax-radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--bsv-accent);
-  background: color-mix(in srgb, var(--bsv-accent) 12%, transparent);
-}
-.bsv-kpi__icon svg { width: 16px; height: 16px; }
-.bsv-kpi__label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ax-text-muted);
-}
-.bsv-kpi__caption {
-  margin-top: 2px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--ax-text-muted);
-}
-.bsv-kpi__head > .ax-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  padding: 1px 6px;
-}
-.bsv-kpi__value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.bsv-kpi__value {
-  font-family: var(--ax-font-display);
-  font-size: 1.35rem;
-  line-height: 1.1;
-  font-weight: 700;
-  color: var(--ax-text-strong);
-  font-variant-numeric: tabular-nums;
-}
-.bsv-kpi__unit {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ax-text-muted);
-}
-.bsv-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 12px;
-  padding-top: 7px;
-  border-top: 1px solid var(--ax-border-subtle);
-}
-.bsv-legend__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--ax-text-muted);
-}
-.bsv-legend__dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 50%;
-  background: var(--c);
-}
-.bsv-legend__num {
-  font-weight: 700;
-  color: var(--ax-text-strong);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Card & Table Header (Exact pattern from ViewInstallation.tsx) ── */
-.bsv-page .ax-card { min-width: 0; }
-
-.bsv-page .ax-card__header {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: var(--ax-space-4) var(--ax-space-6);
-  background: var(--ax-surface-subtle);
-  border-bottom: 1px solid var(--ax-border-subtle);
-}
-.bsv-page .ax-card__titles {
-  flex: 1 1 220px;
-  min-width: 220px;
-  max-width: 100%;
-}
-.bsv-page .ax-card__title,
-.bsv-page .ax-card__eyebrow,
-.bsv-page .ax-card__subtitle {
-  max-width: none;
-  word-break: normal;
-  overflow-wrap: normal;
-  hyphens: none;
-}
-.bsv-page .ax-card__subtitle { line-height: 1.45; }
-
-.bsv-page .ax-card__actions {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-.bsv-page .ax-card__actions .ax-cluster {
-  flex-wrap: nowrap !important;
-  min-width: 0;
-  justify-content: flex-end;
-  gap: var(--ax-space-2, 8px);
-}
-.bsv-page .ax-card__actions .ax-search,
-.bsv-page .ax-card__actions [class*="search"] {
-  flex: 1 1 160px;
-  min-width: 200px;
-  max-width: 260px;
-}
-.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
-.bsv-page .ax-card__actions .ax-export-toolbar,
-.bsv-page .ax-card__actions [class*="export-toolbar"] {
-  flex: 0 1 auto;
-  min-width: 0;
-  flex-wrap: nowrap;
-  gap: 4px;
-}
-.bsv-page .ax-export-toolbar__button {
-  padding-inline: 8px !important;
-  min-width: 0;
-}
-
-.bsv-page .ax-table-wrap {
-  width: 100%;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-.bsv-page .ax-table {
-  min-width: 800px;
-}
-.bsv-page .ax-table__th {
-  font-size: var(--ax-text-2xs);
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--ax-text-muted);
-  background: var(--ax-surface-subtle);
-  white-space: nowrap;
-}
-.bsv-page .ax-table__td { font-size: var(--ax-text-sm); vertical-align: middle; }
-.bsv-page .bsv-benef {
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  color: var(--ax-text-strong);
-}
-.bsv-page .ax-alert { border-radius: var(--ax-radius-md); }
-
-@media (max-width: 1100px) {
-  .bsv-page .ax-export-toolbar__button {
-    font-size: 0;
-    gap: 0;
-    padding: 0 8px !important;
-    justify-content: center;
+/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .bsv-page .ax-export-toolbar__button svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
   }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] { max-width: 200px; }
-}
 
-@media (max-width: 900px) {
-  .bsv-kpi__body { padding: 11px 12px; }
-  .bsv-kpi__value { font-size: 1.25rem; }
-}
-
-@media (max-width: 760px) {
-  .bsv-page .ax-card__header {
-    flex-direction: column;
+  .solar-erp-page .ax-card__header {
+    display: flex;
     flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 10px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .bsv-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: 100%;
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
     max-width: 100%;
   }
-  .bsv-page .ax-card__title {
-    font-family: var(--ax-font-display);
-    font-size: var(--ax-text-md);
-    line-height: var(--ax-leading-md);
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
   }
-  .bsv-page .ax-card__actions {
-    flex: 0 0 auto;
-    width: 100%;
-    margin-left: 0;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .bsv-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    width: 100%;
-    justify-content: flex-start;
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 8px;
   }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] {
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
     min-width: 0;
   }
-  .bsv-page .ax-card__actions .ax-export-toolbar,
-  .bsv-page .ax-card__actions [class*="export-toolbar"] {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
-  }
-  .bsv-page .ax-export-toolbar__button {
-    font-size: 12px;
-    gap: 4px;
-    height: 30px;
-    padding: 0 8px !important;
-  }
-}
 
-@media (max-width: 490px) {
-  .bsv-page .ax-export-toolbar__button {
-    font-size: 11px;
-    height: 28px;
-    padding: 0 6px !important;
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .bsv-page .ax-export-toolbar { gap: 4px; }
-}
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-bg-surface, #ffffff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
 `;
+
+const OVERLAY_CSS = `
+  .ax-modal img { border-radius: 0 !important; }
+`;
+
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 
@@ -460,6 +296,8 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [tabFilter, setTabFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -510,18 +348,32 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const acceptedPct = totalAssignments > 0 ? Math.round((acceptedCount / totalAssignments) * 100) : 0;
   const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
 
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    assignments.forEach((a) => {
+      if (a.district) set.add(a.district.trim());
+    });
+    return Array.from(set).sort();
+  }, [assignments]);
+
   // Filtered
   const filteredAssignments = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return assignments;
     return assignments.filter((a) => {
-      const idMatch = String(a.id).includes(q);
-      const distMatch = String(a.district || '').toLowerCase().includes(q);
-      const stateMatch = String(a.state || '').toLowerCase().includes(q);
-      const siteNamesMatch = a.site_names?.some((s) => String(s.site_name || '').toLowerCase().includes(q));
-      return idMatch || distMatch || stateMatch || siteNamesMatch;
+      const isAccepted = Number(a.status) === 2;
+      if (tabFilter === 'pending' && isAccepted) return false;
+      if (tabFilter === 'accepted' && !isAccepted) return false;
+      if (districtFilter !== 'all' && a.district?.toLowerCase() !== districtFilter.toLowerCase()) return false;
+      if (q) {
+        const idMatch = String(a.id).includes(q);
+        const distMatch = String(a.district || '').toLowerCase().includes(q);
+        const stateMatch = String(a.state || '').toLowerCase().includes(q);
+        const siteNamesMatch = a.site_names?.some((s) => String(s.site_name || '').toLowerCase().includes(q));
+        if (!idMatch && !distMatch && !stateMatch && !siteNamesMatch) return false;
+      }
+      return true;
     });
-  }, [assignments, search]);
+  }, [assignments, search, districtFilter, tabFilter]);
 
   // Paginated
   const paginatedAssignments = useMemo(() => {
@@ -548,8 +400,9 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const handlePdf = () => printTableData('Bihar SRT Assigned Batches', filteredAssignments, exportCols);
 
   return (
-    <div className="ax-page bsv-page">
-      <style>{VIEW_CSS}</style>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
       {/* ── Page Head ── */}
       <PageHead
@@ -613,17 +466,67 @@ export function Bihar_Installation_SRT_RequestAccept() {
           </>
         )}
 
-        {/* ── Main Table Card (Card Header matches ViewInstallation.tsx) ── */}
+        {/* ── Tabs Cluster (All / Pending / Accepted) ── */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Batch status tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {[
+              { key: 'all' as const, label: 'All Batches', count: totalAssignments },
+              { key: 'pending' as const, label: 'Pending Acceptance', count: pendingCount },
+              { key: 'accepted' as const, label: 'Accepted Batches', count: acceptedCount },
+            ].map((t) => {
+              const active = t.key === tabFilter;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => { setTabFilter(t.key); setCurrentPage(1); }}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : t.count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Main Table Card (Card Header matches InstallationDetail.tsx) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <h2 className="ax-card__title">Assigned Installation Batches</h2>
+              <h2 className="ax-card__title">
+                {tabFilter === 'all' ? 'All Assigned Batches' : tabFilter === 'pending' ? 'Pending Acceptance Batches' : 'Accepted Batches'}
+              </h2>
               <p className="ax-card__subtitle">
                 <span className="ax-num">{filteredAssignments.length}</span> of <span className="ax-num">{assignments.length}</span> records
+                {' '}· Total <b className="ax-num">{totalAssignments}</b> · Pending <b className="ax-num">{pendingCount}</b> · Accepted <b className="ax-num">{acceptedCount}</b>
               </p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-input ax-input--sm"
+                  aria-label="Filter by district"
+                  value={districtFilter}
+                  onChange={(e) => { setDistrictFilter(e.target.value); setCurrentPage(1); }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                >
+                  <option value="all">All Districts</option>
+                  {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+
+                {(search || districtFilter !== 'all' || tabFilter !== 'all') && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => { setSearch(''); setDistrictFilter('all'); setTabFilter('all'); setCurrentPage(1); }}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
                 <SearchInput
                   value={search}
                   onChange={(val) => {
@@ -666,7 +569,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
                   <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
                   <thead className="ax-table__head">
                     <tr>
@@ -747,17 +650,21 @@ export function Bihar_Installation_SRT_RequestAccept() {
                 </table>
               </div>
 
-              <Pagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={filteredAssignments.length}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setCurrentPage(1);
-                }}
-                pageSizeOptions={[10, 25, 50, 100]}
-              />
+              <div className="ax-card__footer">
+                <div className="ula-pagination-left">
+                  <Pagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={filteredAssignments.length}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={(size) => {
+                      setPageSize(size);
+                      setCurrentPage(1);
+                    }}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                  />
+                </div>
+              </div>
             </>
           )}
         </section>

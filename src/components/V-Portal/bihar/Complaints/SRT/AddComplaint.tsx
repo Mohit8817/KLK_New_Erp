@@ -32,6 +32,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingSiteNames, setLoadingSiteNames] = useState(false);
   const [loadingSiteDetails, setLoadingSiteDetails] = useState(false);
+  const [fetchingLoc, setFetchingLoc] = useState(false);
 
   // Form State (Exact SRT Store fields from API documentation)
   const [formData, setFormData] = useState({
@@ -46,6 +47,8 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     plant_sc: '5',
     wo_no: 'WO/2026/5',
     phase: '3',
+    latitude: '',
+    longitude: '',
     complaint: '',
     sms: 'Yes',
   });
@@ -104,6 +107,8 @@ export function Bihar_Complaint_SRT_AddComplaint() {
           plant_sc: d.plant_sc != null ? String(d.plant_sc) : '',
           wo_no: d.wo_no || '',
           phase: d.phase != null ? String(d.phase) : '3',
+          latitude: d.latitude ? String(d.latitude) : '',
+          longitude: d.longitude ? String(d.longitude) : '',
           complaint: d.complaint || '',
           sms: 'Yes',
         });
@@ -172,6 +177,8 @@ export function Bihar_Complaint_SRT_AddComplaint() {
           plant_sc: details.plant_sc || prev.plant_sc,
           wo_no: details.wo_no || prev.wo_no,
           phase: details.phase || prev.phase,
+          latitude: (details as any).latitude ? String((details as any).latitude) : prev.latitude,
+          longitude: (details as any).longitude ? String((details as any).longitude) : prev.longitude,
         }));
       }
     } catch (err) {
@@ -205,6 +212,34 @@ export function Bihar_Complaint_SRT_AddComplaint() {
   const handleFileChange = (key: FileKey, file: File | null) => {
     setFiles((prev) => ({ ...prev, [key]: file }));
     clearError(key);
+  };
+
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+      setErrors((prev) => ({ ...prev, latitude: 'Location services not supported by browser.' }));
+      return;
+    }
+    setFetchingLoc(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        }));
+        clearError('latitude');
+        clearError('longitude');
+        setFetchingLoc(false);
+      },
+      (err) => {
+        setFetchingLoc(false);
+        setErrors((prev) => ({
+          ...prev,
+          latitude: err.code === 1 ? 'Location permission denied. Please allow location access.' : 'Unable to retrieve location.',
+        }));
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const scrollToSection = (id: string) => {
@@ -263,6 +298,8 @@ export function Bihar_Complaint_SRT_AddComplaint() {
       fd.append('phase', formData.phase);
       fd.append('complaint', formData.complaint);
       fd.append('sms', formData.sms);
+      if (formData.latitude) fd.append('latitude', formData.latitude);
+      if (formData.longitude) fd.append('longitude', formData.longitude);
 
       if (formData.site_name) {
         fd.append('site_name', formData.site_name);
@@ -431,6 +468,27 @@ export function Bihar_Complaint_SRT_AddComplaint() {
                   {...f('phase')}
                 />
                 <FloatingInput id="cs-firm" label="Executing Firm Name" required placeholder="Firm name" {...f('firm_name')} />
+                <FloatingInput id="cs-lat" label="Latitude" placeholder="e.g. 25.5941" {...f('latitude')} />
+                <FloatingInput id="cs-lng" label="Longitude" placeholder="e.g. 85.1376" {...f('longitude')} />
+                <div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary"
+                    onClick={fetchLocation}
+                    disabled={fetchingLoc}
+                    style={{ height: 46, width: '100%' }}
+                  >
+                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M12 2v3" />
+                      <path d="M12 19v3" />
+                      <path d="M2 12h3" />
+                      <path d="M19 12h3" />
+                    </svg>
+                    <span className="ax-btn__label">{fetchingLoc ? 'Fetching location...' : 'Fetch Current Location'}</span>
+                  </button>
+                  <span className="ax-field-feedback" />
+                </div>
               </div>
             </div>
 

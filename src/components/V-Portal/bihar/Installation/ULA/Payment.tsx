@@ -98,161 +98,132 @@ function PaymentKpiCard({
 }
 
 /* ───────── Responsive CSS (Bihar AMC view jaisa) ───────── */
+/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
 const PAGE_CSS = `
-  .solar-erp-page { --ula-accent: var(--ax-accent, #2563eb); }
-  .solar-erp-page .ax-card { min-width: 0; border: 1px solid var(--ax-border-subtle, #e2e8f0); border-radius: var(--ax-radius-xl, 16px); box-shadow: var(--ax-shadow-sm, 0 2px 8px rgba(15,23,42,.04)); overflow: hidden; background: var(--ax-surface-solid, #fff); }
-  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; background: var(--ax-surface-subtle, #f8fafc); }
-  .solar-erp-page .ula-pagination-left { width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto; }
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  /* Header and table toolbar */
-  .solar-erp-page .ax-card__header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); }
-  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 180px; max-width: 100%; }
-  .solar-erp-page .ax-card__title, .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: anywhere; hyphens: none; }
-  .solar-erp-page .ax-card__title { font-size: var(--ax-text-lg, 18px); font-weight: 700; letter-spacing: -.02em; color: var(--ax-text-strong, #0f172a); }
-  .solar-erp-page .ax-card__subtitle { line-height: 1.45; margin-top: 4px; color: var(--ax-text-muted, #64748b); }
-  .solar-erp-page .ax-card__actions { flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
-  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; min-width: 0; justify-content: flex-end; }
-  .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 180px; min-width: 200px; max-width: 280px; }
-  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar, .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 5px; }
-  .solar-erp-page .ax-export-toolbar__button { padding-inline: 9px !important; min-width: 0; border-radius: var(--ax-radius-md, 8px); }
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
+  }
 
-  /* KPI cards: same compact layout, icon, typography and spacing as Bihar_Survey_SRT200MW_ViewData */
-  .solar-erp-page .bsv-payment-kpi {
-    min-width: 0;
-    overflow: hidden;
-    border: 1px solid var(--ax-border);
-    border-radius: var(--ax-radius-lg);
-    background: var(--ax-bg-surface, var(--ax-surface-solid));
-    box-shadow: var(--ax-shadow-sm);
-    transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
-  }
-  .solar-erp-page .bsv-payment-kpi:hover {
-    box-shadow: var(--ax-shadow-md);
-    border-color: var(--ax-border);
-    transform: translateY(-1px);
-  }
-  .solar-erp-page .bsv-payment-kpi__body {
-    height: 100%;
-    padding: 12px 14px;
+  .solar-erp-page .ax-card__header {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .solar-erp-page .bsv-payment-kpi__head {
-    display: flex;
-    align-items: center;
+    flex-wrap: nowrap;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 6px;
-    min-width: 0;
+    gap: 12px;
   }
-  .solar-erp-page .bsv-payment-kpi__title-wrap {
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
     min-width: 0;
+    justify-content: flex-end;
   }
-  .solar-erp-page .bsv-payment-kpi__icon {
-    width: 28px;
-    height: 28px;
-    flex-shrink: 0;
-    border-radius: var(--ax-radius-md);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
   }
-  .solar-erp-page .bsv-payment-kpi__icon svg { width: 16px; height: 16px; }
-  .solar-erp-page .bsv-payment-kpi__label {
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ax-text-muted);
+    flex-wrap: nowrap;
+    gap: 4px;
   }
-  .solar-erp-page .bsv-payment-kpi__caption {
-    margin-top: 2px;
-    font-size: 11px;
-    line-height: 1.35;
-    color: var(--ax-text-muted);
-  }
-  .solar-erp-page .bsv-payment-kpi__badge {
-    flex-shrink: 0;
-    font-size: 11px;
-    padding: 1px 6px;
-  }
-  .solar-erp-page .bsv-payment-kpi__value-row {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    flex-wrap: wrap;
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
     min-width: 0;
-  }
-  .solar-erp-page .bsv-payment-kpi__value {
-    font-family: var(--ax-font-display);
-    font-size: 1.35rem;
-    line-height: 1.1;
-    font-weight: 700;
-    color: var(--ax-text-strong);
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-  }
-  .solar-erp-page .bsv-payment-kpi__unit {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--ax-text-muted);
-  }
-  @media (max-width: 900px) {
-    .solar-erp-page .bsv-payment-kpi__body { padding: 11px 12px; }
-    .solar-erp-page .bsv-payment-kpi__value { font-size: 1.25rem; }
-  }
-  @media (max-width: 640px) {
-    .solar-erp-page .bsv-payment-kpi__caption { max-width: 100%; }
   }
 
-  /* Filters */
-  .solar-erp-page .ula-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); background: var(--ax-surface-solid, #fff); }
-  .solar-erp-page .ula-filters .ax-field { margin: 0; min-width: 180px; }
-  .solar-erp-page .ula-filters .ax-field__label { margin-bottom: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .045em; color: var(--ax-text-muted, #64748b); }
-  .solar-erp-page .ula-filters .ax-input { min-height: 38px; border-radius: var(--ax-radius-md, 8px); }
-  .solar-erp-page .ula-filters .ax-btn { min-height: 38px; }
-
-  /* Table */
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ula-table--wide { min-width: 1300px; white-space: nowrap; }
-  .solar-erp-page .ax-table { border-collapse: separate; border-spacing: 0; }
-  .solar-erp-page .ax-table__th { padding: 13px 14px; font-size: 10px; font-weight: 750; letter-spacing: .065em; text-transform: uppercase; color: var(--ax-text-muted, #64748b); background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border, #e2e8f0); }
-  .solar-erp-page .ax-table__td { padding: 12px 14px; vertical-align: middle; font-size: var(--ax-text-sm, 13px); border-bottom: 1px solid var(--ax-border-subtle, #edf2f7); }
-  .solar-erp-page .ax-table__row:last-child .ax-table__td { border-bottom: 0; }
-  .solar-erp-page .ax-table--hover .ax-table__row:hover .ax-table__td { background: color-mix(in srgb, var(--ula-accent) 4%, var(--ax-surface-solid, #fff)); }
-  .solar-erp-page .ula-sticky-first th:first-child, .solar-erp-page .ula-sticky-first td:first-child { position: sticky; left: 0; z-index: 2; background: var(--ax-surface-solid, #fff); box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0); }
-  .solar-erp-page .ula-sticky-first th:first-child { z-index: 3; background: var(--ax-surface-subtle, #f8fafc); }
-  .solar-erp-page .ax-badge { font-weight: 650; }
-  .solar-erp-page .ax-modal { border: 1px solid var(--ax-border, #e2e8f0); border-radius: var(--ax-radius-xl, 16px); box-shadow: 0 24px 70px rgba(15,23,42,.2); overflow: hidden; }
-  .solar-erp-page .ax-modal__header { background: var(--ax-surface-subtle, #f8fafc); border-bottom: 1px solid var(--ax-border-subtle, #e2e8f0); }
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-bg-surface, #ffffff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
 
   @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
-    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
-    .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { max-width: 220px; }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
+
   @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 15px; }
-    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-    .solar-erp-page .ax-card__title { font-family: var(--ax-font-display); font-size: var(--ax-text-md, 16px); line-height: 1.4; }
-    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
-    .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
-    .solar-erp-page .ax-card__actions .ax-search, .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar, .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
-    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 32px; padding: 0 9px !important; }
-    .solar-erp-page .ula-filters { padding: 13px 15px; }
-    .solar-erp-page .ula-filters .ax-field { flex: 1 1 100%; min-width: 0; }
-    .solar-erp-page .ula-sticky-first th:first-child, .solar-erp-page .ula-sticky-first td:first-child { position: sticky; left: 0; z-index: 1; background: var(--ax-bg-surface, #fff); box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0); }
-  }
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 29px; padding: 0 6px !important; }
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
   }
 `;
 
@@ -431,17 +402,95 @@ export function Bihar_Installation_ULA_Payment() {
           icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
         />
 
+        {/* Tabs Row for quick filter */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Claims filter tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {[
+              { key: 'All', label: 'All Claims', count: claims.length },
+              { key: 'Approved', label: 'Approved', count: claims.filter((c) => Number(c.claim_status) === 1).length },
+              { key: 'Pending', label: 'Pending Approval', count: claims.filter((c) => Number(c.claim_status) === 0).length },
+              { key: 'Paid', label: 'Disbursed', count: claims.filter((c) => Number(c.payment_status) === 1).length },
+            ].map((t) => {
+              const active = t.key === selectedStatusFilter;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => setSelectedStatusFilter(t.key)}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : t.count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Claims Table */}
         <section className="ax-card ax-col--12" role="region" aria-labelledby="claim-table-title">
-          {/* Header: title (left) | search + export (right) */}
+          {/* Header: title (left) | filters + search + export in ONE line (right) */}
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <h3 id="claim-table-title" className="ax-card__title">Payment Claims History</h3>
-              <p className="ax-card__subtitle"><span className="ax-num">{filteredClaims.length}</span> claims.</p>
+              <h2 id="claim-table-title" className="ax-card__title">Payment Claims History</h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredClaims.length}</span> of <span className="ax-num">{claims.length}</span> claims
+                {' '}· Invoiced <b className="ax-num">{inr(totalClaimAmount)}</b> · Paid <b className="ax-num">{inr(totalPaidAmount)}</b> · Balance <b className="ax-num">{inr(totalBalanceAmount)}</b>
+              </p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput value={search} onChange={setSearch} placeholder="Search claim ID, remarks…" size="sm" />
+                <select
+                  id="stage_filter"
+                  className="ax-input ax-input--sm"
+                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={selectedTypeFilter}
+                  onChange={(e) => setSelectedTypeFilter(e.target.value)}
+                  aria-label="Filter by claim type"
+                >
+                  <option value="All">All Types</option>
+                  <option value="50">50% Advance</option>
+                  <option value="30">30% Final</option>
+                </select>
+
+                <select
+                  id="status_filter"
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={selectedStatusFilter}
+                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                  aria-label="Filter by status"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Approved">Claim Approved</option>
+                  <option value="Pending">Claim Pending</option>
+                  <option value="Paid">Payment Disbursed</option>
+                </select>
+
+                {hasFilters && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => {
+                      setSelectedTypeFilter('All');
+                      setSelectedStatusFilter('All');
+                      setSearch('');
+                    }}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Search claim ID, remarks…"
+                  size="sm"
+                  ariaLabel="Search payment claims"
+                />
+
                 <TableExportToolbar
                   onCopy={() => copyTableDataToClipboard(filteredClaims, exportCols)}
                   onExportCSV={() => exportDataToCSV(filteredClaims, exportCols, 'bihar_ula_payment_claims.csv')}
@@ -452,54 +501,8 @@ export function Bihar_Installation_ULA_Payment() {
             </div>
           </div>
 
-          {/* Filters row */}
-          <div className="ula-filters">
-            <div className="ax-field">
-              <label className="ax-field__label" htmlFor="stage_filter">Claim Type</label>
-              <select
-                id="stage_filter"
-                className="ax-input"
-                value={selectedTypeFilter}
-                onChange={(e) => setSelectedTypeFilter(e.target.value)}
-              >
-                <option value="All">All Types</option>
-                <option value="50">50% Advance</option>
-                <option value="30">30% Final</option>
-              </select>
-            </div>
-
-            <div className="ax-field">
-              <label className="ax-field__label" htmlFor="status_filter">Status</label>
-              <select
-                id="status_filter"
-                className="ax-input"
-                value={selectedStatusFilter}
-                onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              >
-                <option value="All">All Statuses</option>
-                <option value="Approved">Claim Approved</option>
-                <option value="Pending">Claim Pending</option>
-                <option value="Paid">Payment Disbursed</option>
-              </select>
-            </div>
-
-            {hasFilters && (
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={() => {
-                  setSelectedTypeFilter('All');
-                  setSelectedStatusFilter('All');
-                  setSearch('');
-                }}
-              >
-                Reset
-              </button>
-            )}
-          </div>
-
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--wide ula-sticky-first">
+            <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
               <caption className="ax-visually-hidden">Payment Claims History</caption>
               <thead className="ax-table__head">
                 <tr>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharComplaintService,
@@ -119,9 +120,38 @@ function Field({ label, span, children }: { label: string; span: number; childre
   );
 }
 
+const isItemRejected = (item: BiharComplaintItem | any): boolean => {
+  if (!item) return false;
+  const statusStr = String(item.status ?? '').toLowerCase().trim();
+  const closeStatusStr = String(item.close_status ?? '').toLowerCase().trim();
+  const approvalStatusStr = String(item.approval_status ?? item.approved_status ?? item.approval ?? '').toLowerCase().trim();
+  const rejectStatusStr = String(item.reject_status ?? item.rejected ?? item.is_rejected ?? '').toLowerCase().trim();
+  const remarksStr = String(item.reject_reason ?? item.reject_remarks ?? item.admin_remarks ?? '').toLowerCase().trim();
+
+  return (
+    statusStr === '2' ||
+    statusStr === '-1' ||
+    statusStr === '3' ||
+    statusStr === 'rejected' ||
+    statusStr === 'reject' ||
+    closeStatusStr === '-1' ||
+    closeStatusStr === '2' ||
+    closeStatusStr === 'rejected' ||
+    closeStatusStr === 'reject' ||
+    approvalStatusStr === 'rejected' ||
+    approvalStatusStr === 'reject' ||
+    approvalStatusStr === '2' ||
+    rejectStatusStr === '1' ||
+    rejectStatusStr === 'true' ||
+    rejectStatusStr === 'rejected' ||
+    (remarksStr.length > 0 && (remarksStr.includes('reject') || statusStr === '2'))
+  );
+};
+
 type TabKey = 'open' | 'approved' | 'closed';
 
 export function Bihar_Complaint_SRT_AssignedComplaint() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [assignedData, setAssignedData] = useState<AssignedComplaintsResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('open');
@@ -131,6 +161,110 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
 
   // Detail Modal
   const [selectedItem, setSelectedItem] = useState<BiharComplaintItem | null>(null);
+
+  // ── Resolve / Close Complaint Modal State ──
+  const [resolvingItem, setResolvingItem] = useState<BiharComplaintItem | null>(null);
+  const [resolvedBy, setResolvedBy] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [rEmail, setREmail] = useState('');
+  const [rMobile, setRMobile] = useState('');
+  const [closingDate, setClosingDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [closeSms, setCloseSms] = useState<'Yes' | 'No'>('Yes');
+  const [rFile, setRFile] = useState<File | null>(null);
+  const [rFile2, setRFile2] = useState<File | null>(null);
+  const [rFile3, setRFile3] = useState<File | null>(null);
+  const [rFile4, setRFile4] = useState<File | null>(null);
+  const [resolveSubmitting, setResolveSubmitting] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  const openResolveModal = (item: BiharComplaintItem) => {
+    setResolvingItem(item);
+    setResolveError(null);
+    setResolvedBy(assignedData?.name || (assignedData as any)?.vendor?.name || 'App Testing');
+    setContactPerson(item.contact_person || item.site_name || item.beneficiary_name || '');
+    setContactNumber(item.contact_number || item.contact_no || '');
+    setREmail((assignedData as any)?.vendor?.email || '');
+    setRMobile((assignedData as any)?.vendor?.contact || '');
+    setClosingDate(new Date().toISOString().split('T')[0]);
+    setRemarks('');
+    setCloseSms('Yes');
+    setRFile(null);
+    setRFile2(null);
+    setRFile3(null);
+    setRFile4(null);
+  };
+
+  const handleResolveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resolvingItem) return;
+
+    if (!resolvedBy.trim()) {
+      setResolveError('Resolved By is required.');
+      return;
+    }
+    if (!contactPerson.trim()) {
+      setResolveError('Contact person is required.');
+      return;
+    }
+    const cleanContact = contactNumber.trim().replace(/\D/g, '');
+    if (cleanContact.length !== 10) {
+      setResolveError('Contact number must be exactly 10 digits.');
+      return;
+    }
+    if (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) {
+      setResolveError('Please enter a valid resolver email address.');
+      return;
+    }
+    const cleanMobile = rMobile.trim().replace(/\D/g, '');
+    if (cleanMobile.length !== 10) {
+      setResolveError('Resolver mobile must be exactly 10 digits.');
+      return;
+    }
+    if (!closingDate) {
+      setResolveError('Closing date is required.');
+      return;
+    }
+    if (!remarks.trim()) {
+      setResolveError('Remarks are required.');
+      return;
+    }
+
+    setResolveSubmitting(true);
+    setResolveError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append('srt_id', String(resolvingItem.id));
+      fd.append('resolved_by', resolvedBy.trim());
+      fd.append('contact_person', contactPerson.trim());
+      fd.append('contact_number', cleanContact);
+      fd.append('r_email', rEmail.trim());
+      fd.append('r_mobile', cleanMobile);
+      fd.append('manual_close_date', closingDate);
+      fd.append('remarks', remarks.trim());
+      fd.append('close_sms', closeSms);
+      if (rFile) fd.append('r_file', rFile);
+      if (rFile2) fd.append('r_file2', rFile2);
+      if (rFile3) fd.append('r_file3', rFile3);
+      if (rFile4) fd.append('r_file4', rFile4);
+
+      const res = await biharComplaintService.closeUpdateSrtComplaint(fd);
+      if (res.success) {
+        setSuccessToast(res.message || 'Complaint Close Request Raised Successfully.');
+        setResolvingItem(null);
+        await loadData();
+      } else {
+        setResolveError(res.message || 'Failed to resolve SRT complaint.');
+      }
+    } catch (err: any) {
+      setResolveError(err?.message || 'Error occurred while resolving complaint.');
+    } finally {
+      setResolveSubmitting(false);
+    }
+  };
 
   const deferredQuery = useDeferredValue(searchQuery);
 
@@ -226,7 +360,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     { header: 'Plant SC', accessor: 'plant_sc' },
     { header: 'WO No', accessor: 'wo_no' },
     { header: 'Phase', accessor: 'phase' },
-    { header: 'Assign Complaint', accessor: 'assigned_vendor_name' },
+    { header: '', accessor: 'assigned_vendor_name' },
     { header: 'Status', accessor: (r) => (r.close_status === 1 ? 'Closed' : 'Open') },
   ];
 
@@ -237,8 +371,8 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: 'open', label: 'Open', count: openCount },
-    { key: 'approved', label: 'Approval', count: approvedCount },
-    { key: 'closed', label: 'Resolved', count: closedCount },
+    { key: 'approved', label: 'Pending Approval', count: approvedCount },
+    { key: 'closed', label: 'Closed', count: closedCount },
   ];
 
   return (
@@ -271,6 +405,33 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
           </div>
         }
       />
+
+      {successToast && (
+        <div
+          style={{
+            padding: '12px 16px',
+            marginBottom: 16,
+            borderRadius: 8,
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            fontSize: 13.5,
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✓ {successToast}</span>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 700 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {errorMsg && (
         <div
@@ -306,7 +467,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
         <div className="ax-dash-grid" style={{ marginBottom: 18 }}>
           <KpiCard icon={ICON_TOTAL} bg="rgba(37, 99, 235, 0.12)" fg={BLUE_PRIMARY} label="Total Complaints" value={num(totalCount)} sub="Total assigned tickets" />
           <KpiCard icon={ICON_ALERT} bg="rgba(245, 158, 11, 0.14)" fg={AMBER_WARNING} label="Open Complaints" value={num(openCount)} sub="Awaiting vendor dispatch" />
-          <KpiCard icon={ICON_CLOCK} bg="rgba(6, 182, 212, 0.14)" fg={CYAN_INFO} label="Complaints Approval" value={num(approvedCount)} sub="Resolution under review" />
+          <KpiCard icon={ICON_CLOCK} bg="rgba(6, 182, 212, 0.14)" fg={CYAN_INFO} label="Pending Approval" value={num(approvedCount)} sub="Resolution under review" />
           <KpiCard icon={ICON_CHECK} bg="rgba(16, 185, 129, 0.14)" fg={GREEN_EMERALD} label="Resolved Complaints" value={num(closedCount)} sub="Completed & verified" />
         </div>
       )}
@@ -389,7 +550,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
 
         {/* Data Table */}
         {loading ? (
-          <TableSkeleton columns={19} rows={8} showCard={false} />
+          <TableSkeleton columns={20} rows={8} showCard={false} />
         ) : (
           <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
             <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 2200 }}>
@@ -413,13 +574,14 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   <th style={TH}>Phase</th>
                   <th style={{ ...TH, textAlign: 'center' }}>Document</th>
                   <th style={TH}>Assign Complaint</th>
-                  <th style={{ ...TH, textAlign: 'center', width: 110 }}>Action</th>
+                  <th style={{ ...TH, textAlign: 'center', minWidth: 130 }}>Approval Status</th>
+                  <th style={{ ...TH, textAlign: 'center', minWidth: 120 }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {pagination.paged.length === 0 ? (
                   <tr>
-                    <td colSpan={19} style={{ padding: 40, textAlign: 'center' }}>
+                    <td colSpan={20} style={{ padding: 40, textAlign: 'center' }}>
                       <TableEmptyState
                         title="No Assigned Complaints Found"
                         message={searchQuery ? `No records match "${searchQuery}"` : 'There are currently no assigned tickets in this category.'}
@@ -502,10 +664,147 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                             {item.assigned_vendor_name || '—'}
                           </span>
                         </td>
+                        {/* Approval Status Column */}
                         <td style={{ ...TD, textAlign: 'center' }}>
-                          <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => setSelectedItem(item)}>
-                            View
-                          </button>
+                          {isItemRejected(item) ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#fef2f2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
+                              }}
+                              title={(item as any).reject_reason || (item as any).reject_remarks || 'Complaint rejected from main portal'}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b91c1c' }} />
+                              Rejected
+                            </span>
+                          ) : activeTab === 'approved' || (item.status === 1 && item.close_status !== 1) ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#ecfeff',
+                                color: '#0891b2',
+                                border: '1px solid #a5f3fc',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0891b2' }} />
+                              Pending
+                            </span>
+                          ) : activeTab === 'closed' || item.close_status === 1 ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#047857' }} />
+                              Approved
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#fffbeb',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b45309' }} />
+                              Open
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Action Column */}
+                        <td style={{ ...TD, textAlign: 'center' }}>
+                          {activeTab === 'approved' || isItemRejected(item) ? (
+                            /* Pending Approval / Rejected: Edit button to fix and View button */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => navigate(`/v/complaint/bihar/srt-add-complaint?edit=${item.id}`)}
+                                title="Edit Complaint"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--ghost ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Details"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : activeTab === 'closed' ? (
+                            /* Closed: View button */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Complaint Details"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            /* Open: View and Resolve buttons */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Complaint Details"
+                              >
+                                View
+                              </button>
+                              {item.close_status !== 1 && (
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--primary ax-btn--sm"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    borderColor: '#059669',
+                                    color: '#ffffff',
+                                    fontWeight: 600,
+                                  }}
+                                  onClick={() => openResolveModal(item)}
+                                  title="Resolve this complaint"
+                                >
+                                  Resolve
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -587,6 +886,17 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                 <Field label="Phase" span={4}>{selectedItem.phase || '—'}</Field>
                 <Field label="Location / Campus" span={12}>{selectedItem.location || selectedItem.address || '—'}</Field>
 
+                {isItemRejected(selectedItem) && (
+                  <div className="ax-col--12">
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#991b1b', fontSize: 13 }}>
+                      <strong>Complaint Rejected by Main Portal</strong>
+                      {((selectedItem as any).reject_reason || (selectedItem as any).reject_remarks) && (
+                        <div style={{ marginTop: 4 }}>Reason: {(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="ax-col--12">
                   <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                     Complaint Description
@@ -626,14 +936,398 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                 borderTop: '1px solid var(--ax-border, #e2e8f0)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-end',
+                justifyContent: 'space-between',
                 gap: 10,
               }}
             >
+              <div>
+                {isItemRejected(selectedItem) ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary ax-btn--sm"
+                    onClick={() => {
+                      const id = selectedItem.id;
+                      setSelectedItem(null);
+                      navigate(`/v/complaint/bihar/srt-add-complaint?edit=${id}`);
+                    }}
+                  >
+                    Edit & Fix Complaint
+                  </button>
+                ) : activeTab === 'open' && selectedItem.close_status !== 1 && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary ax-btn--sm"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderColor: '#059669',
+                      color: '#ffffff',
+                      fontWeight: 600,
+                    }}
+                    onClick={() => {
+                      const item = selectedItem;
+                      setSelectedItem(null);
+                      openResolveModal(item);
+                    }}
+                  >
+                    Resolve This Complaint
+                  </button>
+                )}
+              </div>
               <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedItem(null)}>
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Vendor Close / Resolve Complaint Modal ── */}
+      {resolvingItem && (
+        <div
+          className="ax-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20,
+          }}
+          onClick={() => !resolveSubmitting && setResolvingItem(null)}
+        >
+          <div
+            className="ax-modal__dialog"
+            style={{
+              background: 'var(--ax-surface-solid, #ffffff)',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 780,
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="ax-modal__header"
+              style={{
+                padding: '16px 24px',
+                borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--ax-surface-subtle, #f8fafc)',
+              }}
+            >
+              <div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    color: '#059669',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Vendor Close Complaints
+                </span>
+                <h4 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                  Resolve Complaint #{resolvingItem.complaint_id}
+                </h4>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                onClick={() => setResolvingItem(null)}
+                disabled={resolveSubmitting}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleResolveSubmit}>
+              <div className="ax-modal__body" style={{ padding: '20px 24px' }}>
+                {resolveError && (
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      marginBottom: 16,
+                      borderRadius: 8,
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#991b1b',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    ⚠ {resolveError}
+                  </div>
+                )}
+
+                {/* ── Read-only Complaint Overview Card ── */}
+                <div
+                  style={{
+                    background: 'var(--ax-surface-subtle, #f8fafc)',
+                    border: '1px solid var(--ax-border, #e2e8f0)',
+                    borderRadius: 10,
+                    padding: '14px 18px',
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', marginBottom: 8 }}>
+                    Complaint Information
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '8px 16px',
+                      fontSize: 12.5,
+                    }}
+                  >
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{resolvingItem.state || 'bihar'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{resolvingItem.district || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Discom:</span> <b>{resolvingItem.discom || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Dept Name:</span> <b>{resolvingItem.dept_name || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{resolvingItem.site_name || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Location:</span> <b>{resolvingItem.location || resolvingItem.address || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>CA No:</span> <b>{resolvingItem.ca_no || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Sanction Load:</span> <b>{resolvingItem.sanction_load || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Plant SC:</span> <b>{resolvingItem.plant_sc || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>WO No:</span> <b>{resolvingItem.wo_no || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Phase:</span> <b>{resolvingItem.phase || '—'}</b></div>
+                    <div><span style={{ color: 'var(--ax-text-muted)' }}>Complaint Date:</span> <b>{resolvingItem.start_date || '—'}</b></div>
+                  </div>
+                </div>
+
+                {/* ── Resolution Inputs Grid ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px 16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolved By <span style={{ color: '#ef4444' }}>*</span> (Locked)
+                    </label>
+                    <input
+                      type="text"
+                      className="ax-input"
+                      value={resolvedBy}
+                      readOnly
+                      disabled
+                      style={{
+                        background: 'var(--ax-surface-subtle, #f1f5f9)',
+                        color: 'var(--ax-text-muted, #64748b)',
+                        cursor: 'not-allowed',
+                      }}
+                      placeholder="e.g. App Testing"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Contact Person / Incharge <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="ax-input"
+                      value={contactPerson}
+                      onChange={(e) => setContactPerson(e.target.value)}
+                      placeholder="e.g. Ramesh Kumar"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Contact Number (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="ax-input"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      placeholder="e.g. 9876543210"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolver Email <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="ax-input"
+                      value={rEmail}
+                      onChange={(e) => setREmail(e.target.value)}
+                      placeholder="e.g. resolver@gmail.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Resolver Mobile (10 Digits) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      className="ax-input"
+                      value={rMobile}
+                      onChange={(e) => setRMobile(e.target.value)}
+                      placeholder="e.g. 9454969296"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Closing Date <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="ax-input"
+                      value={closingDate}
+                      onChange={(e) => setClosingDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Proof Image 1 (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Proof Image 2 (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile2(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Proof Image 3 (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile3(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Proof Image 4 / Test Sheet (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="ax-input"
+                      style={{ fontSize: 12 }}
+                      onChange={(e) => setRFile4(e.target.files?.[0] || null)}
+                    />
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Max 5 MB (JPG, PNG, WebP, PDF)</span>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
+                      Remarks <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <textarea
+                      className="ax-input"
+                      rows={3}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Enter resolution notes and actions taken..."
+                      required
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+                      Send SMS Notification <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ display: 'inline-flex', gap: 16, alignItems: 'center' }}>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                        <input
+                          type="radio"
+                          name="close_sms"
+                          value="Yes"
+                          checked={closeSms === 'Yes'}
+                          onChange={() => setCloseSms('Yes')}
+                        />
+                        <span>Yes</span>
+                      </label>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                        <input
+                          type="radio"
+                          name="close_sms"
+                          value="No"
+                          checked={closeSms === 'No'}
+                          onChange={() => setCloseSms('No')}
+                        />
+                        <span>No</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="ax-modal__footer"
+                style={{
+                  padding: '14px 24px',
+                  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: 10,
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                }}
+              >
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  onClick={() => setResolvingItem(null)}
+                  disabled={resolveSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  disabled={resolveSubmitting}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderColor: '#059669',
+                    minWidth: 160,
+                  }}
+                >
+                  {resolveSubmitting ? 'Resolving…' : 'Confirm & Resolve Complaint'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

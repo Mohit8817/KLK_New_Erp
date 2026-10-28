@@ -541,6 +541,31 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       },
     ],
   },
+
+  /* ═══════════════════ PUNJAB ═══════════════════ */
+  {
+    section: 'Punjab',
+    state: 'punjab',
+    categories: [
+      {
+        id: 'punjab.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'punjab.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/punjab/ssl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/punjab/ssl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/punjab/ssl/installation/update-light-deatils' },
+              { title: 'Installation Detail', to: '/v/punjab/ssl/installation/complete-light' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'dashboard' }) {

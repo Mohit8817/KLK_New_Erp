@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -15,6 +15,7 @@ import {
   exportDataToCSV,
   exportDataToExcel,
   printTableData,
+  KpiSkeleton,
   type ExportColumn,
 } from '../../../../../common';
 
@@ -64,290 +65,138 @@ const resolveFileUrl = (path?: string | null): string => {
   return candidates[0] || '';
 };
 
-/* ── Styles: same KPI cards + single-line responsive header (Search + Export) ── */
-const VIEW_CSS = `
-.bsv-page {
-  --bsv-card-radius: var(--ax-radius-lg);
-}
-.bsv-page .ax-dash-grid {
-  align-items: stretch;
-  gap: var(--ax-space-4);
-}
-.bsv-kpi {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--ax-border);
-  border-radius: var(--bsv-card-radius);
-  background: var(--ax-bg-surface, var(--ax-surface-solid));
-  box-shadow: var(--ax-shadow-sm);
-  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
-}
-.bsv-kpi:hover {
-  box-shadow: var(--ax-shadow-md);
-  border-color: var(--ax-border);
-  transform: translateY(-1px);
-}
-.bsv-kpi::before { display: none; }
-.bsv-kpi__body {
-  height: 100%;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.bsv-kpi__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-width: 0;
-}
-.bsv-kpi__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.bsv-kpi__icon {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: var(--ax-radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--bsv-accent);
-  background: color-mix(in srgb, var(--bsv-accent) 12%, transparent);
-}
-.bsv-kpi__icon svg { width: 16px; height: 16px; }
-.bsv-kpi__label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ax-text-muted);
-}
-.bsv-kpi__caption {
-  margin-top: 2px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--ax-text-muted);
-}
-.bsv-kpi__head > .ax-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  padding: 1px 6px;
-}
-.bsv-kpi__value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.bsv-kpi__value {
-  font-family: var(--ax-font-display);
-  font-size: 1.35rem;
-  line-height: 1.1;
-  font-weight: 700;
-  color: var(--ax-text-strong);
-  font-variant-numeric: tabular-nums;
-}
-.bsv-kpi__unit {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ax-text-muted);
-}
-
-.bsv-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 12px;
-  padding-top: 7px;
-  border-top: 1px solid var(--ax-border-subtle);
-}
-.bsv-legend__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--ax-text-muted);
-}
-.bsv-legend__dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 50%;
-  background: var(--c);
-}
-.bsv-legend__num {
-  font-weight: 700;
-  color: var(--ax-text-strong);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Card & Table Header (Exact pattern from SRT RequestAccept / ViewInstallation) ── */
-.bsv-page .ax-card { min-width: 0; }
-
-.bsv-page .ax-card__header {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: var(--ax-space-4) var(--ax-space-6);
-  background: var(--ax-surface-subtle);
-  border-bottom: 1px solid var(--ax-border-subtle);
-}
-.bsv-page .ax-card__titles {
-  flex: 1 1 220px;
-  min-width: 220px;
-  max-width: 100%;
-}
-.bsv-page .ax-card__title,
-.bsv-page .ax-card__eyebrow,
-.bsv-page .ax-card__subtitle {
-  max-width: none;
-  word-break: normal;
-  overflow-wrap: normal;
-  hyphens: none;
-}
-.bsv-page .ax-card__subtitle { line-height: 1.45; }
-
-.bsv-page .ax-card__actions {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: nowrap;
-  gap: 8px;
-}
-.bsv-page .ax-card__actions .ax-cluster {
-  flex-wrap: nowrap !important;
-  min-width: 0;
-  justify-content: flex-end;
-  gap: var(--ax-space-2, 8px);
-}
-.bsv-page .ax-card__actions .ax-search,
-.bsv-page .ax-card__actions [class*="search"] {
-  flex: 1 1 160px;
-  min-width: 200px;
-  max-width: 260px;
-}
-.bsv-page .ax-card__actions input { min-width: 0; width: 100%; }
-.bsv-page .ax-card__actions .ax-export-toolbar,
-.bsv-page .ax-card__actions [class*="export-toolbar"] {
-  flex: 0 1 auto;
-  min-width: 0;
-  flex-wrap: nowrap;
-  gap: 4px;
-}
-.bsv-page .ax-export-toolbar__button {
-  padding-inline: 8px !important;
-  min-width: 0;
-}
-
-.bsv-page .ax-table-wrap {
-  width: 100%;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-.bsv-page .ax-table {
-  min-width: 1100px;
-}
-.bsv-page .ax-table__th {
-  font-size: var(--ax-text-2xs);
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--ax-text-muted);
-  background: var(--ax-surface-subtle);
-  white-space: nowrap;
-}
-.bsv-page .ax-table__td { font-size: var(--ax-text-sm); vertical-align: middle; }
-.bsv-page .bsv-benef {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  color: var(--ax-text-strong);
-}
-.bsv-page .ax-alert { border-radius: var(--ax-radius-md); }
-
-@media (max-width: 1100px) {
-  .bsv-page .ax-export-toolbar__button {
-    font-size: 0;
-    gap: 0;
-    padding: 0 8px !important;
-    justify-content: center;
+/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .bsv-page .ax-export-toolbar__button svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page img,
+  .solar-erp-page .ax-card img {
+    border-radius: 0 !important;
   }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] { max-width: 200px; }
-}
 
-@media (max-width: 900px) {
-  .bsv-kpi__body { padding: 11px 12px; }
-  .bsv-kpi__value { font-size: 1.25rem; }
-}
-
-@media (max-width: 760px) {
-  .bsv-page .ax-card__header {
-    flex-direction: column;
+  .solar-erp-page .ax-card__header {
+    display: flex;
     flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 10px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
-  .bsv-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: 0;
-    width: 100%;
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
     max-width: 100%;
   }
-  .bsv-page .ax-card__title {
-    font-family: var(--ax-font-display);
-    font-size: var(--ax-text-md);
-    line-height: var(--ax-leading-md);
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
   }
-  .bsv-page .ax-card__actions {
-    flex: 0 0 auto;
-    width: 100%;
-    margin-left: 0;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .bsv-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    width: 100%;
-    justify-content: flex-start;
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
     gap: 8px;
   }
-  .bsv-page .ax-card__actions .ax-search,
-  .bsv-page .ax-card__actions [class*="search"] {
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
     min-width: 0;
   }
-  .bsv-page .ax-card__actions .ax-export-toolbar,
-  .bsv-page .ax-card__actions [class*="export-toolbar"] {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
+
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-}
+  .solar-erp-page .ula-sticky-first th:first-child,
+  .solar-erp-page .ula-sticky-first td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--ax-bg-surface, #ffffff);
+    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      width: 100%;
+      justify-content: stretch;
+      margin-left: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      width: 100%;
+      flex-wrap: wrap !important;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
 `;
 
+const OVERLAY_CSS = `
+  .ax-modal img { border-radius: 0 !important; }
+`;
 const actionsRowStyle = {
   gap: 'var(--ax-space-2)',
   flexWrap: 'wrap',
@@ -378,43 +227,44 @@ const ICON_EYE = (
   </svg>
 );
 
-interface Segment { label: string; count: number; color: string }
+/* ───────── KPI Card (exact same as Survey/SRT200MW/ViewData.tsx & SRT Request Accept) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+};
+
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
 function KpiCard({
-  accent, icon, label, caption, value, unit, badge, segments,
+  icon, tone, label, value, sub,
 }: {
-  accent: string; icon: ReactNode; label: string; caption: string;
-  value: ReactNode; unit?: string; badge?: ReactNode; segments?: Segment[];
+  icon: ReactNode; tone: KpiTone; label: string;
+  value: ReactNode; sub: string;
 }) {
+  const t = TONE[tone];
   return (
-    <div className="bsv-kpi ax-col--4" role="region" aria-label={label} style={{ ['--bsv-accent' as string]: accent } as CSSProperties}>
-      <div className="bsv-kpi__body">
-        <div className="bsv-kpi__head">
-          <div className="bsv-kpi__title-wrap">
-            <span className="bsv-kpi__icon"><svg {...ICON_PROPS}>{icon}</svg></span>
-            <div>
-              <div className="bsv-kpi__label">{label}</div>
-              <div className="bsv-kpi__caption">{caption}</div>
-            </div>
-          </div>
-          {badge}
-        </div>
-
-        <div className="bsv-kpi__value-row">
-          <span className="bsv-kpi__value">{value}</span>
-          {unit && <span className="bsv-kpi__unit">{unit}</span>}
-        </div>
-
-        {segments && (
-          <div className="bsv-legend">
-            {segments.map((s) => (
-              <span key={s.label} className="bsv-legend__item" style={{ ['--c' as string]: s.color } as CSSProperties}>
-                <span className="bsv-legend__dot" />
-                {s.label} <span className="bsv-legend__num">{s.count}</span>
-              </span>
-            ))}
-          </div>
-        )}
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
       </div>
     </div>
   );
@@ -498,6 +348,8 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<AssignSiteItem[]>([]);
   const [search, setSearch] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [tabFilter, setTabFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
@@ -560,14 +412,20 @@ export function Bihar_Installation_ULA_RequestAccept() {
 
   // KPI calculations
   const totalAssignments = assignments.length;
-  const pendingCount = assignments.filter((a) => Number(a.status) === 1).length;
-  const acceptedCount = assignments.filter((a) => Number(a.status) === 2).length;
+  const totalSites = useMemo(() => assignments.reduce((acc, a) => acc + getSiteCount(a), 0), [assignments]);
+  const acceptedCount = useMemo(() => assignments.filter((a) => Number(a.status) === 2).length, [assignments]);
+  const pendingCount = totalAssignments - acceptedCount;
   const acceptedPct = totalAssignments > 0 ? Math.round((acceptedCount / totalAssignments) * 100) : 0;
   const pendingPct = totalAssignments > 0 ? Math.round((pendingCount / totalAssignments) * 100) : 0;
 
-  const warn = 'var(--ax-warning-500)';
-  const ok = 'var(--ax-accent)';
-  const accent = 'var(--ax-accent)';
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    assignments.forEach((a) => {
+      const d = (a.district || a.block || '').trim();
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [assignments]);
 
   // Filtered
   const filteredAssignments = useMemo(() => {
@@ -621,8 +479,9 @@ export function Bihar_Installation_ULA_RequestAccept() {
   const handlePdf = () => printTableData('Bihar ULA Installation Assignments', filteredAssignments, exportCols);
 
   return (
-    <div className="ax-page bsv-page">
-      <style>{VIEW_CSS}</style>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
       {/* ── Page Head ── */}
       <PageHead
@@ -651,63 +510,102 @@ export function Bihar_Installation_ULA_RequestAccept() {
       )}
 
       <div className="ax-dash-grid">
-        {/* ── KPI 1: Total Assignments ── */}
-        <KpiCard
-          accent={accent}
-          label="Total Assignments"
-          caption="Batches allocated by state admin"
-          value={totalAssignments}
-          unit="batches"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">All Batches</span>}
-          icon={<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>}
-          segments={[
-            { label: 'Accepted', count: acceptedCount, color: ok },
-            { label: 'Pending', count: pendingCount, color: warn },
-          ]}
-        />
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Assignments"
+              value={totalAssignments.toLocaleString('en-IN')}
+              sub={`${acceptedCount} accepted · ${pendingCount} pending`}
+              icon={svg(<><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h8M8 17h5" /></>)}
+            />
+            <KpiCard
+              tone="amber"
+              label="Pending Acceptance"
+              value={pendingCount.toLocaleString('en-IN')}
+              sub={`${pendingPct}% of total · Action required`}
+              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>)}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Accepted Batches"
+              value={acceptedCount.toLocaleString('en-IN')}
+              sub={`${acceptedPct}% accepted · Ready to install`}
+              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
+            />
+            <KpiCard
+              tone="cyan"
+              label="Total Allocated Sites"
+              value={totalSites.toLocaleString('en-IN')}
+              sub="Cumulative allocated installations"
+              icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
+            />
+          </>
+        )}
 
-        {/* ── KPI 2: Pending Acceptance ── */}
-        <KpiCard
-          accent={warn}
-          label="Pending Acceptance"
-          caption="Action required to begin installation"
-          value={pendingCount}
-          unit="pending"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">{pendingPct}%</span>}
-          icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-          segments={[
-            { label: 'Pending', count: pendingCount, color: warn },
-            { label: 'Others', count: totalAssignments - pendingCount, color: 'var(--ax-border)' },
-          ]}
-        />
+        {/* ── Tabs Cluster (All / Pending / Accepted) ── */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Batch status tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {[
+              { key: 'all' as const, label: 'All Batches', count: totalAssignments },
+              { key: 'pending' as const, label: 'Pending Acceptance', count: pendingCount },
+              { key: 'accepted' as const, label: 'Accepted Batches', count: acceptedCount },
+            ].map((t) => {
+              const active = t.key === tabFilter;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => { setTabFilter(t.key); setCurrentPage(1); }}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : t.count})</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* ── KPI 3: Accepted ── */}
-        <KpiCard
-          accent={ok}
-          label="Accepted Assignments"
-          caption="Ready for structure erection"
-          value={`${acceptedPct}%`}
-          unit="accepted"
-          badge={<span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{acceptedCount} / ${totalAssignments}</span>}
-          icon={<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>}
-          segments={[
-            { label: 'Accepted', count: acceptedCount, color: ok },
-            { label: 'Pending', count: pendingCount, color: warn },
-          ]}
-        />
-
-        {/* ── Main Table Card ── */}
+        {/* ── Main Table Card (Card Header matches InstallationDetail.tsx) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Batches">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">INSTALLATION WORK ORDERS</span>
-              <h2 className="ax-card__title">Assigned Installation Batches</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredAssignments.length} of {assignments.length} records
+              <h2 className="ax-card__title">
+                {tabFilter === 'all' ? 'All Assigned Batches' : tabFilter === 'pending' ? 'Pending Acceptance Batches' : 'Accepted Batches'}
+              </h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredAssignments.length}</span> of <span className="ax-num">{assignments.length}</span> records
+                {' '}· Total <b className="ax-num">{totalAssignments}</b> · Pending <b className="ax-num">{pendingCount}</b> · Accepted <b className="ax-num">{acceptedCount}</b>
               </p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
+                <select
+                  className="ax-input ax-input--sm"
+                  aria-label="Filter by district/block"
+                  value={districtFilter}
+                  onChange={(e) => { setDistrictFilter(e.target.value); setCurrentPage(1); }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                >
+                  <option value="all">All Locations</option>
+                  {districts.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+
+                {(search || districtFilter !== 'all' || tabFilter !== 'all') && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => { setSearch(''); setDistrictFilter('all'); setTabFilter('all'); setCurrentPage(1); }}
+                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    Reset
+                  </button>
+                )}
+
                 <SearchInput
                   value={search}
                   onChange={(val) => {
@@ -715,8 +613,10 @@ export function Bihar_Installation_ULA_RequestAccept() {
                     setCurrentPage(1);
                   }}
                   placeholder="Search beneficiary, vendor, ID, district…"
+                  size="sm"
                   ariaLabel="Search assignments"
                 />
+
                 <TableExportToolbar
                   onCopy={handleCopy}
                   onExportCSV={handleCsv}
@@ -748,7 +648,7 @@ export function Bihar_Installation_ULA_RequestAccept() {
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
                   <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
                   <thead className="ax-table__head">
                     <tr>

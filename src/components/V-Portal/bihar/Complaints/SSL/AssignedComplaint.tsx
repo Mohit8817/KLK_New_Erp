@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharComplaintService,
@@ -119,9 +120,38 @@ function Field({ label, span, children }: { label: string; span: number; childre
   );
 }
 
+const isItemRejected = (item: BiharComplaintItem | any): boolean => {
+  if (!item) return false;
+  const statusStr = String(item.status ?? '').toLowerCase().trim();
+  const closeStatusStr = String(item.close_status ?? '').toLowerCase().trim();
+  const approvalStatusStr = String(item.approval_status ?? item.approved_status ?? item.approval ?? '').toLowerCase().trim();
+  const rejectStatusStr = String(item.reject_status ?? item.rejected ?? item.is_rejected ?? '').toLowerCase().trim();
+  const remarksStr = String(item.reject_reason ?? item.reject_remarks ?? item.admin_remarks ?? '').toLowerCase().trim();
+
+  return (
+    statusStr === '2' ||
+    statusStr === '-1' ||
+    statusStr === '3' ||
+    statusStr === 'rejected' ||
+    statusStr === 'reject' ||
+    closeStatusStr === '-1' ||
+    closeStatusStr === '2' ||
+    closeStatusStr === 'rejected' ||
+    closeStatusStr === 'reject' ||
+    approvalStatusStr === 'rejected' ||
+    approvalStatusStr === 'reject' ||
+    approvalStatusStr === '2' ||
+    rejectStatusStr === '1' ||
+    rejectStatusStr === 'true' ||
+    rejectStatusStr === 'rejected' ||
+    (remarksStr.length > 0 && (remarksStr.includes('reject') || statusStr === '2'))
+  );
+};
+
 type TabKey = 'open' | 'approved' | 'closed';
 
 export function Bihar_Complaint_SSL_AssignedComplaint() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [assignedData, setAssignedData] = useState<AssignedComplaintsResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('open');
@@ -332,6 +362,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     { header: 'Module No', accessor: 'module_no' },
     { header: 'Date of Installation', accessor: 'date_of_installation' },
     { header: 'Assign Complaint', accessor: 'assigned_vendor_name' },
+    { header: 'Approval Status', accessor: (r) => (isItemRejected(r) ? 'Rejected' : r.close_status === 1 ? 'Approved' : r.status === 1 ? 'Pending Approval' : 'Open') },
     { header: 'Status', accessor: (r) => (r.close_status === 1 ? 'Closed' : 'Open') },
   ];
 
@@ -521,7 +552,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
 
         {/* Data Table */}
         {loading ? (
-          <TableSkeleton columns={28} rows={8} showCard={false} />
+          <TableSkeleton columns={29} rows={8} showCard={false} />
         ) : (
           <div className="ax-table-wrap" style={{ margin: 0, border: 'none' }}>
             <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 3200 }}>
@@ -554,13 +585,14 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <th style={TH}>Date of Installation</th>
                   <th style={{ ...TH, textAlign: 'center' }}>Document</th>
                   <th style={TH}>Assign Complaint</th>
-                  <th style={{ ...TH, textAlign: 'center', width: 110 }}>Action</th>
+                  <th style={{ ...TH, textAlign: 'center', minWidth: 130 }}>Approval Status</th>
+                  <th style={{ ...TH, textAlign: 'center', minWidth: 120 }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {pagination.paged.length === 0 ? (
                   <tr>
-                    <td colSpan={28} style={{ padding: 40, textAlign: 'center' }}>
+                    <td colSpan={29} style={{ padding: 40, textAlign: 'center' }}>
                       <TableEmptyState
                         title="No Assigned Complaints Found"
                         message={searchQuery ? `No records match "${searchQuery}"` : 'There are currently no tickets matching this status tab.'}
@@ -625,6 +657,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                         <td style={TD}>{item.battery_serial_no || '—'}</td>
                         <td style={TD}>{item.module_no || '—'}</td>
                         <td style={{ ...TD, fontSize: 12.5 }}>{item.date_of_installation || item.inst_date || '—'}</td>
+
                         <td style={{ ...TD, textAlign: 'center' }}>
                           {fileUrl ? (
                             <a
@@ -660,33 +693,148 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                             {item.assigned_vendor_name || '—'}
                           </span>
                         </td>
+
+                        {/* Approval Status Column */}
                         <td style={{ ...TD, textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => setSelectedItem(item)}
-                              title="View Complaint Details"
+                          {isItemRejected(item) ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#fef2f2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
+                              }}
+                              title={(item as any).reject_reason || (item as any).reject_remarks || 'Complaint rejected from main portal'}
                             >
-                              View
-                            </button>
-                            {item.close_status !== 1 && (
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b91c1c' }} />
+                              Rejected
+                            </span>
+                          ) : activeTab === 'approved' || (item.status === 1 && item.close_status !== 1) ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#ecfeff',
+                                color: '#0891b2',
+                                border: '1px solid #a5f3fc',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0891b2' }} />
+                              Pending
+                            </span>
+                          ) : activeTab === 'closed' || item.close_status === 1 ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#047857' }} />
+                              Approved
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '3px 10px',
+                                borderRadius: 12,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                background: '#fffbeb',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#b45309' }} />
+                              Open
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Action Column */}
+                        <td style={{ ...TD, textAlign: 'center' }}>
+                          {activeTab === 'approved' || isItemRejected(item) ? (
+                            /* Pending Approval / Rejected: Edit button to fix and View button */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
                               <button
                                 type="button"
-                                className="ax-btn ax-btn--primary ax-btn--sm"
-                                style={{
-                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                  borderColor: '#059669',
-                                  color: '#ffffff',
-                                  fontWeight: 600,
-                                }}
-                                onClick={() => openResolveModal(item)}
-                                title="Resolve this complaint"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => navigate(`/v/complaint/bihar/ssl-add-complaint?edit=${item.id}`)}
+                                title="Edit Complaint"
                               >
-                                Resolve
+                                Edit
                               </button>
-                            )}
-                          </div>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--ghost ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Details"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : activeTab === 'closed' ? (
+                            /* Closed: View button */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Complaint Details"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            /* Open: View and Resolve buttons */
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => setSelectedItem(item)}
+                                title="View Complaint Details"
+                              >
+                                View
+                              </button>
+                              {item.close_status !== 1 && (
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--primary ax-btn--sm"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    borderColor: '#059669',
+                                    color: '#ffffff',
+                                    fontWeight: 600,
+                                  }}
+                                  onClick={() => openResolveModal(item)}
+                                  title="Resolve this complaint"
+                                >
+                                  Resolve
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -777,6 +925,17 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 <Field label="Complaint Source" span={4}>{selectedItem.complaint_source || '—'}</Field>
                 <Field label="Full Address" span={12}>{selectedItem.address || '—'}</Field>
 
+                {isItemRejected(selectedItem) && (
+                  <div className="ax-col--12">
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', color: '#991b1b', fontSize: 13 }}>
+                      <strong>Complaint Rejected by Main Portal</strong>
+                      {((selectedItem as any).reject_reason || (selectedItem as any).reject_remarks) && (
+                        <div style={{ marginTop: 4 }}>Reason: {(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="ax-col--12">
                   <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
                     Complaint Details
@@ -822,7 +981,19 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
               }}
             >
               <div>
-                {selectedItem.close_status !== 1 && (
+                {isItemRejected(selectedItem) ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary ax-btn--sm"
+                    onClick={() => {
+                      const id = selectedItem.id;
+                      setSelectedItem(null);
+                      navigate(`/v/complaint/bihar/ssl-add-complaint?edit=${id}`);
+                    }}
+                  >
+                    Edit & Fix Complaint
+                  </button>
+                ) : activeTab === 'open' && selectedItem.close_status !== 1 && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--primary ax-btn--sm"
@@ -973,13 +1144,19 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px 16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                      Resolved By <span style={{ color: '#ef4444' }}>*</span>
+                      Resolved By <span style={{ color: '#ef4444' }}>*</span> (Locked)
                     </label>
                     <input
                       type="text"
                       className="ax-input"
                       value={resolvedBy}
-                      onChange={(e) => setResolvedBy(e.target.value)}
+                      readOnly
+                      disabled
+                      style={{
+                        background: 'var(--ax-surface-subtle, #f1f5f9)',
+                        color: 'var(--ax-text-muted, #64748b)',
+                        cursor: 'not-allowed',
+                      }}
                       placeholder="e.g. App Testing"
                       required
                     />
