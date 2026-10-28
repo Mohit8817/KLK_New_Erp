@@ -221,12 +221,15 @@ export interface ClaimItem {
 export interface ClaimEligibleSite {
   id: number;
   farmer_name: string;
+<<<<<<< HEAD
   district?: string;
   state?: string;
   inst_verify_status?: number;
   inst_doc_status?: number;
   inst_claim_status?: number;
   inst_status?: number;
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 }
 
 export interface ViewClaimResponse {
@@ -415,6 +418,7 @@ class AssamSwpService {
   /**
    * 3. Accept Installation
    * GET /assam/swp-assign-installation-accept?id=12
+<<<<<<< HEAD
    * Accepts site_id (or assign_id if supported by backend).
    * Effect: assigns.status = 2 set hota hai aur us assign ki sabhi sites me assam_swps.inst_accept = 1 ho jata hai.
    */
@@ -447,6 +451,24 @@ class AssamSwpService {
     }
     const cleanId = Math.floor(numId);
     const url = ASSAM_SWP_API.ACCEPT_INSTALLATION(cleanId, fallbackAssign);
+=======
+   * id (integer): required (assign ka id; backend validation: exists:assigns,id)
+   * Effect: assigns.status = 2 set hota hai aur us assign ki sabhi sites me assam_swps.inst_accept = 1 ho jata hai.
+   */
+  async acceptInstallation(id: number | string | { id?: number | string; assign_id?: number | string; assignment_id?: number | string }): Promise<ApiResponse> {
+    const rawId =
+      typeof id === 'object' && id !== null
+        ? (id.assign_id ?? (id as any).assignment_id ?? (id as any).assignId ?? (id as any).assign?.id ?? id.id)
+        : id;
+    const numId = Number(rawId);
+    if (!Number.isFinite(numId) || numId <= 0) {
+      throw new Error(
+        `Invalid assignment ID provided: "${String(rawId)}". A valid integer assignment ID (assigns.id) is required.`
+      );
+    }
+    const cleanId = Math.floor(numId);
+    const url = ASSAM_SWP_API.ACCEPT_INSTALLATION(cleanId);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
@@ -547,6 +569,7 @@ class AssamSwpService {
 
     // Normalize site fields (e.g. module_serial_no, latitude, longitude, string status codes)
     sites = sites.map((s: any) => {
+<<<<<<< HEAD
       const rawDoc =
         s.inst_doc ||
         s.doc_file ||
@@ -591,6 +614,14 @@ class AssamSwpService {
       } else {
         numDocStatus = rawDoc ? 1 : 0;
       }
+=======
+      const rawDoc = s.inst_doc || s.doc_file || s.document || s.doc || s.file || '';
+      const rawDocStatus = s.inst_doc_status ?? s.doc_status ?? s.document_status;
+      const numDocStatus =
+        rawDocStatus !== undefined && rawDocStatus !== null && rawDocStatus !== ''
+          ? Number(rawDocStatus)
+          : (rawDoc ? 1 : 0);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
       return {
         ...s,
@@ -679,6 +710,7 @@ class AssamSwpService {
    * Required payload: site_id, doc_file
    */
   async submitInstallationDoc(formData: FormData): Promise<ApiResponse> {
+<<<<<<< HEAD
     // Ensure ID aliases are populated
     if (!formData.has('site_id') && formData.has('id')) {
       formData.append('site_id', formData.get('id') as string);
@@ -698,6 +730,14 @@ class AssamSwpService {
       if (!formData.has('inst_doc')) formData.append('inst_doc', fileBlob);
       if (!formData.has('document')) formData.append('document', fileBlob);
       if (!formData.has('file')) formData.append('file', fileBlob);
+=======
+    // Ensure both site_id and doc_file are populated even if caller supplied alternative keys
+    if (!formData.has('site_id') && formData.has('id')) {
+      formData.append('site_id', formData.get('id') as string);
+    }
+    if (!formData.has('doc_file') && formData.has('inst_doc')) {
+      formData.append('doc_file', formData.get('inst_doc') as Blob);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     }
 
     const res = await this.fetchWithFallback(ASSAM_SWP_API.DOC_SUBMIT, {
@@ -750,6 +790,7 @@ class AssamSwpService {
   }
 
   /**
+<<<<<<< HEAD
    * Fetch claim eligible completed sites:
    * 1. Checks getViewClaims() for backend sites array.
    * 2. If empty or alongside, pulls from completed installations (getViewInstallSite).
@@ -834,10 +875,13 @@ class AssamSwpService {
   }
 
   /**
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
    * 12. Add Claim
    * POST /assam/swp-installation-add-claim (multipart/form-data)
    */
   async addClaim(formData: FormData): Promise<ApiResponse> {
+<<<<<<< HEAD
     // Backend validates 'site_id' as array. Delete scalar 'site_id' if present alongside 'site_id[]'
     if (formData.has('site_id') && formData.has('site_id[]')) {
       formData.delete('site_id');
@@ -851,6 +895,8 @@ class AssamSwpService {
       }
     }
 
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     const res = await this.fetchWithFallback(ASSAM_SWP_API.ADD_CLAIM, {
       method: 'POST',
       headers: this.getHeaders(true),
@@ -947,6 +993,7 @@ class AssamSwpService {
   /**
    * 15. View Dashboard By Status
    * GET /assam/swp-installation-view-dashboard/{status}
+<<<<<<< HEAD
    * Allowed statuses: total, complete, pending, verify-pending, verify-approved, verify-reject,
    * doc-approved, doc-pending, doc-reject, claim-raised, claim-approved, claim-reject,
    * pay-complete, pay-partial, pay-pending
@@ -954,13 +1001,22 @@ class AssamSwpService {
   async getDashboardByStatus(status: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
     const validStatus = normalizeAssamDashboardStatus(status);
     const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(validStatus);
+=======
+   */
+  async getDashboardByStatus(status: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
+    const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(status);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
+<<<<<<< HEAD
       throw new Error(json.message || `Failed to fetch sites by status "${validStatus}" (${res.status})`);
+=======
+      throw new Error(json.message || `Failed to fetch sites by status (${res.status})`);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     }
     return {
       meta: json.meta,
@@ -973,16 +1029,24 @@ class AssamSwpService {
    * GET /assam/swp-installation-view-districtwise/{status}/{district}
    */
   async getDistrictwiseByStatus(status: string, district: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
+<<<<<<< HEAD
     const validStatus = normalizeAssamDashboardStatus(status);
     const cleanDistrict = (district || '').trim();
     const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(validStatus, cleanDistrict);
+=======
+    const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(status, district);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
+<<<<<<< HEAD
       throw new Error(json.message || `Failed to fetch district sites by status "${validStatus}" in "${cleanDistrict}" (${res.status})`);
+=======
+      throw new Error(json.message || `Failed to fetch district sites by status (${res.status})`);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     }
     return {
       meta: json.meta,
@@ -991,6 +1055,7 @@ class AssamSwpService {
   }
 }
 
+<<<<<<< HEAD
 /**
  * Valid allowed status keys for Assam SWP Dashboard Drilldown APIs (APIs 15 & 16)
  */
@@ -1121,5 +1186,7 @@ export function normalizeAssamDashboardStatus(rawStatus: string): AssamDashboard
   return 'complete';
 }
 
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 export const assamSwpService = new AssamSwpService();
 export default assamSwpService;

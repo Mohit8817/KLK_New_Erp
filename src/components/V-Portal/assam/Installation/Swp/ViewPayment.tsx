@@ -17,7 +17,10 @@ import {
   type ClaimItem,
   type ClaimEligibleSite,
 } from '../../assam-services';
+<<<<<<< HEAD
 import { SAMPLE_PAYMENT_SITES } from '../../../../../data/demo/assamPayments';
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
@@ -217,6 +220,7 @@ const PAGE_CSS = `
   }
 `;
 
+<<<<<<< HEAD
 /* ───────── Overlay CSS (modals & modern fields matching Bihar SSL reference) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
@@ -341,6 +345,39 @@ const OVERLAY_CSS = `
   }
   @media (max-width: 540px) {
     .ax-modern-grid-2 { grid-template-columns: 1fr; }
+=======
+/* ───────── Overlay CSS (modals) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: var(--ax-surface-solid, #fff);
+    border-radius: var(--ax-radius-lg, 12px); border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden;
+  }
+  .ax-modal__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+  .ax-modal__close {
+    border: none; background: transparent; cursor: pointer; padding: 4px;
+    border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted);
+  }
+  .ax-modal__close:hover { background: var(--ax-surface-hover, #e2e8f0); color: var(--ax-text-strong); }
+  .ax-modal__body { padding: 20px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px; border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
+    background: var(--ax-surface-subtle, #f8fafc);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   }
 `;
 
@@ -361,6 +398,16 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
+<<<<<<< HEAD
+=======
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 /* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
@@ -368,7 +415,11 @@ function Modal({
   title,
   subtitle,
   children,
+<<<<<<< HEAD
   maxWidth = 580,
+=======
+  maxWidth = 640,
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 }: {
   open: boolean;
   onClose: () => void;
@@ -392,6 +443,7 @@ function Modal({
   if (!open) return null;
 
   return createPortal(
+<<<<<<< HEAD
     <div className="ax-modal" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="ax-modal__backdrop" />
       <div
@@ -412,6 +464,22 @@ function Modal({
             aria-label="Close dialog"
           >
             ✕
+=======
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
           </button>
         </div>
         <div className="ax-modal__body">
@@ -565,7 +633,10 @@ export function ViewPayment() {
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState<string | null>(null);
+<<<<<<< HEAD
   const addFileRef = useRef<HTMLInputElement>(null);
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
   // Update Claim Modal (API 13)
   const [editClaim, setEditClaim] = useState<ClaimItem | null>(null);
@@ -576,13 +647,19 @@ export function ViewPayment() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
+<<<<<<< HEAD
   const editFileRef = useRef<HTMLInputElement>(null);
 
   // Load Claims Data (API 11) & Eligible Completed Sites
+=======
+
+  // Load Claims Data (API 11)
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+<<<<<<< HEAD
       const [res, sitesList] = await Promise.all([
         assamSwpService.getViewClaims().catch((err) => {
           console.error('Failed to load installation claims:', err);
@@ -611,6 +688,11 @@ export function ViewPayment() {
       }
 
       setEligibleSites(allSites);
+=======
+      const res = await assamSwpService.getViewClaims();
+      setClaims(res.data || []);
+      setEligibleSites(res.sites || []);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     } catch (err: any) {
       console.error('Failed to load installation claims:', err);
       setError(err?.message || 'Failed to load installation claims');
@@ -1206,6 +1288,7 @@ export function ViewPayment() {
           </div>
         )}
 
+<<<<<<< HEAD
         <form onSubmit={handleAddClaimSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Amount Field with ₹ icon */}
@@ -1414,6 +1497,93 @@ export function ViewPayment() {
             <button
               type="button"
               className="ax-btn ax-btn--secondary"
+=======
+        <form onSubmit={handleAddClaimSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="ax-field">
+            <label className="ax-label" htmlFor="add_amount">
+              Claim Amount (₹) <span style={{ color: 'red' }}>*</span>
+            </label>
+            <input
+              id="add_amount"
+              type="number"
+              className="ax-input"
+              value={addAmount}
+              onChange={(e) => setAddAmount(e.target.value)}
+              placeholder="e.g. 50000"
+              required
+              min={1}
+            />
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-label">
+              Select Eligible Completed Sites <span style={{ color: 'red' }}>*</span> ({addSelectedSites.length} selected)
+            </label>
+            {eligibleSites.length === 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--ax-text-muted)', padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6 }}>
+                No unclaimed eligible sites available (Sites must be verified and doc-approved).
+              </div>
+            ) : (
+              <div className="asw-site-select-box">
+                {eligibleSites.map((site) => {
+                  const isChecked = addSelectedSites.includes(site.id);
+                  return (
+                    <label key={site.id} className="asw-site-item">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setAddSelectedSites((prev) => prev.filter((id) => id !== site.id));
+                          } else {
+                            setAddSelectedSites((prev) => [...prev, site.id]);
+                          }
+                        }}
+                      />
+                      <span>
+                        <b>{site.farmer_name || 'Farmer'}</b> {site.district ? `(${site.district})` : ''}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-label" htmlFor="add_file">
+              Invoice / Bill File (PDF / JPG / PNG) <span style={{ color: 'red' }}>*</span>
+            </label>
+            <input
+              id="add_file"
+              type="file"
+              className="ax-input"
+              accept=".pdf,image/*"
+              required
+              onChange={(e) => setAddFile(e.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-label" htmlFor="add_remarks">
+              Claim Remarks / Description <span style={{ color: 'red' }}>*</span>
+            </label>
+            <textarea
+              id="add_remarks"
+              className="ax-input"
+              rows={3}
+              value={addRemarks}
+              onChange={(e) => setAddRemarks(e.target.value)}
+              placeholder="Enter remarks or invoice details..."
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost"
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
               onClick={() => setAddModalOpen(false)}
               disabled={addSubmitting}
             >
@@ -1451,6 +1621,7 @@ export function ViewPayment() {
         )}
 
         {editClaim && (
+<<<<<<< HEAD
           <form onSubmit={handleUpdateClaimSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Amount */}
@@ -1630,6 +1801,104 @@ export function ViewPayment() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary"
+=======
+          <form onSubmit={handleUpdateClaimSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="ax-field">
+              <label className="ax-label" htmlFor="edit_amount">
+                Claim Amount (₹) <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                id="edit_amount"
+                type="number"
+                className="ax-input"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                required
+                min={1}
+              />
+            </div>
+
+            <div className="ax-field">
+              <label className="ax-label">
+                Included Sites ({editSelectedSites.length > 0 ? editSelectedSites.length : 1} selected) <span style={{ color: 'red' }}>*</span>
+              </label>
+              <div style={{ fontSize: '13px', color: 'var(--ax-text-muted)', padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6, marginBottom: eligibleSites.length > 0 ? 8 : 0 }}>
+                Sites in this claim:{' '}
+                <b>
+                  {(() => {
+                    const names = editSelectedSites
+                      .map((id) => {
+                        const match = eligibleSites.find((s) => String(s.id) === String(id));
+                        return match ? match.farmer_name : String(id);
+                      })
+                      .filter(Boolean);
+                    if (names.length > 0) return names.join(', ');
+                    return String(editClaim.site_id || 'Included Site');
+                  })()}
+                </b>
+              </div>
+              {eligibleSites.length > 0 && (
+                <div className="asw-site-select-box" style={{ maxHeight: 120, overflowY: 'auto' }}>
+                  {eligibleSites.map((site) => {
+                    const isChecked = editSelectedSites.some((id) => String(id) === String(site.id));
+                    return (
+                      <label key={site.id} className="asw-site-item">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditSelectedSites((prev) => [...prev, site.id]);
+                            } else {
+                              setEditSelectedSites((prev) => prev.filter((id) => String(id) !== String(site.id)));
+                            }
+                          }}
+                        />
+                        <span>#{site.id} — {site.farmer_name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="ax-field">
+              <label className="ax-label" htmlFor="edit_file">
+                Replace Invoice File (Optional, leave blank to keep existing)
+              </label>
+              <input
+                id="edit_file"
+                type="file"
+                className="ax-input"
+                accept=".pdf,image/*"
+                onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+              />
+              {editClaim.file && (
+                <div style={{ marginTop: 4, fontSize: '12px' }}>
+                  Current invoice: <a href={resolveAssamMediaUrl(editClaim.file)} target="_blank" rel="noopener noreferrer">View Current ↗</a>
+                </div>
+              )}
+            </div>
+
+            <div className="ax-field">
+              <label className="ax-label" htmlFor="edit_remarks">
+                Claim Remarks / Description <span style={{ color: 'red' }}>*</span>
+              </label>
+              <textarea
+                id="edit_remarks"
+                className="ax-input"
+                rows={3}
+                value={editRemarks}
+                onChange={(e) => setEditRemarks(e.target.value)}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost"
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
                 onClick={() => setEditClaim(null)}
                 disabled={editSubmitting}
               >

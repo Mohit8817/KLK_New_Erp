@@ -40,6 +40,7 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
+<<<<<<< HEAD
 const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
   const r = String(raw ?? '').toLowerCase().trim();
   if (value === 1 || r === '1' || r === 'approved') return <Badge tone="success">Approved</Badge>;
@@ -69,6 +70,35 @@ const txt = (row: InstalledSiteItem, key: string): string => {
   return String(v);
 };
 
+=======
+const VerifyBadge = ({ value }: { value: number }) =>
+  value === 1 ? <Badge tone="success">Approved</Badge>
+  : value === 2 ? <Badge tone="danger">Rejected</Badge>
+  : <Badge tone="warning">Pending</Badge>;
+
+const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string | null }) => {
+  const s = Number(status ?? 0);
+  const hasDoc = Boolean(docUrl && docUrl !== '—' && docUrl.trim() !== '');
+  if (s === 2) return <Badge tone="success">Approved</Badge>;
+  if (s === 3) return <Badge tone="danger">Rejected</Badge>;
+  if (s === 1 || hasDoc) return <Badge tone="warning">Pending</Badge>;
+  return <Badge tone="neutral">Not Submitted</Badge>;
+};
+
+const ClaimBadge = ({ status }: { status?: number }) => {
+  if (status === 2) return <Badge tone="success">Approved</Badge>;
+  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
+  if (status === 1) return <Badge tone="info">Raised</Badge>;
+  return <Badge tone="neutral">Not Raised</Badge>;
+};
+
+const txt = (row: InstalledSiteItem, key: string): string => {
+  const v = (row as Record<string, any>)[key];
+  if (v === null || v === undefined || v === '') return '';
+  return String(v);
+};
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 const fmtSerials = (val?: any): string => {
   if (!val) return DASH;
   if (Array.isArray(val)) {
@@ -361,7 +391,11 @@ function RowActionDropdown({
                 onEdit();
               }}
             >
+<<<<<<< HEAD
              Edit Details
+=======
+              ✏️ Edit Details
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
             </button>
             <button
               type="button"
@@ -372,7 +406,11 @@ function RowActionDropdown({
                 onSubmitDoc();
               }}
             >
+<<<<<<< HEAD
               Submit Document
+=======
+              📄 Submit Document
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
             </button>
           </div>,
           document.body
@@ -383,6 +421,7 @@ function RowActionDropdown({
 
 /* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
 const OVERLAY_CSS = `
+<<<<<<< HEAD
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(15, 23, 42, 0.65);
@@ -465,6 +504,8 @@ const OVERLAY_CSS = `
     background: #dcfce7; display: flex; align-items: center; justify-content: center;
   }
 
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   .ax-modal img { border-radius: 0 !important; }
 
   .ula-m-stage {
@@ -761,7 +802,11 @@ function KpiCard({
 
 // Columns for Assam SWP
 const COMMON_HEADERS = [
+<<<<<<< HEAD
   'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number',
+=======
+  'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number', 'Customer No.',
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   'Pump Capacity', 'Pump Type', 'Inverter No.', 'VFD No.', 'Module Serials',
   'Module Photo', 'Inverter & VFD Photo', 'Running Water Photo',
   'Latitude', 'Longitude', 'Remark', 'Verify Status', 'Document Status', 'Claim Status', 'Action',
@@ -785,12 +830,18 @@ export function ViewInstallation() {
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docSubmitting, setDocSubmitting] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
+<<<<<<< HEAD
   const docFileRef = useRef<HTMLInputElement>(null);
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   const closeDocModal = useCallback(() => {
     setDocModalSite(null);
     setDocFile(null);
     setDocError(null);
+<<<<<<< HEAD
     if (docFileRef.current) docFileRef.current.value = '';
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   }, []);
 
   // Toast / feedback message
@@ -802,6 +853,7 @@ export function ViewInstallation() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
+<<<<<<< HEAD
   // Persistent storage key for uploaded installation documents
   const UPLOADED_DOCS_KEY = 'assam_swp_uploaded_docs';
 
@@ -824,11 +876,14 @@ export function ViewInstallation() {
     } catch {}
   }, [getUploadedDocsFromStorage]);
 
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   // Load real data from API 7
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await assamSwpService.getViewInstallSite();
+<<<<<<< HEAD
       const cachedDocs = getUploadedDocsFromStorage();
 
       // Merge local persistence so uploaded docs aren't wiped out if backend status lags
@@ -865,13 +920,20 @@ export function ViewInstallation() {
           doc_approved: docApprovedCount,
         },
       });
+=======
+      setData(res);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     } catch (err: any) {
       console.error('[Assam SWP ViewInstallation] load error:', err);
       setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites from server.' });
     } finally {
       setLoading(false);
     }
+<<<<<<< HEAD
   }, [getUploadedDocsFromStorage]);
+=======
+  }, []);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
   useEffect(() => {
     loadData();
@@ -893,6 +955,7 @@ export function ViewInstallation() {
     setDocError(null);
     setDocSubmitting(true);
     try {
+<<<<<<< HEAD
       const rowId = String(docModalSite.id);
       const siteId = String(docModalSite.site_id || docModalSite.id);
       const todayStr = new Date().toISOString().slice(0, 10);
@@ -916,10 +979,20 @@ export function ViewInstallation() {
       fd.append('doc_date', todayStr);
       fd.append('remarks', 'Installation document uploaded');
       fd.append('doc_remarks', 'Installation document uploaded');
+=======
+      const siteId = String(docModalSite.site_id || docModalSite.id);
+      const fd = new FormData();
+      // Backend validates site_id and doc_file
+      fd.append('site_id', siteId);
+      fd.append('id', siteId);
+      fd.append('doc_file', docFile);
+      fd.append('inst_doc', docFile);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
       await assamSwpService.submitInstallationDoc(fd);
       setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${siteId}!` });
 
+<<<<<<< HEAD
       // Save to localStorage so status persists across reload & API refresh
       saveUploadedDocToStorage({
         siteId,
@@ -957,6 +1030,24 @@ export function ViewInstallation() {
             ...prev.install_detail,
             doc_pending: updatedSites.filter((s) => Number(s.inst_doc_status) === 1).length,
           },
+=======
+      // Optimistically update document status to Pending in local table
+      setData((prev) => {
+        if (!prev || !prev.sites) return prev;
+        return {
+          ...prev,
+          sites: prev.sites.map((s) =>
+            String(s.id) === siteId || String(s.site_id) === siteId
+              ? {
+                  ...s,
+                  inst_doc_status: 1,
+                  document_status: 1,
+                  inst_doc: docFile.name,
+                  doc_file: docFile.name,
+                }
+              : s
+          ),
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
         };
       });
 
@@ -972,9 +1063,15 @@ export function ViewInstallation() {
   // Filtered sites
   const filteredSites = useMemo(() => {
     let list = allSites;
+<<<<<<< HEAD
     if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'approved');
     else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'rejected');
     else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0 || String(s.inst_verify_status ?? s.verify_status).toLowerCase() === 'pending');
+=======
+    if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1);
+    else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2);
+    else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
     const q = search.trim().toLowerCase();
     if (q) {
@@ -1048,6 +1145,10 @@ export function ViewInstallation() {
     { header: 'Farmer Name', accessor: (r) => txt(r, 'farmer_name') },
     { header: 'Father Name', accessor: (r) => txt(r, 'father_name') },
     { header: 'Contact Number', accessor: (r) => txt(r, 'farmer_contact') },
+<<<<<<< HEAD
+=======
+    { header: 'Customer No.', accessor: (r) => txt(r, 'customer_no') },
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     { header: 'Pump Capacity', accessor: (r) => txt(r, 'pump_capacity') },
     { header: 'Pump Type', accessor: (r) => `${txt(r, 'pump_type')} ${txt(r, 'pump_sub_type')}`.trim() },
     { header: 'Inverter No.', accessor: (r) => txt(r, 'inverter_no') },
@@ -1061,6 +1162,7 @@ export function ViewInstallation() {
     { header: 'Remark', accessor: (r) => r.inst_remarks || r.remarks || '' },
     {
       header: 'Verify Status',
+<<<<<<< HEAD
       accessor: (r) => {
         const v = Number(r.inst_verify_status ?? r.verify_status);
         const str = String(r.inst_verify_status ?? r.verify_status ?? '').toLowerCase().trim();
@@ -1079,6 +1181,13 @@ export function ViewInstallation() {
         if (s === 1 || hasDoc) return 'Submitted (Pending)';
         return 'Not Submitted';
       },
+=======
+      accessor: (r) => (Number(r.inst_verify_status ?? r.verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status ?? r.verify_status) === 2 ? 'Rejected' : 'Pending'),
+    },
+    {
+      header: 'Document Status',
+      accessor: (r) => (Number(r.inst_doc_status ?? r.document_status) === 2 ? 'Approved' : Number(r.inst_doc_status ?? r.document_status) === 3 ? 'Rejected' : Number(r.inst_doc_status ?? r.document_status) === 1 ? 'Pending' : 'Not Submitted'),
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     },
     {
       header: 'Claim Status',
@@ -1367,8 +1476,11 @@ export function ViewInstallation() {
                   const ser = fmtSerials(row.module_serial_no || row.module_serials);
                   const blockText = txt(row, 'block') || txt(row, 'tehsil');
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
+<<<<<<< HEAD
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
                   const dStatus = Number(row.inst_doc_status ?? row.document_status ?? 0);
                   const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
 
@@ -1385,6 +1497,10 @@ export function ViewInstallation() {
                       </td>
                       <td className="ax-table__td">{row.father_name || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.farmer_contact || DASH}</td>
+<<<<<<< HEAD
+=======
+                      <td className="ax-table__td" style={monoCell}>{row.customer_no || DASH}</td>
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--asw-primary)' }}>
                         {row.pump_capacity || DASH}
                       </td>
@@ -1445,7 +1561,11 @@ export function ViewInstallation() {
 
                       {/* Status Badges */}
                       <td className="ax-table__td">
+<<<<<<< HEAD
                         <VerifyBadge value={vStatus} raw={row.inst_verify_status ?? row.verify_status} />
+=======
+                        <VerifyBadge value={vStatus} />
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
                       </td>
                       <td className="ax-table__td">
                         <DocBadge status={dStatus} docUrl={docUrl} />
@@ -1454,6 +1574,7 @@ export function ViewInstallation() {
                         <ClaimBadge status={cStatus} />
                       </td>
 
+<<<<<<< HEAD
                       {/* Action: Locked if Verify Status is Approved, otherwise RowActionDropdown */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {isVerifyApproved ? (
@@ -1500,6 +1621,18 @@ export function ViewInstallation() {
                             }}
                           />
                         )}
+=======
+                      {/* Portal-based RowActionDropdown (Open Document button removed) */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <RowActionDropdown
+                          onEdit={() => navigate(`/v/assam/installation/swp/site?edit_id=${row.id}`)}
+                          onSubmitDoc={() => {
+                            setDocModalSite(row);
+                            setDocFile(null);
+                            setDocError(null);
+                          }}
+                        />
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
                       </td>
                     </tr>
                   );
@@ -1532,6 +1665,7 @@ export function ViewInstallation() {
           <form onSubmit={handleDocSubmit}>
             <div className="ax-modal__header">
               <div>
+<<<<<<< HEAD
                 <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="swp-doc-title">
                   Submit Installation Document
                 </h4>
@@ -1649,6 +1783,54 @@ export function ViewInstallation() {
                 disabled={docSubmitting || !docFile}
               >
                 {docSubmitting ? 'Uploading…' : 'Upload Document'}
+=======
+                <h2 className="ax-modal__title" id="swp-doc-title">Submit Installation Document</h2>
+                <p style={{ margin: 0, fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                  Site: <b>{docModalSite.farmer_name || DASH}</b> (#{docModalSite.id})
+                </p>
+              </div>
+              <button type="button" className="ax-modal__close" onClick={closeDocModal} aria-label="Close dialog">{X_ICON}</button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
+              {docError && (
+                <div className="ax-alert ax-alert--danger" role="alert">
+                  <div className="ax-alert__text">{docError}</div>
+                </div>
+              )}
+
+              <p className="ula-m-note">
+                Upload installation handover sheet, joint inspection report or invoice document (PDF, PNG, JPG).
+              </p>
+
+              <div className="ax-field">
+                <label className="ax-label" htmlFor="swp-doc-file">
+                  Document File <Req />
+                </label>
+                <input
+                  id="swp-doc-file"
+                  type="file"
+                  className="ax-input"
+                  accept=".pdf,image/*"
+                  required
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              {docFile && (
+                <div className="ula-m-info">
+                  <span>Selected file:</span> <b>{docFile.name}</b> ({(docFile.size / 1024).toFixed(1)} KB)
+                </div>
+              )}
+            </div>
+
+            <div className="ax-modal__footer">
+              <button type="button" className="ax-btn ax-btn--ghost" onClick={closeDocModal} disabled={docSubmitting}>
+                Cancel
+              </button>
+              <button type="submit" className="ax-btn ax-btn--primary" disabled={docSubmitting || !docFile}>
+                {docSubmitting ? <span className="ax-spinner" /> : 'Upload Document'}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
               </button>
             </div>
           </form>

@@ -23,6 +23,7 @@ export const ASSAM_SWP_API = {
     return `${BASE_URL}/assam/swp-view-assign-installation-detail?id=${encodeURIComponent(validId)}`;
   },
 
+<<<<<<< HEAD
   // 3. Accept Installation (Backend accepts site_id currently; pass assign_id alongside if available)
   ACCEPT_INSTALLATION: (id, assignId) => {
     let rawId = id;
@@ -49,6 +50,14 @@ export const ASSAM_SWP_API = {
       url += `&assign_id=${encodeURIComponent(fallbackAssign)}&assignment_id=${encodeURIComponent(fallbackAssign)}`;
     }
     return url;
+=======
+  // 3. Accept Installation
+  ACCEPT_INSTALLATION: (id) => {
+    const rawId = typeof id === 'object' && id !== null ? (id.assign_id ?? id.assignment_id ?? id.assignId ?? id.id) : id;
+    const num = Number(rawId);
+    const validId = Number.isFinite(num) && num > 0 ? Math.floor(num) : (rawId ?? '');
+    return `${BASE_URL}/assam/swp-assign-installation-accept?id=${encodeURIComponent(validId)}`;
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   },
 
   // 4. Installable Site Name List (Dropdown)
@@ -85,12 +94,20 @@ export const ASSAM_SWP_API = {
   DASHBOARD: `${BASE_URL}/assam/swp-installation-dashboard`,
 
   // 15. View Dashboard By Status
+<<<<<<< HEAD
   VIEW_DASHBOARD_BY_STATUS: (status) =>
     `${BASE_URL}/assam/swp-installation-view-dashboard/${encodeURIComponent(String(status || 'complete').toLowerCase().trim())}`,
 
   // 16. Districtwise By Status
   VIEW_DISTRICTWISE_BY_STATUS: (status, district) =>
     `${BASE_URL}/assam/swp-installation-view-districtwise/${encodeURIComponent(String(status || 'complete').toLowerCase().trim())}/${encodeURIComponent(String(district || '').trim())}`,
+=======
+  VIEW_DASHBOARD_BY_STATUS: (status) => `${BASE_URL}/assam/swp-installation-view-dashboard/${encodeURIComponent(status)}`,
+
+  // 16. Districtwise By Status
+  VIEW_DISTRICTWISE_BY_STATUS: (status, district) =>
+    `${BASE_URL}/assam/swp-installation-view-districtwise/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 };
 
 // Aliases for backward compatibility
