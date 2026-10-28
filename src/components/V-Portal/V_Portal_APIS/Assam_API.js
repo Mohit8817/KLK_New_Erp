@@ -85,11 +85,12 @@ export const ASSAM_SWP_API = {
   DASHBOARD: `${BASE_URL}/assam/swp-installation-dashboard`,
 
   // 15. View Dashboard By Status
-  VIEW_DASHBOARD_BY_STATUS: (status) => `${BASE_URL}/assam/swp-installation-view-dashboard/${encodeURIComponent(status)}`,
+  VIEW_DASHBOARD_BY_STATUS: (status) =>
+    `${BASE_URL}/assam/swp-installation-view-dashboard/${encodeURIComponent(String(status || 'complete').toLowerCase().trim())}`,
 
   // 16. Districtwise By Status
   VIEW_DISTRICTWISE_BY_STATUS: (status, district) =>
-    `${BASE_URL}/assam/swp-installation-view-districtwise/${encodeURIComponent(status)}/${encodeURIComponent(district)}`,
+    `${BASE_URL}/assam/swp-installation-view-districtwise/${encodeURIComponent(String(status || 'complete').toLowerCase().trim())}/${encodeURIComponent(String(district || '').trim())}`,
 };
 
 // Aliases for backward compatibility

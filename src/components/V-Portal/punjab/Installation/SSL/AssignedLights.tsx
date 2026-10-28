@@ -1,27 +1,373 @@
-import { useCallback, useEffect, useMemo, useState, useDeferredValue } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import {
+  Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
+  TableEmptyState,
+  type ExportColumn,
+} from '../../../../../common';
 import {
   punjabSslInstallationService,
   type PunjabAssignedLightItem,
 } from '../../punjab-services';
-import {
-  TableExportToolbar,
-  SearchInput,
-  Pagination,
-  TableEmptyState,
-  usePagination,
-  type ExportColumn,
-  exportDataToCSV,
-  exportDataToExcel,
-  copyTableDataToClipboard,
-  printTableData,
-} from '../../../../../common';
 
-/* ───────── Helpers ───────── */
-const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
-const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+/* ───────── Responsive page CSS (Exact Assam SWP / Bihar reference) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-// API: panchayat can be string, comma-separated or JSON
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 180px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  /* All table columns fully scrollable horizontally - no sticky clipping */
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
+    .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
+      width: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+`;
+
+/* ───────── Overlay CSS (modals) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+`;
+
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
+
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/* ───────── Modal Dialog Component ───────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  footer,
+  maxWidth = 720,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  maxWidth?: number;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div className="ax-modal__body">
+          {children}
+        </div>
+        {footer && <div className="ax-modal__footer">{footer}</div>}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Top KPI Card Component (matching Assam SWP / Bihar reference) ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+  onClick,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+  onClick?: () => void;
+}) {
+  const t = TONE[tone];
+  return (
+    <div
+      className="ax-card"
+      style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      onClick={onClick}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+// Helper: parse panchayat string or JSON
 const parsePanchayat = (v: unknown): string => {
   if (Array.isArray(v)) return v.filter(Boolean).join(', ');
   if (typeof v === 'string') {
@@ -38,184 +384,14 @@ const parsePanchayat = (v: unknown): string => {
   return '';
 };
 
-// API field names -> component field names
 const normalizeRecord = (r: any): PunjabAssignedLightItem => ({
   ...r,
   panchayat: parsePanchayat(r.panchayat),
   status: Number(r.status) || 0,
 });
 
-/* ───────── DLE Layout CSS (same as SSL dashboard) ───────── */
-const PAGE_CSS = `
-  .solar-erp-page .ax-page-head { margin-block-end: 10px; }
-  .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
-  .solar-erp-page .ax-dash-grid { margin-top: 0; }
-  .solar-erp-page .ax-card { min-width: 0; }
-  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
-  .solar-erp-page .ssl-pagination-left {
-    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
-  }
-  .solar-erp-page .ssl-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
-
-  .solar-erp-page .ax-card__header {
-    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
-  }
-  .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: max-content; max-width: 55%; }
-  .solar-erp-page .ax-card__title { max-width: none; white-space: normal; word-break: normal; overflow-wrap: normal; hyphens: none; }
-  .solar-erp-page .ax-card__eyebrow,
-  .solar-erp-page .ax-card__subtitle { word-break: normal; overflow-wrap: normal; line-height: 1.45; }
-
-  .solar-erp-page .ax-card__actions {
-    flex: 1 1 0; min-width: 0; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  }
-  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; min-width: 0; width: 100%; justify-content: flex-end; }
-  .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 120px; min-width: 90px; max-width: 260px; }
-  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn,
-  .solar-erp-page .ax-card__actions [class*="export"] .ax-btn { padding-inline: 8px; min-width: 0; }
-
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ssl-table--md { min-width: 820px; }
-
-  .solar-erp-page .ssl-filter-item { display: flex; align-items: center; gap: 6px; }
-  .solar-erp-page .ssl-filter-item select { width: 170px; }
-
-  @media (min-width: 641px) {
-    .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
-  }
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-col--8,
-    .solar-erp-page .ax-col--4 { grid-column: span 12; }
-    .solar-erp-page .ax-col--3 { grid-column: span 6; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn span:not([class*="icon"]),
-    .solar-erp-page .ax-card__actions [class*="export"] .ax-btn span:not([class*="icon"]) { display: none; }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-  @media (max-width: 760px) {
-    .solar-erp-page { width: 100%; max-width: 100%; overflow-x: hidden; box-sizing: border-box; }
-    .solar-erp-page .ssl-filter-item { width: 100%; justify-content: space-between; }
-    .solar-erp-page .ssl-filter-item select { flex: 1; width: auto; max-width: 100%; }
-    .solar-erp-page .ssl-filter-scope { width: 100%; }
-    .solar-erp-page .ax-card__header { gap: 10px; }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 130px; }
-    .solar-erp-page .ssl-sticky-first th:first-child,
-    .solar-erp-page .ssl-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1; background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
-  }
-  @media (max-width: 480px) {
-    .solar-erp-page .ax-card__header { flex-wrap: wrap; }
-    .solar-erp-page .ax-card__titles { min-width: 0; max-width: 100%; flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions { flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-start; }
-    .solar-erp-page .ax-card__title {
-
-      font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md);
-    }
-    .solar-erp-page .ax-col--3,
-    .solar-erp-page .ax-col--4 { grid-column: span 12; }
-  }
-`;
-
-/* ───────── Icons (Tabler design) ───────── */
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
-);
-const ICON_FILTER = (
-  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
-);
-const ARROW_UP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>
-);
-const svg = (children: React.ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
-const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
-const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" /><path d="M12 7v5l3 3" /></>);
-const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
-
-/* ───────── DLE Exact KPI Card ───────── */
-interface KpiProps {
-  icon: React.ReactNode;
-  tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
-  label: string;
-  value: string;
-  sub: string;
-  badge?: string;
-  onClick?: () => void;
-}
-const TONE: Record<KpiProps['tone'], { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)' },
-};
-
-const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    fn();
-  }
-};
-
-function KpiCard({ icon, tone, label, value, sub, badge, onClick }: KpiProps) {
-  const t = TONE[tone];
-  return (
-    <div
-      className="ax-card ax-col--4"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
-      onClick={onClick}
-      onKeyDown={onClick ? onActivate(onClick) : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
-      <div style={{ padding: '13px 15px',  display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-sm)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
-            </span>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-          </div>
-          {badge && (
-            <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-              {ARROW_UP} {badge}
-            </span>
-          )}
-        </div>
-        <div>
-          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'flex-end', width: '100%' } as const;
-const footerStyle = {
-  borderTop: '1px solid var(--ax-border, #e2e8f0)',
-  padding: 'var(--ax-space-3) var(--ax-space-4)',
-  display: 'flex',
-  justifyContent: 'flex-start',
-  alignItems: 'center',
-  width: '100%',
-  boxSizing: 'border-box',
-} as const;
-const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' } as const;
-
-
 export function Punjab_Installation_SSL_AssignedLights() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<PunjabAssignedLightItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -229,6 +405,11 @@ export function Punjab_Installation_SSL_AssignedLights() {
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
 
+  // Detail Modal state
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<PunjabAssignedLightItem | null>(null);
+  const [modalSearch, setModalSearch] = useState('');
+
   const deferredQuery = useDeferredValue(searchQuery);
 
   const loadData = useCallback(async () => {
@@ -238,7 +419,7 @@ export function Punjab_Installation_SSL_AssignedLights() {
       const data = await punjabSslInstallationService.getAssignedLights();
       setRecords(Array.isArray(data) ? data.map(normalizeRecord) : []);
     } catch (err: any) {
-      console.error('[AssignedLights] load error:', err);
+      console.error('[Punjab SSL] load assigned lights error:', err);
       setActionErrorMsg('Failed to load Punjab assigned lights.');
     } finally {
       setLoading(false);
@@ -267,13 +448,12 @@ export function Punjab_Installation_SSL_AssignedLights() {
           (r.vendor && r.vendor.toLowerCase().includes(q)) ||
           (r.district && r.district.toLowerCase().includes(q)) ||
           (r.block && r.block.toLowerCase().includes(q)) ||
-          (r.panchayat && r.panchayat.toLowerCase().includes(q));
+          (r.panchayat && r.panchayat.toLowerCase().includes(q)) ||
+          String(r.id).includes(q);
         if (!matches) return false;
       }
-      // Status filter: 1 = Pending, 2 = Accepted
       if (statusFilter === 'pending' && r.status === 2) return false;
       if (statusFilter === 'accepted' && r.status !== 2) return false;
-
       if (districtFilter !== 'all' && r.district?.trim().toLowerCase() !== districtFilter.toLowerCase()) {
         return false;
       }
@@ -281,16 +461,18 @@ export function Punjab_Installation_SSL_AssignedLights() {
     });
   }, [records, deferredQuery, statusFilter, districtFilter]);
 
-  // Summary Metrics
+  // Metrics
   const metrics = useMemo(() => {
     const totalBatches = records.length;
     let pendingCount = 0;
     let acceptedCount = 0;
+    const districtSet = new Set<string>();
     records.forEach((r) => {
       if (r.status === 2) acceptedCount++;
       else pendingCount++;
+      if (r.district) districtSet.add(r.district.trim());
     });
-    return { totalBatches, pendingCount, acceptedCount };
+    return { totalBatches, pendingCount, acceptedCount, totalDistricts: districtSet.size };
   }, [records]);
 
   // Pagination
@@ -301,22 +483,21 @@ export function Punjab_Installation_SSL_AssignedLights() {
   }, [deferredQuery, statusFilter, districtFilter]);
 
   // Export Columns
-  const exportCols: ExportColumn<PunjabAssignedLightItem>[] = [
-    { header: 'ID', accessor: 'id' },
-    { header: 'Vendor', accessor: 'vendor' },
-    { header: 'State', accessor: (r) => r.state || 'Punjab' },
-    { header: 'District', accessor: 'district' },
-    { header: 'Block', accessor: 'block' },
-    { header: 'Panchayat', accessor: 'panchayat' },
-    { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Acceptance') },
-  ];
+  const exportCols: ExportColumn<PunjabAssignedLightItem>[] = useMemo(
+    () => [
+      { header: 'Sr. No.', accessor: (_r, idx) => idx + 1 },
+      { header: 'Batch ID', accessor: (r) => `#${r.id}` },
+      { header: 'Vendor', accessor: (r) => r.vendor || '—' },
+      { header: 'State', accessor: (r) => r.state || 'Punjab' },
+      { header: 'District', accessor: (r) => r.district || '—' },
+      { header: 'Block', accessor: (r) => r.block || '—' },
+      { header: 'Panchayat', accessor: (r) => r.panchayat || '—' },
+      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Accept') },
+    ],
+    []
+  );
 
-  const handleExportCSV = () => exportDataToCSV('Punjab_SSL_Assigned_Lights', filtered, exportCols);
-  const handleCopy = () => copyTableDataToClipboard(filtered, exportCols);
-  const handleExportPDF = () => printTableData('Punjab SSL Assigned Lights', filtered, exportCols);
-  const handleExportExcel = () => exportDataToExcel('Punjab_SSL_Assigned_Lights', filtered, exportCols);
-
-  // Trigger Accept
+  // Accept Action (API 2: GET /punjab/ssl/installation/update-status-assigned-light?light_id={light_id})
   const handleConfirmAccept = async () => {
     if (!selectedItem) return;
     setSubmitting(true);
@@ -335,278 +516,541 @@ export function Punjab_Installation_SSL_AssignedLights() {
     }
   };
 
-  const filtersActive = statusFilter !== 'all' || districtFilter !== 'all';
-  const resetFilters = () => {
-    setStatusFilter('all');
-    setDistrictFilter('all');
+  const handleOpenDetail = (item: PunjabAssignedLightItem) => {
+    setActiveItem(item);
+    setModalSearch('');
+    setDetailModalOpen(true);
   };
-  const dash = (v: number) => (loading && records.length === 0 ? '…' : num(v));
-  const acceptedPct = pctOf(metrics.acceptedCount, metrics.totalBatches);
-  const pendingPct = pctOf(metrics.pendingCount, metrics.totalBatches);
 
-  const statusTabs: Array<{ key: 'all' | 'pending' | 'accepted'; label: string; count: number }> = [
-    { key: 'all', label: 'All', count: records.length },
-    { key: 'pending', label: 'Pending', count: metrics.pendingCount },
-    { key: 'accepted', label: 'Accepted', count: metrics.acceptedCount },
-  ];
+  // Split panchayats list for detail modal view
+  const panchayatList = useMemo(() => {
+    if (!activeItem?.panchayat) return [];
+    return activeItem.panchayat
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [activeItem]);
+
+  const filteredPanchayats = useMemo(() => {
+    if (!modalSearch.trim()) return panchayatList;
+    const q = modalSearch.toLowerCase().trim();
+    return panchayatList.filter((p) => p.toLowerCase().includes(q));
+  }, [panchayatList, modalSearch]);
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = () => {
+    if (!filtered.length) return;
+    const out = [
+      exportCols.map((c) => c.header),
+      ...filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, 'Punjab_SSL_Assignments.csv', 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!filtered.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead><tbody>${filtered.map((row, idx) => `<tr>${exportCols.map((c) => `<td>${escapeExportValue(getExportValue(row, c, idx))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, 'Punjab_SSL_Assignments.xls', 'application/vnd.ms-excel');
+  };
+
+  const copyToClipboard = async () => {
+    if (!filtered.length) return;
+    const t = [
+      exportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Assigned data copied to clipboard!');
+    } catch {
+      alert('Copy failed, please export CSV instead.');
+    }
+  };
+
+  const exportToPDF = () => {
+    if (!filtered.length) return;
+    const body = filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>Punjab SSL Assigned Lights</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Punjab SSL Assigned Lights Register</h1><table><thead><tr>${exportCols.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
-      {/* 1. Page Header */}
+      {/* ── Page Header (matching Assam SWP reference) ── */}
       <PageHead
-        title="Assigned Lights"
-        subtitle={
-          <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Punjab State Operations · Manage and accept SSL installation site allocations
-          </span>
-        }
+        title="SSL-Request Accept"
+        subtitle="Manage assigned installation batches and accept assignments for site execution in Punjab"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Punjab' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/punjab/ssl/installation/dashboard' },
-          { label: 'Assigned Lights' },
+          { label: 'Request Accept' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
-              <span className="ax-badge__dot" /> State: Punjab
-            </span>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh list" onClick={loadData} disabled={loading}>
-              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
-            </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            <Link to="/v/punjab/ssl/installation/update-light-deatils" className="ax-btn ax-btn--primary ax-btn--sm">
+              <span className="ax-btn__label">+ Install Light</span>
+            </Link>
           </div>
         }
       />
 
-      <div className="ax-dash-grid mt-0 pt-0">
-        {/* Notifications */}
-        {actionSuccessMsg && (
-          <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-emerald) 12%, transparent)', color: 'var(--ax-viz-emerald)', borderRadius: 'var(--ax-radius-md)', fontSize: 'var(--ax-text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span><b>Success:</b> {actionSuccessMsg}</span>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setActionSuccessMsg(null)} aria-label="Dismiss">✕</button>
-          </div>
-        )}
-        {actionErrorMsg && (
-          <div className="ax-col--12" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-red) 12%, transparent)', color: 'var(--ax-viz-red)', borderRadius: 'var(--ax-radius-md)', fontSize: 'var(--ax-text-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span><b>Error:</b> {actionErrorMsg}</span>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setActionErrorMsg(null)} aria-label="Dismiss">✕</button>
-          </div>
-        )}
+      {/* Notifications */}
+      {actionSuccessMsg && (
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">Success</div>
+          <div className="ax-alert__text">{actionSuccessMsg}</div>
+        </div>
+      )}
 
- 
+      {actionErrorMsg && (
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__title">Accept Error</div>
+          <div className="ax-alert__text">{actionErrorMsg}</div>
+        </div>
+      )}
 
+      {/* Top KPI Cards (matching Assam SWP 4 cards layout) */}
+      <div className="asw-cards-row">
         <KpiCard
-          icon={I_LIST}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" />
+              <path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" />
+            </svg>
+          }
           tone="accent"
-          label="Total Assigned Batches"
-          value={dash(metrics.totalBatches)}
-          sub="All allocations"
+          label="Total Allocations"
+          value={metrics.totalBatches}
+          sub="All assigned batches"
           onClick={() => setStatusFilter('all')}
         />
         <KpiCard
-          icon={I_CLOCK}
-          tone="amber"
-          label="Pending Acceptance"
-          value={dash(metrics.pendingCount)}
-          sub="Awaiting your acceptance"
-          badge={metrics.pendingCount > 0 ? `${pendingPct}% Pending` : undefined}
-          onClick={() => setStatusFilter('pending')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M12 21s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 7.2c0 7.3-8 11.8-8 11.8z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+          }
+          tone="cyan"
+          label="Active Districts"
+          value={metrics.totalDistricts}
+          sub="Districts covered"
         />
         <KpiCard
-          icon={I_DONE}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" />
+            </svg>
+          }
           tone="emerald"
-          label="Accepted Batches"
-          value={dash(metrics.acceptedCount)}
+          label="Accepted"
+          value={metrics.acceptedCount}
           sub="Ready for installation"
-          badge={metrics.acceptedCount > 0 ? `${acceptedPct}% Accepted` : undefined}
           onClick={() => setStatusFilter('accepted')}
         />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+            </svg>
+          }
+          tone="amber"
+          label="Pending Accept"
+          value={metrics.pendingCount}
+          sub="Awaiting vendor acceptance"
+          onClick={() => setStatusFilter('pending')}
+        />
+      </div>
 
-        {/* 4. Data Table */}
-        <section className="ax-card ax-col--12" role="region" aria-label="Assigned lights data">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Site Allocation</span>
-              <h2 className="ax-card__title">Assigned Light Batches</h2>
-              <p className="ax-card__subtitle">Review district, block and panchayat allocations and accept pending batches</p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, district, block..." size="sm" />
-                <TableExportToolbar
-                  onExportCSV={handleExportCSV}
-                  onExportExcel={handleExportExcel}
-                  onExportPDF={handleExportPDF}
-                  onCopy={handleCopy}
-                />
+      {/* Main Table Card */}
+      <section className="ax-card" role="region" aria-label="Assigned lights register">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <span className="ax-card__eyebrow">Site Allocation</span>
+            <h2 className="ax-card__title">Assigned Installation Register</h2>
+            <p className="ax-card__subtitle">Review assigned lights by district and block, verify panchayats, and accept allocations</p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              {/* Status Filter Tabs */}
+              <div style={{ display: 'inline-flex', background: 'var(--ax-surface-subtle)', borderRadius: 8, padding: 3, border: '1px solid var(--ax-border)' }}>
+                <button
+                  type="button"
+                  style={{
+                    border: 'none', background: statusFilter === 'all' ? '#ffffff' : 'transparent',
+                    color: statusFilter === 'all' ? '#2563eb' : 'var(--ax-text-muted)',
+                    fontWeight: 600, fontSize: 12, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                    boxShadow: statusFilter === 'all' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  }}
+                  onClick={() => setStatusFilter('all')}
+                >
+                  All ({records.length})
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    border: 'none', background: statusFilter === 'pending' ? '#ffffff' : 'transparent',
+                    color: statusFilter === 'pending' ? '#d97706' : 'var(--ax-text-muted)',
+                    fontWeight: 600, fontSize: 12, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                    boxShadow: statusFilter === 'pending' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  }}
+                  onClick={() => setStatusFilter('pending')}
+                >
+                  Pending ({metrics.pendingCount})
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    border: 'none', background: statusFilter === 'accepted' ? '#ffffff' : 'transparent',
+                    color: statusFilter === 'accepted' ? '#16a34a' : 'var(--ax-text-muted)',
+                    fontWeight: 600, fontSize: 12, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                    boxShadow: statusFilter === 'accepted' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  }}
+                  onClick={() => setStatusFilter('accepted')}
+                >
+                  Accepted ({metrics.acceptedCount})
+                </button>
               </div>
-            </div>
-          </div>
 
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ssl-table--md ssl-sticky-first">
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col">#</th>
-                  <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col">Block</th>
-                  <th className="ax-table__th" scope="col">Panchayat</th>
-                  <th className="ax-table__th" scope="col">Status</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody aria-busy={loading}>
-                {loading && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={8} style={emptyCellStyle}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned light sites…
-                    </td>
-                  </tr>
-                )}
-                {!loading && pagination.paginatedData.length === 0 && (
-                  <tr>
-                    <td colSpan={8} style={{ padding: 0 }}>
-                      <TableEmptyState
-                        title="No assigned lights found"
-                        message={
-                          searchQuery || filtersActive
-                            ? 'No records match your filters. Try clearing your query.'
-                            : 'No assigned lights currently allocated.'
-                        }
-                        onClear={
-                          searchQuery || filtersActive
-                            ? () => {
-                                setSearchQuery('');
-                                resetFilters();
-                              }
-                            : undefined
-                        }
-                      />
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  pagination.paginatedData.map((row, idx) => {
-                    const isAccepted = row.status === 2;
-                    return (
-                      <tr key={row.id || idx} className="ax-table__row">
-                        <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
-                          {(pagination.currentPage - 1) * pagination.pageSize + idx + 1}
-                        </td>
-                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                          {row.vendor || '—'}
-                        </td>
-                        <td className="ax-table__td">
-                          <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ textTransform: 'capitalize' }}>{row.state || 'Punjab'}</span>
-                        </td>
-                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                          {row.district || '—'}
-                        </td>
-                        <td className="ax-table__td">{row.block || '—'}</td>
-                        <td className="ax-table__td" style={{ maxWidth: 240, whiteSpace: 'normal', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                          {row.panchayat || '—'}
-                        </td>
-                        <td className="ax-table__td">
-                          {isAccepted ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">
-                              <span className="ax-badge__dot" />Accepted
-                            </span>
-                          ) : (
-                            <span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">Pending Acceptance</span>
-                          )}
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {isAccepted ? (
-                            <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>—</span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--primary ax-btn--sm"
-                              style={{ height: 26, padding: '0 10px', fontSize: '11px', gap: '4px' }}
-                              onClick={() => {
-                                setSelectedItem(row);
-                                setAcceptModalOpen(true);
-                              }}
-                            >
-                              Accept
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
+              {/* District Filter Dropdown */}
+              {districts.length > 0 && (
+                <select
+                  value={districtFilter}
+                  onChange={(e) => setDistrictFilter(e.target.value)}
+                  className="ax-input ax-input--sm"
+                  style={{ height: 32, fontSize: 12, minWidth: 120 }}
+                >
+                  <option value="all">All Districts</option>
+                  {districts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              )}
 
-          <div className="ax-card__footer" style={footerStyle}>
-            <div className="ssl-pagination-left">
-              <Pagination
-                currentPage={pagination.currentPage}
-                totalItems={pagination.totalItems}
-                pageSize={pagination.pageSize}
-                onPageChange={pagination.setPage}
-                onPageSizeChange={pagination.setPageSize}
-                pageSizeOptions={[10, 25, 50, 100]}
+              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search vendor, district..." size="sm" />
+              <TableExportToolbar
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
+                onCopy={copyToClipboard}
               />
             </div>
           </div>
-        </section>
-      </div>
+        </div>
 
-      {/* Accept Confirmation Modal */}
-      {acceptModalOpen && selectedItem && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-label="Confirm acceptance" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-            onClick={() => !submitting && setAcceptModalOpen(false)}
-          />
-          <div
-            className="ax-card"
-            style={{
-              position: 'relative', width: '92%', maxWidth: 480, display: 'flex', flexDirection: 'column',
-              background: 'var(--ax-bg-surface)', borderRadius: 'var(--ax-radius-xl)', boxShadow: 'var(--ax-shadow-2xl)', overflow: 'hidden', zIndex: 10,
-            }}
-          >
-            <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--ax-border-subtle)', background: 'var(--ax-surface-subtle)' }}>
-              <div className="ax-card__titles" style={{ maxWidth: '85%' }}>
-                <span className="ax-card__eyebrow">Punjab SSL · Site Allocation</span>
-                <h2 className="ax-card__title">Confirm Acceptance</h2>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" disabled={submitting} onClick={() => setAcceptModalOpen(false)} aria-label="Close modal">✕</button>
-            </div>
+        {/* Scrollable Table */}
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover">
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th" scope="col">Sr. No.</th>
+                <th className="ax-table__th" scope="col">Batch ID</th>
+                <th className="ax-table__th" scope="col">Vendor</th>
+                <th className="ax-table__th" scope="col">State</th>
+                <th className="ax-table__th" scope="col">District</th>
+                <th className="ax-table__th" scope="col">Block</th>
+                <th className="ax-table__th" scope="col">Panchayat(s)</th>
+                <th className="ax-table__th" scope="col">View</th>
+                <th className="ax-table__th" scope="col">Status</th>
+                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td colSpan={10} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned installation batches…
+                  </td>
+                </tr>
+              )}
 
-            <div style={{ padding: '16px 20px' }}>
-              <p style={{ margin: '0 0 14px', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-                Are you sure you want to accept this assigned light allocation?
-              </p>
-              <dl style={{ margin: 0, padding: 12, background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 14px', fontSize: 'var(--ax-text-sm)' }}>
-                <dt style={labelStyle}>Batch ID</dt>
-                <dd className="ax-num" style={{ margin: 0, fontWeight: 600, color: 'var(--ax-accent)' }}>#{selectedItem.id}</dd>
-                <dt style={labelStyle}>District</dt>
-                <dd style={{ margin: 0, fontWeight: 600, color: 'var(--ax-text-strong)' }}>{selectedItem.district || '—'}</dd>
-                <dt style={labelStyle}>Block</dt>
-                <dd style={{ margin: 0, color: 'var(--ax-text-strong)' }}>{selectedItem.block || '—'}</dd>
-                <dt style={labelStyle}>Panchayats</dt>
-                <dd style={{ margin: 0, color: 'var(--ax-text-strong)' }}>{selectedItem.panchayat || '—'}</dd>
-              </dl>
-            </div>
+              {!loading && pagination.paginatedData.length === 0 && (
+                <tr>
+                  <td colSpan={10} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No assigned lights found"
+                      message={
+                        searchQuery || statusFilter !== 'all' || districtFilter !== 'all'
+                          ? 'No records match your active search filters.'
+                          : 'No assigned lights currently allocated.'
+                      }
+                      onClear={() => {
+                        setSearchQuery('');
+                        setStatusFilter('all');
+                        setDistrictFilter('all');
+                      }}
+                    />
+                  </td>
+                </tr>
+              )}
 
-            <div className="ax-card__footer" style={{ ...footerStyle, justifyContent: 'flex-end', gap: 10 }}>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" disabled={submitting} onClick={() => setAcceptModalOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" disabled={submitting} onClick={handleConfirmAccept}>
-                {submitting ? <><span className="ax-spinner" /> Accepting…</> : 'Confirm & Accept'}
+              {!loading &&
+                pagination.paginatedData.map((row, idx) => {
+                  const isAccepted = row.status === 2;
+                  return (
+                    <tr key={row.id || idx} className="ax-table__row">
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
+                        {(pagination.currentPage - 1) * pagination.pageSize + idx + 1}
+                      </td>
+                      <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: '#2563eb' }}>
+                        #{row.id}
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {row.vendor || '—'}
+                      </td>
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ textTransform: 'capitalize' }}>
+                          {row.state || 'Punjab'}
+                        </span>
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {row.district || '—'}
+                      </td>
+                      <td className="ax-table__td">{row.block || '—'}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 260, whiteSpace: 'normal', fontSize: 12 }}>
+                        {row.panchayat || '—'}
+                      </td>
+                      <td className="ax-table__td">
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--ghost ax-btn--xs"
+                          style={{ color: '#2563eb', fontWeight: 600 }}
+                          onClick={() => handleOpenDetail(row)}
+                        >
+                          View Detail
+                        </button>
+                      </td>
+                      <td className="ax-table__td">
+                        {isAccepted ? (
+                          <Badge tone="success">Accepted</Badge>
+                        ) : (
+                          <Badge tone="warning">Pending Accept</Badge>
+                        )}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {isAccepted ? (
+                          <span style={{ fontSize: 12, color: 'var(--ax-text-muted)', fontWeight: 500 }}>—</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--primary ax-btn--xs"
+                            style={{
+                              padding: '4px 12px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              borderRadius: 6,
+                            }}
+                            onClick={() => {
+                              setSelectedItem(row);
+                              setAcceptModalOpen(true);
+                            }}
+                          >
+                            Accept
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination footer (matching Assam/Bihar reference) */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── View Detail Modal ── */}
+      <Modal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={`Allocation Details — Batch #${activeItem?.id || ''}`}
+        subtitle={`State: ${activeItem?.state || 'Punjab'} · District: ${activeItem?.district || '—'} · Block: ${activeItem?.block || '—'}`}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
+              Status: <b>{activeItem?.status === 2 ? 'Accepted' : 'Pending Acceptance'}</b>
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {activeItem && activeItem.status !== 2 && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    setSelectedItem(activeItem);
+                    setAcceptModalOpen(true);
+                  }}
+                >
+                  Accept Allocation
+                </button>
+              )}
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => setDetailModalOpen(false)}
+              >
+                Close
               </button>
             </div>
           </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Summary Details Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border)' }}>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Batch ID</span>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#2563eb' }}>#{activeItem?.id}</div>
+            </div>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Vendor</span>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem?.vendor || '—'}</div>
+            </div>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>District</span>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem?.district || '—'}</div>
+            </div>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Block</span>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem?.block || '—'}</div>
+            </div>
+          </div>
+
+          {/* Panchayats search & list */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                Allocated Panchayats ({panchayatList.length})
+              </h4>
+              <div style={{ width: 220 }}>
+                <SearchInput value={modalSearch} onChange={setModalSearch} placeholder="Filter panchayats..." size="sm" />
+              </div>
+            </div>
+
+            <div style={{ border: '1px solid var(--ax-border)', borderRadius: 8, maxHeight: 240, overflowY: 'auto' }}>
+              {filteredPanchayats.length === 0 ? (
+                <div style={{ padding: 20, textAlign: 'center', color: 'var(--ax-text-muted)', fontSize: 13 }}>
+                  No panchayats match your filter.
+                </div>
+              ) : (
+                <table className="ax-table ax-table--striped">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 60 }}>#</th>
+                      <th>Panchayat Name</th>
+                      <th>District</th>
+                      <th>Block</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPanchayats.map((p, idx) => (
+                      <tr key={idx}>
+                        <td className="ax-num" style={{ color: 'var(--ax-text-muted)' }}>{idx + 1}</td>
+                        <td style={{ fontWeight: 600 }}>{p}</td>
+                        <td>{activeItem?.district || '—'}</td>
+                        <td>{activeItem?.block || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </Modal>
+
+      {/* ── Accept Confirmation Modal ── */}
+      <Modal
+        open={acceptModalOpen}
+        onClose={() => !submitting && setAcceptModalOpen(false)}
+        title="Confirm Allocation Acceptance"
+        subtitle="Accepting this allocation enables installation form execution for ready lights in this batch"
+        maxWidth={520}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              disabled={submitting}
+              onClick={() => setAcceptModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              disabled={submitting}
+              onClick={handleConfirmAccept}
+            >
+              {submitting ? (
+                <><span className="ax-spinner" style={{ marginRight: 6 }} /> Accepting…</>
+              ) : (
+                'Confirm & Accept'
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div>
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--ax-text-muted)', lineHeight: 1.5 }}>
+            Are you sure you want to accept this light assignment batch? Once accepted, all allocated lights in this district and block will become available for installation.
+          </p>
+
+          <dl style={{ margin: 0, padding: 14, background: 'var(--ax-surface-subtle)', borderRadius: 10, border: '1px solid var(--ax-border)', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 13 }}>
+            <dt style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Batch ID:</dt>
+            <dd style={{ margin: 0, fontWeight: 700, color: '#2563eb' }}>#{selectedItem?.id}</dd>
+            <dt style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>District:</dt>
+            <dd style={{ margin: 0, fontWeight: 600 }}>{selectedItem?.district || '—'}</dd>
+            <dt style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Block:</dt>
+            <dd style={{ margin: 0 }}>{selectedItem?.block || '—'}</dd>
+            <dt style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Panchayat(s):</dt>
+            <dd style={{ margin: 0, whiteSpace: 'normal' }}>{selectedItem?.panchayat || '—'}</dd>
+          </dl>
+        </div>
+      </Modal>
     </div>
   );
 }

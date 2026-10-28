@@ -947,16 +947,20 @@ class AssamSwpService {
   /**
    * 15. View Dashboard By Status
    * GET /assam/swp-installation-view-dashboard/{status}
+   * Allowed statuses: total, complete, pending, verify-pending, verify-approved, verify-reject,
+   * doc-approved, doc-pending, doc-reject, claim-raised, claim-approved, claim-reject,
+   * pay-complete, pay-partial, pay-pending
    */
   async getDashboardByStatus(status: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
-    const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(status);
+    const validStatus = normalizeAssamDashboardStatus(status);
+    const url = ASSAM_SWP_API.VIEW_DASHBOARD_BY_STATUS(validStatus);
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
-      throw new Error(json.message || `Failed to fetch sites by status (${res.status})`);
+      throw new Error(json.message || `Failed to fetch sites by status "${validStatus}" (${res.status})`);
     }
     return {
       meta: json.meta,
@@ -969,20 +973,152 @@ class AssamSwpService {
    * GET /assam/swp-installation-view-districtwise/{status}/{district}
    */
   async getDistrictwiseByStatus(status: string, district: string): Promise<{ meta?: any; data: InstalledSiteItem[] }> {
-    const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(status, district);
+    const validStatus = normalizeAssamDashboardStatus(status);
+    const cleanDistrict = (district || '').trim();
+    const url = ASSAM_SWP_API.VIEW_DISTRICTWISE_BY_STATUS(validStatus, cleanDistrict);
     const res = await this.fetchWithFallback(url, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     const json: ApiResponse<InstalledSiteItem[]> = await res.json();
     if (!res.ok || json.status === false || json.success === false) {
-      throw new Error(json.message || `Failed to fetch district sites by status (${res.status})`);
+      throw new Error(json.message || `Failed to fetch district sites by status "${validStatus}" in "${cleanDistrict}" (${res.status})`);
     }
     return {
       meta: json.meta,
       data: Array.isArray(json.data) ? json.data : [],
     };
   }
+}
+
+/**
+ * Valid allowed status keys for Assam SWP Dashboard Drilldown APIs (APIs 15 & 16)
+ */
+export type AssamDashboardStatus =
+  | 'total'
+  | 'complete'
+  | 'pending'
+  | 'verify-pending'
+  | 'verify-approved'
+  | 'verify-reject'
+  | 'doc-approved'
+  | 'doc-pending'
+  | 'doc-reject'
+  | 'claim-raised'
+  | 'claim-approved'
+  | 'claim-reject'
+  | 'pay-complete'
+  | 'pay-partial'
+  | 'pay-pending';
+
+/**
+ * Normalizes any dashboard status string (e.g. 'Complete', 'VerifyApproved', 'PaymentComplete')
+ * to the exact backend-accepted string (API 15 & 16 specification).
+ */
+export function normalizeAssamDashboardStatus(rawStatus: string): AssamDashboardStatus {
+  if (!rawStatus) return 'total';
+  const clean = rawStatus.trim().toLowerCase();
+
+  const exactSet = new Set<AssamDashboardStatus>([
+    'total',
+    'complete',
+    'pending',
+    'verify-pending',
+    'verify-approved',
+    'verify-reject',
+    'doc-approved',
+    'doc-pending',
+    'doc-reject',
+    'claim-raised',
+    'claim-approved',
+    'claim-reject',
+    'pay-complete',
+    'pay-partial',
+    'pay-pending',
+  ]);
+  if (exactSet.has(clean as AssamDashboardStatus)) {
+    return clean as AssamDashboardStatus;
+  }
+
+  const aliasMap: Record<string, AssamDashboardStatus> = {
+    'all': 'total',
+    'allocated': 'total',
+    'total-sites': 'total',
+    'site-count': 'total',
+
+    'completed': 'complete',
+    'installed': 'complete',
+
+    'verify_pending': 'verify-pending',
+    'verifypending': 'verify-pending',
+    'audit-pending': 'verify-pending',
+
+    'verify_approved': 'verify-approved',
+    'verifyapproved': 'verify-approved',
+    'approved': 'verify-approved',
+    'audit-approved': 'verify-approved',
+
+    'verify_reject': 'verify-reject',
+    'verifyreject': 'verify-reject',
+    'verify-rejected': 'verify-reject',
+    'verify_rejected': 'verify-reject',
+    'rejected': 'verify-reject',
+    'rework': 'verify-reject',
+
+    'doc_approved': 'doc-approved',
+    'docapproved': 'doc-approved',
+
+    'doc_pending': 'doc-pending',
+    'docpending': 'doc-pending',
+
+    'doc_reject': 'doc-reject',
+    'docreject': 'doc-reject',
+    'doc-rejected': 'doc-reject',
+    'doc_rejected': 'doc-reject',
+
+    'claim_raised': 'claim-raised',
+    'claimraised': 'claim-raised',
+    'inst_claim_raised': 'claim-raised',
+
+    'claim_approved': 'claim-approved',
+    'claimapproved': 'claim-approved',
+    'inst_claim_approved': 'claim-approved',
+
+    'claim_reject': 'claim-reject',
+    'claimreject': 'claim-reject',
+    'claim-rejected': 'claim-reject',
+    'inst_claim_reject': 'claim-reject',
+
+    'paymentcomplete': 'pay-complete',
+    'payment-complete': 'pay-complete',
+    'pay_complete': 'pay-complete',
+    'inst_pay_complete': 'pay-complete',
+    'paid': 'pay-complete',
+    'settled': 'pay-complete',
+
+    'paymentpartial': 'pay-partial',
+    'payment-partial': 'pay-partial',
+    'payment-partially': 'pay-partial',
+    'pay_partial': 'pay-partial',
+    'pay-partially': 'pay-partial',
+    'inst_pay_partially': 'pay-partial',
+    'partial': 'pay-partial',
+
+    'paymentpending': 'pay-pending',
+    'payment-pending': 'pay-pending',
+    'pay_pending': 'pay-pending',
+    'inst_pay_pending': 'pay-pending',
+  };
+
+  const normalized = clean.replace(/[_\s]+/g, '-');
+  if (exactSet.has(normalized as AssamDashboardStatus)) {
+    return normalized as AssamDashboardStatus;
+  }
+  if (aliasMap[clean]) return aliasMap[clean];
+  if (aliasMap[normalized]) return aliasMap[normalized];
+  if (aliasMap[clean.replace(/[-_]/g, '')]) return aliasMap[clean.replace(/[-_]/g, '')];
+
+  return 'complete';
 }
 
 export const assamSwpService = new AssamSwpService();

@@ -688,9 +688,8 @@ export function Punjab_Installation_SSL_Dashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Punjab
             </span>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh dashboard" onClick={() => loadDashboardData(true)} disabled={isRefreshing}>
-              <span className={isRefreshing ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
-            </button>
+            <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh dashboard" onClick={() => loadDashboardData(true)} disabled={isRefreshing}><span className={isRefreshing ? "ax-spinner" : ""}>{ICON_REFRESH}</span></button>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate("/v/punjab/ssl/installation/update-light-deatils")}>+ Install Light</button>
           </div>
         }
       />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -8,76 +8,476 @@ import {
   type PunjabLightDetail,
 } from '../../punjab-services';
 
-/* Unified single-card design */
-const ULA_STYLE_CSS = `
-.ula-inst-form .ax-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); overflow: hidden; }
-.ula-inst-form .ax-card__header { padding: var(--ax-space-5) var(--ax-space-6); border-bottom: 1px solid var(--ax-border-subtle); background: var(--ax-surface-subtle); display: flex; flex-direction: column; gap: var(--ax-space-4); }
-.ula-inst-form .ax-card__body { padding: var(--ax-space-6); }
+// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Assam SWP reference)
+const SINGLE_CARD_FORM_CSS = `
+.punjab-ssl-form .ax-card {
+  border: 1px solid var(--ax-border, #e2e8f0);
+  border-radius: var(--ax-radius-xl, 16px);
+  background: var(--ax-surface-solid, #ffffff);
+  box-shadow: var(--ax-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+  overflow: hidden;
+}
+.punjab-ssl-form .ax-card__header {
+  padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+  background: var(--ax-surface-subtle, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ax-space-4, 16px);
+}
+.punjab-ssl-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
-.ula-section-pills { display: flex; gap: var(--ax-space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-.ula-section-pill-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--ax-radius-pill); font-size: var(--ax-text-xs); font-weight: 500; white-space: nowrap; background: var(--ax-surface-solid); border: 1px solid var(--ax-border); color: var(--ax-text); cursor: pointer; transition: all 0.15s ease; }
-.ula-section-pill-btn:hover { border-color: var(--ax-accent); color: var(--ax-accent); background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid)); }
-.ula-section-pill-btn .pill-num { width: 18px; height: 18px; border-radius: 50%; background: var(--ax-surface-subtle); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+/* Quick Section Nav Pills */
+.ssl-section-pills {
+  display: flex;
+  gap: var(--ax-space-2, 8px);
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.ssl-section-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--ax-radius-pill, 9999px);
+  font-size: var(--ax-text-xs, 12px);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  color: var(--ax-text, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ssl-section-pill-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 6%, #ffffff);
+}
+.ssl-section-pill-btn .pill-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ax-surface-subtle, #f1f5f9);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
 
-.ula-section-block { padding-top: var(--ax-space-2); }
-.ula-section-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--ax-space-2); margin-bottom: var(--ax-space-5); padding-bottom: var(--ax-space-3); border-bottom: 1px solid var(--ax-border-subtle); }
-.ula-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
-.ula-section-divider { border: 0; border-top: 1px dashed var(--ax-border); margin: var(--ax-space-8) 0 var(--ax-space-6); }
+/* Section Block */
+.ssl-section-block { padding-top: var(--ax-space-2, 8px); }
+.ssl-section-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+  gap: var(--ax-space-2, 8px);
+  margin-bottom: var(--ax-space-5, 20px);
+  padding-bottom: var(--ax-space-3, 12px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+}
+.ssl-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.ssl-section-divider {
+  border: 0;
+  border-top: 1px dashed var(--ax-border, #e2e8f0);
+  margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
+}
 
+/* Floating Label Core (matching Assam FloatingInput) */
 .ax-float { position: relative; width: 100%; }
-.ax-float__input { width: 100%; height: 46px; padding: 12px 14px 4px 14px; font-size: var(--ax-text-sm); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-md); color: var(--ax-text); outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-textarea.ax-float__input { height: auto; min-height: 84px; padding-top: 20px; resize: vertical; }
+.ax-float__input {
+  width: 100%;
+  height: 46px;
+  padding: 12px 14px 4px 14px;
+  font-size: var(--ax-text-sm, 13.5px);
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  border-radius: var(--ax-radius-md, 8px);
+  color: var(--ax-text, #1e293b);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
 .ax-float__input::placeholder { color: transparent; }
-.ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
-.ax-float__input:disabled { opacity: .6; cursor: not-allowed; }
-.ax-float__label { position: absolute; inset-inline-start: 12px; top: 23px; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease; z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
-.ax-float__input:focus + .ax-float__label,
-.ax-float__input:not(:placeholder-shown) + .ax-float__label,
-.ax-float--select .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs); font-weight: 500; color: var(--ax-text-muted); }
-.ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
-.ax-float__input.is-invalid { border-color: var(--ax-danger-500) !important; }
-.ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger-500) 24%, transparent) !important; }
-.ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500) !important; }
-.ax-float__input.is-valid { border-color: var(--ax-success-500) !important; }
-.ax-float__input.is-valid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-success-500) 24%, transparent) !important; }
-.ax-float__input.is-valid + .ax-float__label { color: var(--ax-success-500) !important; }
+.ax-float__input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+}
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
+.ax-float__input.is-invalid {
+  border-color: #ef4444 !important;
+}
+.ax-float__input.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
 
-.ax-field-feedback { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--ax-text-2xs); min-height: 16px; }
-.ax-field-feedback--error { color: var(--ax-danger-500); }
+.ax-float__label {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0 4px;
+  font-size: var(--ax-text-sm, 13.5px);
+  color: var(--ax-text-subtle, #64748b);
+  background: var(--ax-surface-solid, #ffffff);
+  border-radius: var(--ax-radius-xs, 4px);
+  pointer-events: none;
+  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
+  z-index: 2;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ax-float__label.floating {
+  top: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2563eb;
+}
+.ax-float__label.has-val:not(.floating) {
+  top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted, #64748b);
+}
+.ax-float__label.is-error {
+  color: #ef4444 !important;
+}
 
-.ula-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
-@media (min-width: 1024px) { .ula-form-grid--3col { grid-template-columns: repeat(3, 1fr); } }
-.ula-form-col-span-full { grid-column: 1 / -1; }
+/* Grids */
+.ssl-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--ax-space-4, 16px);
+}
+@media (min-width: 1024px) {
+  .ssl-form-grid--3col { grid-template-columns: repeat(3, 1fr); }
+}
 
-.ula-site-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--ax-space-3); }
-@media (min-width: 1024px) { .ula-site-info-grid { grid-template-columns: repeat(4, 1fr); } }
-.ula-site-info-card { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: var(--ax-space-3) var(--ax-space-4); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-lg); }
-.ula-site-info-card__label { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ax-text-muted); }
-.ula-site-info-card__value { font-size: var(--ax-text-base); font-weight: 600; color: var(--ax-text-strong); overflow-wrap: anywhere; }
+.ssl-site-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--ax-space-3, 12px);
+}
+@media (min-width: 1024px) {
+  .ssl-site-info-grid { grid-template-columns: repeat(4, 1fr); }
+}
+.ssl-site-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: var(--ax-surface-subtle, #f8fafc);
+  border: 1px solid var(--ax-border, #e2e8f0);
+  border-radius: var(--ax-radius-lg, 10px);
+}
+.ssl-site-info-card__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ax-text-muted, #64748b);
+}
+.ssl-site-info-card__value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ax-text-strong, #0f172a);
+}
 
-.ula-photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
-.ula-photo-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-lg); padding: var(--ax-space-4); background: var(--ax-surface-solid); display: flex; flex-direction: column; justify-content: space-between; gap: var(--ax-space-3); min-height: 170px; }
-.ula-photo-card.is-valid { border-color: var(--ax-success-500); }
-.ula-photo-card.is-invalid { border-color: var(--ax-danger-500); }
-
-.ula-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
+/* Sticky Action Bar */
+.ssl-form-sticky-bar {
+  position: sticky;
+  bottom: var(--ax-space-4, 16px);
+  z-index: 30;
+  margin-top: var(--ax-space-6, 24px);
+  padding: 14px 24px;
+  background: #ffffff;
+  border: 1px solid var(--ax-border, #e2e8f0);
+  border-radius: var(--ax-radius-xl, 14px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ax-space-3, 12px);
+}
 `;
 
-const MAX_FILE = 5 * 1024 * 1024; // 5120 KB as per API doc
+const MAX_FILE = 5 * 1024 * 1024; // 5120 KB per documentation
 
-const iconProps = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
-const ICON_CROSSHAIR = (<svg style={{ width: 15, height: 15 }} {...iconProps}><circle cx="12" cy="12" r="10" /><line x1="22" y1="12" x2="18" y2="12" /><line x1="6" y1="12" x2="2" y2="12" /><line x1="12" y1="6" x2="12" y2="2" /><line x1="12" y1="22" x2="12" y2="18" /></svg>);
-const ICON_CAMERA = (<svg style={{ width: 15, height: 15 }} {...iconProps}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>);
+/* ───────── Floating Input Component (Exact Assam SWP Style) ───────── */
+interface FloatingInputProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  required?: boolean;
+  disabled?: boolean;
+  type?: string;
+  placeholder?: string;
+  maxLength?: number;
+  error?: string;
+}
 
-interface FieldStatusProps { className: string; isValid: boolean; isInvalid: boolean; }
+function FloatingInput({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+  disabled,
+  type = 'text',
+  placeholder,
+  maxLength,
+  error,
+}: FloatingInputProps) {
+  const [focused, setFocused] = useState(false);
+  const hasVal = Boolean(value && String(value).length > 0);
 
-const formatInfo = (v: unknown): string => {
-  if (v === null || v === undefined) return 'N/A';
-  const s = String(v).trim();
-  return s === '' || s === '0' ? 'N/A' : s;
-};
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="ax-float">
+        <input
+          type={type}
+          id={name}
+          name={name}
+          value={value}
+          maxLength={maxLength}
+          onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          required={required}
+          disabled={disabled}
+          placeholder={placeholder || label}
+          className={`ax-float__input ${error ? 'is-invalid' : ''}`}
+        />
+        <label
+          htmlFor={name}
+          className={`ax-float__label ${error ? 'is-error' : ''} ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}
+        >
+          {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+        </label>
+      </div>
+      {error && (
+        <span style={{ fontSize: 11, color: '#ef4444', paddingLeft: 4 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
-type FormState = {
+/* ───────── Modern Upload Dropzone (matching Assam SWP InstallationSite) ───────── */
+interface UploadDropzoneProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  accept?: string;
+  file: File | null;
+  preview?: string;
+  existingUrl?: string | null;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+  helperText?: string;
+}
+
+function UploadDropzone({
+  id,
+  label,
+  required,
+  accept = 'image/*,application/pdf',
+  file,
+  preview,
+  existingUrl,
+  onSelect,
+  onRemove,
+  error,
+  helperText,
+}: UploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const currentPreview = preview || existingUrl;
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onSelect(chosen);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 600,
+          color: error ? '#ef4444' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <span style={{ color: '#ef4444' }}>*</span>}
+      </label>
+
+      {helperText && (
+        <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+          {helperText}
+        </span>
+      )}
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed #ef4444'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 10,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : '#ffffff',
+          padding: file || currentPreview ? '12px 14px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file || currentPreview ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {currentPreview ? (
+                <img
+                  src={currentPreview}
+                  alt={label}
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file ? file.name : 'Existing Uploaded Photo'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Saved on server'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove photo"
+            >
+              {file ? 'Remove' : 'Change'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#2563eb',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to capture or drag & drop photo
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              JPG, PNG or PDF (Max 5MB)
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type FormFields = {
   wardNo: string;
   poleNo: string;
   beneficiaryName: string;
@@ -91,7 +491,7 @@ type FormState = {
   remarks: string;
 };
 
-const EMPTY_FORM: FormState = {
+const EMPTY_FORM: FormFields = {
   wardNo: '',
   poleNo: '',
   beneficiaryName: '',
@@ -111,14 +511,28 @@ export function Punjab_Installation_SSL_InstallLight() {
   const editIdParam = searchParams.get('ssl_id') || searchParams.get('id') || searchParams.get('light_id');
   const isEditMode = searchParams.get('edit') === 'true' || Boolean(searchParams.get('ssl_id'));
 
+  // Section Refs for smooth scrolling
+  const sec1Ref = useRef<HTMLDivElement>(null);
+  const sec2Ref = useRef<HTMLDivElement>(null);
+  const sec3Ref = useRef<HTMLDivElement>(null);
+  const sec4Ref = useRef<HTMLDivElement>(null);
+  const sec5Ref = useRef<HTMLDivElement>(null);
+
+  const scrollToSection = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Dropdown list
   const [dropdownLoading, setDropdownLoading] = useState(true);
   const [lightOptions, setLightOptions] = useState<PunjabLightDropdownItem[]>([]);
   const [selectedLightId, setSelectedLightId] = useState<string>(editIdParam ? String(editIdParam) : '');
 
+  // Detail state
   const [detailLoading, setDetailLoading] = useState(false);
   const [siteDetail, setSiteDetail] = useState<PunjabLightDetail | null>(null);
 
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // Form inputs
+  const [form, setForm] = useState<FormFields>(EMPTY_FORM);
   const [lightFile, setLightFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [lightFile2, setLightFile2] = useState<File | null>(null);
@@ -127,41 +541,15 @@ export function Punjab_Installation_SSL_InstallLight() {
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [existingImageUrl2, setExistingImageUrl2] = useState<string | null>(null);
 
+  // GPS state
   const [gpsDetecting, setGpsDetecting] = useState(false);
   const [gpsStatusMsg, setGpsStatusMsg] = useState<string | null>(null);
 
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  // Validation & alerts
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const fileInputRef1 = useRef<HTMLInputElement>(null);
-  const fileInputRef2 = useRef<HTMLInputElement>(null);
-
-  const validate = (name: string, value: string): string => {
-    if (!value.trim()) return 'This field is required.';
-    if (name === 'contactNo') {
-      const clean = value.replace(/\D/g, '');
-      if (clean.length !== 10) return 'Contact number must be exactly 10 digits.';
-    }
-    return '';
-  };
-
-  const setField = (name: keyof FormState, value: string) => {
-    setForm((p) => ({ ...p, [name]: value }));
-    if (name !== 'remarks') setErrors((p) => ({ ...p, [name]: validate(name, value) }));
-  };
-
-  const handleBlur = (name: string) => setTouched((p) => ({ ...p, [name]: true }));
-
-  const getStatus = (name: string, value: unknown): FieldStatusProps => {
-    if (!(touched[name] || submitted)) return { className: '', isValid: false, isInvalid: false };
-    if (errors[name]) return { className: 'is-invalid', isValid: false, isInvalid: true };
-    if (value !== null && value !== undefined && String(value).trim() !== '') return { className: 'is-valid', isValid: true, isInvalid: false };
-    return { className: '', isValid: false, isInvalid: false };
-  };
 
   const resetForm = useCallback(() => {
     setForm(EMPTY_FORM);
@@ -171,13 +559,13 @@ export function Punjab_Installation_SSL_InstallLight() {
     setFilePreview2(null);
     setExistingImageUrl(null);
     setExistingImageUrl2(null);
-    setTouched({});
     setErrors({});
-    setSubmitted(false);
     setGpsStatusMsg(null);
+    setErrorMsg(null);
+    setSuccessMsg(null);
   }, []);
 
-  // Fetch Dropdown list
+  // Fetch dropdown list on mount
   useEffect(() => {
     let active = true;
     (async () => {
@@ -186,7 +574,7 @@ export function Punjab_Installation_SSL_InstallLight() {
         const list = await punjabSslInstallationService.fetchLightNames();
         if (active) setLightOptions(Array.isArray(list) ? list : []);
       } catch (err) {
-        console.error('[InstallLight] fetch dropdown error:', err);
+        console.error('[Punjab SSL] fetch dropdown error:', err);
       } finally {
         if (active) setDropdownLoading(false);
       }
@@ -194,7 +582,7 @@ export function Punjab_Installation_SSL_InstallLight() {
     return () => { active = false; };
   }, []);
 
-  // Fetch Light Details on Select or Edit Mode
+  // Handle selecting a light from dropdown
   const handleSelectLight = useCallback(async (idOrUid: string) => {
     setSelectedLightId(idOrUid);
     setExistingImageUrl(null);
@@ -220,28 +608,28 @@ export function Punjab_Installation_SSL_InstallLight() {
 
       setSiteDetail(detail);
       if (detail) {
-        setForm((p) => ({
-          ...p,
-          wardNo: detail?.ward_no || '',
-          poleNo: detail?.pole_no || '',
-          beneficiaryName: detail?.beneficiary_name || '',
-          contactNo: detail?.contact_no || '',
-          uuidNo: detail?.uuid_no || '',
-          batteryNo: detail?.battery_serial_no || '',
-          panelNo: detail?.panel_no || '',
-          lightNo: detail?.light_no || '',
-          latitude: detail?.latitude ? String(detail.latitude) : '',
-          longitude: detail?.longitude ? String(detail.longitude) : '',
-          remarks: detail?.remark || detail?.inst_remark || '',
-        }));
+        setForm({
+          wardNo: detail.ward_no ? String(detail.ward_no) : '',
+          poleNo: detail.pole_no ? String(detail.pole_no) : '',
+          beneficiaryName: detail.beneficiary_name || '',
+          contactNo: detail.contact_no ? String(detail.contact_no) : '',
+          uuidNo: detail.uuid_no ? String(detail.uuid_no) : '',
+          batteryNo: detail.battery_serial_no ? String(detail.battery_serial_no) : '',
+          panelNo: detail.panel_no ? String(detail.panel_no) : '',
+          lightNo: detail.light_no ? String(detail.light_no) : '',
+          latitude: detail.latitude ? String(detail.latitude) : '',
+          longitude: detail.longitude ? String(detail.longitude) : '',
+          remarks: detail.remark || detail.inst_remark || '',
+        });
+
         if (detail.light_file) setExistingImageUrl(getMediaUrl(detail.light_file));
         if (detail.light_file2) setExistingImageUrl2(getMediaUrl(detail.light_file2));
         setErrors({});
       }
     } catch (err) {
-      console.error('[InstallLight] fetch detail error:', err);
+      console.error('[Punjab SSL] fetch detail error:', err);
       setSiteDetail(null);
-      setErrorMsg('Could not fetch light details.');
+      setErrorMsg('Could not fetch light details from server.');
     } finally {
       setDetailLoading(false);
     }
@@ -253,10 +641,10 @@ export function Punjab_Installation_SSL_InstallLight() {
     }
   }, [editIdParam, handleSelectLight]);
 
-  // GPS Detect
+  // GPS detection handler
   const handleDetectGps = useCallback(() => {
     if (!navigator.geolocation) {
-      setGpsStatusMsg('Geolocation is not supported by your browser.');
+      setGpsStatusMsg('Geolocation is not supported by your device browser.');
       return;
     }
     setGpsDetecting(true);
@@ -265,90 +653,117 @@ export function Punjab_Installation_SSL_InstallLight() {
       (pos) => {
         const lat = pos.coords.latitude.toFixed(6);
         const lng = pos.coords.longitude.toFixed(6);
-        setField('latitude', lat);
-        setField('longitude', lng);
+        setForm((prev) => ({ ...prev, latitude: lat, longitude: lng }));
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.latitude;
+          delete next.longitude;
+          return next;
+        });
         setGpsDetecting(false);
-        setGpsStatusMsg(`GPS Lock Acquired (Accuracy: ±${Math.round(pos.coords.accuracy)}m)`);
+        setGpsStatusMsg(`✓ GPS Acquired (Accuracy: ±${Math.round(pos.coords.accuracy)}m)`);
       },
       (err) => {
         setGpsDetecting(false);
-        setGpsStatusMsg(`GPS failed: ${err.message}. Please enter manually.`);
+        setGpsStatusMsg(`GPS error: ${err.message}. Please enter manually.`);
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   }, []);
 
-  // File Upload Handlers
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>, isSecond = false) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleInputChange = (field: keyof FormFields) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, [field]: val }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
 
+  const handlePhotoSelect = (isSecond: boolean) => (file: File) => {
     if (file.size > MAX_FILE) {
-      setErrorMsg('File size exceeds the 5MB limit.');
+      setErrorMsg(`File size exceeds the 5MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       if (isSecond) {
         setLightFile2(file);
         setFilePreview2(reader.result as string);
+        setErrors((prev) => { const n = { ...prev }; delete n.light_file2; return n; });
       } else {
         setLightFile(file);
         setFilePreview(reader.result as string);
+        setErrors((prev) => { const n = { ...prev }; delete n.light_file; return n; });
       }
     };
     reader.readAsDataURL(file);
   };
 
-  // Submit Handler
+  const handlePhotoRemove = (isSecond: boolean) => () => {
+    if (isSecond) {
+      setLightFile2(null);
+      setFilePreview2(null);
+      setExistingImageUrl2(null);
+    } else {
+      setLightFile(null);
+      setFilePreview(null);
+      setExistingImageUrl(null);
+    }
+  };
+
+  // Form submission
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
     setSuccessMsg(null);
     setErrorMsg(null);
 
     const sslNumericId = siteDetail?.id || Number(selectedLightId);
-    if (!sslNumericId) {
-      setErrorMsg('Please select a valid Light ID from the dropdown.');
+    if (!sslNumericId && !siteDetail) {
+      setErrorMsg('Please select an allocated Light ID from the dropdown.');
+      scrollToSection(sec1Ref);
       return;
     }
 
-    // Validate required fields
     const newErrors: Record<string, string> = {};
-    const reqKeys: (keyof FormState)[] = [
-      'beneficiaryName',
-      'contactNo',
-      'wardNo',
-      'uuidNo',
-      'poleNo',
-      'lightNo',
-      'panelNo',
-      'batteryNo',
-      'latitude',
-      'longitude',
-    ];
 
-    reqKeys.forEach((key) => {
-      const err = validate(key, form[key]);
-      if (err) newErrors[key] = err;
-    });
+    if (!form.beneficiaryName.trim()) newErrors.beneficiaryName = 'Beneficiary Name is required.';
+    if (!form.wardNo.trim()) newErrors.wardNo = 'Ward Number is required.';
+
+    const cleanContact = form.contactNo.replace(/\D/g, '');
+    if (!cleanContact) {
+      newErrors.contactNo = 'Contact Number is required.';
+    } else if (cleanContact.length !== 10) {
+      newErrors.contactNo = 'Contact number must be exactly 10 digits.';
+    }
+
+    if (!form.uuidNo.trim()) newErrors.uuidNo = 'UUID Number is required.';
+    if (!form.poleNo.trim()) newErrors.poleNo = 'Pole Number is required.';
+    if (!form.lightNo.trim()) newErrors.lightNo = 'Light Luminary Number is required.';
+    if (!form.panelNo.trim()) newErrors.panelNo = 'Solar Panel Serial No. is required.';
+    if (!form.batteryNo.trim()) newErrors.batteryNo = 'Battery Serial No. is required.';
+
+    if (!form.latitude.trim()) newErrors.latitude = 'Latitude is required.';
+    if (!form.longitude.trim()) newErrors.longitude = 'Longitude is required.';
 
     if (!isEditMode) {
-      if (!lightFile) newErrors['light_file'] = 'Light Image 1 is required.';
-      if (!lightFile2) newErrors['light_file2'] = 'Light Image 2 is required.';
+      if (!lightFile) newErrors.light_file = 'Light Photo 1 is required.';
+      if (!lightFile2) newErrors.light_file2 = 'Light Photo 2 is required.';
     }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setErrorMsg('Please correct the highlighted errors before submitting.');
+      setErrorMsg('Please complete all required fields highlighted in red.');
       return;
     }
 
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('ssl_id', String(sslNumericId));
+      formData.append('ssl_id', String(sslNumericId || selectedLightId));
       formData.append('uuid_no', form.uuidNo.trim());
       formData.append('pole_no', form.poleNo.trim());
       formData.append('light_no', form.lightNo.trim());
@@ -356,9 +771,10 @@ export function Punjab_Installation_SSL_InstallLight() {
       formData.append('battery_serial_no', form.batteryNo.trim());
       formData.append('beneficiary_name', form.beneficiaryName.trim());
       formData.append('ward_no', form.wardNo.trim());
-      formData.append('contact_no', form.contactNo.trim().replace(/\D/g, ''));
+      formData.append('contact_no', cleanContact);
       formData.append('latitude', form.latitude.trim());
       formData.append('longitude', form.longitude.trim());
+
       if (form.remarks.trim()) {
         formData.append('remark', form.remarks.trim());
       }
@@ -380,7 +796,7 @@ export function Punjab_Installation_SSL_InstallLight() {
       setSuccessMsg(res.message || 'Light installed successfully!');
       setTimeout(() => {
         navigate('/v/punjab/ssl/installation/complete-light#Completed');
-      }, 1500);
+      }, 1400);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to submit light installation.');
     } finally {
@@ -389,13 +805,15 @@ export function Punjab_Installation_SSL_InstallLight() {
   };
 
   return (
-    <div className="ax-page ula-inst-form">
-      <style>{ULA_STYLE_CSS}</style>
+    <div className="solar-erp-page punjab-ssl-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
 
+      {/* Page Header (matching Assam SWP pattern) */}
       <PageHead
-        title={isEditMode ? 'Update Installed Light' : 'Install Light Details'}
-        subtitle="Record physical site parameters, hardware serials, and geo-tagged inspection photos in Punjab"
+        title={isEditMode ? 'Update Installed Light' : 'SSL Light Installation'}
+        subtitle="Record physical site parameters, hardware serials, and geo-tagged verification photos in Punjab"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Punjab' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/punjab/ssl/installation/dashboard' },
@@ -403,40 +821,40 @@ export function Punjab_Installation_SSL_InstallLight() {
         ]}
       />
 
+      {/* Notifications */}
       {successMsg && (
-        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">
-            <p className="ax-alert__message">{successMsg}</p>
-          </div>
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }} role="status">
+          <div className="ax-alert__title">Success</div>
+          <div className="ax-alert__text">{successMsg}</div>
         </div>
       )}
 
       {errorMsg && (
-        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">
-            <p className="ax-alert__message">{errorMsg}</p>
-          </div>
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }} role="alert">
+          <div className="ax-alert__title">Installation Error</div>
+          <div className="ax-alert__text">{errorMsg}</div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="ax-card">
+          {/* Card Header with Title and Section Navigation Pills */}
           <div className="ax-card__header">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                  {isEditMode ? 'Edit Light Installation Record' : 'Punjab SSL Installation Form'}
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>
+                  {isEditMode ? 'Edit Light Installation Record' : 'Punjab SSL Installation Execution'}
                 </h3>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
                   State: <b>Punjab</b> · All fields marked with * are mandatory
                 </p>
               </div>
 
               {/* Light Picker Dropdown */}
-              <div style={{ width: 280 }}>
+              <div style={{ minWidth: 280, maxWidth: '100%' }}>
                 <select
                   className="ax-input ax-input--sm"
-                  style={{ width: '100%', fontWeight: 600 }}
+                  style={{ width: '100%', fontWeight: 600, height: 38 }}
                   value={selectedLightId}
                   disabled={dropdownLoading || isEditMode}
                   onChange={(e) => handleSelectLight(e.target.value)}
@@ -450,450 +868,320 @@ export function Punjab_Installation_SSL_InstallLight() {
                 </select>
               </div>
             </div>
+
+            {/* Quick Section Nav Pills (matching Assam SWP) */}
+            <div className="ssl-section-pills">
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollToSection(sec1Ref)}>
+                <span className="pill-num">1</span> Light Selection
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollToSection(sec2Ref)}>
+                <span className="pill-num">2</span> Beneficiary & Ward
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollToSection(sec3Ref)}>
+                <span className="pill-num">3</span> Equipment Serials
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollToSection(sec4Ref)}>
+                <span className="pill-num">4</span> GPS & Photos
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollToSection(sec5Ref)}>
+                <span className="pill-num">5</span> Remarks
+              </button>
+            </div>
           </div>
 
           <div className="ax-card__body">
             {detailLoading && (
               <div style={{ textAlign: 'center', padding: 32 }}>
-                <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading light installation profile…
+                <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading light installation details…
               </div>
             )}
 
-            {/* Section 1: Pre-Allocated Site Details */}
-            {siteDetail && (
-              <div className="ula-section-block">
-                <div className="ula-section-header">
-                  <div className="ula-section-title-wrap">
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                      1. Site & Administrative Details
-                    </h4>
-                  </div>
+            {/* ── Section 1: Pre-Allocated Light Details ── */}
+            <div ref={sec1Ref} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted, #64748b)' }}>
+                    1. Site & Administrative Details
+                  </h4>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    System allocated jurisdiction & sarpanch contact
+                  </span>
                 </div>
+              </div>
 
-                <div className="ula-site-info-grid">
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Unique ID</span>
-                    <span className="ula-site-info-card__value" style={{ color: 'var(--ax-accent)' }}>
-                      {formatInfo(siteDetail.unique_id || siteDetail.id)}
+              {siteDetail ? (
+                <div className="ssl-site-info-grid">
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Light Unique ID</span>
+                    <span className="ssl-site-info-card__value" style={{ color: '#2563eb' }}>
+                      {siteDetail.unique_id || `#${siteDetail.id}`}
                     </span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">District</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.district)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">District</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.district || '—'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Block</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.block)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Block</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.block || '—'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Panchayat</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.panchayat)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Panchayat</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.panchayat || '—'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Sarpanch Name</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.sarpanch_name)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Sarpanch Name</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.sarpanch_name || '—'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Sarpanch Contact</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.sarpanch_contact)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Sarpanch Contact</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.sarpanch_contact || '—'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Phase</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.phase)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Phase</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.phase || '1'}</span>
                   </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Work Order No.</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.wo_no)}</span>
+                  <div className="ssl-site-info-card">
+                    <span className="ssl-site-info-card__label">Work Order No.</span>
+                    <span className="ssl-site-info-card__value">{siteDetail.wo_no || '—'}</span>
                   </div>
                 </div>
-
-                <hr className="ula-section-divider" />
-              </div>
-            )}
-
-            {/* Section 2: Beneficiary Details */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    2. Beneficiary Details
-                  </h4>
+              ) : (
+                <div style={{ padding: 18, background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 10, border: '1px dashed var(--ax-border, #cbd5e1)', textAlign: 'center', color: 'var(--ax-text-muted, #64748b)', fontSize: 13 }}>
+                  Please select an allocated light from the top dropdown to load site details.
                 </div>
-              </div>
+              )}
 
-              <div className="ula-form-grid ula-form-grid--3col">
-                <div className="ax-float">
-                  <input
-                    id="beneficiaryName"
-                    type="text"
-                    className={`ax-float__input ${getStatus('beneficiaryName', form.beneficiaryName).className}`}
-                    placeholder=" "
-                    value={form.beneficiaryName}
-                    onChange={(e) => setField('beneficiaryName', e.target.value)}
-                    onBlur={() => handleBlur('beneficiaryName')}
-                  />
-                  <label htmlFor="beneficiaryName" className="ax-float__label">Beneficiary Name *</label>
-                  {errors.beneficiaryName && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.beneficiaryName}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="contactNo"
-                    type="tel"
-                    maxLength={10}
-                    className={`ax-float__input ${getStatus('contactNo', form.contactNo).className}`}
-                    placeholder=" "
-                    value={form.contactNo}
-                    onChange={(e) => setField('contactNo', e.target.value)}
-                    onBlur={() => handleBlur('contactNo')}
-                  />
-                  <label htmlFor="contactNo" className="ax-float__label">Beneficiary Contact No. (10 digits) *</label>
-                  {errors.contactNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.contactNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="wardNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('wardNo', form.wardNo).className}`}
-                    placeholder=" "
-                    value={form.wardNo}
-                    onChange={(e) => setField('wardNo', e.target.value)}
-                    onBlur={() => handleBlur('wardNo')}
-                  />
-                  <label htmlFor="wardNo" className="ax-float__label">Ward Number *</label>
-                  {errors.wardNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.wardNo}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
+              <hr className="ssl-section-divider" />
             </div>
 
-            {/* Section 3: Hardware Serials */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
+            {/* ── Section 2: Beneficiary Details ── */}
+            <div ref={sec2Ref} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted, #64748b)' }}>
+                    2. Beneficiary & Location Details
+                  </h4>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    Beneficiary identification and ward number
+                  </span>
+                </div>
+              </div>
+
+              <div className="ssl-form-grid ssl-form-grid--3col">
+                <FloatingInput
+                  label="Beneficiary Name"
+                  name="beneficiaryName"
+                  value={form.beneficiaryName}
+                  onChange={handleInputChange('beneficiaryName')}
+                  required
+                  error={errors.beneficiaryName}
+                />
+                <FloatingInput
+                  label="Beneficiary Contact No. (10 digits)"
+                  name="contactNo"
+                  type="tel"
+                  maxLength={10}
+                  value={form.contactNo}
+                  onChange={handleInputChange('contactNo')}
+                  required
+                  error={errors.contactNo}
+                />
+                <FloatingInput
+                  label="Ward Number"
+                  name="wardNo"
+                  value={form.wardNo}
+                  onChange={handleInputChange('wardNo')}
+                  required
+                  error={errors.wardNo}
+                />
+              </div>
+
+              <hr className="ssl-section-divider" />
+            </div>
+
+            {/* ── Section 3: Hardware Serials ── */}
+            <div ref={sec3Ref} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted, #64748b)' }}>
                     3. Installed Hardware Identifiers
                   </h4>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    Unique equipment and serial numbers installed on pole
+                  </span>
                 </div>
               </div>
 
-              <div className="ula-form-grid ula-form-grid--3col">
-                <div className="ax-float">
-                  <input
-                    id="uuidNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('uuidNo', form.uuidNo).className}`}
-                    placeholder=" "
-                    value={form.uuidNo}
-                    onChange={(e) => setField('uuidNo', e.target.value)}
-                    onBlur={() => handleBlur('uuidNo')}
-                  />
-                  <label htmlFor="uuidNo" className="ax-float__label">UUID Number *</label>
-                  {errors.uuidNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.uuidNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="poleNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('poleNo', form.poleNo).className}`}
-                    placeholder=" "
-                    value={form.poleNo}
-                    onChange={(e) => setField('poleNo', e.target.value)}
-                    onBlur={() => handleBlur('poleNo')}
-                  />
-                  <label htmlFor="poleNo" className="ax-float__label">Pole Number *</label>
-                  {errors.poleNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.poleNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="lightNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('lightNo', form.lightNo).className}`}
-                    placeholder=" "
-                    value={form.lightNo}
-                    onChange={(e) => setField('lightNo', e.target.value)}
-                    onBlur={() => handleBlur('lightNo')}
-                  />
-                  <label htmlFor="lightNo" className="ax-float__label">Light Luminary Number *</label>
-                  {errors.lightNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.lightNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="panelNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('panelNo', form.panelNo).className}`}
-                    placeholder=" "
-                    value={form.panelNo}
-                    onChange={(e) => setField('panelNo', e.target.value)}
-                    onBlur={() => handleBlur('panelNo')}
-                  />
-                  <label htmlFor="panelNo" className="ax-float__label">Solar Panel Serial No. *</label>
-                  {errors.panelNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.panelNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="batteryNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('batteryNo', form.batteryNo).className}`}
-                    placeholder=" "
-                    value={form.batteryNo}
-                    onChange={(e) => setField('batteryNo', e.target.value)}
-                    onBlur={() => handleBlur('batteryNo')}
-                  />
-                  <label htmlFor="batteryNo" className="ax-float__label">Battery Serial No. *</label>
-                  {errors.batteryNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.batteryNo}</div>
-                  )}
-                </div>
+              <div className="ssl-form-grid ssl-form-grid--3col">
+                <FloatingInput
+                  label="UUID Number"
+                  name="uuidNo"
+                  value={form.uuidNo}
+                  onChange={handleInputChange('uuidNo')}
+                  required
+                  error={errors.uuidNo}
+                />
+                <FloatingInput
+                  label="Pole Number"
+                  name="poleNo"
+                  value={form.poleNo}
+                  onChange={handleInputChange('poleNo')}
+                  required
+                  error={errors.poleNo}
+                />
+                <FloatingInput
+                  label="Light Luminary Number"
+                  name="lightNo"
+                  value={form.lightNo}
+                  onChange={handleInputChange('lightNo')}
+                  required
+                  error={errors.lightNo}
+                />
+                <FloatingInput
+                  label="Solar Panel Serial No."
+                  name="panelNo"
+                  value={form.panelNo}
+                  onChange={handleInputChange('panelNo')}
+                  required
+                  error={errors.panelNo}
+                />
+                <FloatingInput
+                  label="Battery Serial No."
+                  name="batteryNo"
+                  value={form.batteryNo}
+                  onChange={handleInputChange('batteryNo')}
+                  required
+                  error={errors.batteryNo}
+                />
               </div>
 
-              <hr className="ula-section-divider" />
+              <hr className="ssl-section-divider" />
             </div>
 
-            {/* Section 4: Geolocation */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    4. GPS Coordinates & Geolocation
+            {/* ── Section 4: Geolocation & Verification Photos ── */}
+            <div ref={sec4Ref} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted, #64748b)' }}>
+                    4. Geo Location & Verification Photographs
                   </h4>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    Physical installation coordinates and photo evidence (Max 5MB each)
+                  </span>
                 </div>
                 <button
                   type="button"
                   className="ax-btn ax-btn--secondary ax-btn--sm"
                   onClick={handleDetectGps}
                   disabled={gpsDetecting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {ICON_CROSSHAIR}
-                  <span>{gpsDetecting ? 'Detecting…' : 'Capture Current GPS'}</span>
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="22" y1="12" x2="18" y2="12" />
+                    <line x1="6" y1="12" x2="2" y2="12" />
+                    <line x1="12" y1="6" x2="12" y2="2" />
+                    <line x1="12" y1="22" x2="12" y2="18" />
+                  </svg>
+                  <span>{gpsDetecting ? 'Acquiring GPS…' : 'Capture Current GPS'}</span>
                 </button>
               </div>
 
               {gpsStatusMsg && (
-                <div style={{ fontSize: 12, color: 'var(--ax-accent)', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, marginBottom: 14 }}>
                   {gpsStatusMsg}
                 </div>
               )}
 
-              <div className="ula-form-grid">
-                <div className="ax-float">
-                  <input
-                    id="latitude"
-                    type="text"
-                    className={`ax-float__input ${getStatus('latitude', form.latitude).className}`}
-                    placeholder=" "
-                    value={form.latitude}
-                    onChange={(e) => setField('latitude', e.target.value)}
-                    onBlur={() => handleBlur('latitude')}
-                  />
-                  <label htmlFor="latitude" className="ax-float__label">Latitude (e.g. 30.9010) *</label>
-                  {errors.latitude && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.latitude}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="longitude"
-                    type="text"
-                    className={`ax-float__input ${getStatus('longitude', form.longitude).className}`}
-                    placeholder=" "
-                    value={form.longitude}
-                    onChange={(e) => setField('longitude', e.target.value)}
-                    onBlur={() => handleBlur('longitude')}
-                  />
-                  <label htmlFor="longitude" className="ax-float__label">Longitude (e.g. 75.8573) *</label>
-                  {errors.longitude && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.longitude}</div>
-                  )}
-                </div>
+              {/* Coordinates Grid */}
+              <div className="ssl-form-grid" style={{ marginBottom: 20 }}>
+                <FloatingInput
+                  label="Latitude (e.g. 30.9010)"
+                  name="latitude"
+                  value={form.latitude}
+                  onChange={handleInputChange('latitude')}
+                  required
+                  error={errors.latitude}
+                />
+                <FloatingInput
+                  label="Longitude (e.g. 75.8573)"
+                  name="longitude"
+                  value={form.longitude}
+                  onChange={handleInputChange('longitude')}
+                  required
+                  error={errors.longitude}
+                />
               </div>
 
-              <hr className="ula-section-divider" />
+              {/* Photo Upload Dropzones (matching Assam SWP UploadDropzone) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                <UploadDropzone
+                  id="light_file"
+                  label="Light Installation Photo 1"
+                  helperText="Full view showing installed pole, luminary, and solar panel"
+                  required={!isEditMode}
+                  file={lightFile}
+                  preview={filePreview || undefined}
+                  existingUrl={existingImageUrl}
+                  onSelect={handlePhotoSelect(false)}
+                  onRemove={handlePhotoRemove(false)}
+                  error={errors.light_file}
+                />
+                <UploadDropzone
+                  id="light_file2"
+                  label="Light Installation Photo 2"
+                  helperText="Close-up view of battery enclosure and hardware barcode label"
+                  required={!isEditMode}
+                  file={lightFile2}
+                  preview={filePreview2 || undefined}
+                  existingUrl={existingImageUrl2}
+                  onSelect={handlePhotoSelect(true)}
+                  onRemove={handlePhotoRemove(true)}
+                  error={errors.light_file2}
+                />
+              </div>
+
+              <hr className="ssl-section-divider" />
             </div>
 
-            {/* Section 5: Photos */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    5. Site Installation Photographs (Max 5MB)
+            {/* ── Section 5: Remarks ── */}
+            <div ref={sec5Ref} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted, #64748b)' }}>
+                    5. Inspection & Remarks
                   </h4>
+                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                    Additional site observations or installation remarks
+                  </span>
                 </div>
               </div>
 
-              <div className="ula-photo-grid">
-                {/* Photo 1: light_file */}
-                <div className={`ula-photo-card ${filePreview || existingImageUrl ? 'is-valid' : errors.light_file ? 'is-invalid' : ''}`}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>
-                      Light Installation Photo 1 {!isEditMode && <span style={{ color: 'var(--ax-danger-500)' }}>*</span>}
-                    </span>
-                    <p style={{ margin: '2px 0 10px', fontSize: 11, color: 'var(--ax-text-muted)' }}>
-                      Pole view showing installed luminary & panel
-                    </p>
-                  </div>
-
-                  {(filePreview || existingImageUrl) && (
-                    <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                      <img
-                        src={filePreview || existingImageUrl!}
-                        alt="Photo 1 Preview"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  )}
-
-                  <input
-                    ref={fileInputRef1}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileChange(e, false)}
-                  />
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      style={{ flex: 1 }}
-                      onClick={() => fileInputRef1.current?.click()}
-                    >
-                      {ICON_CAMERA}
-                      <span>{filePreview || existingImageUrl ? 'Change Photo' : 'Select Photo'}</span>
-                    </button>
-                    {filePreview && (
-                      <button
-                        type="button"
-                        className="ax-btn ax-btn--ghost ax-btn--sm"
-                        onClick={() => {
-                          setLightFile(null);
-                          setFilePreview(null);
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {errors.light_file && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.light_file}</div>
-                  )}
-                </div>
-
-                {/* Photo 2: light_file2 */}
-                <div className={`ula-photo-card ${filePreview2 || existingImageUrl2 ? 'is-valid' : errors.light_file2 ? 'is-invalid' : ''}`}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>
-                      Light Installation Photo 2 {!isEditMode && <span style={{ color: 'var(--ax-danger-500)' }}>*</span>}
-                    </span>
-                    <p style={{ margin: '2px 0 10px', fontSize: 11, color: 'var(--ax-text-muted)' }}>
-                      Close-up photo of battery box & serial tag
-                    </p>
-                  </div>
-
-                  {(filePreview2 || existingImageUrl2) && (
-                    <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                      <img
-                        src={filePreview2 || existingImageUrl2!}
-                        alt="Photo 2 Preview"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  )}
-
-                  <input
-                    ref={fileInputRef2}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileChange(e, true)}
-                  />
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      style={{ flex: 1 }}
-                      onClick={() => fileInputRef2.current?.click()}
-                    >
-                      {ICON_CAMERA}
-                      <span>{filePreview2 || existingImageUrl2 ? 'Change Photo' : 'Select Photo'}</span>
-                    </button>
-                    {filePreview2 && (
-                      <button
-                        type="button"
-                        className="ax-btn ax-btn--ghost ax-btn--sm"
-                        onClick={() => {
-                          setLightFile2(null);
-                          setFilePreview2(null);
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {errors.light_file2 && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.light_file2}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
-            </div>
-
-            {/* Section 6: Remarks */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    6. Inspection & Installation Remarks
-                  </h4>
-                </div>
-              </div>
-
-              <div className="ax-float">
+              <div style={{ position: 'relative' }}>
                 <textarea
                   id="remarks"
-                  className="ax-float__input"
-                  placeholder=" "
+                  name="remarks"
+                  className="ax-input"
+                  style={{ width: '100%', minHeight: 90, padding: '12px 14px', fontSize: 13 }}
+                  placeholder="Enter any additional installation or site notes (optional)..."
                   value={form.remarks}
-                  onChange={(e) => setField('remarks', e.target.value)}
+                  onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))}
                 />
-                <label htmlFor="remarks" className="ax-float__label">Remarks (Optional)</label>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sticky Bottom Submission Bar */}
-        <div className="ula-form-sticky-bar">
+        {/* Sticky Bottom Action Bar */}
+        <div className="ssl-form-sticky-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>
-              {isEditMode ? 'Editing Installation' : 'New Light Installation'}
+              {isEditMode ? 'Edit Mode:' : 'Installation Mode:'}
             </span>
             {siteDetail && (
-              <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
-                #{siteDetail.unique_id || siteDetail.id}
+              <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontWeight: 700 }}>
+                {siteDetail.unique_id || `#${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -911,8 +1199,15 @@ export function Punjab_Installation_SSL_InstallLight() {
               type="submit"
               className="ax-btn ax-btn--primary"
               disabled={submitting}
+              style={{ minWidth: 160 }}
             >
-              {submitting ? 'Submitting to Server…' : isEditMode ? 'Update Installation' : 'Submit Light Installation'}
+              {submitting ? (
+                <><span className="ax-spinner" style={{ marginRight: 6 }} /> Submitting…</>
+              ) : isEditMode ? (
+                'Update Installation'
+              ) : (
+                'Submit Light Installation'
+              )}
             </button>
           </div>
         </div>

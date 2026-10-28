@@ -1,11 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   punjabSslInstallationService,
-  getMediaUrl,
+  getPunjabMediaCandidates,
+  resolvePunjabMediaUrl,
   type PunjabInstallDetailSummary,
   type PunjabInstalledLightItem,
 } from '../../punjab-services';
@@ -14,32 +15,16 @@ import {
   SearchInput,
   Pagination,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
+  usePagination,
   type ExportColumn,
 } from '../../../../../common';
 
 const DASH = '—';
-
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
-
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-  </svg>
-);
-
-const ICON_CHECK = (
-  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
   </svg>
@@ -54,58 +39,155 @@ const vStatusOf = (r: PunjabInstalledLightItem) => Number(r.inst_verify_status ?
 const cStatusOf = (r: PunjabInstalledLightItem) => Number(r.inst_claim_status ?? r.claim_status ?? 0);
 const pStatusOf = (r: PunjabInstalledLightItem) => Number(r.inst_pay_status ?? r.payment_status ?? 0);
 
-/* ───────── Light Thumbnail with Preview ───────── */
-function LightThumbnail({
-  url,
-  alt,
-  onPreview,
-}: {
-  url: string;
-  alt: string;
-  onPreview: (url: string, title: string) => void;
-}) {
-  const [failed, setFailed] = useState(false);
-  if (!url || failed) {
-    return (
-      <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 11 }}>
-        No Photo
-      </span>
-    );
-  }
+/* ───────── Image Preview Lightbox Modal (Interactive Zoom, matching Assam SWP) ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
   return (
-    <button
-      type="button"
-      className="ax-btn ax-btn--ghost ax-btn--xs"
-      style={{ padding: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-      onClick={() => onPreview(url, alt)}
-      title="Click to view photo"
-    >
-      <img
-        src={url}
-        alt={alt}
-        onError={() => setFailed(true)}
-        style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', border: '1px solid var(--ax-border)' }}
-      />
-      <span style={{ fontSize: 11, color: 'var(--ax-accent)' }}>View</span>
-    </button>
+    <Modal open onClose={onClose} title={title || 'Media Lightbox'} maxWidth={840}>
+      <div style={{ padding: 0 }}>
+        <div style={{ minHeight: 340, maxHeight: '60vh', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', position: 'relative' }}>
+          {status === 'loading' && (
+            <div style={{ color: '#fff', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ax-spinner" /> Loading photograph…
+            </div>
+          )}
+          {status === 'error' && (
+            <div style={{ color: '#f87171', fontSize: 13 }}>
+              Photo could not be loaded. Try opening it directly in a new tab.
+            </div>
+          )}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Preview'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              borderRadius: 0,
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '58vh', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid var(--ax-border, #e2e8f0)', background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--xs"
+              onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+              disabled={zoomIdx === 0}
+            >
+              − Zoom Out
+            </button>
+            <span style={{ fontSize: 12, fontWeight: 700, paddingInline: 8 }}>{Math.round(zoom * 100)}%</span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--xs"
+              onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+              disabled={zoomIdx === ZOOM_STEPS.length - 1}
+            >
+              + Zoom In
+            </button>
+          </div>
+          <div style={{ display: 'inline-flex', gap: 8 }}>
+            <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ color: '#2563eb' }}>
+              Open in new tab ↗
+            </a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
-/* ───────── Modal Dialog ───────── */
+/* ───────── Light Thumbnail with Candidate Resolver ───────── */
+function LightThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 32,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getPunjabMediaCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle, #94a3b8)', fontSize: 12 }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #cbd5e1)',
+        background: '#f8fafc',
+        display: 'block',
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
+      title="Click to preview photograph"
+    />
+  );
+}
+
+/* ───────── Generic Design System Modal ───────── */
 function Modal({
   open,
   onClose,
-  labelledBy,
-  dialogClass = '',
-  closeOnBackdrop = true,
+  title,
+  subtitle,
   children,
+  footer,
+  maxWidth = 720,
 }: {
   open: boolean;
   onClose: () => void;
-  labelledBy: string;
-  dialogClass?: string;
-  closeOnBackdrop?: boolean;
+  title: string;
+  subtitle?: string;
   children: ReactNode;
+  footer?: ReactNode;
+  maxWidth?: number;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, open);
@@ -120,32 +202,116 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
+
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
-      <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={{ maxWidth: 540 }}>
-        {children}
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ position: 'fixed', inset: 0, background: 'transparent' }} onClick={onClose} />
+      <div
+        ref={dialogRef}
+        style={{
+          position: 'relative', zIndex: 1, background: '#ffffff', borderRadius: 16, border: '1px solid var(--ax-border, #e2e8f0)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', width: '92%', maxWidth, maxHeight: '90vh',
+          display: 'flex', flexDirection: 'column',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border, #e2e8f0)', background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>{subtitle}</p>}
+          </div>
+          <button type="button" onClick={onClose} style={{ width: 32, height: 32, padding: 0, borderRadius: '50%', border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }} aria-label="Close">
+            {X_ICON}
+          </button>
+        </div>
+        <div style={{ padding: 20, overflowY: 'auto', maxHeight: 'calc(85vh - 120px)' }}>
+          {children}
+        </div>
+        {footer && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body
   );
 }
 
-/* ───────── Layout Styles ───────── */
+/* ───────── Top KPI Card Component ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'red';
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#ef4444' },
+};
+
+function KpiCard({ icon, tone, label, value, sub }: { icon: ReactNode; tone: KpiTone; label: string; value: ReactNode; sub: string }) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <span style={{ width: 26, height: 26, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ width: 14, height: 14, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: t.fg, marginTop: 2, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
+
+/* ───────── Layout CSS (matching Assam SWP / Bihar reference) ───────── */
 const PAGE_CSS = `
-  .solar-erp-page .ax-page-head { margin-block-end: 10px; }
-  .solar-erp-page .ax-dash-grid { margin-top: 0; }
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--ax-space-3, 12px);
+    margin-bottom: var(--ax-space-4, 16px);
+  }
+  @media (max-width: 1280px) {
+    .solar-erp-page .asw-cards-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .asw-cards-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   .solar-erp-page .ax-card__header {
     display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: max-content; }
-  .solar-erp-page .ax-card__actions { flex: 1 1 0; min-width: 0; margin-left: auto; display: flex; align-items: center; justify-content: flex-end; }
-  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; min-width: 0; justify-content: flex-end; }
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 200px; }
+  .solar-erp-page .ax-card__actions { flex: 0 1 auto; margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* Fully horizontally scrollable table without clipping */
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header { flex-direction: column; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__actions { width: 100%; flex-wrap: wrap; justify-content: flex-start; }
+  }
 `;
 
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -155,111 +321,18 @@ const footerStyle = {
   width: '100%',
   boxSizing: 'border-box',
 } as const;
-const centerCell = { textAlign: 'center', padding: 24 } as const;
 
 type TabKey = 'Completed' | 'Payment';
-
-const TABS: { key: TabKey; label: string; hash: string }[] = [
-  { key: 'Completed', label: 'Lights Completed', hash: '#Completed' },
-  { key: 'Payment', label: 'Payment Lights', hash: '#Payment' },
-];
-
-/* ───────── Columns Config ───────── */
-interface Col {
-  header: string;
-  text: (r: PunjabInstalledLightItem) => string;
-  render?: (r: PunjabInstalledLightItem, ctx: { preview: (url: string, title: string) => void }) => ReactNode;
-  strong?: boolean;
-  mono?: boolean;
-  wrap?: boolean;
-}
-
-const commonCols: Col[] = [
-  { header: 'UID', text: (r) => r.unique_id || `#${r.id}`, strong: true },
-  { header: 'State', text: (r) => r.state || 'Punjab' },
-  { header: 'Phase', text: (r) => String(r.phase ?? '1') },
-  { header: 'District', text: (r) => r.district || '', strong: true },
-  { header: 'Block', text: (r) => r.block || '' },
-  { header: 'Panchayat', text: (r) => r.panchayat || '' },
-  { header: 'Ward No.', text: (r) => String(r.ward_no ?? '') },
-  { header: 'Pole No.', text: (r) => String(r.pole_no ?? '') },
-  { header: 'Beneficiary Name', text: (r) => r.beneficiary_name || '', strong: true },
-  { header: 'Beneficiary Contact', text: (r) => r.contact_no || '', mono: true },
-  { header: 'Latitude', text: (r) => String(r.latitude ?? '') },
-  { header: 'Longitude', text: (r) => String(r.longitude ?? '') },
-];
-
-const tailCols: Col[] = [
-  { header: 'Battery No.', text: (r) => r.battery_serial_no || r.battery_no || '', mono: true },
-  { header: 'Panel No.', text: (r) => r.panel_no || '', mono: true },
-  {
-    header: 'Photo 1',
-    text: (r) => getMediaUrl(r.light_file),
-    render: (r, { preview }) => (
-      <LightThumbnail
-        url={getMediaUrl(r.light_file)}
-        alt={`${r.unique_id || `#${r.id}`} - Light Photo 1`}
-        onPreview={preview}
-      />
-    ),
-  },
-  {
-    header: 'Photo 2',
-    text: (r) => getMediaUrl(r.light_file2),
-    render: (r, { preview }) => (
-      <LightThumbnail
-        url={getMediaUrl(r.light_file2)}
-        alt={`${r.unique_id || `#${r.id}`} - Light Photo 2`}
-        onPreview={preview}
-      />
-    ),
-  },
-  { header: 'Remark', text: (r) => r.remark || r.inst_remark || '', wrap: true },
-];
-
-const paymentStatusCol: Col = {
-  header: 'Payment Status',
-  text: (r) => (pStatusOf(r) === 1 ? 'Paid' : 'Pending'),
-  render: (r) => (pStatusOf(r) === 1 ? <Badge tone="success">Paid</Badge> : <Badge tone="warning">Pending</Badge>),
-};
-
-const COMPLETED_COLS: Col[] = [
-  ...commonCols,
-  { header: 'Light No.', text: (r) => r.light_no || '', mono: true },
-  { header: 'UUID No.', text: (r) => r.uuid_no || '', mono: true },
-  ...tailCols,
-  {
-    header: 'Verify Status',
-    text: (r) => (vStatusOf(r) === 1 ? 'Approved' : vStatusOf(r) === 2 ? 'Rejected' : 'Pending'),
-    render: (r) => {
-      const v = vStatusOf(r);
-      return v === 1 ? <Badge tone="success">Approved</Badge> : v === 2 ? <Badge tone="danger">Rejected</Badge> : <Badge tone="warning">Pending</Badge>;
-    },
-  },
-  {
-    header: 'Claim Status',
-    text: (r) => (cStatusOf(r) === 1 ? 'Raised' : 'Not Raised'),
-    render: (r) => (cStatusOf(r) === 1 ? <Badge tone="info">Raised</Badge> : <Badge tone="neutral">Not Raised</Badge>),
-  },
-  paymentStatusCol,
-];
-
-const PAYMENT_COLS: Col[] = [
-  ...commonCols,
-  { header: 'Light No.', text: (r) => r.light_no || '', mono: true },
-  { header: 'UUID No.', text: (r) => r.uuid_no || '', mono: true },
-  ...tailCols,
-  paymentStatusCol,
-];
 
 export function Punjab_Installation_SSL_InstallationDetail() {
   const location = useLocation();
   const navigate = useNavigate();
   const tab: TabKey = location.hash.toLowerCase() === '#payment' ? 'Payment' : 'Completed';
+
   const setTab = (k: TabKey) => {
-    const t = TABS.find((x) => x.key === k)!;
-    navigate({ pathname: location.pathname, search: location.search, hash: t.hash }, { replace: true });
+    navigate({ pathname: location.pathname, search: location.search, hash: k === 'Payment' ? '#payment' : '#completed' }, { replace: true });
   };
+
   const isCompleted = tab === 'Completed';
 
   const [loading, setLoading] = useState(true);
@@ -272,7 +345,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
   const [districtFilter, setDistrictFilter] = useState(() => searchParams.get('district') || 'all');
   const [verifyFilter, setVerifyFilter] = useState<string>('all');
 
-  // Preview Modal
+  // Preview Lightbox Modal
   const [preview, setPreview] = useState<{ open: boolean; url: string; title: string }>({
     open: false,
     url: '',
@@ -281,11 +354,13 @@ export function Punjab_Installation_SSL_InstallationDetail() {
   const openPreview = (url: string, title: string) => setPreview({ open: true, url, title });
   const closePreview = () => setPreview({ open: false, url: '', title: '' });
 
-  // Approve Action Modal State (User requested action button for approve!)
+  // View Light Full Detail Modal
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<PunjabInstalledLightItem | null>(null);
+
+  // Approve Confirmation Modal
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [approvingItem, setApprovingItem] = useState<PunjabInstalledLightItem | null>(null);
-  const [approveSubmitting, setApproveSubmitting] = useState(false);
-  const [approveRemarks, setApproveRemarks] = useState('');
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
   const deferredQuery = useDeferredValue(searchQuery);
@@ -301,8 +376,8 @@ export function Punjab_Installation_SSL_InstallationDetail() {
         setCompleteLights(Array.isArray(comp) ? comp : []);
         setPaymentLights(Array.isArray(pay) ? pay : []);
       }
-    } catch (err) {
-      console.error('[InstallationDetail] load error:', err);
+    } catch (err: any) {
+      console.error('[Punjab SSL] load complete lights error:', err);
     } finally {
       setLoading(false);
     }
@@ -314,6 +389,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
 
   const activeList = isCompleted ? completeLights : paymentLights;
 
+  // Unique districts
   const districts = useMemo(() => {
     const s = new Set<string>();
     activeList.forEach((r) => {
@@ -322,7 +398,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
     return Array.from(s).sort();
   }, [activeList]);
 
-  // Filtering
+  // Filtered dataset
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return activeList.filter((r) => {
@@ -351,234 +427,319 @@ export function Punjab_Installation_SSL_InstallationDetail() {
   }, [activeList, deferredQuery, districtFilter, verifyFilter, isCompleted]);
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
+  const pagination = usePagination({ data: filtered, initialPageSize: 25 });
 
   useEffect(() => {
-    setCurrentPage(1);
+    pagination.setPage(1);
   }, [deferredQuery, districtFilter, verifyFilter, tab]);
 
-  // Export Columns
-  const activeCols = isCompleted ? COMPLETED_COLS : PAYMENT_COLS;
+  // Export handling
   const exportCols: ExportColumn<PunjabInstalledLightItem>[] = useMemo(
-    () =>
-      activeCols.map((c) => ({
-        header: c.header,
-        accessor: (r) => c.text(r),
-      })),
-    [activeCols]
+    () => [
+      { header: 'Sr.', accessor: (_r, idx) => idx + 1 },
+      { header: 'UID', accessor: (r) => r.unique_id || `#${r.id}` },
+      { header: 'State', accessor: (r) => r.state || 'Punjab' },
+      { header: 'District', accessor: (r) => r.district || '—' },
+      { header: 'Block', accessor: (r) => r.block || '—' },
+      { header: 'Panchayat', accessor: (r) => r.panchayat || '—' },
+      { header: 'Ward No', accessor: (r) => r.ward_no || '—' },
+      { header: 'Pole No', accessor: (r) => r.pole_no || '—' },
+      { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name || '—' },
+      { header: 'Contact', accessor: (r) => r.contact_no || '—' },
+      { header: 'UUID No', accessor: (r) => r.uuid_no || '—' },
+      { header: 'Light No', accessor: (r) => r.light_no || '—' },
+      { header: 'Panel No', accessor: (r) => r.panel_no || '—' },
+      { header: 'Battery No', accessor: (r) => r.battery_serial_no || '—' },
+      { header: 'Verify Status', accessor: (r) => (vStatusOf(r) === 1 ? 'Approved' : vStatusOf(r) === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Payment Status', accessor: (r) => (pStatusOf(r) === 1 ? 'Paid' : 'Pending') },
+    ],
+    []
   );
 
-  const stamp = new Date().toISOString().slice(0, 10);
-  const fileBase = `Punjab_SSL_${tab}_Lights`;
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
 
-  // Approve Handler
-  const handleApproveConfirm = async () => {
-    if (!approvingItem) return;
-    setApproveSubmitting(true);
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = () => {
+    if (!filtered.length) return;
+    const out = [
+      exportCols.map((c) => c.header),
+      ...filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `Punjab_SSL_${tab}_Lights.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!filtered.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportCols.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead><tbody>${filtered.map((row, idx) => `<tr>${exportCols.map((c) => `<td>${escapeExportValue(getExportValue(row, c, idx))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `Punjab_SSL_${tab}_Lights.xls`, 'application/vnd.ms-excel');
+  };
+
+  const copyToClipboard = async () => {
+    if (!filtered.length) return;
+    const t = [
+      exportCols.map((c) => c.header).join('\t'),
+      ...filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
     try {
-      // Update local state directly with approval
-      setCompleteLights((prev) =>
-        prev.map((item) =>
-          item.id === approvingItem.id ? { ...item, inst_verify_status: 1 } : item
-        )
-      );
-      if (summary) {
-        setSummary({
-          ...summary,
-          verify_approved: (summary.verify_approved || 0) + 1,
-          verify_pending: Math.max(0, (summary.verify_pending || 0) - 1),
-        });
-      }
-      setActionSuccessMsg(`Light #${approvingItem.unique_id || approvingItem.id} marked as Approved!`);
-      setApproveModalOpen(false);
-      setApprovingItem(null);
-      setApproveRemarks('');
-    } catch (err: any) {
-      console.error('Approve failed:', err);
-    } finally {
-      setApproveSubmitting(false);
+      await navigator.clipboard.writeText(t);
+      alert('Table data copied to clipboard!');
+    } catch {
+      alert('Copy failed, please export CSV instead.');
     }
   };
 
+  const exportToPDF = () => {
+    if (!filtered.length) return;
+    const body = filtered.map((row, idx) => exportCols.map((c) => escapeExportValue(getExportValue(row, c, idx))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>Punjab SSL ${tab} Lights</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Punjab SSL ${tab} Lights Register</h1><table><thead><tr>${exportCols.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  // Mark light as verified
+  const handleApproveConfirm = () => {
+    if (!approvingItem) return;
+    setCompleteLights((prev) =>
+      prev.map((item) => (item.id === approvingItem.id ? { ...item, inst_verify_status: 1 } : item))
+    );
+    if (summary) {
+      setSummary({
+        ...summary,
+        verify_approved: (summary.verify_approved || 0) + 1,
+        verify_pending: Math.max(0, (summary.verify_pending || 0) - 1),
+      });
+    }
+    setActionSuccessMsg(`Light #${approvingItem.unique_id || approvingItem.id} marked as Approved!`);
+    setApproveModalOpen(false);
+    setApprovingItem(null);
+  };
+
   return (
-    <div className="solar-erp-page ax-page">
+    <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
 
+      {/* Page Header (matching Assam SWP / Bihar reference) */}
       <PageHead
-        title="Punjab SSL Installation Details"
+        title="View Installation"
         subtitle="Comprehensive register of completed Solar Street Light installations and payment-stage records"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Punjab' },
           { label: 'Installation' },
           { label: 'SSL', href: '/v/punjab/ssl/installation/dashboard' },
-          { label: 'Installation Detail' },
+          { label: 'View Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              {ICON_REFRESH}
-              <span className="ax-btn__label">Refresh</span>
-            </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            <Link to="/v/punjab/ssl/installation/update-light-deatils" className="ax-btn ax-btn--primary ax-btn--sm">
+              <span className="ax-btn__label">+ Install Light</span>
+            </Link>
           </div>
         }
       />
 
-      {/* Notifications */}
+      {/* Success Notification */}
       {actionSuccessMsg && (
-        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">
-            <p className="ax-alert__message">{actionSuccessMsg}</p>
-          </div>
-          <button
-            type="button"
-            className="ax-btn ax-btn--ghost ax-btn--icon"
-            onClick={() => setActionSuccessMsg(null)}
-          >
-            ✕
-          </button>
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">Success</div>
+          <div className="ax-alert__text">{actionSuccessMsg}</div>
         </div>
       )}
 
-      {/* Summary KPI Cards */}
+      {/* Summary KPI Cards (matching Assam SWP metrics) */}
       {summary && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-            gap: 12,
-            marginBottom: 20,
-          }}
-        >
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase' }}>Total Allocated</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{num(summary.total)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent)', textTransform: 'uppercase' }}>Installed Complete</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--ax-accent)' }}>{num(summary.complete)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase' }}>Install Pending</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{num(summary.pending)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-viz-emerald)', textTransform: 'uppercase' }}>Verified Approved</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--ax-viz-emerald)' }}>{num(summary.verify_approved)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-viz-amber)', textTransform: 'uppercase' }}>Verify Pending</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--ax-viz-amber)' }}>{num(summary.verify_pending)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-viz-violet)', textTransform: 'uppercase' }}>Claim Applicable</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--ax-viz-violet)' }}>{num(summary.claim_applicable)}</div>
-          </div>
-          <div className="ax-card" style={{ padding: '12px 16px', borderRadius: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-viz-emerald)', textTransform: 'uppercase' }}>Payment Complete</span>
-            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--ax-viz-emerald)' }}>{num(summary.payment_complete)}</div>
-          </div>
+        <div className="asw-cards-row">
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
+            tone="accent"
+            label="Total Lights"
+            value={num(summary.total)}
+            sub="Allocated lights"
+          />
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12" /></svg>}
+            tone="emerald"
+            label="Complete"
+            value={num(summary.complete)}
+            sub="Installed lights"
+          />
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>}
+            tone="amber"
+            label="Pending"
+            value={num(summary.pending)}
+            sub="Awaiting install"
+          />
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+            tone="cyan"
+            label="Verified Approved"
+            value={num(summary.verify_approved)}
+            sub="Field verified"
+          />
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
+            tone="violet"
+            label="Claims Raised"
+            value={num(summary.claim_raised)}
+            sub="Claimed batches"
+          />
+          <KpiCard
+            icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
+            tone="emerald"
+            label="Payment Complete"
+            value={num(summary.payment_complete)}
+            sub="Settled payments"
+          />
         </div>
       )}
 
       {/* Main Table Card */}
-      <div className="ax-card" style={{ borderRadius: 12, overflow: 'hidden' }}>
-        <div className="ax-card__header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--ax-border-subtle)' }}>
+      <section className="ax-card" role="region" aria-label="Installation records">
+        <div className="ax-card__header">
           <div className="ax-card__titles">
-            {/* Tabs */}
-            <div className="ax-segmented-control" style={{ display: 'inline-flex' }}>
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  className={`ax-btn ax-btn--sm ${tab === t.key ? 'ax-btn--secondary' : 'ax-btn--ghost'}`}
-                  onClick={() => setTab(t.key)}
-                >
-                  {t.label} ({t.key === 'Completed' ? completeLights.length : paymentLights.length})
-                </button>
-              ))}
+            {/* Tab switchers matching Assam SWP */}
+            <div style={{ display: 'inline-flex', background: 'var(--ax-surface-subtle)', borderRadius: 8, padding: 3, border: '1px solid var(--ax-border)', marginBottom: 8 }}>
+              <button
+                type="button"
+                style={{
+                  border: 'none', background: isCompleted ? '#ffffff' : 'transparent',
+                  color: isCompleted ? '#2563eb' : 'var(--ax-text-muted)',
+                  fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: 6, cursor: 'pointer',
+                  boxShadow: isCompleted ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+                onClick={() => setTab('Completed')}
+              >
+                Completed Lights ({completeLights.length})
+              </button>
+              <button
+                type="button"
+                style={{
+                  border: 'none', background: !isCompleted ? '#ffffff' : 'transparent',
+                  color: !isCompleted ? '#2563eb' : 'var(--ax-text-muted)',
+                  fontWeight: 700, fontSize: 13, padding: '5px 14px', borderRadius: 6, cursor: 'pointer',
+                  boxShadow: !isCompleted ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+                onClick={() => setTab('Payment')}
+              >
+                Payment Stage Lights ({paymentLights.length})
+              </button>
             </div>
+            <p className="ax-card__subtitle">
+              {isCompleted
+                ? 'Review fully installed Solar Street Lights, verify hardware serial numbers and inspection photos'
+                : 'Review lights eligible for claim verification and completed disbursements'}
+            </p>
           </div>
 
           <div className="ax-card__actions">
-            <div className="ax-cluster" style={actionsRowStyle}>
+            <div className="ax-cluster" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end' }}>
+              {/* District Filter Dropdown */}
               {districts.length > 0 && (
                 <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32 }}
                   value={districtFilter}
                   onChange={(e) => setDistrictFilter(e.target.value)}
+                  className="ax-input ax-input--sm"
+                  style={{ height: 32, fontSize: 12, minWidth: 120 }}
                 >
-                  <option value="all">All Districts ({districts.length})</option>
+                  <option value="all">All Districts</option>
                   {districts.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
               )}
 
+              {/* Verify Status Filter (Completed tab only) */}
               {isCompleted && (
                 <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32 }}
                   value={verifyFilter}
                   onChange={(e) => setVerifyFilter(e.target.value)}
+                  className="ax-input ax-input--sm"
+                  style={{ height: 32, fontSize: 12, minWidth: 120 }}
                 >
-                  <option value="all">All Verifications</option>
+                  <option value="all">All Status</option>
                   <option value="approved">Approved</option>
                   <option value="pending">Pending</option>
                   <option value="rejected">Rejected</option>
                 </select>
               )}
 
-              <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search UID, contact, pole…"
-                size="sm"
-                ariaLabel="Search installed lights"
-              />
-
+              <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search UID, pole, contact..." size="sm" />
               <TableExportToolbar
-                onCopy={() => copyTableDataToClipboard(filtered, exportCols)}
-                onExportCSV={() => exportDataToCSV(`${fileBase}_${stamp}`, filtered, exportCols)}
-                onExportExcel={() => exportDataToExcel(`${fileBase}_${stamp}`, filtered, exportCols)}
-                onExportPDF={() => printTableData(`Punjab SSL ${tab} Lights`, filtered, exportCols)}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
+                onCopy={copyToClipboard}
               />
             </div>
           </div>
         </div>
 
+        {/* Scrollable Table */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2600 : 2200 }}>
+          <table className="ax-table ax-table--hover">
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th" scope="col">Sr. No.</th>
-                {activeCols.map((c) => (
-                  <th key={c.header} className="ax-table__th" scope="col">{c.header}</th>
-                ))}
-                {/* Action column with Approve button as requested! */}
+                <th className="ax-table__th" scope="col">UID</th>
+                <th className="ax-table__th" scope="col">State</th>
+                <th className="ax-table__th" scope="col">District</th>
+                <th className="ax-table__th" scope="col">Block</th>
+                <th className="ax-table__th" scope="col">Panchayat</th>
+                <th className="ax-table__th" scope="col">Ward No.</th>
+                <th className="ax-table__th" scope="col">Pole No.</th>
+                <th className="ax-table__th" scope="col">Beneficiary</th>
+                <th className="ax-table__th" scope="col">Contact</th>
+                <th className="ax-table__th" scope="col">UUID No.</th>
+                <th className="ax-table__th" scope="col">Light No.</th>
+                <th className="ax-table__th" scope="col">Panel No.</th>
+                <th className="ax-table__th" scope="col">Battery No.</th>
+                <th className="ax-table__th" scope="col">Photo 1</th>
+                <th className="ax-table__th" scope="col">Photo 2</th>
+                <th className="ax-table__th" scope="col">Verification</th>
+                <th className="ax-table__th" scope="col">Claim</th>
+                <th className="ax-table__th" scope="col">Payment</th>
                 <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody aria-busy={loading}>
               {loading && (
                 <tr>
-                  <td colSpan={activeCols.length + 2} style={centerCell}>
+                  <td colSpan={20} style={{ textAlign: 'center', padding: 28 }}>
                     <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installed lights…
                   </td>
                 </tr>
               )}
-              {!loading && filtered.length === 0 && (
+
+              {!loading && pagination.paginatedData.length === 0 && (
                 <tr>
-                  <td colSpan={activeCols.length + 2} style={{ padding: 0 }}>
+                  <td colSpan={20} style={{ padding: 0 }}>
                     <TableEmptyState
                       title={isCompleted ? 'No completed lights found' : 'No payment lights found'}
-                      message="No lights match your filters or search query."
+                      message="No lights match your active search or filter criteria."
                       onClear={() => {
                         setSearchQuery('');
                         setDistrictFilter('all');
@@ -588,78 +749,98 @@ export function Punjab_Installation_SSL_InstallationDetail() {
                   </td>
                 </tr>
               )}
+
               {!loading &&
-                paginated.map((r, idx) => {
+                pagination.paginatedData.map((r, idx) => {
                   const isApproved = vStatusOf(r) === 1;
+                  const cStatus = cStatusOf(r);
+                  const pStatus = pStatusOf(r);
                   return (
                     <tr key={r.id || idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                      {activeCols.map((c) => {
-                        const content = c.render ? c.render(r, { preview: openPreview }) : c.text(r) || DASH;
-                        return (
-                          <td
-                            key={c.header}
-                            className="ax-table__td"
-                            style={{
-                              ...(c.strong ? { fontWeight: 600, color: 'var(--ax-text-strong)' } : null),
-                              ...(c.mono ? { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } : null),
-                              ...(c.wrap ? { maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' } : null),
-                            }}
-                          >
-                            {content}
-                          </td>
-                        );
-                      })}
-                      {/* Action column with Approve and Edit buttons */}
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
+                        {(pagination.currentPage - 1) * pagination.pageSize + idx + 1}
+                      </td>
+                      <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: '#2563eb' }}>
+                        {r.unique_id || `#${r.id}`}
+                      </td>
+                      <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>
+                        {r.state || 'Punjab'}
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.district || DASH}</td>
+                      <td className="ax-table__td">{r.block || DASH}</td>
+                      <td className="ax-table__td">{r.panchayat || DASH}</td>
+                      <td className="ax-table__td ax-num">{r.ward_no ?? DASH}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.pole_no ?? DASH}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.beneficiary_name || DASH}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.contact_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.uuid_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.light_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.panel_no || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
+                        {r.battery_serial_no || DASH}
+                      </td>
+                      <td className="ax-table__td">
+                        <LightThumbnail
+                          src={r.light_file}
+                          alt={`${r.unique_id || r.id} - Photo 1`}
+                          onPreview={openPreview}
+                        />
+                      </td>
+                      <td className="ax-table__td">
+                        <LightThumbnail
+                          src={r.light_file2}
+                          alt={`${r.unique_id || r.id} - Photo 2`}
+                          onPreview={openPreview}
+                        />
+                      </td>
+                      <td className="ax-table__td">
+                        {isApproved ? (
+                          <Badge tone="success">Approved</Badge>
+                        ) : vStatusOf(r) === 2 ? (
+                          <Badge tone="danger">Rejected</Badge>
+                        ) : (
+                          <Badge tone="warning">Pending</Badge>
+                        )}
+                      </td>
+                      <td className="ax-table__td">
+                        {cStatus === 1 ? (
+                          <Badge tone="info">Raised</Badge>
+                        ) : (
+                          <Badge tone="neutral">Not Raised</Badge>
+                        )}
+                      </td>
+                      <td className="ax-table__td">
+                        {pStatus === 1 ? (
+                          <Badge tone="success">Paid</Badge>
+                        ) : (
+                          <Badge tone="warning">Pending</Badge>
+                        )}
+                      </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          {!isApproved ? (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '4px 10px',
-                                fontWeight: 600,
-                                borderRadius: 6,
-                                background: '#10b981',
-                                borderColor: '#10b981',
-                                color: '#fff',
-                                cursor: 'pointer',
-                              }}
-                              title="Approve installation"
-                              onClick={() => {
-                                setApprovingItem(r);
-                                setApproveModalOpen(true);
-                              }}
-                            >
-                              {ICON_CHECK}
-                              <span>Approve</span>
-                            </button>
-                          ) : (
-                            <span
-                              className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill"
-                              style={{ fontSize: 11 }}
-                            >
-                              Approved ✓
-                            </span>
-                          )}
-
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: '#2563eb', fontWeight: 600 }}
+                            onClick={() => {
+                              setActiveItem(r);
+                              setDetailModalOpen(true);
+                            }}
+                          >
+                            View
+                          </button>
                           <button
                             type="button"
                             className="ax-btn ax-btn--secondary ax-btn--xs"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '4px 10px',
-                              fontWeight: 600,
-                              borderRadius: 6,
-                              cursor: 'pointer',
-                            }}
-                            title="Edit installation details"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                             onClick={() => navigate(`/v/punjab/ssl/installation/update-light-deatils?ssl_id=${r.id}&edit=true`)}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -668,6 +849,19 @@ export function Punjab_Installation_SSL_InstallationDetail() {
                             </svg>
                             <span>Edit</span>
                           </button>
+                          {!isApproved && (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--primary ax-btn--xs"
+                              style={{ background: '#10b981', borderColor: '#10b981', padding: '3px 8px' }}
+                              onClick={() => {
+                                setApprovingItem(r);
+                                setApproveModalOpen(true);
+                              }}
+                            >
+                              Approve
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -677,107 +871,191 @@ export function Punjab_Installation_SSL_InstallationDetail() {
           </table>
         </div>
 
+        {/* Pagination Footer */}
         <div className="ax-card__footer" style={footerStyle}>
-          <Pagination
-            curPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalItems={filtered.length}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-          />
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* ───────── Photo Preview Modal ───────── */}
-      <Modal open={preview.open} onClose={closePreview} labelledBy="photo_preview_title">
-        <div className="ax-modal__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--ax-border)' }}>
-          <h4 id="photo_preview_title" style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-            {preview.title || 'Installation Photo'}
-          </h4>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" onClick={closePreview}>
-            {X_ICON}
-          </button>
-        </div>
-        <div className="ax-modal__body" style={{ padding: 16, textAlign: 'center' }}>
-          <img
-            src={preview.url}
-            alt={preview.title}
-            style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 8, objectFit: 'contain' }}
-          />
-        </div>
+      {/* ── Lightbox Image Preview Modal ── */}
+      {preview.open && (
+        <ImagePreviewModal
+          url={preview.url}
+          title={preview.title}
+          onClose={closePreview}
+        />
+      )}
+
+      {/* ── View Light Details Modal ── */}
+      <Modal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={`Installation Record — ${activeItem?.unique_id || `#${activeItem?.id}`}`}
+        subtitle={`State: ${activeItem?.state || 'Punjab'} · District: ${activeItem?.district || '—'} · Block: ${activeItem?.block || '—'}`}
+        maxWidth={760}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>Status:</span>
+              {activeItem && vStatusOf(activeItem) === 1 ? (
+                <Badge tone="success">Verified Approved</Badge>
+              ) : (
+                <Badge tone="warning">Pending Verification</Badge>
+              )}
+            </div>
+            <div style={{ display: 'inline-flex', gap: 8 }}>
+              {activeItem && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  onClick={() => {
+                    setDetailModalOpen(false);
+                    navigate(`/v/punjab/ssl/installation/update-light-deatils?ssl_id=${activeItem.id}&edit=true`);
+                  }}
+                >
+                  Edit Installation
+                </button>
+              )}
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => setDetailModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {activeItem && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Grid 1: Administrative & Beneficiary */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border)' }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Beneficiary</span>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{activeItem.beneficiary_name || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Contact No</span>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem.contact_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Ward No</span>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem.ward_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Panchayat</span>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{activeItem.panchayat || '—'}</div>
+              </div>
+            </div>
+
+            {/* Grid 2: Hardware Identifiers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, background: 'var(--ax-surface-subtle)', padding: 14, borderRadius: 10, border: '1px solid var(--ax-border)' }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Pole No</span>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{activeItem.pole_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>UUID No</span>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{activeItem.uuid_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Light Luminary No</span>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{activeItem.light_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Solar Panel No</span>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{activeItem.panel_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>Battery Serial No</span>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{activeItem.battery_serial_no || '—'}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>GPS Coordinates</span>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>
+                  {activeItem.latitude && activeItem.longitude ? `${activeItem.latitude}, ${activeItem.longitude}` : '—'}
+                </div>
+              </div>
+            </div>
+
+            {/* Photos Preview */}
+            <div>
+              <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
+                Installation Photographs
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+                <div style={{ border: '1px solid var(--ax-border)', borderRadius: 10, padding: 10, textAlign: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>Photo 1 (Pole & Luminary)</span>
+                  <LightThumbnail
+                    src={activeItem.light_file}
+                    alt="Photo 1"
+                    size={90}
+                    onPreview={openPreview}
+                  />
+                </div>
+                <div style={{ border: '1px solid var(--ax-border)', borderRadius: 10, padding: 10, textAlign: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>Photo 2 (Battery Tag)</span>
+                  <LightThumbnail
+                    src={activeItem.light_file2}
+                    alt="Photo 2"
+                    size={90}
+                    onPreview={openPreview}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Remarks */}
+            {activeItem.remark || activeItem.inst_remark ? (
+              <div style={{ padding: 12, background: 'var(--ax-surface-subtle)', borderRadius: 8, fontSize: 13 }}>
+                <b>Remark:</b> {activeItem.remark || activeItem.inst_remark}
+              </div>
+            ) : null}
+          </div>
+        )}
       </Modal>
 
-      {/* ───────── Approve Action Modal ───────── */}
-      {approveModalOpen && approvingItem && (
-        <Modal open={approveModalOpen} onClose={() => !approveSubmitting && setApproveModalOpen(false)} labelledBy="approve_modal_title">
-          <div className="ax-modal__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
-            <div>
-              <span className="ax-card__eyebrow" style={{ color: '#10b981', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
-                Site Verification
-              </span>
-              <h4 id="approve_modal_title" style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700 }}>
-                Approve Light #{approvingItem.unique_id || approvingItem.id}
-              </h4>
-            </div>
+      {/* ── Approve Modal ── */}
+      <Modal
+        open={approveModalOpen}
+        onClose={() => setApproveModalOpen(false)}
+        title="Approve Installation Record"
+        subtitle={`Mark light #${approvingItem?.unique_id || approvingItem?.id} as field-verified and approved`}
+        maxWidth={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
             <button
               type="button"
-              className="ax-btn ax-btn--ghost ax-btn--icon"
-              disabled={approveSubmitting}
-              onClick={() => setApproveModalOpen(false)}
-            >
-              {X_ICON}
-            </button>
-          </div>
-
-          <div className="ax-modal__body" style={{ padding: '18px 20px' }}>
-            <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--ax-text-muted)' }}>
-              Confirm physical verification approval for this installed solar street light in Punjab.
-            </p>
-
-            <div style={{ background: 'var(--ax-surface-subtle)', padding: 12, borderRadius: 8, fontSize: 12, marginBottom: 16 }}>
-              <div style={{ marginBottom: 4 }}><b>Beneficiary:</b> {approvingItem.beneficiary_name || '—'}</div>
-              <div style={{ marginBottom: 4 }}><b>Location:</b> {approvingItem.district}, {approvingItem.block}, {approvingItem.panchayat}</div>
-              <div style={{ marginBottom: 4 }}><b>Pole No:</b> {approvingItem.pole_no || '—'} · <b>UUID:</b> {approvingItem.uuid_no || '—'}</div>
-              <div><b>GPS:</b> {approvingItem.latitude}, {approvingItem.longitude}</div>
-            </div>
-
-            <div className="ax-field">
-              <label className="ax-label" htmlFor="approve_remarks" style={{ fontSize: 12 }}>
-                Approval Notes / Remarks (Optional)
-              </label>
-              <textarea
-                id="approve_remarks"
-                className="ax-input"
-                style={{ width: '100%', minHeight: 60, fontSize: 13 }}
-                placeholder="Enter verification sign-off notes…"
-                value={approveRemarks}
-                onChange={(e) => setApproveRemarks(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--ax-border)' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost"
-              disabled={approveSubmitting}
+              className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={() => setApproveModalOpen(false)}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="ax-btn ax-btn--primary"
+              className="ax-btn ax-btn--primary ax-btn--sm"
               style={{ background: '#10b981', borderColor: '#10b981' }}
-              disabled={approveSubmitting}
               onClick={handleApproveConfirm}
             >
-              {approveSubmitting ? 'Approving…' : 'Confirm Approval'}
+              Confirm Approval
             </button>
           </div>
-        </Modal>
-      )}
+        }
+      >
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
+          Are you sure you want to mark this light installation as verified and approved? Once approved, it will be eligible for claim processing.
+        </p>
+      </Modal>
     </div>
   );
 }
