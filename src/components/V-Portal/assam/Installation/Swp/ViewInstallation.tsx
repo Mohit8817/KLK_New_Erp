@@ -677,7 +677,7 @@ function KpiCard({
 
 // Columns for Assam SWP
 const COMMON_HEADERS = [
-  'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number', 'Customer No.',
+  'Sr. No.', 'State', 'District', 'Block / Village', 'Farmer Name', 'Father Name', 'Contact Number',
   'Pump Capacity', 'Pump Type', 'Inverter No.', 'VFD No.', 'Module Serials',
   'Module Photo', 'Inverter & VFD Photo', 'Running Water Photo',
   'Latitude', 'Longitude', 'Remark', 'Verify Status', 'Document Status', 'Claim Status', 'Action',
@@ -868,7 +868,6 @@ export function ViewInstallation() {
     { header: 'Farmer Name', accessor: (r) => txt(r, 'farmer_name') },
     { header: 'Father Name', accessor: (r) => txt(r, 'father_name') },
     { header: 'Contact Number', accessor: (r) => txt(r, 'farmer_contact') },
-    { header: 'Customer No.', accessor: (r) => txt(r, 'customer_no') },
     { header: 'Pump Capacity', accessor: (r) => txt(r, 'pump_capacity') },
     { header: 'Pump Type', accessor: (r) => `${txt(r, 'pump_type')} ${txt(r, 'pump_sub_type')}`.trim() },
     { header: 'Inverter No.', accessor: (r) => txt(r, 'inverter_no') },
@@ -1191,7 +1190,6 @@ export function ViewInstallation() {
                       </td>
                       <td className="ax-table__td">{row.father_name || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.farmer_contact || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{row.customer_no || DASH}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--asw-primary)' }}>
                         {row.pump_capacity || DASH}
                       </td>

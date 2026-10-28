@@ -108,14 +108,6 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ula-sticky-first th:first-child,
-  .solar-erp-page .ula-sticky-first td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--ax-bg-surface, #ffffff);
-    box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -515,7 +507,7 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
           ) : (
             <>
               <div className="ax-table-wrap">
-                <table className="ax-table ax-table--hover ula-sticky-first" style={{ whiteSpace: 'nowrap' }}>
+                <table className="ax-table ax-table--hover " style={{ whiteSpace: 'nowrap' }}>
                   <caption className="ax-visually-hidden">Bihar SSL Complaints</caption>
                   <thead className="ax-table__head">
                     <tr>

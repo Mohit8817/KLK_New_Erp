@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -22,9 +22,9 @@ type Item = SslInstallationInspectionItem;
 const BLUE_PRIMARY = '#2563eb';
 const GREEN_EMERALD = '#10b981';
 const AMBER_WARNING = '#f59e0b';
-const DASH = '—';
+const DASH = '�';
 
-/* ── Icons ── */
+/* -- Icons -- */
 const svgProps = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 const ICON_INSPECTION = (<svg {...svgProps}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><path d="m9 14 2 2 4-4" /></svg>);
 const ICON_LIGHTS = (<svg {...svgProps}><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" /></svg>);
@@ -48,9 +48,9 @@ const X_ICON = (
   </svg>
 );
 
-/* ── Helpers ── */
+/* -- Helpers -- */
 const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
-const cur = (x: unknown) => { const n = Number(x); return n > 0 ? `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : DASH; };
+const cur = (x: unknown) => { const n = Number(x); return n > 0 ? `?${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : DASH; };
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const isPaid = (v: unknown) => v === 1 || v === '1' || String(v).toLowerCase() === 'paid';
 const isPdf = (u: string) => /\.pdf($|\?)/i.test(u);
@@ -75,7 +75,7 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
-/* ───────── Modal (portal to <body>, focus trap, Esc to close) ───────── */
+/* --------- Modal (portal to <body>, focus trap, Esc to close) --------- */
 function Modal({
   open, onClose, labelledBy, dialogClass = '', dialogStyle, closeOnBackdrop = true, children,
 }: {
@@ -104,7 +104,7 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal ───────── */
+/* --------- Image preview modal --------- */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const [zoomIdx, setZoomIdx] = useState(0);
@@ -120,7 +120,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
       </div>
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ssi-m-stage">
-          {status === 'loading' && <div className="ssi-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
+          {status === 'loading' && <div className="ssi-m-stage__msg"><span className="ax-spinner" /> Loading image�</div>}
           {status === 'error' && <div className="ssi-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
           <img
             key={url}
@@ -141,12 +141,12 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
       </div>
       <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
         <div className="ssi-m-zoom" role="group" aria-label="Zoom">
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">-</button>
           <span className="ssi-m-zoom__val">{Math.round(zoom * 100)}%</span>
           <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
         </div>
         <div className="ssi-m-zoom">
-          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ?</a>
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -154,7 +154,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ── File cell: image thumbnail (no radius) or PDF link ── */
+/* -- File cell: image thumbnail (no radius) or PDF link -- */
 function FileCell({ path, onPreview }: { path?: string | null; onPreview: (url: string, title: string) => void }) {
   const url = path ? getMediaUrl(path) : '';
   const [failed, setFailed] = useState(false);
@@ -162,7 +162,7 @@ function FileCell({ path, onPreview }: { path?: string | null; onPreview: (url: 
 
   if (!url) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
   if (isPdf(url) || failed) {
-    return <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none' }}>Doc ↗</a>;
+    return <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none' }}>Doc ?</a>;
   }
   return (
     <img
@@ -176,7 +176,7 @@ function FileCell({ path, onPreview }: { path?: string | null; onPreview: (url: 
   );
 }
 
-/* ── Row Action Dropdown (rendered in <body> so the table never clips it) ── */
+/* -- Row Action Dropdown (rendered in <body> so the table never clips it) -- */
 const MENU_W = 170;
 const MENU_H = 84;
 function RowActionDropdown({ onView, fileUrl }: { onView: () => void; fileUrl: string }) {
@@ -234,7 +234,7 @@ function RowActionDropdown({ onView, fileUrl }: { onView: () => void; fileUrl: s
             </button>
             {fileUrl ? (
               <a href={fileUrl} target="_blank" rel="noreferrer" className="ssi-menu__item" role="menuitem" onClick={() => setOpen(false)}>
-                Open File ↗
+                Open File ?
               </a>
             ) : (
               <span className="ssi-menu__item" style={{ opacity: 0.5, cursor: 'default' }}>No File</span>
@@ -246,7 +246,7 @@ function RowActionDropdown({ onView, fileUrl }: { onView: () => void; fileUrl: s
   );
 }
 
-/* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
+/* --------- Overlay CSS (modals + dropdown; global because they render in <body>) --------- */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
   .ssi-m-stage { position: relative; display: flex; overflow: auto; height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9); }
@@ -277,7 +277,7 @@ const OVERLAY_CSS = `
   }
 `;
 
-/* ───────── Responsive page CSS ───────── */
+/* --------- Responsive page CSS --------- */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -298,9 +298,6 @@ const PAGE_CSS = `
 
   .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .solar-erp-page .ssi-table--wide { min-width: 2400px; }
-  .solar-erp-page .ssi-sticky-first th:first-child, .solar-erp-page .ssi-sticky-first td:first-child {
-    position: sticky; left: 0; z-index: 2; background: var(--ax-bg-surface, #ffffff); box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
@@ -329,7 +326,7 @@ const centerCell = { textAlign: 'center', padding: 24 } as const;
 const Req = () => <span style={{ color: 'var(--ax-danger-500)' }} aria-hidden="true">*</span>;
 const truncCell = (w: number): CSSProperties => ({ maxWidth: w, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
 
-/* ───────── Column definitions (drive table, column toggle and exports) ───────── */
+/* --------- Column definitions (drive table, column toggle and exports) --------- */
 interface Col {
   id: string;
   header: string;
@@ -497,7 +494,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   }, [inspections]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 10 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -515,7 +512,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
   const TOTAL_COLUMNS = visibleCols.length + 1;
   const stamp = new Date().toISOString().slice(0, 10);
 
-  /* ── Add handlers ── */
+  /* -- Add handlers -- */
   const handleOpenAdd = () => {
     setAddError(null);
     setAddDate(new Date().toISOString().slice(0, 10));
@@ -559,7 +556,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
     }
   };
 
-  /* ── Export helpers ── */
+  /* -- Export helpers -- */
   const getExportValue = (row: Item, column: ExportColumn<Item>, index: number) => {
     if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
     return (row as unknown as Record<string, unknown>)[column.accessor as string];
@@ -627,7 +624,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head ── */}
+      {/* -- Page Head -- */}
       <PageHead
         title="View SSL Installation Inspection"
         subtitle="Verification and official inspection logs for installed Solar Street Lights in Bihar"
@@ -659,7 +656,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
         </div>
       )}
 
-      {/* ── KPI Row ── */}
+      {/* -- KPI Row -- */}
       {loading ? (
         <KpiSkeleton count={4} />
       ) : (
@@ -678,7 +675,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
       )}
 
       <div className="ax-dash-grid">
-        {/* ── Main Table Card ── */}
+        {/* -- Main Table Card -- */}
         <section className="ax-card ax-col--12" role="region" aria-label="SSL Installation Inspection Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -723,7 +720,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 <SearchInput
                   value={search}
                   onChange={setSearch}
-                  placeholder="Search vendor, block, district…"
+                  placeholder="Search vendor, block, district�"
                   size="sm"
                   ariaLabel="Search inspection records"
                 />
@@ -740,7 +737,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ssi-table--wide ssi-sticky-first" style={{ whiteSpace: 'nowrap' }}>
+            <table className="ax-table ax-table--hover ssi-table--wide " style={{ whiteSpace: 'nowrap' }}>
               <caption className="ax-visually-hidden">SSL Installation Inspection Records</caption>
               <thead className="ax-table__head">
                 <tr>
@@ -754,7 +751,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 {loading && (
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading inspection records…
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading inspection records�
                     </td>
                   </tr>
                 )}
@@ -802,17 +799,17 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 20, 40, 100]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>
         </section>
       </div>
 
-      {/* ── Image Preview ── */}
+      {/* -- Image Preview -- */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
-      {/* ── View Details Modal ── */}
+      {/* -- View Details Modal -- */}
       <Modal open={!!detailItem} onClose={closeDetail} labelledBy="ssi-detail-title" dialogClass="ax-modal__dialog--lg">
         {detailItem && (
           <>
@@ -850,7 +847,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
         )}
       </Modal>
 
-      {/* ── Add Installation Inspection Modal ── */}
+      {/* -- Add Installation Inspection Modal -- */}
       <Modal open={addModalOpen} onClose={closeAdd} labelledBy="ssi-add-title" dialogClass="ax-modal__dialog--lg">
         <form onSubmit={handleAddSubmit}>
           <div className="ax-modal__header">
@@ -878,7 +875,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
               <div className="ax-field">
                 <label className="ax-label" htmlFor="ssi-a-block">Block <Req /></label>
                 <select id="ssi-a-block" className="ax-input" value={addBlock} onChange={(e) => setAddBlock(e.target.value)} required disabled={!addDistrict || blocksLoading}>
-                  <option value="">{blocksLoading ? 'Loading blocks…' : '-- Select Block --'}</option>
+                  <option value="">{blocksLoading ? 'Loading blocks�' : '-- Select Block --'}</option>
                   {availableBlocks.map((b) => (<option key={b} value={b}>{b}</option>))}
                 </select>
               </div>
@@ -887,7 +884,7 @@ export function Bihar_Installation_SSL_InstallationInspection() {
             <div className="ax-field">
               <label className="ax-label">Panchayat(s) <Req /></label>
               {panchayatsLoading ? (
-                <div className="ssi-m-note"><span className="ax-spinner" style={{ marginRight: 8 }} /> Fetching panchayats…</div>
+                <div className="ssi-m-note"><span className="ax-spinner" style={{ marginRight: 8 }} /> Fetching panchayats�</div>
               ) : availablePanchayats.length === 0 ? (
                 <div className="ssi-m-cell"><span style={{ textTransform: 'none', fontWeight: 500 }}>
                   {addBlock ? 'No panchayats available for this block.' : 'Please select District and Block first.'}
@@ -923,14 +920,14 @@ export function Bihar_Installation_SSL_InstallationInspection() {
                 <input id="ssi-a-lights" type="number" min="1" className="ax-input" placeholder="e.g. 20" value={addNoOfLights} onChange={(e) => setAddNoOfLights(e.target.value)} required />
               </div>
               <div className="ax-field">
-                <label className="ax-label" htmlFor="ssi-a-amt">Amount (₹) <Req /></label>
+                <label className="ax-label" htmlFor="ssi-a-amt">Amount (?) <Req /></label>
                 <input id="ssi-a-amt" type="number" step="0.01" min="0" className="ax-input" placeholder="e.g. 40000.00" value={addAmount} onChange={(e) => setAddAmount(e.target.value)} required />
               </div>
             </div>
 
             <div className="ax-field">
               <label className="ax-label" htmlFor="ssi-a-rem">Remarks (Optional)</label>
-              <textarea id="ssi-a-rem" className="ax-input" rows={3} placeholder="Enter inspection remarks…" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} />
+              <textarea id="ssi-a-rem" className="ax-input" rows={3} placeholder="Enter inspection remarks�" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} />
             </div>
 
             <div className="ax-field">

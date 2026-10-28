@@ -196,13 +196,6 @@ const PAGE_CSS = `
       padding: 0 8px !important;
     }
 
-    /* Pehla column (Sr. No.) fixed rahe */
-    .solar-erp-page .ula-sticky-first th:first-child,
-    .solar-erp-page .ula-sticky-first td:first-child {
-      position: sticky; left: 0; z-index: 1;
-      background: var(--ax-bg-surface);
-      box-shadow: 1px 0 0 var(--ax-border-subtle, #e2e8f0);
-    }
   }
 
   /* Small phones */
@@ -422,7 +415,7 @@ export function BiharAMCSSLViewAssignLight() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--wide ula-sticky-first">
+            <table className="ax-table ax-table--hover ula-table--wide ">
               <caption className="ax-visually-hidden">View Bihar SSL AMC Assign</caption>
               <thead className="ax-table__head">
                 <tr>
