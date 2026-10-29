@@ -566,6 +566,31 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       },
     ],
   },
+
+  /* ═══════════════════ ARUNACHAL PRADESH ═══════════════════ */
+  {
+    section: 'Arunachal Pradesh',
+    state: 'arunachal',
+    categories: [
+      {
+        id: 'arunachal.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'arunachal.installation.shl',
+            title: 'SHL',
+            items: [
+              { title: 'Dashboard', to: '/v/arunachal/shl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/arunachal/shl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/arunachal/shl/installation/install-light' },
+              { title: 'Installation Detail', to: '/v/arunachal/shl/installation/view-installation' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'dashboard' }) {

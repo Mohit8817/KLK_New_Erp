@@ -216,7 +216,7 @@ export function Bihar_Survey_ULA_AddData() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
 
-  // Loading & submission state
+
   const [initialLoading, setInitialLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -1119,9 +1119,7 @@ export function Bihar_Survey_ULA_AddData() {
   );
 }
 
-/* =========================================================================
- * Helper Reusable Floating Components (same pattern as Jammu form)
- * ========================================================================= */
+
 
 function SectionHeader({ num, total, title, subtitle }: { num: string; total: string; title: string; subtitle: string }) {
   return (

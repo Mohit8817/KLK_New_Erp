@@ -881,7 +881,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                {isEditMode ? 'Edit Rooftop Solar Installation' : 'Rooftop Solar Installation Form'}
+                {isEditMode ? 'Edit Rooftop Solar Installation' : 'Solar Installation Form'}
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted)' }}>
                 {isEditMode

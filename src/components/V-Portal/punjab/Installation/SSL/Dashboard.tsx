@@ -4,9 +4,9 @@ import { PageHead } from '../../../../shell/PageHead';
 import {
   punjabSslInstallationService,
   getCompanyId,
+  normalizePunjabDashboardStatus,
   type PunjabDashboardData,
   type PunjabDistrictwise,
-  type PunjabStatusDrillRow,
 } from '../../punjab-services';
 import {
   TableExportToolbar,
@@ -337,14 +337,6 @@ export function Punjab_Installation_SSL_Dashboard() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
 
-  // Status Drilldown Modal State (APIs 10 & 11)
-  const [drillModalOpen, setDrillModalOpen] = useState(false);
-  const [drillStatus, setDrillStatus] = useState<string>('');
-  const [drillDistrict, setDrillDistrict] = useState<string>('');
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [drillRows, setDrillRows] = useState<PunjabStatusDrillRow[]>([]);
-  const [drillSearch, setDrillSearch] = useState('');
-
   const activeCompanyId = useMemo(() => getCompanyId(), []);
 
   const chartH = isMobile ? 260 : 320;
@@ -373,25 +365,17 @@ export function Punjab_Installation_SSL_Dashboard() {
 
   useEffect(() => { loadDashboardData(); }, [loadDashboardData]);
 
-  // Status drilldown (API 10 = overall, API 11 = district-wise)
-  const openStatusDrilldown = useCallback(async (status: string, district = '') => {
-    setDrillStatus(status);
-    setDrillDistrict(district);
-    setDrillModalOpen(true);
-    setDrillLoading(true);
-    setDrillSearch('');
-    try {
-      const rows: any = district
-        ? await punjabSslInstallationService.getDashboardByDistrictStatus(status, district)
-        : await punjabSslInstallationService.getDashboardByStatus(status);
-      setDrillRows(Array.isArray(rows) ? rows : Array.isArray(rows?.data) ? rows.data : []);
-    } catch (err) {
-      console.error('[Dashboard] drilldown error:', err);
-      setDrillRows([]);
-    } finally {
-      setDrillLoading(false);
+  // Navigate to separate single page for status view (APIs 10 & 11)
+  const navigateToStatusView = useCallback((status: string, district = '') => {
+    const normalized = normalizePunjabDashboardStatus(status);
+    const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : '');
+    const p = new URLSearchParams();
+    p.set('status', normalized);
+    if (targetDistrict) {
+      p.set('district', targetDistrict);
     }
-  }, []);
+    navigate(`/v/punjab/ssl/installation/status-view?${p.toString()}`);
+  }, [navigate, selectedDistrict]);
 
   /* ───────── Raw API resolution ───────── */
   const rawApiSsl: any = (data as any)?.ssl || {};
@@ -627,25 +611,6 @@ export function Punjab_Installation_SSL_Dashboard() {
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
     setter((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
 
-  /* ───────── Drilldown Table Filtering ───────── */
-  const filteredDrillRows = useMemo(() => {
-    const q = drillSearch.trim().toLowerCase();
-    if (!q) return drillRows;
-    return drillRows.filter((r: any) =>
-      String(r.id || '').includes(q) ||
-      String(r.unique_id || '').toLowerCase().includes(q) ||
-      String(r.district || '').toLowerCase().includes(q) ||
-      String(r.block || '').toLowerCase().includes(q) ||
-      String(r.panchayat || '').toLowerCase().includes(q)
-    );
-  }, [drillRows, drillSearch]);
-
-  const pDrill = usePagination({ data: filteredDrillRows, initialPageSize: 10 });
-
-  useEffect(() => {
-    pDrill.setPage(1);
-  }, [drillSearch, drillRows]);
-
   /* ───────── Chart Options ───────── */
   const instStatusSeries = [ssl.verify_approved, ssl.verify_pending, ssl.verify_reject, ssl.pending];
   const instStatusLabels = ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'];
@@ -668,7 +633,6 @@ export function Punjab_Installation_SSL_Dashboard() {
     { label: 'Payment Pending', v: ssl.inst_pay_pending, of: ssl.claim_approved, status: 'pay-pending', tone: 'neutral' },
   ];
 
-  const drillTitle = STATUS_LABELS[drillStatus] || drillStatus;
 
   return (
     <div className="solar-erp-page">
@@ -685,6 +649,20 @@ export function Punjab_Installation_SSL_Dashboard() {
         breadcrumbs={[{ label: 'Punjab' }, { label: 'Installation' }, { label: 'SSL' }, { label: 'Dashboard' }]}
         actions={
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => navigate('/v/punjab/ssl/installation/install-light')}
+            >
+              + Install Light
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => navigate('/v/punjab/ssl/installation/complete-light')}
+            >
+              View Installed Lights
+            </button>
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Punjab
             </span>
@@ -796,74 +774,75 @@ export function Punjab_Installation_SSL_Dashboard() {
           icon={I_PIN} tone="accent" label="Total SSL Lights"
           value={dash(ssl.site_count)} sub="Sanctioned Site Count"
           spark={spk((d) => n(d.light_count))}
-          onClick={() => openStatusDrilldown('total-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('total-light', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_PIN} tone="violet" label="Site Allocation"
           value={loading && !data ? '…' : `${ssl.site_assigned} / ${ssl.site_not_assigned}`}
           sub="Assigned / Not Assigned"
-          onClick={() => openStatusDrilldown('assign-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('assign-light', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_BOLT} tone="cyan" label="Installation Status"
           value={loading && !data ? '…' : `${ssl.complete} / ${ssl.pending}`}
           sub="Installed / Pending" badge={`${instPct}% Done`}
           spark={spk((d) => n(d.complete))}
-          onClick={() => openStatusDrilldown('installed-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('installed-light', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_DONE} tone="emerald" label="Verification Status"
           value={loading && !data ? '…' : `${ssl.verify_approved} / ${ssl.verify_pending} / ${ssl.verify_reject}`}
           sub="Approved / Pending / Rejected" badge={`${approvedPct}% Approved`}
           spark={spk((d) => n(d.verify_approved))}
-          onClick={() => openStatusDrilldown('verify-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('verify-light', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_DOC} tone="red" label="Verification Rejected"
           value={dash(ssl.verify_reject)} sub="Needs Rectification"
-          onClick={() => openStatusDrilldown('verify-reject-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('verify-reject-light', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_LIST} tone="violet" label="Claim Applicable"
           value={dash(ssl.claim_applicable)} sub="Eligible for Invoice"
-          onClick={() => openStatusDrilldown('claim-applicable', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('claim-applicable', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_LIST} tone="amber" label="Claim Status"
           value={loading && !data ? '…' : `${ssl.claim_raised} / ${ssl.claim_pending}`}
           sub="Raised / Pending" badge={ssl.claim_raised > 0 ? `${claimPct}% Claimed` : undefined}
           spark={spk((d) => n(d.claim_raised))}
-          onClick={() => openStatusDrilldown('claim-raised', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('claim-raised', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_DONE} tone="emerald" label="Claim Approval"
           value={loading && !data ? '…' : `${ssl.claim_approved} / ${ssl.claim_pending} / ${ssl.claim_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ssl.claim_approved > 0 ? 'Approved' : undefined}
-          onClick={() => openStatusDrilldown('claim-approved', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('claim-approved', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_COIN} tone="emerald" label="Payment Done"
           value={dash(ssl.inst_pay_done)} sub="Disbursed to Vendor"
           badge={ssl.inst_pay_done > 0 ? `${payPct}% Paid` : undefined}
           spark={spk((d) => n(d.inst_pay_done))}
-          onClick={() => openStatusDrilldown('pay-done', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('pay-done', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_COIN} tone="cyan" label="Payment Pending"
           value={dash(ssl.inst_pay_pending)} sub="Awaiting Release"
-          onClick={() => openStatusDrilldown('pay-pending', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('pay-pending', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_COIN} tone="amber" label="Total Payment Amount"
           value={loading && !data ? '…' : cur(rawSsl.payment_amount)}
           sub="Disbursed Settlement (All Districts)"
           badge={rawSsl.payment_amount > 0 ? 'Disbursed' : undefined}
+          onClick={() => navigateToStatusView('pay-done', filtersActive ? selectedDistrict : '')}
         />
         <KpiCard
           icon={I_BOLT} tone="pink" label="Install Pending"
           value={dash(ssl.pending)} sub="Yet to be installed"
-          onClick={() => openStatusDrilldown('not-installed-light', filtersActive ? selectedDistrict : '')}
+          onClick={() => navigateToStatusView('not-installed-light', filtersActive ? selectedDistrict : '')}
         />
 
         {/* 5. Monthly trend (8) + Donut (4) */}
@@ -1088,7 +1067,7 @@ export function Punjab_Installation_SSL_Dashboard() {
                     const isSelected = selectedDistrict.toLowerCase() === d.district.toLowerCase();
                     const open = (status: string) => () => {
                       setSelectedDistrict(d.district);
-                      openStatusDrilldown(status, d.district);
+                      navigateToStatusView(status, d.district);
                     };
 
                     return (
@@ -1214,94 +1193,6 @@ export function Punjab_Installation_SSL_Dashboard() {
 
     
       </div>
-
-      {/* 9. Status drilldown modal (APIs 10 & 11) */}
-      {drillModalOpen && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-label="Status drilldown" style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} onClick={() => setDrillModalOpen(false)} />
-          <div
-            className="ax-card"
-            style={{
-              position: 'relative', width: '92%', maxWidth: 960, maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-              background: 'var(--ax-bg-surface)', borderRadius: 'var(--ax-radius-xl)', boxShadow: 'var(--ax-shadow-2xl)', overflow: 'hidden', zIndex: 10,
-            }}
-          >
-            <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--ax-border-subtle)', background: 'var(--ax-surface-subtle)' }}>
-              <div className="ax-card__titles" style={{ maxWidth: '85%' }}>
-                <span className="ax-card__eyebrow">Punjab SSL · Status Drilldown</span>
-                <h2 className="ax-card__title">
-                  {drillTitle} {drillDistrict && <span style={{ color: 'var(--ax-accent)' }}>· {drillDistrict}</span>}{' '}
-                  <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>({drillLoading ? '…' : drillRows.length})</span>
-                </h2>
-              </div>
-              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" onClick={() => setDrillModalOpen(false)} aria-label="Close modal">✕</button>
-            </div>
-
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--ax-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ width: 280, maxWidth: '100%' }}>
-                <SearchInput value={drillSearch} onChange={setDrillSearch} placeholder="Filter lights..." size="sm" />
-              </div>
-              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                Showing {pDrill.paginatedData.length} of {filteredDrillRows.length} records
-              </span>
-            </div>
-
-            <div className="ax-table-wrap" style={{ flex: 1, overflowY: 'auto' }}>
-              <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
-                <thead className="ax-table__head">
-                  <tr>
-                    <th className="ax-table__th" scope="col">Sr.</th>
-                    <th className="ax-table__th" scope="col">ID</th>
-                    <th className="ax-table__th" scope="col">Unique ID</th>
-                    <th className="ax-table__th" scope="col">District</th>
-                    <th className="ax-table__th" scope="col">Block</th>
-                    <th className="ax-table__th" scope="col">Panchayat</th>
-                    <th className="ax-table__th" scope="col">Install Status</th>
-                  </tr>
-                </thead>
-                <tbody aria-busy={drillLoading}>
-                  {drillLoading ? (
-                    <tr><td colSpan={7} style={emptyCellStyle}><span className="ax-spinner" style={{ marginRight: 8 }} /> Loading lights from server…</td></tr>
-                  ) : pDrill.paginatedData.length === 0 ? (
-                    <tr><td colSpan={7} style={emptyCellStyle}>No lights found for this status.</td></tr>
-                  ) : (
-                    pDrill.paginatedData.map((row: any, idx: number) => (
-                      <tr key={row.id || idx} className="ax-table__row">
-                        <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{(pDrill.currentPage - 1) * pDrill.pageSize + idx + 1}</td>
-                        <td className="ax-table__td ax-num" style={{ fontWeight: 600 }}>#{row.id}</td>
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '12px', fontWeight: 600, color: 'var(--ax-accent)' }}>{row.unique_id || '—'}</td>
-                        <td className="ax-table__td">{row.district || '—'}</td>
-                        <td className="ax-table__td">{row.block || '—'}</td>
-                        <td className="ax-table__td">{row.panchayat || '—'}</td>
-                        <td className="ax-table__td">
-                          {Number(row.inst_status) === 1 ? (
-                            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">Installed</span>
-                          ) : (
-                            <span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">Pending</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="ax-card__footer" style={footerStyle}>
-              <div className="ssl-pagination-left">
-                <Pagination
-                  currentPage={pDrill.currentPage}
-                  totalItems={pDrill.totalItems}
-                  pageSize={pDrill.pageSize}
-                  onPageChange={pDrill.setPage}
-                  onPageSizeChange={pDrill.setPageSize}
-                  pageSizeOptions={[10, 25, 50, 100]}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

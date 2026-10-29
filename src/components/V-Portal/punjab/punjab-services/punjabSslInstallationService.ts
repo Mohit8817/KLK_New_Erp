@@ -2,11 +2,32 @@ import { API_BASE_URL, authService } from '../../../../services/authService';
 import { PUNJAB_API } from '../../V_Portal_APIS/Punjab_API';
 
 /**
- * Universal token getter
+ * Universal token getter for Vendor session
  */
 export const getAuthToken = (): string | null => {
+  const fromAuth = authService.getToken();
+  if (fromAuth) return fromAuth;
+
+  const session = authService.getSession();
+  if (session?.token) return session.token;
+
+  try {
+    const rawLocal = localStorage.getItem('klk_user_session');
+    if (rawLocal) {
+      const p = JSON.parse(rawLocal);
+      if (p?.token) return p.token;
+    }
+  } catch {}
+
+  try {
+    const rawSession = sessionStorage.getItem('klk_user_session');
+    if (rawSession) {
+      const p = JSON.parse(rawSession);
+      if (p?.token) return p.token;
+    }
+  } catch {}
+
   return (
-    authService.getToken() ||
     localStorage.getItem('token') ||
     localStorage.getItem('access_token') ||
     localStorage.getItem('authToken') ||
@@ -46,27 +67,53 @@ export const getCompanyId = (): string => {
   return String(candidate).trim();
 };
 
-/**
- * Normalizes media paths into full valid URLs.
- * If path is relative like 'uploads/punjab/...', prepends the API host.
- */
-export const getMediaUrl = (path?: string | null): string => {
-  if (!path) return '';
+const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+export function getPunjabMediaCandidates(path?: string | null): string[] {
+  if (!path) return [];
   const trimmed = String(path).trim();
-  if (!trimmed) return '';
-  if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('data:')
-  ) {
-    return trimmed;
+  if (!trimmed) return [];
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
+
+  const normalized = trimmed.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
   }
-  const root = (API_BASE_URL || 'https://klkerp.com/api')
-    .replace(/\/api\/?$/, '')
-    .replace(/\/+$/, '');
-  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${root}${cleanPath}`;
+
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/light/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/ssl/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/punjab/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/light/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/punjab/installation/ssl/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
+
+  return Array.from(new Set(candidates));
+}
+
+export function resolvePunjabMediaUrl(path?: string | null): string {
+  if (!path) return '';
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  const candidates = getPunjabMediaCandidates(path);
+  return candidates[0] || `${BACKEND_BASE}/${path.replace(/^\/+/, '')}`;
+}
+
+export const getMediaUrl = (path?: string | null): string => {
+  return resolvePunjabMediaUrl(path);
 };
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -258,13 +305,137 @@ export interface PunjabDashboardData {
 
 export interface PunjabStatusDrillRow {
   id: number;
-  unique_id?: string;
+  company_id?: number | string;
+  state?: string;
   district?: string;
   block?: string;
   panchayat?: string;
+  unique_id?: string;
+  wo_no?: string;
+  phase?: string;
+  beneficiary_name?: string;
+  contact_no?: string;
+  sarpanch_name?: string;
+  sarpanch_contact?: string;
+  ward_no?: string | null;
+  uuid_no?: string | null;
+  pole_no?: string | null;
+  light_no?: string | null;
+  panel_no?: string | null;
+  battery_serial_no?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  light_file?: string | null;
+  light_file2?: string | null;
   inst_status?: number;
+  inst_accept?: number;
+  inst_date?: string | null;
+  inst_verify_status?: number; // 0 = Pending, 1 = Approved, 2 = Rejected
+  inst_claim_status?: number;  // 0 = Not Raised, 1 = Raised/Pending, 2 = Approved, 3 = Rejected
+  inst_pay_status?: number;    // 0 = Pending, 1 = Paid
+  remark?: string | null;
+  inst_remark?: string | null;
+  created_at?: string;
+  updated_at?: string;
   [key: string]: any;
 }
+
+export type PunjabDashboardStatus =
+  | 'total-light'
+  | 'assign-light'
+  | 'not-assign-light'
+  | 'installed-light'
+  | 'not-installed-light'
+  | 'verify-light'
+  | 'verify-pending-light'
+  | 'verify-reject-light'
+  | 'claim-applicable'
+  | 'claim-raised'
+  | 'claim-approved'
+  | 'claim-pending'
+  | 'pay-done'
+  | 'pay-pending';
+
+export function normalizePunjabDashboardStatus(status?: string | null): PunjabDashboardStatus {
+  if (!status) return 'installed-light';
+  const clean = String(status).toLowerCase().trim();
+  switch (clean) {
+    case 'total':
+    case 'total-light':
+    case 'all':
+      return 'total-light';
+    case 'assign':
+    case 'assigned':
+    case 'assign-light':
+      return 'assign-light';
+    case 'not-assign':
+    case 'not-assigned':
+    case 'not-assign-light':
+      return 'not-assign-light';
+    case 'complete':
+    case 'installed':
+    case 'installed-light':
+    case 'complete-light':
+      return 'installed-light';
+    case 'pending':
+    case 'not-installed':
+    case 'not-installed-light':
+      return 'not-installed-light';
+    case 'verify-light':
+    case 'verify-approved':
+    case 'verified':
+    case 'approved':
+      return 'verify-light';
+    case 'verify-pending':
+    case 'verify-pending-light':
+      return 'verify-pending-light';
+    case 'verify-reject':
+    case 'verify-reject-light':
+    case 'rejected':
+      return 'verify-reject-light';
+    case 'claim-applicable':
+      return 'claim-applicable';
+    case 'claim-raised':
+      return 'claim-raised';
+    case 'claim-approved':
+      return 'claim-approved';
+    case 'claim-pending':
+      return 'claim-pending';
+    case 'pay-done':
+    case 'payment-done':
+    case 'paid':
+      return 'pay-done';
+    case 'pay-pending':
+    case 'payment-pending':
+      return 'pay-pending';
+    default:
+      return (clean as PunjabDashboardStatus) || 'installed-light';
+  }
+}
+
+export interface PunjabStatusMeta {
+  key: PunjabDashboardStatus;
+  label: string;
+  tone: 'accent' | 'emerald' | 'amber' | 'cyan' | 'violet' | 'danger';
+  desc: string;
+}
+
+export const PUNJAB_STATUS_LIST: PunjabStatusMeta[] = [
+  { key: 'total-light', label: 'Total Lights', tone: 'accent', desc: 'All Punjab SSL lights under vendor scope' },
+  { key: 'assign-light', label: 'Assigned Lights', tone: 'cyan', desc: 'Lights assigned and accepted by vendor' },
+  { key: 'not-assign-light', label: 'Not Assigned', tone: 'amber', desc: 'Lights not yet assigned or accepted' },
+  { key: 'installed-light', label: 'Installed Lights', tone: 'emerald', desc: 'Successfully installed solar street lights' },
+  { key: 'not-installed-light', label: 'Install Pending', tone: 'amber', desc: 'Lights awaiting installation in field' },
+  { key: 'verify-light', label: 'Verified & Approved', tone: 'emerald', desc: 'Installation verified & approved by department' },
+  { key: 'verify-pending-light', label: 'Verification Pending', tone: 'amber', desc: 'Installed lights pending departmental inspection' },
+  { key: 'verify-reject-light', label: 'Verification Rejected', tone: 'danger', desc: 'Lights rejected during inspection or audit' },
+  { key: 'claim-applicable', label: 'Claim Applicable', tone: 'accent', desc: 'Lights eligible to raise payment claim' },
+  { key: 'claim-raised', label: 'Claims Raised', tone: 'cyan', desc: 'Payment claim requests submitted by vendor' },
+  { key: 'claim-approved', label: 'Claims Approved', tone: 'emerald', desc: 'Vendor payment claims reviewed & approved' },
+  { key: 'claim-pending', label: 'Claims Pending', tone: 'amber', desc: 'Submitted payment claims under review' },
+  { key: 'pay-done', label: 'Payment Done', tone: 'emerald', desc: 'Disbursed and fully paid installations' },
+  { key: 'pay-pending', label: 'Payment Pending', tone: 'amber', desc: 'Approved claims pending financial disbursement' },
+];
 
 /* ═════════════════════════════════════════════════════════════════════════
    Punjab SSL Installation Service Class
@@ -285,13 +456,67 @@ class PunjabSslInstallationService {
     return headers;
   }
 
+  /**
+   * Resilient request executor with automatic route prefix fallback (/api/vendor/... and /api/...)
+   */
+  private async fetchWithFallback(urlOrEndpoint: string, options: RequestInit = {}): Promise<Response> {
+    const baseClean = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
+    const altBase = baseClean.endsWith('/api') ? baseClean.slice(0, -4) : `${baseClean}/api`;
+
+    let cleanPath = urlOrEndpoint;
+    if (urlOrEndpoint.startsWith('http://') || urlOrEndpoint.startsWith('https://')) {
+      try {
+        const u = new URL(urlOrEndpoint);
+        cleanPath = (u.pathname + u.search).replace(/^\/api/, '');
+      } catch {}
+    }
+    if (!cleanPath.startsWith('/')) cleanPath = `/${cleanPath}`;
+
+    // Candidate paths:
+    // 1. /api/vendor/punjab/ssl/... (Canonical Laravel route group for Vendor Punjab SSL)
+    // 2. Original URL
+    // 3. /api/punjab/ssl/...
+    // 4. /api/v/punjab/ssl/...
+    const pathWithVendor = cleanPath.startsWith('/vendor/') ? cleanPath : `/vendor${cleanPath.replace(/^\/v\//, '/')}`;
+    const pathWithoutVendor = cleanPath.replace(/^\/vendor/, '').replace(/^\/v\//, '/');
+
+    const urls: string[] = [
+      `${baseClean}${pathWithVendor}`,
+      urlOrEndpoint,
+      `${baseClean}${pathWithoutVendor}`,
+      `${baseClean}/v${pathWithoutVendor}`,
+      `${altBase}${pathWithVendor}`,
+      `${altBase}${pathWithoutVendor}`,
+    ];
+
+    const uniqueUrls = Array.from(new Set(urls));
+    let lastError: Error | null = null;
+    let lastRes: Response | null = null;
+
+    for (const u of uniqueUrls) {
+      try {
+        const res = await fetch(u, options);
+        if (res.status === 404) {
+          lastRes = res;
+          continue;
+        }
+        return res;
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (lastRes) return lastRes;
+    throw lastError || new Error(`Network error requesting ${urlOrEndpoint}`);
+  }
+
   /* ─────────────────────────────────────────────────────────────────────────
      1. View Assigned Lights
-     GET /punjab/ssl/installation/view-assigned-light
+     GET /vendor/punjab/ssl/installation/view-assigned-light
      ───────────────────────────────────────────────────────────────────────── */
   async getAssignedLights(): Promise<PunjabAssignedLightItem[]> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.VIEW_ASSIGNED_LIGHTS, {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.VIEW_ASSIGNED_LIGHTS, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -303,19 +528,26 @@ class PunjabSslInstallationService {
         if (Array.isArray(json)) {
           return json;
         }
+      } else {
+        const errJson = await res.json().catch(() => null);
+        console.warn('[Punjab SSL] getAssignedLights response error:', res.status, errJson);
+        if (res.status === 401) {
+          throw new Error('Unauthorized: Vendor session missing or expired. Please re-login.');
+        }
       }
     } catch (err) {
       console.error('[Punjab SSL] getAssignedLights error:', err);
+      throw err;
     }
     return [];
   }
 
   /* ─────────────────────────────────────────────────────────────────────────
      2. Accept Assigned Lights
-     GET /punjab/ssl/installation/update-status-assigned-light?light_id={id}
+     GET /vendor/punjab/ssl/installation/update-status-assigned-light?light_id={id}
      ───────────────────────────────────────────────────────────────────────── */
   async acceptAssignedLight(lightId: number | string): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await fetch(PUNJAB_API.INSTALLATION.SSL.ACCEPT_ASSIGNED(lightId), {
+    const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.ACCEPT_ASSIGNED(lightId), {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -333,11 +565,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      3. Fetch Light List
-     GET /punjab/ssl/installation/fetch-light
+     GET /vendor/punjab/ssl/installation/fetch-light
      ───────────────────────────────────────────────────────────────────────── */
   async fetchLightNames(): Promise<PunjabLightDropdownItem[]> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.FETCH_LIGHT_NAMES, {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.FETCH_LIGHT_NAMES, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -358,11 +590,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      4. Fetch Light Details
-     GET /punjab/ssl/installation/fetch-light-deatils?light_id={lightId}
+     GET /vendor/punjab/ssl/installation/fetch-light-deatils?light_id={lightId}
      ───────────────────────────────────────────────────────────────────────── */
   async fetchLightDetail(lightId: number | string): Promise<PunjabLightDetail | null> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.FETCH_LIGHT_DETAILS(lightId), {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.FETCH_LIGHT_DETAILS(lightId), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -383,10 +615,10 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      5. Store Light Details (Install Light)
-     POST /punjab/ssl/installation/store-deatils-light (multipart/form-data)
+     POST /vendor/punjab/ssl/installation/store-deatils-light (multipart/form-data)
      ───────────────────────────────────────────────────────────────────────── */
   async storeLightDetails(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await fetch(PUNJAB_API.INSTALLATION.SSL.STORE_LIGHT_DETAILS, {
+    const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.STORE_LIGHT_DETAILS, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -408,11 +640,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      6. Update Install Light (Load)
-     GET /punjab/ssl/installation/update-install-light?ssl_id={sslId}
+     GET /vendor/punjab/ssl/installation/update-install-light?ssl_id={sslId}
      ───────────────────────────────────────────────────────────────────────── */
   async getUpdateInstallLightLoad(sslId: number | string): Promise<PunjabLightDetail | null> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.UPDATE_INSTALL_LIGHT_LOAD(sslId), {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.UPDATE_INSTALL_LIGHT_LOAD(sslId), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -429,10 +661,10 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      7. Update Install Light Store
-     POST /punjab/ssl/installation/update-install-light-store (multipart/form-data)
+     POST /vendor/punjab/ssl/installation/update-install-light-store (multipart/form-data)
      ───────────────────────────────────────────────────────────────────────── */
   async updateInstallLightStore(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
-    const res = await fetch(PUNJAB_API.INSTALLATION.SSL.UPDATE_INSTALL_LIGHT_STORE, {
+    const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.UPDATE_INSTALL_LIGHT_STORE, {
       method: 'POST',
       headers: this.getHeaders(true),
       body: formData,
@@ -454,11 +686,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      8. View Complete Lights
-     GET /punjab/ssl/installation/complete-light
+     GET /vendor/punjab/ssl/installation/complete-light
      ───────────────────────────────────────────────────────────────────────── */
   async getCompleteLights(): Promise<PunjabCompleteLightsResponse | null> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.COMPLETE_LIGHTS, {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.COMPLETE_LIGHTS, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -479,11 +711,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      9. Installation Dashboard
-     GET /punjab/ssl/installation/dashboard
+     GET /vendor/punjab/ssl/installation/dashboard
      ───────────────────────────────────────────────────────────────────────── */
   async getDashboardData(): Promise<PunjabDashboardData | null> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.DASHBOARD, {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.DASHBOARD, {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -504,11 +736,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      10. View Dashboard By Status
-     GET /punjab/ssl/installation/view-dashboard/{status}
+     GET /vendor/punjab/ssl/installation/view-dashboard/{status}
      ───────────────────────────────────────────────────────────────────────── */
   async getDashboardByStatus(status: string): Promise<PunjabStatusDrillRow[]> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.DASHBOARD_BY_STATUS(status), {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.DASHBOARD_BY_STATUS(status), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -529,11 +761,11 @@ class PunjabSslInstallationService {
 
   /* ─────────────────────────────────────────────────────────────────────────
      11. Districtwise By Status
-     GET /punjab/ssl/installation/districtwise-view-data/{status}/{district}
+     GET /vendor/punjab/ssl/installation/districtwise-view-data/{status}/{district}
      ───────────────────────────────────────────────────────────────────────── */
   async getDashboardByDistrictStatus(status: string, district: string): Promise<PunjabStatusDrillRow[]> {
     try {
-      const res = await fetch(PUNJAB_API.INSTALLATION.SSL.DISTRICTWISE_BY_STATUS(status, district), {
+      const res = await this.fetchWithFallback(PUNJAB_API.INSTALLATION.SSL.DISTRICTWISE_BY_STATUS(status, district), {
         method: 'GET',
         headers: this.getHeaders(),
       });
@@ -550,6 +782,40 @@ class PunjabSslInstallationService {
       console.error('[Punjab SSL] getDashboardByDistrictStatus error:', err);
     }
     return [];
+  }
+
+  /**
+   * Universal fetcher for Punjab Dashboard Status View (APIs 10 & 11)
+   */
+  async getDashboardStatusResponse(status: string, district?: string): Promise<{ meta?: any; data: PunjabStatusDrillRow[] }> {
+    try {
+      const normalizedStatus = normalizePunjabDashboardStatus(status);
+      const url =
+        district && district !== 'All'
+          ? PUNJAB_API.INSTALLATION.SSL.DISTRICTWISE_BY_STATUS(normalizedStatus, district)
+          : PUNJAB_API.INSTALLATION.SSL.DASHBOARD_BY_STATUS(normalizedStatus);
+
+      const res = await this.fetchWithFallback(url, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
+        if (json && Array.isArray(json.data)) {
+          return { meta: json.meta, data: json.data };
+        }
+        if (Array.isArray(json)) {
+          return { data: json };
+        }
+        if (json?.data && typeof json.data === 'object') {
+          return { meta: json.meta, data: [json.data] };
+        }
+      }
+    } catch (err) {
+      console.error('[Punjab SSL] getDashboardStatusResponse error:', err);
+    }
+    return { data: [] };
   }
 }
 

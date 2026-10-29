@@ -301,6 +301,130 @@ const PAGE_CSS = `
     cursor: not-allowed !important;
   }
 
+  
+  /* ── Professional View Modal Styles ── */
+  .view-modal-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 8px;
+  }
+  .view-summary-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 18px;
+  }
+  .view-summary-col {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .view-summary-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .view-summary-value {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .view-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.15s ease;
+  }
+  .view-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+  }
+  .view-card__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .view-card__icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .view-card__title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+  .view-card__body {
+    padding: 16px;
+  }
+  .view-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 16px;
+  }
+  .view-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 16px;
+  }
+  @media (max-width: 700px) {
+    .view-grid-3, .view-grid-2 {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+  .view-data-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .view-data-cell--full {
+    grid-column: 1 / -1;
+  }
+  .view-data-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .view-data-value {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .view-desc-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    color: #1e293b;
+    line-height: 1.5;
+  }
+
   .assigned-overview-card {
     background: #f8fafc !important;
     border: 1px solid #e2e8f0 !important;
@@ -367,6 +491,171 @@ function KpiCard({
       </div>
       <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
       <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
+
+
+function PhoneLink({ phone }: { phone?: string | null }) {
+  if (!phone || phone.trim() === '' || phone === '—') return <span>—</span>;
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  return (
+    <a
+      href={`tel:${cleanPhone}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        color: '#2563eb',
+        fontWeight: 600,
+        textDecoration: 'none',
+      }}
+      title="Click to call"
+    >
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+      </svg>
+      {phone}
+    </a>
+  );
+}
+
+function GpsLink({ lat, lng }: { lat?: string | number | null; lng?: string | number | null }) {
+  if (!lat && !lng) return <span>—</span>;
+  const latStr = String(lat ?? '').trim();
+  const lngStr = String(lng ?? '').trim();
+  if (!latStr || !lngStr || latStr === '—' || lngStr === '—') return <span>—</span>;
+  return (
+    <a
+      href={`https://www.google.com/maps?q=${encodeURIComponent(`${latStr},${lngStr}`)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        color: '#059669',
+        fontWeight: 600,
+        textDecoration: 'none',
+      }}
+      title="Open location in Google Maps"
+    >
+      <span>{latStr}, {lngStr}</span>
+      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+      </svg>
+    </a>
+  );
+}
+
+function AttachmentChips({ files }: { files: { label: string; file?: string | null }[] }) {
+  const valid = files.filter(f => Boolean(f.file && typeof f.file === 'string' && f.file.trim().length > 0));
+  if (valid.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+        Attached Files & Documents ({valid.length})
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+        {valid.map((item, idx) => {
+          const url = getMediaUrl(item.file);
+          const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(item.file || '');
+          return (
+            <a
+              key={idx}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '8px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                color: '#1e293b',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#2563eb';
+                e.currentTarget.style.background = '#f0f7ff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.background = '#f8fafc';
+              }}
+            >
+              {isImg ? (
+                <div style={{ width: '100%', height: 64, borderRadius: 4, overflow: 'hidden', background: '#e2e8f0', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={url} alt={item.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as any).style.display = 'none'; }} />
+                </div>
+              ) : (
+                <div style={{ width: '100%', height: 64, borderRadius: 4, background: '#f1f5f9', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+              )}
+              <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                {item.label}
+              </span>
+              <span style={{ fontSize: 10, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>View File ↗</span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DetailSection({
+  title,
+  icon,
+  badgeTone = 'blue',
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  badgeTone?: 'blue' | 'emerald' | 'amber' | 'purple' | 'rose';
+  children: ReactNode;
+}) {
+  const toneMap = {
+    blue: { bg: '#eff6ff', fg: '#2563eb' },
+    emerald: { bg: '#ecfdf5', fg: '#059669' },
+    amber: { bg: '#fffbeb', fg: '#d97706' },
+    purple: { bg: '#f5f3ff', fg: '#7c3aed' },
+    rose: { bg: '#fff1f2', fg: '#e11d48' },
+  };
+  const t = toneMap[badgeTone] || toneMap.blue;
+  return (
+    <div className="view-card">
+      <div className="view-card__header">
+        <span className="view-card__icon" style={{ background: t.bg, color: t.fg }}>
+          {icon}
+        </span>
+        <h4 className="view-card__title">{title}</h4>
+      </div>
+      <div className="view-card__body">{children}</div>
+    </div>
+  );
+}
+
+function DetailItem({
+  label,
+  value,
+  children,
+  fullWidth = false,
+}: {
+  label: string;
+  value?: ReactNode;
+  children?: ReactNode;
+  fullWidth?: boolean;
+}) {
+  return (
+    <div className={`view-data-cell${fullWidth ? ' view-data-cell--full' : ''}`}>
+      <span className="view-data-label">{label}</span>
+      <div className="view-data-value">{children !== undefined ? children : (value ?? '—')}</div>
     </div>
   );
 }
@@ -1007,15 +1296,19 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
           <>
             <div className="ax-modal__header">
               <div>
-                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)' }}>
-                  SSL Complaint Details
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  SSL COMPLAINT · TICKET OVERVIEW
                 </span>
-                <h2 className="ax-modal__title" id="m-ssl-view-title">
-                  Assigned Complaint #{selectedItem.complaint_id}
-                  {selectedItem.uid ? ` (${selectedItem.uid})` : ''}
+                <h2 className="ax-modal__title" id="m-ssl-view-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>Complaint #{selectedItem.complaint_id}</span>
+                  {selectedItem.uid && (
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6 }}>
+                      {selectedItem.uid}
+                    </span>
+                  )}
                 </h2>
                 <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: '4px' }}>
-                  Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Date: {selectedItem.start_date || '—'}
+                  Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Registered: {selectedItem.start_date || selectedItem.complaint_date || '—'}
                 </div>
               </div>
               <button type="button" className="ax-modal__close" onClick={() => setSelectedItem(null)} aria-label="Close dialog">
@@ -1024,64 +1317,180 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
             </div>
 
             <div className="ax-modal__body">
-              <div className="ax-dash-grid">
-                <Field label="Beneficiary" span={4}>{selectedItem.beneficiary_name || '—'}</Field>
-                <Field label="Contact No" span={4}>{selectedItem.contact_no || '—'}</Field>
-                <Field label="Light No" span={4}>{selectedItem.light_no || '—'}</Field>
-                <Field label="District / Block" span={4}>{selectedItem.district || '—'} / {selectedItem.block || '—'}</Field>
-                <Field label="Panchayat / Ward" span={4}>
-                  {selectedItem.panchyat || selectedItem.panchayat || '—'} (Ward {selectedItem.ward_no || '—'})
-                </Field>
-                <Field label="Pole No" span={4}>{selectedItem.pole_no || '—'}</Field>
-                <Field label="Luminary No" span={4}>{selectedItem.luminary_no || '—'}</Field>
-                <Field label="Battery Serial No" span={4}>{selectedItem.battery_serial_no || '—'}</Field>
-                <Field label="Module No" span={4}>{selectedItem.module_no || '—'}</Field>
-                <Field label="GPS Coordinates" span={4}>{selectedItem.latitude || '—'}, {selectedItem.longitude || '—'}</Field>
-                <Field label="Installation Date" span={4}>{selectedItem.date_of_installation || '—'}</Field>
-                <Field label="Complaint Source" span={4}>{selectedItem.complaint_source || '—'}</Field>
-                <Field label="Full Address" span={12}>{selectedItem.address || '—'}</Field>
+              <div className="view-modal-wrap">
+                {/* ── Top Summary Strip ── */}
+                <div className="view-summary-strip">
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Complaint ID</span>
+                    <span className="view-summary-value" style={{ color: '#2563eb' }}>#{selectedItem.complaint_id}</span>
+                  </div>
+                  {selectedItem.uid && (
+                    <div className="view-summary-col">
+                      <span className="view-summary-label">System UID</span>
+                      <span className="view-summary-value">{selectedItem.uid}</span>
+                    </div>
+                  )}
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Ticket Status</span>
+                    <div>
+                      {isItemRejected(selectedItem) ? (
+                        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger">Rejected by Portal</span>
+                      ) : selectedItem.close_status === 1 || activeTab === 'closed' ? (
+                        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">Resolved & Approved</span>
+                      ) : selectedItem.status === 1 || activeTab === 'approved' ? (
+                        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--cyan">Pending Approval</span>
+                      ) : (
+                        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--accent">Open & Assigned</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Assigned Vendor</span>
+                    <span className="view-summary-value">{selectedItem.assigned_vendor_name || '—'}</span>
+                  </div>
+                  <div className="view-summary-col">
+                    <span className="view-summary-label">Complaint Date</span>
+                    <span className="view-summary-value">{selectedItem.start_date || selectedItem.complaint_date || '—'}</span>
+                  </div>
+                </div>
 
+                {/* ── Rejection Alert ── */}
                 {isItemRejected(selectedItem) && (
-                  <div className="ax-col--12">
-                    <div className="ax-alert ax-alert--danger" role="alert">
-                      <span className="ax-alert__icon">
-                        <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 9v4" /><path d="M12 16v.01" /><path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75" /></svg>
-                      </span>
-                      <div className="ax-alert__content">
-                        <p className="ax-alert__title">Complaint Rejected by Main Portal</p>
-                        {((selectedItem as any).reject_reason || (selectedItem as any).reject_remarks) && (
-                          <p className="ax-alert__message">Reason: {(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks}</p>
-                        )}
-                      </div>
+                  <div className="ax-alert ax-alert--danger" role="alert" style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                    <span className="ax-alert__icon" style={{ color: '#ef4444' }}>
+                      <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 9v4m0 4h.01M5 19h14a2 2 0 0 0 1.84-2.75L13.74 4a2 2 0 0 0-3.48 0L3.16 16.25A2 2 0 0 0 5 19z"/></svg>
+                    </span>
+                    <div className="ax-alert__content">
+                      <p className="ax-alert__title" style={{ fontWeight: 700, color: '#991b1b', marginBottom: 2 }}>Complaint Rejected by Main Portal</p>
+                      <p className="ax-alert__message" style={{ color: '#b91c1c' }}>
+                        Reason / Remarks: <strong>{(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks || (selectedItem as any).admin_remarks || 'Not specified'}</strong>
+                      </p>
                     </div>
                   </div>
                 )}
 
-                <div className="ax-col--12">
-                  <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
-                    Complaint Details
+                {/* ── 1. Beneficiary Information ── */}
+                <DetailSection
+                  title="Beneficiary & Resident Details"
+                  icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>}
+                  badgeTone="blue"
+                >
+                  <div className="view-grid-3">
+                    <DetailItem label="Beneficiary Name" value={selectedItem.beneficiary_name || '—'} />
+                    <DetailItem label="Contact Mobile">
+                      <PhoneLink phone={selectedItem.contact_no} />
+                    </DetailItem>
+                    <DetailItem label="Village / Ward">
+                      {selectedItem.village ? `${selectedItem.village}${selectedItem.ward_no ? ` (Ward ${selectedItem.ward_no})` : ''}` : (selectedItem.ward_no ? `Ward ${selectedItem.ward_no}` : '—')}
+                    </DetailItem>
+                    <DetailItem label="Full Resident Address" fullWidth value={selectedItem.address || '—'} />
                   </div>
-                  <div style={{ padding: 'var(--ax-space-3) var(--ax-space-4)', borderRadius: 'var(--ax-radius-md)', border: '1px solid var(--ax-border)', background: 'var(--ax-surface-subtle)', fontSize: 'var(--ax-text-sm)' }}>
-                    <b style={{ color: 'var(--ax-text-strong)' }}>Issue: {selectedItem.complaint_issue || '—'}</b>
-                    <div style={{ marginTop: '4px', color: 'var(--ax-text)' }}>{selectedItem.complaint || '—'}</div>
-                  </div>
-                </div>
+                </DetailSection>
 
-                {selectedItem.close_status === 1 && (
-                  <div className="ax-col--12">
-                    <div className="ax-alert ax-alert--success" role="status">
-                      <span className="ax-alert__icon">
-                        <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10" /></svg>
+                {/* ── 2. Location & Geographical Hierarchy ── */}
+                <DetailSection
+                  title="Location & Geographical Hierarchy"
+                  icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/></svg>}
+                  badgeTone="emerald"
+                >
+                  <div className="view-grid-3">
+                    <DetailItem label="State" value={selectedItem.state || 'Bihar'} />
+                    <DetailItem label="District" value={selectedItem.district || '—'} />
+                    <DetailItem label="Block" value={selectedItem.block || '—'} />
+                    <DetailItem label="Gram Panchayat" value={selectedItem.panchyat || selectedItem.panchayat || '—'} />
+                    <DetailItem label="Ward Number" value={selectedItem.ward_no ? `Ward ${selectedItem.ward_no}` : '—'} />
+                    <DetailItem label="GPS Coordinates">
+                      <GpsLink lat={selectedItem.latitude} lng={selectedItem.longitude} />
+                    </DetailItem>
+                  </div>
+                </DetailSection>
+
+                {/* ── 3. Solar Hardware & Technical Specifications ── */}
+                <DetailSection
+                  title="Solar Light & Hardware Specifications"
+                  icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>}
+                  badgeTone="amber"
+                >
+                  <div className="view-grid-3">
+                    <DetailItem label="Light Number" value={selectedItem.light_no || '—'} />
+                    <DetailItem label="Pole Number">
+                      {selectedItem.pole_no || '—'}{selectedItem.along_with_pole ? ` (${selectedItem.along_with_pole})` : ''}
+                    </DetailItem>
+                    <DetailItem label="Luminary Serial No" value={selectedItem.luminary_no || '—'} />
+                    <DetailItem label="Battery Serial No" value={selectedItem.battery_serial_no || '—'} />
+                    <DetailItem label="Solar Module Serial No" value={selectedItem.module_no || '—'} />
+                    <DetailItem label="Date of Installation" value={selectedItem.date_of_installation || selectedItem.inst_date || '—'} />
+                  </div>
+                </DetailSection>
+
+                {/* ── 4. Complaint & Problem Description ── */}
+                <DetailSection
+                  title="Complaint & Issue Details"
+                  icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>}
+                  badgeTone="purple"
+                >
+                  <div className="view-grid-3" style={{ marginBottom: 12 }}>
+                    <DetailItem label="Reported Issue Category">
+                      <span style={{ display: 'inline-block', background: '#f5f3ff', color: '#6d28d9', padding: '3px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5 }}>
+                        {selectedItem.complaint_issue || 'General Issue'}
                       </span>
-                      <div className="ax-alert__content">
-                        <p className="ax-alert__title">Resolution Details</p>
-                        <p className="ax-alert__message">
-                          Resolved by: <b>{selectedItem.resolved_by || '—'}</b> | Date: {selectedItem.close_date || '—'}
-                          {selectedItem.remarks && <><br />Remarks: {selectedItem.remarks}</>}
-                        </p>
-                      </div>
+                    </DetailItem>
+                    <DetailItem label="Complaint Source" value={selectedItem.complaint_source || '—'} />
+                    <DetailItem label="Complaint Date" value={selectedItem.start_date || selectedItem.complaint_date || '—'} />
+                  </div>
+
+                  <div className="view-data-cell view-data-cell--full">
+                    <span className="view-data-label" style={{ marginBottom: 4 }}>Detailed Problem Description</span>
+                    <div className="view-desc-box" style={{ borderLeft: '4px solid #7c3aed' }}>
+                      {selectedItem.complaint || 'No detailed remarks provided.'}
                     </div>
                   </div>
+
+                  <AttachmentChips
+                    files={[
+                      { label: 'Complaint Photo 1', file: selectedItem.file },
+                      { label: 'Complaint Photo 2', file: selectedItem.file2 },
+                      { label: 'Complaint Photo 3', file: selectedItem.file3 },
+                      { label: 'Complaint Photo 4', file: selectedItem.file4 },
+                    ]}
+                  />
+                </DetailSection>
+
+                {/* ── 5. Resolution & Verification Work Log ── */}
+                {(selectedItem.close_status === 1 || selectedItem.status === 1 || selectedItem.resolved_by || selectedItem.close_date || selectedItem.remarks || selectedItem.r_file) && (
+                  <DetailSection
+                    title="Resolution & Verification Work Log"
+                    icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+                    badgeTone="emerald"
+                  >
+                    <div className="view-grid-3" style={{ marginBottom: 12 }}>
+                      <DetailItem label="Resolved By" value={selectedItem.resolved_by || '—'} />
+                      <DetailItem label="Resolution Date" value={selectedItem.close_date || '—'} />
+                      <DetailItem label="Current Resolution Status">
+                        {selectedItem.close_status === 1 ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">Approved & Closed</span>
+                        ) : (
+                          <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--cyan">Submitted for Approval</span>
+                        )}
+                      </DetailItem>
+                    </div>
+
+                    <div className="view-data-cell view-data-cell--full">
+                      <span className="view-data-label" style={{ marginBottom: 4 }}>Resolution Remarks / Action Taken</span>
+                      <div className="view-desc-box" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderLeft: '4px solid #16a34a' }}>
+                        {selectedItem.remarks || 'No resolution remarks provided.'}
+                      </div>
+                    </div>
+
+                    <AttachmentChips
+                      files={[
+                        { label: 'Resolution Proof 1', file: selectedItem.r_file },
+                        { label: 'Resolution Proof 2', file: selectedItem.r_file2 },
+                        { label: 'Resolution Proof 3', file: selectedItem.r_file3 },
+                        { label: 'Resolution Proof 4', file: selectedItem.r_file4 },
+                      ]}
+                    />
+                  </DetailSection>
                 )}
               </div>
             </div>

@@ -238,6 +238,14 @@ const PunjabInstSSLDb = lazy(() => import('./components/V-Portal/punjab/Installa
 const PunjabInstSSLAssign = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/AssignedLights'));
 const PunjabInstSSLInstall = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallLight'));
 const PunjabInstSSLDetail = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallationDetail'));
+const PunjabInstSSLStatusView = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/StatusView'));
+
+// ── Arunachal Pradesh: Installation (SHL) ──
+const ArunachalInstSHLDb = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/Dashboard'));
+const ArunachalInstSHLAssign = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/AssignedLights'));
+const ArunachalInstSHLInstall = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/InstallLight'));
+const ArunachalInstSHLDetail = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/InstallationDetail'));
+const ArunachalInstSHLStatusView = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/StatusView'));
 
 const BiharInstSRTDb = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/Dashboard'));
 const BiharInstSRTRequest = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/RequestAccept'));
@@ -890,11 +898,45 @@ const shell: Record<string, PageComponent> = {
   'v/punjab/ssl/installation/install-light': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
   'punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+  'v/punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
+  'v/punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
+  'v/punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
   'punjab/ssl/installation/install-light': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/site': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/view': PunjabInstSSLDetail,
   'punjab/ssl': PunjabInstSSLDb,
   'punjab': PunjabInstSSLDb,
+
+  // Arunachal Pradesh Installation - SHL
+  'v/arunachal/shl/installation/dashboard': ArunachalInstSHLDb,
+  'arunachal/shl/installation/dashboard': ArunachalInstSHLDb,
+  'v/arunachal/shl/installation/view-assigned-light': ArunachalInstSHLAssign,
+  'arunachal/shl/installation/view-assigned-light': ArunachalInstSHLAssign,
+  'v/arunachal/shl/installation/install-light': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/install-light': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/install': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/install': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/update': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/update': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/view-installation': ArunachalInstSHLDetail,
+  'arunachal/shl/installation/view-installation': ArunachalInstSHLDetail,
+  'v/arunachal/shl/installation/complete-light': ArunachalInstSHLDetail,
+  'arunachal/shl/installation/complete-light': ArunachalInstSHLDetail,
+  'v/arunachal/shl/installation/status-view': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/status-view': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/dashboard-status': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/dashboard-status': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/view-dashboard/:status': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/view-dashboard/:status': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/view-dashboard': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/view-dashboard': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/districtwise-data/:status/:district': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/districtwise-data/:status/:district': ArunachalInstSHLStatusView,
+  'arunachal/shl': ArunachalInstSHLDb,
+  'arunachal': ArunachalInstSHLDb,
 
   // Installation - SRT
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,

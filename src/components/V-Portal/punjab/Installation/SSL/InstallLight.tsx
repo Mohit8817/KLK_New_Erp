@@ -1,918 +1,1051 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   punjabSslInstallationService,
-  getMediaUrl,
+  resolvePunjabMediaUrl,
   type PunjabLightDropdownItem,
   type PunjabLightDetail,
 } from '../../punjab-services';
 
-/* Unified single-card design */
-const ULA_STYLE_CSS = `
-.ula-inst-form .ax-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); overflow: hidden; }
-.ula-inst-form .ax-card__header { padding: var(--ax-space-5) var(--ax-space-6); border-bottom: 1px solid var(--ax-border-subtle); background: var(--ax-surface-subtle); display: flex; flex-direction: column; gap: var(--ax-space-4); }
-.ula-inst-form .ax-card__body { padding: var(--ax-space-6); }
+// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Assam & Bihar reference)
+const SINGLE_CARD_FORM_CSS = `
+.swp-inst-form .ax-card {
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-xl, 16px);
+  background: var(--ax-surface-solid);
+  box-shadow: var(--ax-shadow-sm);
+  overflow: hidden;
+}
+.swp-inst-form .ax-card__header {
+  padding: var(--ax-space-5) var(--ax-space-6);
+  border-bottom: 1px solid var(--ax-border-subtle);
+  background: var(--ax-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ax-space-4);
+}
+.swp-inst-form .ax-card__body { padding: var(--ax-space-6); }
 
-.ula-section-pills { display: flex; gap: var(--ax-space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-.ula-section-pill-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--ax-radius-pill); font-size: var(--ax-text-xs); font-weight: 500; white-space: nowrap; background: var(--ax-surface-solid); border: 1px solid var(--ax-border); color: var(--ax-text); cursor: pointer; transition: all 0.15s ease; }
-.ula-section-pill-btn:hover { border-color: var(--ax-accent); color: var(--ax-accent); background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid)); }
-.ula-section-pill-btn .pill-num { width: 18px; height: 18px; border-radius: 50%; background: var(--ax-surface-subtle); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+/* Quick Section Nav Pills */
+.swp-section-pills {
+  display: flex;
+  gap: var(--ax-space-2);
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.swp-section-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--ax-radius-pill);
+  font-size: var(--ax-text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  color: var(--ax-text);
+  cursor: pointer;
+  transition: all var(--ax-motion-fast) var(--ax-ease-standard);
+}
+.swp-section-pill-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid));
+}
+.swp-section-pill-btn .pill-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ax-surface-subtle);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
 
-.ula-section-block { padding-top: var(--ax-space-2); }
-.ula-section-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--ax-space-2); margin-bottom: var(--ax-space-5); padding-bottom: var(--ax-space-3); border-bottom: 1px solid var(--ax-border-subtle); }
-.ula-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
-.ula-section-divider { border: 0; border-top: 1px dashed var(--ax-border); margin: var(--ax-space-8) 0 var(--ax-space-6); }
+/* Section Block */
+.swp-section-block { padding-top: var(--ax-space-2); }
+.swp-section-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+  gap: var(--ax-space-2);
+  margin-bottom: var(--ax-space-5);
+  padding-bottom: var(--ax-space-3);
+  border-bottom: 1px solid var(--ax-border-subtle);
+}
+.swp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.swp-section-divider {
+  border: 0;
+  border-top: 1px dashed var(--ax-border);
+  margin: var(--ax-space-8) 0 var(--ax-space-6);
+}
 
+/* Floating Label Core */
 .ax-float { position: relative; width: 100%; }
-.ax-float__input { width: 100%; height: 46px; padding: 12px 14px 4px 14px; font-size: var(--ax-text-sm); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-md); color: var(--ax-text); outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-textarea.ax-float__input { height: auto; min-height: 84px; padding-top: 20px; resize: vertical; }
+.ax-float__input {
+  width: 100%;
+  height: 46px;
+  padding: 12px 14px 4px 14px;
+  font-size: var(--ax-text-sm);
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-md);
+  color: var(--ax-text);
+  outline: none;
+  transition: border-color var(--ax-motion-fast) var(--ax-ease-standard),
+              box-shadow var(--ax-motion-fast) var(--ax-ease-standard);
+}
 .ax-float__input::placeholder { color: transparent; }
-.ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
-.ax-float__input:disabled { opacity: .6; cursor: not-allowed; }
-.ax-float__label { position: absolute; inset-inline-start: 12px; top: 23px; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease; z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
-.ax-float__input:focus + .ax-float__label,
-.ax-float__input:not(:placeholder-shown) + .ax-float__label,
-.ax-float--select .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs); font-weight: 500; color: var(--ax-text-muted); }
-.ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
-.ax-float__input.is-invalid { border-color: var(--ax-danger-500) !important; }
-.ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger-500) 24%, transparent) !important; }
-.ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500) !important; }
-.ax-float__input.is-valid { border-color: var(--ax-success-500) !important; }
-.ax-float__input.is-valid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-success-500) 24%, transparent) !important; }
-.ax-float__input.is-valid + .ax-float__label { color: var(--ax-success-500) !important; }
+.ax-float__input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+}
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
 
-.ax-field-feedback { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--ax-text-2xs); min-height: 16px; }
-.ax-field-feedback--error { color: var(--ax-danger-500); }
+.ax-float__label {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0 4px;
+  font-size: var(--ax-text-sm);
+  color: var(--ax-text-subtle);
+  background: var(--ax-surface-solid);
+  border-radius: var(--ax-radius-xs);
+  pointer-events: none;
+  transition: top var(--ax-motion-fast) var(--ax-ease-standard),
+              font-size var(--ax-motion-fast) var(--ax-ease-standard),
+              color var(--ax-motion-fast) var(--ax-ease-standard);
+  z-index: 2;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ax-float__label.floating {
+  top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #2563eb;
+}
+.ax-float__label.has-val:not(.floating) {
+  top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted);
+}
 
-.ula-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
-@media (min-width: 1024px) { .ula-form-grid--3col { grid-template-columns: repeat(3, 1fr); } }
-.ula-form-col-span-full { grid-column: 1 / -1; }
-
-.ula-site-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--ax-space-3); }
-@media (min-width: 1024px) { .ula-site-info-grid { grid-template-columns: repeat(4, 1fr); } }
-.ula-site-info-card { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: var(--ax-space-3) var(--ax-space-4); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-lg); }
-.ula-site-info-card__label { font-size: var(--ax-text-2xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ax-text-muted); }
-.ula-site-info-card__value { font-size: var(--ax-text-base); font-weight: 600; color: var(--ax-text-strong); overflow-wrap: anywhere; }
-
-.ula-photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
-.ula-photo-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-lg); padding: var(--ax-space-4); background: var(--ax-surface-solid); display: flex; flex-direction: column; justify-content: space-between; gap: var(--ax-space-3); min-height: 170px; }
-.ula-photo-card.is-valid { border-color: var(--ax-success-500); }
-.ula-photo-card.is-invalid { border-color: var(--ax-danger-500); }
-
-.ula-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
+/* GPS Section 3 columns in 1 line */
+.swp-gps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .swp-gps-grid {
+    grid-template-columns: 1fr;
+  }
+}
 `;
 
-const MAX_FILE = 5 * 1024 * 1024; // 5120 KB as per API doc
+interface FloatingInputProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  required?: boolean;
+  disabled?: boolean;
+  type?: string;
+  placeholder?: string;
+}
 
-const iconProps = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
-const ICON_CROSSHAIR = (<svg style={{ width: 15, height: 15 }} {...iconProps}><circle cx="12" cy="12" r="10" /><line x1="22" y1="12" x2="18" y2="12" /><line x1="6" y1="12" x2="2" y2="12" /><line x1="12" y1="6" x2="12" y2="2" /><line x1="12" y1="22" x2="12" y2="18" /></svg>);
-const ICON_CAMERA = (<svg style={{ width: 15, height: 15 }} {...iconProps}><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>);
+function FloatingInput({ label, name, value, onChange, required, disabled, type = 'text', placeholder }: FloatingInputProps) {
+  const [focused, setFocused] = useState(false);
+  const hasVal = Boolean(value && String(value).length > 0);
 
-interface FieldStatusProps { className: string; isValid: boolean; isInvalid: boolean; }
+  return (
+    <div className="ax-float">
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder || label}
+        className="ax-float__input"
+      />
+      <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
+        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
+      </label>
+    </div>
+  );
+}
 
-const formatInfo = (v: unknown): string => {
-  if (v === null || v === undefined) return 'N/A';
-  const s = String(v).trim();
-  return s === '' || s === '0' ? 'N/A' : s;
-};
+/* ───────── Modern Upload Dropzone (matching reference code) ───────── */
+interface UploadDropzoneProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  accept?: string;
+  file: File | null;
+  preview?: string;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+}
 
-type FormState = {
-  wardNo: string;
-  poleNo: string;
-  beneficiaryName: string;
-  contactNo: string;
-  uuidNo: string;
-  batteryNo: string;
-  panelNo: string;
-  lightNo: string;
-  latitude: string;
-  longitude: string;
-  remarks: string;
-};
+function UploadDropzone({
+  id,
+  label,
+  required,
+  accept = 'image/*',
+  file,
+  preview,
+  onSelect,
+  onRemove,
+  error,
+}: UploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-const EMPTY_FORM: FormState = {
-  wardNo: '',
-  poleNo: '',
-  beneficiaryName: '',
-  contactNo: '',
-  uuidNo: '',
-  batteryNo: '',
-  panelNo: '',
-  lightNo: '',
-  latitude: '',
-  longitude: '',
-  remarks: '',
-};
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) {
+      onSelect(chosen);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : '#ffffff',
+          padding: file || preview ? '12px 14px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file || preview ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {preview ? (
+                <img
+                  src={preview}
+                  alt={label}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file ? file.name : label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Photo captured'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove photo"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              JPG, PNG or JPEG image — single file (Max 5MB)
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function Punjab_Installation_SSL_InstallLight() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editIdParam = searchParams.get('ssl_id') || searchParams.get('id') || searchParams.get('light_id');
-  const isEditMode = searchParams.get('edit') === 'true' || Boolean(searchParams.get('ssl_id'));
+  const editId = searchParams.get('ssl_id') || searchParams.get('id') || searchParams.get('edit_id') || searchParams.get('light_id');
+  const isEditMode = Boolean(editId);
 
-  const [dropdownLoading, setDropdownLoading] = useState(true);
-  const [lightOptions, setLightOptions] = useState<PunjabLightDropdownItem[]>([]);
-  const [selectedLightId, setSelectedLightId] = useState<string>(editIdParam ? String(editIdParam) : '');
-
-  const [detailLoading, setDetailLoading] = useState(false);
+  // Light Dropdown & Detail State
+  const [lightsList, setLightsList] = useState<PunjabLightDropdownItem[]>([]);
+  const [loadingLights, setLoadingLights] = useState(false);
+  const [selectedLightId, setSelectedLightId] = useState<string>('');
   const [siteDetail, setSiteDetail] = useState<PunjabLightDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [lightFile, setLightFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [lightFile2, setLightFile2] = useState<File | null>(null);
-  const [filePreview2, setFilePreview2] = useState<string | null>(null);
+  // Form State
+  const [beneficiaryName, setBeneficiaryName] = useState('');
+  const [contactNo, setContactNo] = useState('');
+  const [wardNo, setWardNo] = useState('');
+  const [poleNo, setPoleNo] = useState('');
+  const [uuidNo, setUuidNo] = useState('');
+  const [lightNo, setLightNo] = useState('');
+  const [panelNo, setPanelNo] = useState('');
+  const [batteryNo, setBatteryNo] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [remarks, setRemarks] = useState('');
 
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [existingImageUrl2, setExistingImageUrl2] = useState<string | null>(null);
+  // Photo Files & Previews (2 photos for Punjab SSL)
+  const [files, setFiles] = useState<{
+    light_file: File | null;
+    light_file2: File | null;
+  }>({
+    light_file: null,
+    light_file2: null,
+  });
 
-  const [gpsDetecting, setGpsDetecting] = useState(false);
-  const [gpsStatusMsg, setGpsStatusMsg] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<{
+    light_file: string;
+    light_file2: string;
+  }>({
+    light_file: '',
+    light_file2: '',
+  });
 
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
+  // UI State
   const [submitting, setSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
 
-  const fileInputRef1 = useRef<HTMLInputElement>(null);
-  const fileInputRef2 = useRef<HTMLInputElement>(null);
+  // Section refs for smooth scrolling
+  const sec1 = useRef<HTMLDivElement>(null);
+  const sec2 = useRef<HTMLDivElement>(null);
+  const sec3 = useRef<HTMLDivElement>(null);
+  const sec4 = useRef<HTMLDivElement>(null);
+  const sec5 = useRef<HTMLDivElement>(null);
 
-  const validate = (name: string, value: string): string => {
-    if (!value.trim()) return 'This field is required.';
-    if (name === 'contactNo') {
-      const clean = value.replace(/\D/g, '');
-      if (clean.length !== 10) return 'Contact number must be exactly 10 digits.';
-    }
-    return '';
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const setField = (name: keyof FormState, value: string) => {
-    setForm((p) => ({ ...p, [name]: value }));
-    if (name !== 'remarks') setErrors((p) => ({ ...p, [name]: validate(name, value) }));
-  };
-
-  const handleBlur = (name: string) => setTouched((p) => ({ ...p, [name]: true }));
-
-  const getStatus = (name: string, value: unknown): FieldStatusProps => {
-    if (!(touched[name] || submitted)) return { className: '', isValid: false, isInvalid: false };
-    if (errors[name]) return { className: 'is-invalid', isValid: false, isInvalid: true };
-    if (value !== null && value !== undefined && String(value).trim() !== '') return { className: 'is-valid', isValid: true, isInvalid: false };
-    return { className: '', isValid: false, isInvalid: false };
-  };
-
-  const resetForm = useCallback(() => {
-    setForm(EMPTY_FORM);
-    setLightFile(null);
-    setFilePreview(null);
-    setLightFile2(null);
-    setFilePreview2(null);
-    setExistingImageUrl(null);
-    setExistingImageUrl2(null);
-    setTouched({});
-    setErrors({});
-    setSubmitted(false);
-    setGpsStatusMsg(null);
-  }, []);
-
-  // Fetch Dropdown list
+  // 1. Load pending lights list (API 3) in Add mode
   useEffect(() => {
-    let active = true;
-    (async () => {
-      setDropdownLoading(true);
+    if (isEditMode) return;
+    const fetchLights = async () => {
       try {
-        const list = await punjabSslInstallationService.fetchLightNames();
-        if (active) setLightOptions(Array.isArray(list) ? list : []);
-      } catch (err) {
-        console.error('[InstallLight] fetch dropdown error:', err);
+        setLoadingLights(true);
+        const data = await punjabSslInstallationService.fetchLightNames();
+        setLightsList(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        console.error('[Punjab SSL Installation] fetchLightNames error:', err);
       } finally {
-        if (active) setDropdownLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, []);
-
-  // Fetch Light Details on Select or Edit Mode
-  const handleSelectLight = useCallback(async (idOrUid: string) => {
-    setSelectedLightId(idOrUid);
-    setExistingImageUrl(null);
-    setExistingImageUrl2(null);
-    setSuccessMsg(null);
-    setErrorMsg(null);
-
-    if (!idOrUid) {
-      setSiteDetail(null);
-      resetForm();
-      return;
-    }
-
-    setDetailLoading(true);
-    try {
-      let detail: PunjabLightDetail | null = null;
-      if (isEditMode) {
-        detail = await punjabSslInstallationService.getUpdateInstallLightLoad(idOrUid);
-      }
-      if (!detail) {
-        detail = await punjabSslInstallationService.fetchLightDetail(idOrUid);
-      }
-
-      setSiteDetail(detail);
-      if (detail) {
-        setForm((p) => ({
-          ...p,
-          wardNo: detail?.ward_no || '',
-          poleNo: detail?.pole_no || '',
-          beneficiaryName: detail?.beneficiary_name || '',
-          contactNo: detail?.contact_no || '',
-          uuidNo: detail?.uuid_no || '',
-          batteryNo: detail?.battery_serial_no || '',
-          panelNo: detail?.panel_no || '',
-          lightNo: detail?.light_no || '',
-          latitude: detail?.latitude ? String(detail.latitude) : '',
-          longitude: detail?.longitude ? String(detail.longitude) : '',
-          remarks: detail?.remark || detail?.inst_remark || '',
-        }));
-        if (detail.light_file) setExistingImageUrl(getMediaUrl(detail.light_file));
-        if (detail.light_file2) setExistingImageUrl2(getMediaUrl(detail.light_file2));
-        setErrors({});
-      }
-    } catch (err) {
-      console.error('[InstallLight] fetch detail error:', err);
-      setSiteDetail(null);
-      setErrorMsg('Could not fetch light details.');
-    } finally {
-      setDetailLoading(false);
-    }
-  }, [isEditMode, resetForm]);
-
-  useEffect(() => {
-    if (editIdParam) {
-      handleSelectLight(String(editIdParam));
-    }
-  }, [editIdParam, handleSelectLight]);
-
-  // GPS Detect
-  const handleDetectGps = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGpsStatusMsg('Geolocation is not supported by your browser.');
-      return;
-    }
-    setGpsDetecting(true);
-    setGpsStatusMsg('Acquiring high-accuracy GPS coordinates…');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lng = pos.coords.longitude.toFixed(6);
-        setField('latitude', lat);
-        setField('longitude', lng);
-        setGpsDetecting(false);
-        setGpsStatusMsg(`GPS Lock Acquired (Accuracy: ±${Math.round(pos.coords.accuracy)}m)`);
-      },
-      (err) => {
-        setGpsDetecting(false);
-        setGpsStatusMsg(`GPS failed: ${err.message}. Please enter manually.`);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  }, []);
-
-  // File Upload Handlers
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>, isSecond = false) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > MAX_FILE) {
-      setErrorMsg('File size exceeds the 5MB limit.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (isSecond) {
-        setLightFile2(file);
-        setFilePreview2(reader.result as string);
-      } else {
-        setLightFile(file);
-        setFilePreview(reader.result as string);
+        setLoadingLights(false);
       }
     };
-    reader.readAsDataURL(file);
+    fetchLights();
+  }, [isEditMode]);
+
+  // 2. Load light details on selection (API 4)
+  const handleLightSelect = async (lightIdOrUid: string) => {
+    setSelectedLightId(lightIdOrUid);
+    setSiteDetail(null);
+    if (!lightIdOrUid) return;
+
+    try {
+      setLoadingDetail(true);
+      const detail = await punjabSslInstallationService.fetchLightDetail(lightIdOrUid);
+      if (detail) {
+        setSiteDetail(detail);
+        if (detail.id) setSelectedLightId(String(detail.id));
+        setBeneficiaryName(detail.beneficiary_name || '');
+        setContactNo(detail.contact_no || '');
+        setWardNo(detail.ward_no || '');
+        setPoleNo(detail.pole_no || '');
+        setUuidNo(detail.uuid_no || '');
+        setLightNo(detail.light_no || '');
+        setPanelNo(detail.panel_no || '');
+        setBatteryNo(detail.battery_serial_no || detail.battery_no || '');
+        setLatitude(detail.latitude ? String(detail.latitude) : '');
+        setLongitude(detail.longitude ? String(detail.longitude) : '');
+        setRemarks(detail.remark || detail.inst_remark || '');
+      }
+    } catch (err: any) {
+      console.error('[Punjab SSL Installation] fetchLightDetail error:', err);
+      setFeedback({ type: 'danger', text: 'Failed to load light site details.' });
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
-  // Submit Handler
+  // 3. Load for Edit (API 6) if in Edit mode
+  useEffect(() => {
+    if (!editId) return;
+    let isMounted = true;
+    const loadForEdit = async () => {
+      setLoadingDetail(true);
+      try {
+        let detail = await punjabSslInstallationService.getUpdateInstallLightLoad(editId);
+        if (!detail) {
+          detail = await punjabSslInstallationService.fetchLightDetail(editId);
+        }
+        if (!isMounted) return;
+
+        if (detail) {
+          const idVal = String(detail.id || editId);
+          setSelectedLightId(idVal);
+          setSiteDetail(detail);
+          setBeneficiaryName(detail.beneficiary_name || '');
+          setContactNo(detail.contact_no || '');
+          setWardNo(detail.ward_no || '');
+          setPoleNo(detail.pole_no || '');
+          setUuidNo(detail.uuid_no || '');
+          setLightNo(detail.light_no || '');
+          setPanelNo(detail.panel_no || '');
+          setBatteryNo(detail.battery_serial_no || detail.battery_no || '');
+          setLatitude(detail.latitude ? String(detail.latitude) : '');
+          setLongitude(detail.longitude ? String(detail.longitude) : '');
+          setRemarks(detail.remark || detail.inst_remark || '');
+
+          if (detail.light_file) {
+            setPreviews((p) => ({ ...p, light_file: resolvePunjabMediaUrl(detail.light_file) }));
+          }
+          if (detail.light_file2) {
+            setPreviews((p) => ({ ...p, light_file2: resolvePunjabMediaUrl(detail.light_file2) }));
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) setFeedback({ type: 'danger', text: err?.message || 'Failed to load light details for edit' });
+      } finally {
+        if (isMounted) setLoadingDetail(false);
+      }
+    };
+    loadForEdit();
+    return () => { isMounted = false; };
+  }, [editId]);
+
+  // Remove photo handler
+  const removeFile = (field: keyof typeof files) => {
+    setFiles((prev) => ({ ...prev, [field]: null }));
+    if (previews[field]) {
+      URL.revokeObjectURL(previews[field]);
+      setPreviews((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Geolocation
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(String(pos.coords.latitude.toFixed(6)));
+        setLongitude(String(pos.coords.longitude.toFixed(6)));
+        setGettingLocation(false);
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        alert('Could not retrieve GPS coordinates. Please enter manually.');
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Form Submit (API 5 or API 7)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setSuccessMsg(null);
-    setErrorMsg(null);
-
     const sslNumericId = siteDetail?.id || Number(selectedLightId);
     if (!sslNumericId) {
-      setErrorMsg('Please select a valid Light ID from the dropdown.');
+      setFeedback({ type: 'danger', text: 'Please select an installation light first.' });
+      scrollTo(sec1);
       return;
     }
 
-    // Validate required fields
-    const newErrors: Record<string, string> = {};
-    const reqKeys: (keyof FormState)[] = [
-      'beneficiaryName',
-      'contactNo',
-      'wardNo',
-      'uuidNo',
-      'poleNo',
-      'lightNo',
-      'panelNo',
-      'batteryNo',
-      'latitude',
-      'longitude',
-    ];
+    if (!beneficiaryName.trim()) {
+      setFeedback({ type: 'danger', text: 'Beneficiary Name is required.' });
+      scrollTo(sec2);
+      return;
+    }
+    const cleanPhone = contactNo.replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      setFeedback({ type: 'danger', text: 'Contact Number must be exactly 10 digits.' });
+      scrollTo(sec2);
+      return;
+    }
+    if (!wardNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Ward Number is required.' });
+      scrollTo(sec2);
+      return;
+    }
+    if (!poleNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Pole Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!uuidNo.trim()) {
+      setFeedback({ type: 'danger', text: 'UUID Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!lightNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Light Luminary Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!panelNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Solar Panel Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!batteryNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Battery Serial Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
 
-    reqKeys.forEach((key) => {
-      const err = validate(key, form[key]);
-      if (err) newErrors[key] = err;
-    });
+    if (!latitude.trim() || !longitude.trim()) {
+      setFeedback({ type: 'danger', text: 'GPS Latitude and Longitude are required.' });
+      scrollTo(sec4);
+      return;
+    }
 
     if (!isEditMode) {
-      if (!lightFile) newErrors['light_file'] = 'Light Image 1 is required.';
-      if (!lightFile2) newErrors['light_file2'] = 'Light Image 2 is required.';
+      if (!files.light_file) {
+        setFeedback({ type: 'danger', text: 'Light Installation Photo 1 is required.' });
+        scrollTo(sec5);
+        return;
+      }
+      if (!files.light_file2) {
+        setFeedback({ type: 'danger', text: 'Light Installation Photo 2 is required.' });
+        scrollTo(sec5);
+        return;
+      }
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      setErrorMsg('Please correct the highlighted errors before submitting.');
-      return;
-    }
-
-    setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('ssl_id', String(sslNumericId));
-      formData.append('uuid_no', form.uuidNo.trim());
-      formData.append('pole_no', form.poleNo.trim());
-      formData.append('light_no', form.lightNo.trim());
-      formData.append('panel_no', form.panelNo.trim());
-      formData.append('battery_serial_no', form.batteryNo.trim());
-      formData.append('beneficiary_name', form.beneficiaryName.trim());
-      formData.append('ward_no', form.wardNo.trim());
-      formData.append('contact_no', form.contactNo.trim().replace(/\D/g, ''));
-      formData.append('latitude', form.latitude.trim());
-      formData.append('longitude', form.longitude.trim());
-      if (form.remarks.trim()) {
-        formData.append('remark', form.remarks.trim());
-      }
+      setSubmitting(true);
+      setFeedback(null);
 
-      if (lightFile) {
-        formData.append('light_file', lightFile);
-      }
-      if (lightFile2) {
-        formData.append('light_file2', lightFile2);
-      }
-
-      let res;
+      const fd = new FormData();
+      fd.append('ssl_id', String(sslNumericId));
+      fd.append('id', String(sslNumericId));
+      fd.append('light_id', String(sslNumericId));
       if (isEditMode) {
-        res = await punjabSslInstallationService.updateInstallLightStore(formData);
-      } else {
-        res = await punjabSslInstallationService.storeLightDetails(formData);
+        fd.append('update_id', String(sslNumericId));
       }
 
-      setSuccessMsg(res.message || 'Light installed successfully!');
+      fd.append('beneficiary_name', beneficiaryName.trim());
+      fd.append('contact_no', cleanPhone);
+      fd.append('ward_no', wardNo.trim());
+      fd.append('pole_no', poleNo.trim());
+      fd.append('uuid_no', uuidNo.trim());
+      fd.append('light_no', lightNo.trim());
+      fd.append('panel_no', panelNo.trim());
+      fd.append('battery_no', batteryNo.trim());
+      fd.append('battery_serial_no', batteryNo.trim());
+
+      fd.append('latitude', latitude.trim());
+      fd.append('longitude', longitude.trim());
+      if (remarks.trim()) {
+        fd.append('remark', remarks.trim());
+        fd.append('remarks', remarks.trim());
+      }
+
+      if (files.light_file) {
+        fd.append('light_file', files.light_file);
+      }
+      if (files.light_file2) {
+        fd.append('light_file2', files.light_file2);
+      }
+
+      if (isEditMode) {
+        const res = await punjabSslInstallationService.updateInstallLightStore(fd);
+        setFeedback({ type: 'success', text: res.message || 'Light Installation Details Updated Successfully!' });
+      } else {
+        const res = await punjabSslInstallationService.storeLightDetails(fd);
+        setFeedback({ type: 'success', text: res.message || 'Light Installed Successfully!' });
+      }
+
       setTimeout(() => {
         navigate('/v/punjab/ssl/installation/complete-light#Completed');
       }, 1500);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to submit light installation.');
+      console.error('[Punjab SSL Installation] submit error:', err);
+      setFeedback({ type: 'danger', text: err?.message || 'Failed to submit Punjab SSL installation.' });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="ax-page ula-inst-form">
-      <style>{ULA_STYLE_CSS}</style>
+    <div className="ax-page swp-inst-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
 
+      {/* ── Page Head ── */}
       <PageHead
-        title={isEditMode ? 'Update Installed Light' : 'Install Light Details'}
-        subtitle="Record physical site parameters, hardware serials, and geo-tagged inspection photos in Punjab"
+        title={isEditMode ? 'Edit Installation Details' : 'Punjab SSL-Installation Details'}
+        subtitle={
+          isEditMode
+            ? 'Update solar street light equipment numbers, GPS coordinates, and verification photos.'
+            : 'Capture Solar Street Light installation execution data, serial numbers, geocoordinates, and verification photos.'
+        }
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Punjab' },
           { label: 'Installation' },
-          { label: 'SSL', href: '/v/punjab/ssl/installation/dashboard' },
-          { label: isEditMode ? 'Update Light' : 'Install Light' },
+          { label: 'SSL' },
+          { label: isEditMode ? 'Edit Details' : 'Installation Details' },
         ]}
+        actions={
+          <Link to="/v/punjab/ssl/installation/complete-light" className="ax-btn ax-btn--secondary ax-btn--sm">
+            View Installed Lights
+          </Link>
+        }
       />
 
-      {successMsg && (
-        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">
-            <p className="ax-alert__message">{successMsg}</p>
-          </div>
+      {feedback && (
+        <div className={`ax-alert ax-alert--${feedback.type}`} style={{ marginBottom: 'var(--ax-space-4)' }}>
+          <div className="ax-alert__title">{feedback.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{feedback.text}</div>
         </div>
       )}
 
-      {errorMsg && (
-        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">
-            <p className="ax-alert__message">{errorMsg}</p>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="ax-card">
-          <div className="ax-card__header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                  {isEditMode ? 'Edit Light Installation Record' : 'Punjab SSL Installation Form'}
-                </h3>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                  State: <b>Punjab</b> · All fields marked with * are mandatory
-                </p>
-              </div>
-
-              {/* Light Picker Dropdown */}
-              <div style={{ width: 280 }}>
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: '100%', fontWeight: 600 }}
-                  value={selectedLightId}
-                  disabled={dropdownLoading || isEditMode}
-                  onChange={(e) => handleSelectLight(e.target.value)}
-                >
-                  <option value="">-- Select Allocated Light --</option>
-                  {lightOptions.map((opt) => (
-                    <option key={opt.id || opt.unique_id} value={opt.id || opt.unique_id}>
-                      {opt.unique_id} {opt.panchayat ? `(${opt.panchayat})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <form onSubmit={handleSubmit} className="ax-card">
+        {/* ── Header with Section Pills ── */}
+        <div className="ax-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                {isEditMode ? 'Edit Installation Details' : 'Solar Street Light Installation Form'}
+              </h2>
+              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted)', margin: '2px 0 0' }}>
+                {isEditMode
+                  ? 'Update existing solar street light equipment numbers, GPS coordinates, and verification photos.'
+                  : 'Fill out installation details and upload site completion evidence for department verification.'}
+              </p>
             </div>
-          </div>
-
-          <div className="ax-card__body">
-            {detailLoading && (
-              <div style={{ textAlign: 'center', padding: 32 }}>
-                <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading light installation profile…
-              </div>
-            )}
-
-            {/* Section 1: Pre-Allocated Site Details */}
             {siteDetail && (
-              <div className="ula-section-block">
-                <div className="ula-section-header">
-                  <div className="ula-section-title-wrap">
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                      1. Site & Administrative Details
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="ula-site-info-grid">
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Unique ID</span>
-                    <span className="ula-site-info-card__value" style={{ color: 'var(--ax-accent)' }}>
-                      {formatInfo(siteDetail.unique_id || siteDetail.id)}
-                    </span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">District</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.district)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Block</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.block)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Panchayat</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.panchayat)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Sarpanch Name</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.sarpanch_name)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Sarpanch Contact</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.sarpanch_contact)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Phase</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.phase)}</span>
-                  </div>
-                  <div className="ula-site-info-card">
-                    <span className="ula-site-info-card__label">Work Order No.</span>
-                    <span className="ula-site-info-card__value">{formatInfo(siteDetail.wo_no)}</span>
-                  </div>
-                </div>
-
-                <hr className="ula-section-divider" />
-              </div>
-            )}
-
-            {/* Section 2: Beneficiary Details */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    2. Beneficiary Details
-                  </h4>
-                </div>
-              </div>
-
-              <div className="ula-form-grid ula-form-grid--3col">
-                <div className="ax-float">
-                  <input
-                    id="beneficiaryName"
-                    type="text"
-                    className={`ax-float__input ${getStatus('beneficiaryName', form.beneficiaryName).className}`}
-                    placeholder=" "
-                    value={form.beneficiaryName}
-                    onChange={(e) => setField('beneficiaryName', e.target.value)}
-                    onBlur={() => handleBlur('beneficiaryName')}
-                  />
-                  <label htmlFor="beneficiaryName" className="ax-float__label">Beneficiary Name *</label>
-                  {errors.beneficiaryName && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.beneficiaryName}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="contactNo"
-                    type="tel"
-                    maxLength={10}
-                    className={`ax-float__input ${getStatus('contactNo', form.contactNo).className}`}
-                    placeholder=" "
-                    value={form.contactNo}
-                    onChange={(e) => setField('contactNo', e.target.value)}
-                    onBlur={() => handleBlur('contactNo')}
-                  />
-                  <label htmlFor="contactNo" className="ax-float__label">Beneficiary Contact No. (10 digits) *</label>
-                  {errors.contactNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.contactNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="wardNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('wardNo', form.wardNo).className}`}
-                    placeholder=" "
-                    value={form.wardNo}
-                    onChange={(e) => setField('wardNo', e.target.value)}
-                    onBlur={() => handleBlur('wardNo')}
-                  />
-                  <label htmlFor="wardNo" className="ax-float__label">Ward Number *</label>
-                  {errors.wardNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.wardNo}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
-            </div>
-
-            {/* Section 3: Hardware Serials */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    3. Installed Hardware Identifiers
-                  </h4>
-                </div>
-              </div>
-
-              <div className="ula-form-grid ula-form-grid--3col">
-                <div className="ax-float">
-                  <input
-                    id="uuidNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('uuidNo', form.uuidNo).className}`}
-                    placeholder=" "
-                    value={form.uuidNo}
-                    onChange={(e) => setField('uuidNo', e.target.value)}
-                    onBlur={() => handleBlur('uuidNo')}
-                  />
-                  <label htmlFor="uuidNo" className="ax-float__label">UUID Number *</label>
-                  {errors.uuidNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.uuidNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="poleNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('poleNo', form.poleNo).className}`}
-                    placeholder=" "
-                    value={form.poleNo}
-                    onChange={(e) => setField('poleNo', e.target.value)}
-                    onBlur={() => handleBlur('poleNo')}
-                  />
-                  <label htmlFor="poleNo" className="ax-float__label">Pole Number *</label>
-                  {errors.poleNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.poleNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="lightNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('lightNo', form.lightNo).className}`}
-                    placeholder=" "
-                    value={form.lightNo}
-                    onChange={(e) => setField('lightNo', e.target.value)}
-                    onBlur={() => handleBlur('lightNo')}
-                  />
-                  <label htmlFor="lightNo" className="ax-float__label">Light Luminary Number *</label>
-                  {errors.lightNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.lightNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="panelNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('panelNo', form.panelNo).className}`}
-                    placeholder=" "
-                    value={form.panelNo}
-                    onChange={(e) => setField('panelNo', e.target.value)}
-                    onBlur={() => handleBlur('panelNo')}
-                  />
-                  <label htmlFor="panelNo" className="ax-float__label">Solar Panel Serial No. *</label>
-                  {errors.panelNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.panelNo}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="batteryNo"
-                    type="text"
-                    className={`ax-float__input ${getStatus('batteryNo', form.batteryNo).className}`}
-                    placeholder=" "
-                    value={form.batteryNo}
-                    onChange={(e) => setField('batteryNo', e.target.value)}
-                    onBlur={() => handleBlur('batteryNo')}
-                  />
-                  <label htmlFor="batteryNo" className="ax-float__label">Battery Serial No. *</label>
-                  {errors.batteryNo && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.batteryNo}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
-            </div>
-
-            {/* Section 4: Geolocation */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    4. GPS Coordinates & Geolocation
-                  </h4>
-                </div>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={handleDetectGps}
-                  disabled={gpsDetecting}
-                >
-                  {ICON_CROSSHAIR}
-                  <span>{gpsDetecting ? 'Detecting…' : 'Capture Current GPS'}</span>
-                </button>
-              </div>
-
-              {gpsStatusMsg && (
-                <div style={{ fontSize: 12, color: 'var(--ax-accent)', marginBottom: 12 }}>
-                  {gpsStatusMsg}
-                </div>
-              )}
-
-              <div className="ula-form-grid">
-                <div className="ax-float">
-                  <input
-                    id="latitude"
-                    type="text"
-                    className={`ax-float__input ${getStatus('latitude', form.latitude).className}`}
-                    placeholder=" "
-                    value={form.latitude}
-                    onChange={(e) => setField('latitude', e.target.value)}
-                    onBlur={() => handleBlur('latitude')}
-                  />
-                  <label htmlFor="latitude" className="ax-float__label">Latitude (e.g. 30.9010) *</label>
-                  {errors.latitude && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.latitude}</div>
-                  )}
-                </div>
-
-                <div className="ax-float">
-                  <input
-                    id="longitude"
-                    type="text"
-                    className={`ax-float__input ${getStatus('longitude', form.longitude).className}`}
-                    placeholder=" "
-                    value={form.longitude}
-                    onChange={(e) => setField('longitude', e.target.value)}
-                    onBlur={() => handleBlur('longitude')}
-                  />
-                  <label htmlFor="longitude" className="ax-float__label">Longitude (e.g. 75.8573) *</label>
-                  {errors.longitude && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.longitude}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
-            </div>
-
-            {/* Section 5: Photos */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    5. Site Installation Photographs (Max 5MB)
-                  </h4>
-                </div>
-              </div>
-
-              <div className="ula-photo-grid">
-                {/* Photo 1: light_file */}
-                <div className={`ula-photo-card ${filePreview || existingImageUrl ? 'is-valid' : errors.light_file ? 'is-invalid' : ''}`}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>
-                      Light Installation Photo 1 {!isEditMode && <span style={{ color: 'var(--ax-danger-500)' }}>*</span>}
-                    </span>
-                    <p style={{ margin: '2px 0 10px', fontSize: 11, color: 'var(--ax-text-muted)' }}>
-                      Pole view showing installed luminary & panel
-                    </p>
-                  </div>
-
-                  {(filePreview || existingImageUrl) && (
-                    <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                      <img
-                        src={filePreview || existingImageUrl!}
-                        alt="Photo 1 Preview"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  )}
-
-                  <input
-                    ref={fileInputRef1}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileChange(e, false)}
-                  />
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      style={{ flex: 1 }}
-                      onClick={() => fileInputRef1.current?.click()}
-                    >
-                      {ICON_CAMERA}
-                      <span>{filePreview || existingImageUrl ? 'Change Photo' : 'Select Photo'}</span>
-                    </button>
-                    {filePreview && (
-                      <button
-                        type="button"
-                        className="ax-btn ax-btn--ghost ax-btn--sm"
-                        onClick={() => {
-                          setLightFile(null);
-                          setFilePreview(null);
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {errors.light_file && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.light_file}</div>
-                  )}
-                </div>
-
-                {/* Photo 2: light_file2 */}
-                <div className={`ula-photo-card ${filePreview2 || existingImageUrl2 ? 'is-valid' : errors.light_file2 ? 'is-invalid' : ''}`}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>
-                      Light Installation Photo 2 {!isEditMode && <span style={{ color: 'var(--ax-danger-500)' }}>*</span>}
-                    </span>
-                    <p style={{ margin: '2px 0 10px', fontSize: 11, color: 'var(--ax-text-muted)' }}>
-                      Close-up photo of battery box & serial tag
-                    </p>
-                  </div>
-
-                  {(filePreview2 || existingImageUrl2) && (
-                    <div style={{ position: 'relative', width: '100%', height: 140, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ax-border)' }}>
-                      <img
-                        src={filePreview2 || existingImageUrl2!}
-                        alt="Photo 2 Preview"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  )}
-
-                  <input
-                    ref={fileInputRef2}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    style={{ display: 'none' }}
-                    onChange={(e) => handleFileChange(e, true)}
-                  />
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--secondary ax-btn--sm"
-                      style={{ flex: 1 }}
-                      onClick={() => fileInputRef2.current?.click()}
-                    >
-                      {ICON_CAMERA}
-                      <span>{filePreview2 || existingImageUrl2 ? 'Change Photo' : 'Select Photo'}</span>
-                    </button>
-                    {filePreview2 && (
-                      <button
-                        type="button"
-                        className="ax-btn ax-btn--ghost ax-btn--sm"
-                        onClick={() => {
-                          setLightFile2(null);
-                          setFilePreview2(null);
-                        }}
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {errors.light_file2 && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.light_file2}</div>
-                  )}
-                </div>
-              </div>
-
-              <hr className="ula-section-divider" />
-            </div>
-
-            {/* Section 6: Remarks */}
-            <div className="ula-section-block">
-              <div className="ula-section-header">
-                <div className="ula-section-title-wrap">
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ax-text-muted)' }}>
-                    6. Inspection & Installation Remarks
-                  </h4>
-                </div>
-              </div>
-
-              <div className="ax-float">
-                <textarea
-                  id="remarks"
-                  className="ax-float__input"
-                  placeholder=" "
-                  value={form.remarks}
-                  onChange={(e) => setField('remarks', e.target.value)}
-                />
-                <label htmlFor="remarks" className="ax-float__label">Remarks (Optional)</label>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sticky Bottom Submission Bar */}
-        <div className="ula-form-sticky-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>
-              {isEditMode ? 'Editing Installation' : 'New Light Installation'}
-            </span>
-            {siteDetail && (
-              <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
-                #{siteDetail.unique_id || siteDetail.id}
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
+                {siteDetail.beneficiary_name ? `${siteDetail.beneficiary_name} (${siteDetail.district || ''})` : `Light #${siteDetail.unique_id || siteDetail.id}`}
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--ghost"
-              onClick={resetForm}
-              disabled={submitting}
-            >
-              Reset Form
+          {/* Quick Nav Pills */}
+          <div className="swp-section-pills">
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+              <span className="pill-num">1</span> Site Selection
             </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+              <span className="pill-num">2</span> Beneficiary Info
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> Equipment Numbers
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
+              <span className="pill-num">4</span> Geo & Remarks
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
+              <span className="pill-num">5</span> Site Photos
+            </button>
+          </div>
+        </div>
+
+        <div className="ax-card__body">
+          {/* ════════ Section 1: Site Selection ════════ */}
+          <div ref={sec1} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Select Installation Site</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                  {isEditMode
+                    ? 'Editing existing installation record'
+                    : 'Choose from accepted lights ready for installation in Punjab'}
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div className="ax-float">
+                {isEditMode ? (
+                  <>
+                    <input
+                      id="site_id_select"
+                      type="text"
+                      className="ax-float__input"
+                      value={`Light #${selectedLightId} - ${siteDetail?.unique_id || ''} (${siteDetail?.district || ''})`}
+                      disabled
+                    />
+                    <label htmlFor="site_id_select" className="ax-float__label floating">
+                      Installation Light
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <select
+                      id="site_id_select"
+                      className="ax-float__input"
+                      value={selectedLightId}
+                      onChange={(e) => handleLightSelect(e.target.value)}
+                      disabled={loadingLights || submitting}
+                      required
+                    >
+                      <option value="">-- Choose Assigned Punjab SSL Light --</option>
+                      {lightsList.map((item) => {
+                        const optVal = String(item.id || item.unique_id);
+                        return (
+                          <option key={optVal} value={optVal}>
+                            #{item.unique_id} {item.panchayat ? `· ${item.panchayat}` : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <label htmlFor="site_id_select" className="ax-float__label floating">
+                      Assigned Light <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+                    </label>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {loadingDetail && (
+              <div style={{ padding: '16px 0', color: '#2563eb', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="ax-spinner" /> Fetching light specifications & prefilled details...
+              </div>
+            )}
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 2: Beneficiary / Location Information ════════ */}
+          <div ref={sec2} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Beneficiary & Location Information</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                  Beneficiary identity, contact, ward and sanction details
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                label="Beneficiary Name"
+                name="beneficiary_name"
+                value={beneficiaryName}
+                onChange={(e) => setBeneficiaryName(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Contact Number (10 Digits)"
+                name="contact_no"
+                value={contactNo}
+                onChange={(e) => setContactNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Ward Number"
+                name="ward_no"
+                value={wardNo}
+                onChange={(e) => setWardNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Pole Number"
+                name="pole_no"
+                value={poleNo}
+                onChange={(e) => setPoleNo(e.target.value)}
+                required
+              />
+              <FloatingInput label="Panchayat" name="panchayat" value={siteDetail?.panchayat || ''} onChange={() => {}} disabled />
+              <FloatingInput label="Block" name="block" value={siteDetail?.block || ''} onChange={() => {}} disabled />
+              <FloatingInput label="District" name="district" value={siteDetail?.district || ''} onChange={() => {}} disabled />
+              <FloatingInput label="State" name="state" value={siteDetail?.state || 'Punjab'} onChange={() => {}} disabled />
+              <FloatingInput label="Sarpanch Name" name="sarpanch_name" value={siteDetail?.sarpanch_name || ''} onChange={() => {}} disabled />
+              <FloatingInput label="Sarpanch Contact" name="sarpanch_contact" value={siteDetail?.sarpanch_contact || ''} onChange={() => {}} disabled />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 3: Equipment Numbers ════════ */}
+          <div ref={sec3} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Equipment & Serial Numbers</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                  UUID, Pole, Luminary, Solar Panel and Battery serial numbers installed
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                label="UUID Number"
+                name="uuid_no"
+                value={uuidNo}
+                onChange={(e) => setUuidNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Pole Number"
+                name="pole_no_eq"
+                value={poleNo}
+                onChange={(e) => setPoleNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Light Luminary Number"
+                name="light_no"
+                value={lightNo}
+                onChange={(e) => setLightNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Solar Panel Number"
+                name="panel_no"
+                value={panelNo}
+                onChange={(e) => setPanelNo(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Battery Serial Number"
+                name="battery_no"
+                value={batteryNo}
+                onChange={(e) => setBatteryNo(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 4: Geo Coordinates & Remarks ════════ */}
+          <div ref={sec4} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. GPS Coordinates & Remarks</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                  Exact site geotag coordinates (latitude & longitude)
+                </span>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={detectLocation}
+                disabled={gettingLocation}
+              >
+                {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
+              </button>
+            </div>
+
+            <div className="swp-gps-grid">
+              <FloatingInput
+                label="Installation Latitude"
+                name="latitude"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Installation Longitude"
+                name="longitude"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                required
+              />
+              <FloatingInput
+                label="Installation Remarks (optional)"
+                name="remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 5: Photo Uploads ════════ */}
+          <div ref={sec5} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Installation Photo Evidence</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                  Upload clear photos of both required SSL views (Luminary, Pole & Panel)
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <UploadDropzone
+                id="light_file"
+                label="1. Light Installation Photo 1"
+                required={!isEditMode}
+                file={files.light_file}
+                preview={previews.light_file}
+                onSelect={(f) => {
+                  setFiles((prev) => ({ ...prev, light_file: f }));
+                  setPreviews((prev) => ({ ...prev, light_file: URL.createObjectURL(f) }));
+                }}
+                onRemove={() => removeFile('light_file')}
+              />
+
+              <UploadDropzone
+                id="light_file2"
+                label="2. Light Installation Photo 2"
+                required={!isEditMode}
+                file={files.light_file2}
+                preview={previews.light_file2}
+                onSelect={(f) => {
+                  setFiles((prev) => ({ ...prev, light_file2: f }));
+                  setPreviews((prev) => ({ ...prev, light_file2: URL.createObjectURL(f) }));
+                }}
+                onRemove={() => removeFile('light_file2')}
+              />
+            </div>
+          </div>
+
+          {/* ════════ Submit Footer ════════ */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <Link to="/v/punjab/ssl/installation/complete-light" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
             <button
               type="submit"
               className="ax-btn ax-btn--primary"
-              disabled={submitting}
+              disabled={submitting || !selectedLightId}
+              style={{ minWidth: 160 }}
             >
-              {submitting ? 'Submitting to Server…' : isEditMode ? 'Update Installation' : 'Submit Light Installation'}
+              {submitting
+                ? isEditMode
+                  ? 'Updating Installation...'
+                  : 'Submitting Installation...'
+                : isEditMode
+                ? 'Update Installation Details'
+                : 'Submit Installation Report'}
             </button>
           </div>
         </div>
