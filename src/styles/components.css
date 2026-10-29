@@ -1812,6 +1812,49 @@
   .ax-modal__dialog--xl {
     max-width: 960px;
   }
+  .ax-modal__dialog--white {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    height: min(88vh, 840px) !important;
+    max-height: calc(100vh - 48px) !important;
+    overflow: hidden !important;
+  }
+  .ax-modal__dialog--white > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+  .ax-modal__dialog--white .ax-modal__header {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 18px 24px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__dialog--white .ax-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    background: #ffffff !important;
+    padding: 24px !important;
+  }
+  .ax-modal__dialog--white .ax-modal__footer {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 16px 24px !important;
+    z-index: 5 !important;
+  }
   .ax-modal__dialog--fullscreen {
     max-width: none;
     width: 100vw;
@@ -4367,7 +4410,50 @@
     .ax-modal__title {
       font-size: var(--ax-text-md);
     }
-    .ax-modal__dialog--fullscreen {
+    .ax-modal__dialog--white {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    height: min(88vh, 840px) !important;
+    max-height: calc(100vh - 48px) !important;
+    overflow: hidden !important;
+  }
+  .ax-modal__dialog--white > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+  .ax-modal__dialog--white .ax-modal__header {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 18px 24px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__dialog--white .ax-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    background: #ffffff !important;
+    padding: 24px !important;
+  }
+  .ax-modal__dialog--white .ax-modal__footer {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 16px 24px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__dialog--fullscreen {
       border-radius: 0;
     }
 
@@ -4594,7 +4680,50 @@
       .ax-modal__dialog--xl {
         max-height: calc(100dvh - var(--ax-space-6));
       }
-      .ax-modal__dialog--fullscreen {
+      .ax-modal__dialog--white {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    height: min(88vh, 840px) !important;
+    max-height: calc(100vh - 48px) !important;
+    overflow: hidden !important;
+  }
+  .ax-modal__dialog--white > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+  .ax-modal__dialog--white .ax-modal__header {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 18px 24px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__dialog--white .ax-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    background: #ffffff !important;
+    padding: 24px !important;
+  }
+  .ax-modal__dialog--white .ax-modal__footer {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 16px 24px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__dialog--fullscreen {
         height: 100dvh;
         max-height: 100dvh;
       }

@@ -29,6 +29,7 @@ type TabKey = 'open' | 'approved' | 'closed';
 
 interface Toast { id: number; msg: string; }
 let TID = 0;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const X = (
   <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -76,98 +77,247 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
 
-  /* ── Floating labels (.ax-float) ── */
-  .solar-erp-page .ax-float,
+  /* ── Pure White Professional Modal (Fixed, Non-jumping, Scrollable) ── */
+  .ax-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 24px 16px !important;
+    overflow: hidden !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+  }
+  .ax-modal__backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: transparent !important;
+  }
+  .ax-modal__dialog,
+  .ax-modal__dialog--lg,
+  .ax-modal__dialog--scrollable,
+  .ax-modal__dialog--white {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 840px !important;
+    height: min(88vh, 840px) !important;
+    max-height: calc(100vh - 48px) !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .ax-modal__dialog > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+  .ax-modal__header {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 18px 24px !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__title {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.3 !important;
+  }
+  .ax-modal__close {
+    width: 32px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    color: #64748b !important;
+    background: #f1f5f9 !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__close:hover {
+    color: #0f172a !important;
+    background: #e2e8f0 !important;
+  }
+  .ax-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    background: #ffffff !important;
+    padding: 24px !important;
+  }
+  .ax-modal__body::-webkit-scrollbar {
+    width: 6px;
+  }
+  .ax-modal__body::-webkit-scrollbar-track {
+    background: #ffffff;
+  }
+  .ax-modal__body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .ax-modal__body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  .ax-modal__footer {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 16px 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__footer .ax-btn--ghost,
+  .ax-modal__footer .ax-btn--secondary {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 8px 18px !important;
+    border-radius: 8px !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__footer .ax-btn--ghost:hover,
+  .ax-modal__footer .ax-btn--secondary:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+  .ax-modal__footer .ax-btn--primary {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: 1px solid #2563eb !important;
+    font-weight: 600 !important;
+    padding: 8px 24px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__footer .ax-btn--primary:hover {
+    background: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+  }
+
+  /* ── Floating labels: Clean professional styling ── */
   .ax-modal .ax-float { position: relative; width: 100%; }
-  .solar-erp-page .ax-float__input::placeholder,
-  .ax-modal .ax-float__input::placeholder { color: transparent; }
-  .solar-erp-page .ax-float__label,
+  .ax-modal .ax-float__input {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    padding: 0 14px !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal .ax-float__input::placeholder { color: transparent !important; }
+  .ax-modal .ax-float__input:hover { border-color: #94a3b8 !important; }
+  .ax-modal .ax-float__input:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+    outline: none !important;
+  }
+  .ax-modal .ax-float__input.is-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+  }
+  .ax-modal .ax-float__input.is-valid {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+  }
   .ax-modal .ax-float__label {
     position: absolute;
-    inset-inline-start: var(--ax-space-3);
+    inset-inline-start: 12px;
     top: 50%;
     transform: translateY(-50%);
     margin: 0;
-    padding-inline: 4px;
-    font-size: var(--ax-text-sm);
-    color: var(--ax-text-subtle);
-    background: var(--ax-surface-overlay, var(--ax-surface-solid, var(--ax-surface)));
-    border-radius: var(--ax-radius-xs);
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    background: #ffffff !important;
+    border-radius: 4px;
     pointer-events: none;
-    z-index: 2;
-    transition:
-      top var(--ax-motion-fast) var(--ax-ease-standard),
-      font-size var(--ax-motion-fast) var(--ax-ease-standard),
-      color var(--ax-motion-fast) var(--ax-ease-standard);
+    z-index: 3;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .solar-erp-page .ax-float--icon .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__label { inset-inline-start: var(--ax-space-8); }
-  .solar-erp-page .ax-float--area .ax-float__label,
-  .ax-modal .ax-float--area .ax-float__label { top: calc(var(--ax-space-3) + 9px); transform: none; }
-  .solar-erp-page .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .solar-erp-page .ax-float--select .ax-float__label,
-  .solar-erp-page .ax-float--date .ax-float__label,
-  .solar-erp-page .ax-float--file .ax-float__label,
-  .solar-erp-page .ax-float--locked .ax-float__label,
-  .solar-erp-page .ax-float--area .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label,
   .ax-modal .ax-float__input:focus + .ax-float__label,
   .ax-modal .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .ax-modal .ax-float--select .ax-float__label,
   .ax-modal .ax-float--date .ax-float__label,
-  .ax-modal .ax-float--file .ax-float__label,
   .ax-modal .ax-float--locked .ax-float__label,
   .ax-modal .ax-float--area .ax-float__input:focus + .ax-float__label,
   .ax-modal .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
     top: 0;
-    font-size: var(--ax-text-2xs);
-    color: var(--ax-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
   }
-  .solar-erp-page .ax-float--icon .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label {
-    inset-inline-start: var(--ax-space-3);
+  .ax-modal .ax-float__input:focus + .ax-float__label { color: #2563eb !important; }
+  .ax-modal .ax-float__input.is-invalid + .ax-float__label { color: #ef4444 !important; }
+  .ax-modal .ax-float--area .ax-float__label { top: 14px; transform: none; }
+  .ax-modal .ax-textarea.ax-float__input {
+    height: auto !important;
+    min-height: 96px !important;
+    padding: 14px !important;
+    line-height: 1.5 !important;
   }
-  .solar-erp-page .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
-  .solar-erp-page .ax-float__input.is-invalid + .ax-float__label,
-  .ax-modal .ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500); }
-  .solar-erp-page .ax-float__input.is-valid + .ax-float__label,
-  .ax-modal .ax-float__input.is-valid + .ax-float__label { color: var(--ax-success-500); }
-  .solar-erp-page .ax-float--file .ax-float__input,
-  .ax-modal .ax-float--file .ax-float__input {
-    display: flex;
-    align-items: center;
-    padding-top: 6px;
-    font-size: var(--ax-text-xs);
-    cursor: pointer;
-  }
-  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button,
-  .ax-modal .ax-float--file .ax-float__input::file-selector-button {
-    margin-inline-end: var(--ax-space-3);
-    padding: 3px 10px;
-    border: 1px solid var(--ax-border);
-    border-radius: var(--ax-radius-xs);
-    background: var(--ax-surface-subtle);
-    color: var(--ax-text);
-    font-size: var(--ax-text-xs);
-    cursor: pointer;
-    transition: background var(--ax-motion-fast);
-  }
-  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button:hover,
-  .ax-modal .ax-float--file .ax-float__input::file-selector-button:hover {
-    background: var(--ax-fill-hover);
+  .ax-modal .ax-float--locked .ax-float__input {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    cursor: not-allowed !important;
   }
 
-  @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
-    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-    .solar-erp-page .ax-card__actions { width: 100%; justify-content: stretch; margin-left: 0; }
-    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+  .assigned-overview-card {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+  }
+
+  @media (max-width: 768px) {
+    .ax-modal {
+      padding: 12px !important;
+    }
+    .ax-modal__dialog,
+    .ax-modal__dialog--lg,
+    .ax-modal__dialog--scrollable,
+    .ax-modal__dialog--white {
+      max-width: 100% !important;
+      height: calc(100vh - 24px) !important;
+      max-height: calc(100vh - 24px) !important;
+      border-radius: 12px !important;
+    }
+    .ax-modal__body {
+      padding: 16px !important;
+    }
+    .ax-modal__header,
+    .ax-modal__footer {
+      padding: 14px 16px !important;
+    }
   }
 `;
 
@@ -216,6 +366,94 @@ function Field({ label, span, children }: { label: string; span: number; childre
     <div className={`ax-col--${span}`}>
       <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 2 }}>{children}</div>
+    </div>
+  );
+}
+
+/* ───────── Upload dropzone (dashed card) ───────── */
+function UploadDrop({
+  id, label, file, onPick, onClear,
+  accept = 'image/*,.pdf',
+  hint = 'PDF, JPG or PNG — single file',
+}: {
+  id: string; label: string; file: File | null;
+  onPick: (f: File | null) => void; onClear: () => void;
+  accept?: string; hint?: string;
+}) {
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 6 }}>
+        {label}
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); onPick(e.dataTransfer.files?.[0] || null); }}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 10, textAlign: 'center', cursor: 'pointer',
+          padding: '24px 16px', minHeight: 140,
+          border: `1.5px dashed ${drag ? 'var(--ax-accent)' : '#cbd5e1'}`,
+          borderRadius: 12,
+          background: drag ? '#eff6ff' : '#ffffff',
+          transition: 'all .15s ease',
+        }}
+      >
+        <input
+          ref={inputRef}
+          id={id}
+          type="file"
+          accept={accept}
+          style={{ display: 'none' }}
+          onChange={(e) => { onPick(e.target.files?.[0] || null); e.target.value = ''; }}
+        />
+
+        <span style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: '#eff6ff', color: '#2563eb',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1" />
+            <path d="M9 15l3 -3l3 3" />
+            <path d="M12 12v9" />
+          </svg>
+        </span>
+
+        {file ? (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981', wordBreak: 'break-all' }}>
+              ✓ {file.name}
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>
+              {(file.size / 1024).toFixed(1)} KB ·{' '}
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--xs"
+                onClick={(e) => { e.stopPropagation(); onClear(); }}
+                style={{ padding: '0 6px', height: 'auto', color: '#ef4444' }}
+              >
+                Remove
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+              Click to upload or drag &amp; drop
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>{hint}</div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -329,6 +567,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     timers.current[id] = window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ttl);
   }, []);
 
+  const pickResolveFile = (f: File | null, setter: (f: File | null) => void) => {
+    if (!f) return;
+    const okType = /^image\/(jpeg|png|webp)$/.test(f.type) || f.type === 'application/pdf';
+    if (!okType) { setResolveError('Only PDF, JPG, PNG or WebP files are allowed.'); return; }
+    if (f.size > MAX_FILE_SIZE) { setResolveError('File size must be 5 MB or less.'); return; }
+    setResolveError(null);
+    setter(f);
+  };
+
   const openResolveModal = (item: BiharComplaintItem) => {
     setAttempted(false);
     setResolvingItem(item);
@@ -395,6 +642,10 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
       setResolveSubmitting(false);
     }
   };
+
+  const contactInvalid = attempted && contactNumber.trim().replace(/\D/g, '').length !== 10;
+  const emailInvalid = attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail));
+  const mobileInvalid = attempted && rMobile.trim().replace(/\D/g, '').length !== 10;
 
   const deferredQuery = useDeferredValue(searchQuery);
 
@@ -747,7 +998,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
         open={Boolean(selectedItem)}
         onClose={() => setSelectedItem(null)}
         labelledBy="m-srt-view-title"
-        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--white ax-modal__dialog--scrollable"
       >
         {selectedItem && (
           <>
@@ -874,7 +1125,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
         open={Boolean(resolvingItem)}
         onClose={() => !resolveSubmitting && setResolvingItem(null)}
         labelledBy="m-srt-resolve-title"
-        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--white ax-modal__dialog--scrollable"
         closeOnBackdrop={!resolveSubmitting}
       >
         {resolvingItem && (
@@ -917,12 +1168,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
               )}
 
               {/* ── Read-only Complaint Overview ── */}
-              <div style={{
-                background: 'var(--ax-surface-subtle)',
-                border: '1px solid var(--ax-border)',
-                borderRadius: 'var(--ax-radius-md)',
-                padding: 'var(--ax-space-4)',
-              }}>
+              <div className="assigned-overview-card" style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 'var(--ax-text-2xs)', fontWeight: 'var(--ax-weight-bold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-text-muted)', marginBottom: 'var(--ax-space-3)' }}>
                   Complaint Information
                 </div>
@@ -1060,124 +1306,36 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   )}
                 </div>
 
-                {/* Proof Image 1 (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                {/* Proof Images & Documents */}
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--ax-space-4)' }}>
+                  <UploadDrop
                     id="res-srt-rfile"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile(e.target.files?.[0] || null)}
+                    label="Image 1 (Optional)"
+                    file={rFile}
+                    onPick={(f) => pickResolveFile(f, setRFile)}
+                    onClear={() => setRFile(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-srt-rfile">
-                    Proof Image 1 (Optional)
-                  </label>
-                  {rFile && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile.name} ({(rFile.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
-                </div>
-
-                {/* Proof Image 2 (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                  <UploadDrop
                     id="res-srt-rfile2"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile2(e.target.files?.[0] || null)}
+                    label="Image 2 (Optional)"
+                    file={rFile2}
+                    onPick={(f) => pickResolveFile(f, setRFile2)}
+                    onClear={() => setRFile2(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-srt-rfile2">
-                    Proof Image 2 (Optional)
-                  </label>
-                  {rFile2 && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile2(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile2 && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile2.name} ({(rFile2.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
-                </div>
-
-                {/* Proof Image 3 (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                  <UploadDrop
                     id="res-srt-rfile3"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile3(e.target.files?.[0] || null)}
+                    label="Image 3 (Optional)"
+                    file={rFile3}
+                    onPick={(f) => pickResolveFile(f, setRFile3)}
+                    onClear={() => setRFile3(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-srt-rfile3">
-                    Proof Image 3 (Optional)
-                  </label>
-                  {rFile3 && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile3(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile3 && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile3.name} ({(rFile3.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
-                </div>
-
-                {/* Proof Image 4 (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                  <UploadDrop
                     id="res-srt-rfile4"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile4(e.target.files?.[0] || null)}
+                    label="Image 4 / Test Sheet (Optional)"
+                    file={rFile4}
+                    onPick={(f) => pickResolveFile(f, setRFile4)}
+                    onClear={() => setRFile4(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-srt-rfile4">
-                    Proof Image 4 / Test Sheet (Optional)
-                  </label>
-                  {rFile4 && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile4(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile4 && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile4.name} ({(rFile4.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
                 </div>
 
                 {/* Remarks */}

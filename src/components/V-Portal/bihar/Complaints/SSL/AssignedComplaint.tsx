@@ -30,6 +30,8 @@ type TabKey = 'open' | 'approved' | 'closed';
 interface Toast { id: number; msg: string; }
 let TID = 0;
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
 const X = (
   <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M18 6l-12 12" />
@@ -37,7 +39,7 @@ const X = (
   </svg>
 );
 
-/* ───────── Responsive page CSS (same as View Complaint) ───────── */
+/* ───────── Page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -76,91 +78,6 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
 
-  /* ── Floating labels (.ax-float) ── */
-  .solar-erp-page .ax-float,
-  .ax-modal .ax-float { position: relative; width: 100%; }
-  .solar-erp-page .ax-float__input::placeholder,
-  .ax-modal .ax-float__input::placeholder { color: transparent; }
-  .solar-erp-page .ax-float__label,
-  .ax-modal .ax-float__label {
-    position: absolute;
-    inset-inline-start: var(--ax-space-3);
-    top: 50%;
-    transform: translateY(-50%);
-    margin: 0;
-    padding-inline: 4px;
-    font-size: var(--ax-text-sm);
-    color: var(--ax-text-subtle);
-    background: var(--ax-surface-overlay, var(--ax-surface-solid, var(--ax-surface)));
-    border-radius: var(--ax-radius-xs);
-    pointer-events: none;
-    z-index: 2;
-    transition:
-      top var(--ax-motion-fast) var(--ax-ease-standard),
-      font-size var(--ax-motion-fast) var(--ax-ease-standard),
-      color var(--ax-motion-fast) var(--ax-ease-standard);
-  }
-  .solar-erp-page .ax-float--icon .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__label { inset-inline-start: var(--ax-space-8); }
-  .solar-erp-page .ax-float--area .ax-float__label,
-  .ax-modal .ax-float--area .ax-float__label { top: calc(var(--ax-space-3) + 9px); transform: none; }
-  .solar-erp-page .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .solar-erp-page .ax-float--select .ax-float__label,
-  .solar-erp-page .ax-float--date .ax-float__label,
-  .solar-erp-page .ax-float--file .ax-float__label,
-  .solar-erp-page .ax-float--locked .ax-float__label,
-  .solar-erp-page .ax-float--area .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .ax-modal .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .ax-modal .ax-float--select .ax-float__label,
-  .ax-modal .ax-float--date .ax-float__label,
-  .ax-modal .ax-float--file .ax-float__label,
-  .ax-modal .ax-float--locked .ax-float__label,
-  .ax-modal .ax-float--area .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
-    top: 0;
-    font-size: var(--ax-text-2xs);
-    color: var(--ax-text-muted);
-  }
-  .solar-erp-page .ax-float--icon .ax-float__input:focus + .ax-float__label,
-  .solar-erp-page .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float--icon .ax-float__input:not(:placeholder-shown) + .ax-float__label {
-    inset-inline-start: var(--ax-space-3);
-  }
-  .solar-erp-page .ax-float__input:focus + .ax-float__label,
-  .ax-modal .ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
-  .solar-erp-page .ax-float__input.is-invalid + .ax-float__label,
-  .ax-modal .ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500); }
-  .solar-erp-page .ax-float__input.is-valid + .ax-float__label,
-  .ax-modal .ax-float__input.is-valid + .ax-float__label { color: var(--ax-success-500); }
-  .solar-erp-page .ax-float--file .ax-float__input,
-  .ax-modal .ax-float--file .ax-float__input {
-    display: flex;
-    align-items: center;
-    padding-top: 6px;
-    font-size: var(--ax-text-xs);
-    cursor: pointer;
-  }
-  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button,
-  .ax-modal .ax-float--file .ax-float__input::file-selector-button {
-    margin-inline-end: var(--ax-space-3);
-    padding: 3px 10px;
-    border: 1px solid var(--ax-border);
-    border-radius: var(--ax-radius-xs);
-    background: var(--ax-surface-subtle);
-    color: var(--ax-text);
-    font-size: var(--ax-text-xs);
-    cursor: pointer;
-    transition: background var(--ax-motion-fast);
-  }
-  .solar-erp-page .ax-float--file .ax-float__input::file-selector-button:hover,
-  .ax-modal .ax-float--file .ax-float__input::file-selector-button:hover {
-    background: var(--ax-fill-hover);
-  }
-
   @media (max-width: 760px) {
     .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
     .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
@@ -168,6 +85,249 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+  }
+
+  /* ── Pure White Professional Modal (Fixed, Non-jumping, Scrollable) ── */
+  .ax-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 24px 16px !important;
+    overflow: hidden !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+  }
+  .ax-modal__backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: transparent !important;
+  }
+  .ax-modal__dialog,
+  .ax-modal__dialog--lg,
+  .ax-modal__dialog--scrollable,
+  .ax-modal__dialog--white {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 840px !important;
+    height: min(88vh, 840px) !important;
+    max-height: calc(100vh - 48px) !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .ax-modal__dialog > form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+  .ax-modal__header {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 18px 24px !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__title {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    line-height: 1.3 !important;
+  }
+  .ax-modal__close {
+    width: 32px !important;
+    height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    color: #64748b !important;
+    background: #f1f5f9 !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__close:hover {
+    color: #0f172a !important;
+    background: #e2e8f0 !important;
+  }
+  .ax-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    background: #ffffff !important;
+    padding: 24px !important;
+  }
+  .ax-modal__body::-webkit-scrollbar {
+    width: 6px;
+  }
+  .ax-modal__body::-webkit-scrollbar-track {
+    background: #ffffff;
+  }
+  .ax-modal__body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .ax-modal__body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  .ax-modal__footer {
+    flex: 0 0 auto !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 16px 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    z-index: 5 !important;
+  }
+  .ax-modal__footer .ax-btn--ghost,
+  .ax-modal__footer .ax-btn--secondary {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    padding: 8px 18px !important;
+    border-radius: 8px !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__footer .ax-btn--ghost:hover,
+  .ax-modal__footer .ax-btn--secondary:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+  .ax-modal__footer .ax-btn--primary {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: 1px solid #2563eb !important;
+    font-weight: 600 !important;
+    padding: 8px 24px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal__footer .ax-btn--primary:hover {
+    background: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+  }
+
+  /* ── Floating labels: Clean professional styling ── */
+  .ax-modal .ax-float { position: relative; width: 100%; }
+  .ax-modal .ax-float__input {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    color: #0f172a !important;
+    font-size: 14px !important;
+    padding: 0 14px !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
+  }
+  .ax-modal .ax-float__input::placeholder { color: transparent !important; }
+  .ax-modal .ax-float__input:hover { border-color: #94a3b8 !important; }
+  .ax-modal .ax-float__input:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+    outline: none !important;
+  }
+  .ax-modal .ax-float__input.is-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+  }
+  .ax-modal .ax-float__input.is-valid {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+  }
+  .ax-modal .ax-float__label {
+    position: absolute;
+    inset-inline-start: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    background: #ffffff !important;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 3;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .ax-modal .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float__input:not(:placeholder-shown) + .ax-float__label,
+  .ax-modal .ax-float--date .ax-float__label,
+  .ax-modal .ax-float--locked .ax-float__label,
+  .ax-modal .ax-float--area .ax-float__input:focus + .ax-float__label,
+  .ax-modal .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+    top: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .ax-modal .ax-float__input:focus + .ax-float__label { color: #2563eb !important; }
+  .ax-modal .ax-float__input.is-invalid + .ax-float__label { color: #ef4444 !important; }
+  .ax-modal .ax-float--area .ax-float__label { top: 14px; transform: none; }
+  .ax-modal .ax-textarea.ax-float__input {
+    height: auto !important;
+    min-height: 96px !important;
+    padding: 14px !important;
+    line-height: 1.5 !important;
+  }
+  .ax-modal .ax-float--locked .ax-float__input {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    cursor: not-allowed !important;
+  }
+
+  .assigned-overview-card {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+  }
+
+  @media (max-width: 768px) {
+    .ax-modal {
+      padding: 12px !important;
+    }
+    .ax-modal__dialog,
+    .ax-modal__dialog--lg,
+    .ax-modal__dialog--scrollable,
+    .ax-modal__dialog--white {
+      max-width: 100% !important;
+      height: calc(100vh - 24px) !important;
+      max-height: calc(100vh - 24px) !important;
+      border-radius: 12px !important;
+    }
+    .ax-modal__body {
+      padding: 16px !important;
+    }
+    .ax-modal__header,
+    .ax-modal__footer {
+      padding: 14px 16px !important;
+    }
   }
 `;
 
@@ -220,6 +380,94 @@ function Field({ label, span, children }: { label: string; span: number; childre
   );
 }
 
+/* ───────── Upload dropzone (dashed card) ───────── */
+function UploadDrop({
+  id, label, file, onPick, onClear,
+  accept = 'image/*,.pdf',
+  hint = 'PDF, JPG or PNG — single file',
+}: {
+  id: string; label: string; file: File | null;
+  onPick: (f: File | null) => void; onClear: () => void;
+  accept?: string; hint?: string;
+}) {
+  const [drag, setDrag] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 6 }}>
+        {label}
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); } }}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); onPick(e.dataTransfer.files?.[0] || null); }}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 10, textAlign: 'center', cursor: 'pointer',
+          padding: '28px 16px', minHeight: 150,
+          border: `1.5px dashed ${drag ? 'var(--ax-accent)' : 'color-mix(in oklab, var(--ax-accent) 35%, var(--ax-border))'}`,
+          borderRadius: 12,
+          background: drag ? 'rgba(var(--ax-accent-rgb), 0.06)' : '#ffffff',
+          transition: 'all .15s ease',
+        }}
+      >
+        <input
+          ref={inputRef}
+          id={id}
+          type="file"
+          accept={accept}
+          style={{ display: 'none' }}
+          onChange={(e) => { onPick(e.target.files?.[0] || null); e.target.value = ''; }}
+        />
+
+        <span style={{
+          width: 44, height: 44, borderRadius: '50%',
+          background: 'rgba(var(--ax-accent-rgb), 0.12)', color: 'var(--ax-accent)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1" />
+            <path d="M9 15l3 -3l3 3" />
+            <path d="M12 12v9" />
+          </svg>
+        </span>
+
+        {file ? (
+          <>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ax-success-500)', wordBreak: 'break-all' }}>
+              ✓ {file.name}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
+              {(file.size / 1024).toFixed(1)} KB ·{' '}
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--xs"
+                onClick={(e) => { e.stopPropagation(); onClear(); }}
+                style={{ padding: '0 6px', height: 'auto', color: 'var(--ax-danger-500)' }}
+              >
+                Remove
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+              Click to upload or drag &amp; drop
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>{hint}</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const isItemRejected = (item: BiharComplaintItem | any): boolean => {
   if (!item) return false;
   const statusStr = String(item.status ?? '').toLowerCase().trim();
@@ -242,6 +490,8 @@ const isItemRejected = (item: BiharComplaintItem | any): boolean => {
 /* ── Table column config ── */
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
+const digits = (v: string) => v.trim().replace(/\D/g, '');
+const isEmail = (v: string) => /\S+@\S+\.\S+/.test(v);
 
 interface Col { key: string; th: string; get: (r: Row) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
 
@@ -309,14 +559,10 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Column Visibility
-  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
-  const isVisible = (key: string) => !hiddenCols.includes(key);
-
   // Detail Modal
   const [selectedItem, setSelectedItem] = useState<BiharComplaintItem | null>(null);
 
-  // ── Resolve / Close Complaint Modal State ──
+  // Resolve / Close Complaint Modal
   const [resolvingItem, setResolvingItem] = useState<BiharComplaintItem | null>(null);
   const [resolvedBy, setResolvedBy] = useState('');
   const [beneficiaryName, setBeneficiaryName] = useState('');
@@ -330,15 +576,24 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   const [rFile2, setRFile2] = useState<File | null>(null);
   const [resolveSubmitting, setResolveSubmitting] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
-  const [successToast, setSuccessToast] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
+
+  // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const timers = useRef<Record<number, number>>({});
   const showToast = useCallback((msg: string, ttl = 3500) => {
     const id = ++TID;
     setToasts((t) => [...t, { id, msg }]);
-    timers.current[id] = window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ttl);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ttl);
   }, []);
+
+  const pickResolveFile = (f: File | null, setter: (f: File | null) => void) => {
+    if (!f) return;
+    const okType = /^image\/(jpeg|png|webp)$/.test(f.type) || f.type === 'application/pdf';
+    if (!okType) { setResolveError('Only PDF, JPG, PNG or WebP files are allowed.'); return; }
+    if (f.size > MAX_FILE_SIZE) { setResolveError('File size must be 5 MB or less.'); return; }
+    setResolveError(null);
+    setter(f);
+  };
 
   const openResolveModal = (item: BiharComplaintItem) => {
     setAttempted(false);
@@ -354,54 +609,6 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     setCloseSms('Yes');
     setRFile(null);
     setRFile2(null);
-  };
-
-  const handleResolveSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resolvingItem) return;
-    setAttempted(true);
-
-    if (!resolvedBy.trim()) { setResolveError('Resolved By is required.'); return; }
-    if (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) { setResolveError('Please enter a valid resolver email address.'); return; }
-    const cleanMobile = rMobile.trim().replace(/\D/g, '');
-    if (cleanMobile.length !== 10) { setResolveError('Resolver mobile must be exactly 10 digits.'); return; }
-    if (!closingDate) { setResolveError('Closing date is required.'); return; }
-    if (!remarks.trim()) { setResolveError('Remarks are required.'); return; }
-    const cleanContact = contactNo.trim().replace(/\D/g, '');
-    if (cleanContact.length !== 10) { setResolveError('Beneficiary contact number must be exactly 10 digits.'); return; }
-
-    setResolveSubmitting(true);
-    setResolveError(null);
-
-    try {
-      const fd = new FormData();
-      fd.append('ssl_id', String(resolvingItem.id));
-      fd.append('resolved_by', resolvedBy.trim());
-      fd.append('r_email', rEmail.trim());
-      fd.append('r_mobile', cleanMobile);
-      fd.append('manual_close_date', closingDate);
-      fd.append('remarks', remarks.trim());
-      fd.append('close_sms', closeSms);
-      fd.append('beneficiary_name', beneficiaryName.trim());
-      fd.append('contact_no', cleanContact);
-      if (rFile) fd.append('r_file', rFile);
-      if (rFile2) fd.append('r_file2', rFile2);
-
-      const res = await biharComplaintService.closeUpdateSslComplaint(fd);
-      if (res.success) {
-        const msg = res.message || 'Complaint Resolved successfully.';
-        setSuccessToast(msg);
-        showToast(msg, 3500);
-        setResolvingItem(null);
-        await loadData();
-      } else {
-        setResolveError(res.message || 'Failed to resolve complaint.');
-      }
-    } catch (err: any) {
-      setResolveError(err?.message || 'Error occurred while resolving complaint.');
-    } finally {
-      setResolveSubmitting(false);
-    }
   };
 
   const deferredQuery = useDeferredValue(searchQuery);
@@ -425,6 +632,54 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleResolveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resolvingItem) return;
+    setAttempted(true);
+
+    const cleanMobile = digits(rMobile);
+    const cleanContact = digits(contactNo);
+
+    if (!resolvedBy.trim()) { setResolveError('Resolved By is required.'); return; }
+    if (!beneficiaryName.trim()) { setResolveError('Beneficiary name is required.'); return; }
+    if (!isEmail(rEmail)) { setResolveError('Please enter a valid resolver email address.'); return; }
+    if (cleanMobile.length !== 10) { setResolveError('Resolver mobile must be exactly 10 digits.'); return; }
+    if (!closingDate) { setResolveError('Closing date is required.'); return; }
+    if (!remarks.trim()) { setResolveError('Remarks are required.'); return; }
+    if (cleanContact.length !== 10) { setResolveError('Beneficiary contact number must be exactly 10 digits.'); return; }
+
+    setResolveSubmitting(true);
+    setResolveError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append('ssl_id', String(resolvingItem.id));
+      fd.append('resolved_by', resolvedBy.trim());
+      fd.append('r_email', rEmail.trim());
+      fd.append('r_mobile', cleanMobile);
+      fd.append('manual_close_date', closingDate);
+      fd.append('remarks', remarks.trim());
+      fd.append('close_sms', closeSms);
+      fd.append('beneficiary_name', beneficiaryName.trim());
+      fd.append('contact_no', cleanContact);
+      if (rFile) fd.append('r_file', rFile);
+      if (rFile2) fd.append('r_file2', rFile2);
+
+      const res = await biharComplaintService.closeUpdateSslComplaint(fd);
+      if (res.success) {
+        showToast(res.message || 'Complaint Resolved successfully.');
+        setResolvingItem(null);
+        await loadData();
+      } else {
+        setResolveError(res.message || 'Failed to resolve complaint.');
+      }
+    } catch (err: any) {
+      setResolveError(err?.message || 'Error occurred while resolving complaint.');
+    } finally {
+      setResolveSubmitting(false);
+    }
+  };
 
   const tabItems = useMemo(() => {
     if (!assignedData) return [];
@@ -473,13 +728,11 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     ],
     []
   );
-  const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
 
-
-  const handleCopy = () => copyTableDataToClipboard(filtered, activeExportCols);
-  const handleExportCSV = () => exportDataToCSV(`Bihar_SSL_Assigned_${activeTab}`, filtered, activeExportCols);
-  const handleExportExcel = () => exportDataToExcel(`Bihar_SSL_Assigned_${activeTab}`, filtered, activeExportCols);
-  const handleExportPDF = () => printTableData(`Bihar SSL Assigned Complaints (${activeTab})`, filtered, activeExportCols);
+  const handleCopy = () => copyTableDataToClipboard(filtered, exportCols);
+  const handleExportCSV = () => exportDataToCSV(`Bihar_SSL_Assigned_${activeTab}`, filtered, exportCols);
+  const handleExportExcel = () => exportDataToExcel(`Bihar_SSL_Assigned_${activeTab}`, filtered, exportCols);
+  const handleExportPDF = () => printTableData(`Bihar SSL Assigned Complaints (${activeTab})`, filtered, exportCols);
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: 'open', label: 'Open', count: openCount },
@@ -489,7 +742,6 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
 
   const hasFilters = !!searchQuery || districtFilter !== 'all';
   const clearFilters = () => { setSearchQuery(''); setDistrictFilter('all'); pagination.setPage(1); };
-  const visibleCols = COLS.filter((c) => isVisible(c.key));
   const tabTitle = activeTab === 'open' ? 'Open Assigned Complaints' : activeTab === 'approved' ? 'Pending Approval Complaints' : 'Closed Assigned Complaints';
 
   const renderApproval = (item: Row) => {
@@ -508,6 +760,10 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
     }
     return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--warning"><span className="ax-badge__dot" />Open</span>;
   };
+
+  const contactInvalid = attempted && digits(contactNo).length !== 10;
+  const mobileInvalid = attempted && digits(rMobile).length !== 10;
+  const emailInvalid = attempted && !isEmail(rEmail);
 
   return (
     <div className="solar-erp-page">
@@ -536,13 +792,6 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
           </div>
         }
       />
-
-      {successToast && (
-        <div className="ax-alert ax-alert--success" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>✓ {successToast}</span>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSuccessToast(null)}>✕</button>
-        </div>
-      )}
 
       {errorMsg && (
         <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -644,7 +893,6 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   onExportCSV={handleExportCSV}
                   onExportExcel={handleExportExcel}
                   onExportPDF={handleExportPDF}
-
                 />
               </div>
             </div>
@@ -671,8 +919,8 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <thead className="ax-table__head">
                     <tr>
                       <th className="ax-table__th" scope="col">Sr. No.</th>
-                      {visibleCols.map((c) => <th key={c.key} className="ax-table__th" scope="col">{c.th}</th>)}
-                      {isVisible('Approval Status') && <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Approval Status</th>}
+                      {COLS.map((c) => <th key={c.key} className="ax-table__th" scope="col">{c.th}</th>)}
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Approval Status</th>
                       <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                     </tr>
                   </thead>
@@ -683,7 +931,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                       return (
                         <tr key={item.id || idx} className="ax-table__row">
                           <td className="ax-table__td ax-num">{srNo}</td>
-                          {visibleCols.map((c) => (
+                          {COLS.map((c) => (
                             <td key={c.key} className="ax-table__td" style={c.style}>
                               {c.key === 'Complaint ID' ? (
                                 <button
@@ -697,9 +945,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                               ) : c.get(item)}
                             </td>
                           ))}
-                          {isVisible('Approval Status') && (
-                            <td className="ax-table__td" style={{ textAlign: 'center' }}>{renderApproval(item)}</td>
-                          )}
+                          <td className="ax-table__td" style={{ textAlign: 'center' }}>{renderApproval(item)}</td>
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
                               {(activeTab === 'approved' || rejected) ? (
@@ -755,7 +1001,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
         open={Boolean(selectedItem)}
         onClose={() => setSelectedItem(null)}
         labelledBy="m-ssl-view-title"
-        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--white ax-modal__dialog--scrollable"
       >
         {selectedItem && (
           <>
@@ -772,12 +1018,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Date: {selectedItem.start_date || '—'}
                 </div>
               </div>
-              <button
-                type="button"
-                className="ax-modal__close"
-                onClick={() => setSelectedItem(null)}
-                aria-label="Close dialog"
-              >
+              <button type="button" className="ax-modal__close" onClick={() => setSelectedItem(null)} aria-label="Close dialog">
                 {X}
               </button>
             </div>
@@ -888,7 +1129,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
         open={Boolean(resolvingItem)}
         onClose={() => !resolveSubmitting && setResolvingItem(null)}
         labelledBy="m-ssl-resolve-title"
-        dialogClass="ax-modal__dialog--lg ax-modal__dialog--scrollable"
+        dialogClass="ax-modal__dialog--lg ax-modal__dialog--white ax-modal__dialog--scrollable"
         closeOnBackdrop={!resolveSubmitting}
       >
         {resolvingItem && (
@@ -931,12 +1172,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
               )}
 
               {/* ── Read-only Complaint Overview ── */}
-              <div style={{
-                background: 'var(--ax-surface-subtle)',
-                border: '1px solid var(--ax-border)',
-                borderRadius: 'var(--ax-radius-md)',
-                padding: 'var(--ax-space-4)',
-              }}>
+              <div className="assigned-overview-card" style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 'var(--ax-text-2xs)', fontWeight: 'var(--ax-weight-bold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-text-muted)', marginBottom: 'var(--ax-space-3)' }}>
                   Complaint Information
                 </div>
@@ -954,7 +1190,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                 </div>
               </div>
 
-              {/* ── Resolution Inputs with Floating Labels ── */}
+              {/* ── Resolution Inputs ── */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 'var(--ax-space-5)' }}>
                 {/* Resolved By */}
                 <div className="ax-float ax-float--locked">
@@ -969,7 +1205,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                     style={{ cursor: 'not-allowed', opacity: 0.85 }}
                   />
                   <label className="ax-float__label" htmlFor="res-resolved-by">
-                    Resolved By <span style={{ color: 'var(--ax-danger-500)' }}>*</span> (Locked)
+                    Resolved By <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
                   </label>
                 </div>
 
@@ -978,7 +1214,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <input
                     id="res-ben-name"
                     type="text"
-                    className={`ax-input ax-float__input${attempted && !beneficiaryName.trim() ? ' is-invalid' : ''}${attempted && beneficiaryName.trim() ? ' is-valid' : ''}`}
+                    className={`ax-input ax-float__input${attempted ? (beneficiaryName.trim() ? ' is-valid' : ' is-invalid') : ''}`}
                     placeholder=" "
                     value={beneficiaryName}
                     onChange={(e) => setBeneficiaryName(e.target.value)}
@@ -998,7 +1234,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                     id="res-contact-no"
                     type="tel"
                     maxLength={10}
-                    className={`ax-input ax-float__input ax-num${attempted && contactNo.trim().replace(/\D/g, '').length !== 10 ? ' is-invalid' : ''}${attempted && contactNo.trim().replace(/\D/g, '').length === 10 ? ' is-valid' : ''}`}
+                    className={`ax-input ax-float__input ax-num${attempted ? (contactInvalid ? ' is-invalid' : ' is-valid') : ''}`}
                     placeholder=" "
                     value={contactNo}
                     onChange={(e) => setContactNo(e.target.value)}
@@ -1006,9 +1242,9 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                     required
                   />
                   <label className="ax-float__label" htmlFor="res-contact-no">
-                    Beneficiary Contact (10 Digits) <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
+                    Beneficiary Contact <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
                   </label>
-                  {attempted && contactNo.trim().replace(/\D/g, '').length !== 10 && (
+                  {contactInvalid && (
                     <span className="ax-field__message ax-field__message--error" role="alert">Contact must be exactly 10 digits.</span>
                   )}
                 </div>
@@ -1018,7 +1254,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <input
                     id="res-remail"
                     type="email"
-                    className={`ax-input ax-float__input${attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) ? ' is-invalid' : ''}${attempted && rEmail.trim() && /\S+@\S+\.\S+/.test(rEmail) ? ' is-valid' : ''}`}
+                    className={`ax-input ax-float__input${attempted ? (emailInvalid ? ' is-invalid' : ' is-valid') : ''}`}
                     placeholder=" "
                     value={rEmail}
                     onChange={(e) => setREmail(e.target.value)}
@@ -1027,7 +1263,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <label className="ax-float__label" htmlFor="res-remail">
                     Resolver Email <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
                   </label>
-                  {attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail)) && (
+                  {emailInvalid && (
                     <span className="ax-field__message ax-field__message--error" role="alert">Enter a valid email address.</span>
                   )}
                 </div>
@@ -1038,7 +1274,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                     id="res-rmobile"
                     type="tel"
                     maxLength={10}
-                    className={`ax-input ax-float__input ax-num${attempted && rMobile.trim().replace(/\D/g, '').length !== 10 ? ' is-invalid' : ''}${attempted && rMobile.trim().replace(/\D/g, '').length === 10 ? ' is-valid' : ''}`}
+                    className={`ax-input ax-float__input ax-num${attempted ? (mobileInvalid ? ' is-invalid' : ' is-valid') : ''}`}
                     placeholder=" "
                     value={rMobile}
                     onChange={(e) => setRMobile(e.target.value)}
@@ -1048,7 +1284,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <label className="ax-float__label" htmlFor="res-rmobile">
                     Resolver Mobile (10 Digits) <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
                   </label>
-                  {attempted && rMobile.trim().replace(/\D/g, '').length !== 10 && (
+                  {mobileInvalid && (
                     <span className="ax-field__message ax-field__message--error" role="alert">Resolver mobile must be 10 digits.</span>
                   )}
                 </div>
@@ -1058,7 +1294,7 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   <input
                     id="res-closing-date"
                     type="date"
-                    className={`ax-input ax-float__input${attempted && !closingDate ? ' is-invalid' : ''}${attempted && closingDate ? ' is-valid' : ''}`}
+                    className={`ax-input ax-float__input${attempted ? (closingDate ? ' is-valid' : ' is-invalid') : ''}`}
                     placeholder=" "
                     value={closingDate}
                     onChange={(e) => setClosingDate(e.target.value)}
@@ -1072,71 +1308,29 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   )}
                 </div>
 
-                {/* Light Image (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                {/* Upload dropzones (Light Image + Document) */}
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'var(--ax-space-5)' }}>
+                  <UploadDrop
                     id="res-rfile"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile(e.target.files?.[0] || null)}
+                    label="Light Image (Optional)"
+                    file={rFile}
+                    onPick={(f) => pickResolveFile(f, setRFile)}
+                    onClear={() => setRFile(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-rfile">
-                    Light Image (Optional)
-                  </label>
-                  {rFile && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile.name} ({(rFile.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
-                </div>
-
-                {/* Document (Optional) */}
-                <div className="ax-float ax-float--file">
-                  <input
+                  <UploadDrop
                     id="res-rfile2"
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="ax-input ax-float__input"
-                    placeholder=" "
-                    onChange={(e) => setRFile2(e.target.files?.[0] || null)}
+                    label="Document (Optional)"
+                    file={rFile2}
+                    onPick={(f) => pickResolveFile(f, setRFile2)}
+                    onClear={() => setRFile2(null)}
                   />
-                  <label className="ax-float__label" htmlFor="res-rfile2">
-                    Document (Optional)
-                  </label>
-                  {rFile2 && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--xs"
-                      onClick={() => setRFile2(null)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', padding: '2px 6px', height: 'auto', zIndex: 3 }}
-                      title="Clear file"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <span className="ax-field__message ax-help" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span>Max 5 MB (JPG, PNG, WebP, PDF)</span>
-                    {rFile2 && <span style={{ color: 'var(--ax-success-500)', fontWeight: 600 }}>✓ {rFile2.name} ({(rFile2.size / 1024).toFixed(1)} KB)</span>}
-                  </span>
                 </div>
 
                 {/* Remarks */}
                 <div className="ax-float ax-float--area" style={{ gridColumn: '1 / -1' }}>
                   <textarea
                     id="res-remarks"
-                    className={`ax-textarea ax-float__input${attempted && !remarks.trim() ? ' is-invalid' : ''}${attempted && remarks.trim() ? ' is-valid' : ''}`}
+                    className={`ax-textarea ax-float__input${attempted ? (remarks.trim() ? ' is-valid' : ' is-invalid') : ''}`}
                     rows={3}
                     placeholder=" "
                     value={remarks}
@@ -1162,34 +1356,25 @@ export function Bihar_Complaint_SSL_AssignedComplaint() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: 'var(--ax-space-3)'
+                  gap: 'var(--ax-space-3)',
                 }}>
                   <div style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
                     Send SMS Notification <span style={{ color: 'var(--ax-danger-500)' }}>*</span>
                   </div>
                   <div className="ax-cluster" style={{ gap: 'var(--ax-space-5)' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-2)', cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text)' }}>
-                      <input
-                        type="radio"
-                        className="ax-radio"
-                        name="close_sms"
-                        value="Yes"
-                        checked={closeSms === 'Yes'}
-                        onChange={() => setCloseSms('Yes')}
-                      />
-                      <span>Yes</span>
-                    </label>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-2)', cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text)' }}>
-                      <input
-                        type="radio"
-                        className="ax-radio"
-                        name="close_sms"
-                        value="No"
-                        checked={closeSms === 'No'}
-                        onChange={() => setCloseSms('No')}
-                      />
-                      <span>No</span>
-                    </label>
+                    {(['Yes', 'No'] as const).map((opt) => (
+                      <label key={opt} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--ax-space-2)', cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text)' }}>
+                        <input
+                          type="radio"
+                          className="ax-radio"
+                          name="close_sms"
+                          value={opt}
+                          checked={closeSms === opt}
+                          onChange={() => setCloseSms(opt)}
+                        />
+                        <span>{opt}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>

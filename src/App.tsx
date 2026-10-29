@@ -90,6 +90,7 @@ const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/
 const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
 const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
 const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
+const AssamStatusView = lazy(() => import('./components/V-Portal/assam/Installation/Swp/StatusView'));
 
 const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
@@ -505,6 +506,8 @@ const shell: Record<string, PageComponent> = {
   'v/assam/installation/swp/site': AssamInstallationSite,
   'v/assam/installation/swp/view': AssamViewInstallation,
   'v/assam/installation/swp/payment': AssamViewPayment,
+  'v/assam/installation/swp/status-view': AssamStatusView,
+  'v/assam/installation/swp/status': AssamStatusView,
   'assam': AssamDashboard,
   'assam/dashboard': AssamDashboard,
   'assam/installation': AssamInstallation,
@@ -520,6 +523,8 @@ const shell: Record<string, PageComponent> = {
   'assam/view-installation': AssamViewInstallation,
   'assam/swp/view-payment': AssamViewPayment,
   'assam/view-payment': AssamViewPayment,
+  'assam/swp/status-view': AssamStatusView,
+  'assam/status-view': AssamStatusView,
 
   // ══════════════ V-PORTAL: UTTAR PRADESH: SURVEY ══════════════
   'v/up/srt-surveys/create': UPSurveySRTAdd,
@@ -885,6 +890,11 @@ const shell: Record<string, PageComponent> = {
   'v/punjab/ssl/installation/install-light': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
   'punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+  'punjab/ssl/installation/install-light': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/site': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/view': PunjabInstSSLDetail,
+  'punjab/ssl': PunjabInstSSLDb,
+  'punjab': PunjabInstSSLDb,
 
   // Installation - SRT
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
@@ -902,13 +912,9 @@ const shell: Record<string, PageComponent> = {
   'v/bihar/srt/viewassignsite': BiharInstSRTRequest,
   'bihar/srt/viewassignsite': BiharInstSRTRequest,
   'v/srt/installationsite': BiharInstSRTDetails,
-  'v/srt/installationsite/:id': BiharInstSRTDetails,
   'srt/installationsite': BiharInstSRTDetails,
-  'srt/installationsite/:id': BiharInstSRTDetails,
   'v/bihar/srt/installationsite': BiharInstSRTDetails,
-  'v/bihar/srt/installationsite/:id': BiharInstSRTDetails,
   'bihar/srt/installationsite': BiharInstSRTDetails,
-  'bihar/srt/installationsite/:id': BiharInstSRTDetails,
   'v/srt/allassignsite': BiharInstSRTView,
   'srt/allassignsite': BiharInstSRTView,
   'v/bihar/srt/allassignsite': BiharInstSRTView,
