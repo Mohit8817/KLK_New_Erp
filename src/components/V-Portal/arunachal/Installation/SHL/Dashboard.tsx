@@ -275,8 +275,7 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
 function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
-  const allZeros = hasSpark && spark.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const safeSpark = spark;
 
   return (
     <div
@@ -486,11 +485,11 @@ export function Arunachal_Installation_SHL_Dashboard() {
     [districtwise]
   );
 
-  // Sparklines datasets
-  const siteSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.site_count) : [5, 12, 18, 24, 30];
-  const completeSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.complete) : [2, 6, 12, 18, 22];
-  const pendingSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.pending) : [3, 6, 6, 6, 8];
-  const verifySpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.verify_approved) : [1, 4, 8, 14, 18];
+  // Sparklines datasets from real district distribution
+  const siteSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.site_count) : undefined;
+  const completeSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.complete) : undefined;
+  const pendingSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.pending) : undefined;
+  const verifySpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.verify_approved) : undefined;
 
   // Export Columns definition for District Table
   const districtCols: ExportColumn<ArunachalDistrictwise>[] = useMemo(() => [
@@ -854,7 +853,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
           value={`${pctComplete}%`}
           sub={`${num(shl.complete)} of ${num(shl.site_count)} lights installed`}
           badge="Installed"
-          spark={[10, 25, 40, 60, pctComplete]}
+          spark={completeSpark}
           onClick={() => openDrillDown('inst-complete', 'Completed Lights')}
         />
 
@@ -864,7 +863,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
           label="Audit Pass Rate"
           value={`${pctOf(shl.verify_approved, (shl.verify_approved + shl.verify_reject) || 1)}%`}
           sub={`${num(shl.verify_approved)} Passed · ${num(shl.verify_reject)} Rejected`}
-          spark={[20, 45, 65, 80, pctVerified]}
+          spark={verifySpark}
           onClick={() => openDrillDown('verify-approve', 'Approved Audits')}
         />
 
@@ -874,7 +873,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
           label="Claim Applicable Rate"
           value={`${pctClaimApplicable}%`}
           sub={`${num(shl.claim_applicable)} eligible to raise claim`}
-          spark={[15, 30, 50, 75, pctClaimApplicable]}
+          spark={districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.claim_applicable) : undefined}
           onClick={() => openDrillDown('claim-applicable', 'Claim Applicable Lights')}
         />
 
@@ -884,7 +883,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
           label="Payment Settlement"
           value={`${pctPaid}%`}
           sub={`${num(shl.inst_pay_done)} lights disbursed`}
-          spark={[5, 15, 30, 45, pctPaid]}
+          spark={districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.inst_pay_done) : undefined}
           onClick={() => openDrillDown('pay-done', 'Settled Claims')}
         />
 
@@ -1075,38 +1074,58 @@ export function Arunachal_Installation_SHL_Dashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`monthly-${chartH}-${monthlyInstallations.map((m) => `${m.month_year}-${m.monthly_installations}`).join('-')}`}
-                type="area"
-                height={chartH}
-                legend="top"
-                ariaLabel="Monthly installations area chart"
-                series={[
-                  {
-                    name: 'Monthly Installed Lights',
-                    data: monthlyInstallations.length > 0
-                      ? monthlyInstallations.map((m) => m.monthly_installations)
-                      : [12, 28, 45, 70, 95, shl.complete],
-                  },
-                ]}
-                apex={{
-                  colors: [LIGHT_BLUE],
-                  stroke: { curve: 'smooth', width: 2 },
-                  fill: {
-                    type: 'gradient',
-                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
-                  },
-                  markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
-                  xaxis: {
-                    categories: monthlyInstallations.length > 0
-                      ? monthlyInstallations.map((m) => m.month_year)
-                      : ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
-                  },
-                  yaxis: { title: { text: 'Installed (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+            {monthlyInstallations.length === 0 ? (
+              <div
+                style={{
+                  height: chartH,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--ax-text-muted)',
+                  fontSize: 'var(--ax-text-sm)',
+                  border: '1px dashed var(--ax-border, #e2e8f0)',
+                  borderRadius: 'var(--ax-radius-md, 8px)',
+                  padding: '24px',
+                  textAlign: 'center',
                 }}
-              />
-            </Suspense>
+              >
+                <span style={{ fontSize: '24px', marginBottom: '8px' }}>📊</span>
+                <p style={{ margin: 0, fontWeight: 500 }}>No monthly installation timeline recorded yet</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: 'var(--ax-text-xs)' }}>
+                  Monthly installation trend will appear here as field installations progress.
+                </p>
+              </div>
+            ) : (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`monthly-${chartH}-${monthlyInstallations.map((m) => `${m.month_year}-${m.monthly_installations}`).join('-')}`}
+                  type="area"
+                  height={chartH}
+                  legend="top"
+                  ariaLabel="Monthly installations area chart"
+                  series={[
+                    {
+                      name: 'Monthly Installed Lights',
+                      data: monthlyInstallations.map((m) => m.monthly_installations),
+                    },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_BLUE],
+                    stroke: { curve: 'smooth', width: 2 },
+                    fill: {
+                      type: 'gradient',
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
+                    },
+                    markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+                    xaxis: {
+                      categories: monthlyInstallations.map((m) => m.month_year),
+                    },
+                    yaxis: { title: { text: 'Installed (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                  }}
+                />
+              </Suspense>
+            )}
           </div>
         </section>
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useDeferredValue } from 'react';
+﻿import { lazy, Suspense, useEffect, useMemo, useState, useDeferredValue } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
 import { Pagination, usePagination, TableExportToolbar, type ExportColumn } from '../../common';
@@ -147,6 +147,7 @@ const STATE_SUMMARIES: StateOverview[] = [
   { state: 'Punjab', totalSites: 860, activeInstallations: 430, surveysDone: 210, amcUnits: 160, complaints: 8 },
   { state: 'Jammu & Kashmir', totalSites: 980, activeInstallations: 520, surveysDone: 310, amcUnits: 190, complaints: 14 },
   { state: 'Assam', totalSites: 745, activeInstallations: 320, surveysDone: 242, amcUnits: 103, complaints: 6 },
+  { state: 'Karnataka', totalSites: 685, activeInstallations: 290, surveysDone: 195, amcUnits: 88, complaints: 4 },
 ];
 
 interface KpiProps {
@@ -414,6 +415,7 @@ export function VPortalDashboard() {
                   <option value="Uttar Pradesh">Uttar Pradesh (UP)</option>
                   <option value="Jammu & Kashmir">Jammu & Kashmir (J&K)</option>
                   <option value="Assam">Assam</option>
+                  <option value="Karnataka">Karnataka</option>
                 </select>
               </div>
 

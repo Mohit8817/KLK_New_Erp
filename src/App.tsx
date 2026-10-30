@@ -92,6 +92,17 @@ const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Ins
 const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 const AssamStatusView = lazy(() => import('./components/V-Portal/assam/Installation/Swp/StatusView'));
 
+// ── V-PORTAL: KARNATAKA ──
+const KarnatakaDashboard = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/KarnatakaDashboard'));
+const KarnatakaInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/Installation'));
+const KarnatakaInstallationRequest = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationRequest'));
+const KarnatakaInstallationSite = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationSite'));
+const KarnatakaViewInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewInstallation'));
+const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/AddPayment'));
+const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
+const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
+const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
+
 const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
 
@@ -533,6 +544,42 @@ const shell: Record<string, PageComponent> = {
   'assam/view-payment': AssamViewPayment,
   'assam/swp/status-view': AssamStatusView,
   'assam/status-view': AssamStatusView,
+
+  // ── V-PORTAL: KARNATAKA ──
+  'v/karnataka/installation/swp/dashboard': KarnatakaDashboard,
+  'v/karnataka/installation/swp/request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/installation-request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/installation-site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/view': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/view-installation': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/add-payment': KarnatakaAddPayment,
+  'v/karnataka/installation/swp/payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/view-payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/material-details': KarnatakaMaterialDetails,
+  'v/karnataka/installation/swp/status-view': KarnatakaStatusView,
+  'v/karnataka/installation/swp/status': KarnatakaStatusView,
+  'karnataka': KarnatakaDashboard,
+  'karnataka/dashboard': KarnatakaDashboard,
+  'karnataka/installation': KarnatakaInstallation,
+  'karnataka/swp': KarnatakaDashboard,
+  'karnataka/swp/dashboard': KarnatakaDashboard,
+  'karnataka/swp/installation-request': KarnatakaInstallationRequest,
+  'karnataka/installation-request': KarnatakaInstallationRequest,
+  'karnataka/swp/installation-site': KarnatakaInstallationSite,
+  'karnataka/installation-site': KarnatakaInstallationSite,
+  'karnataka/swp/add-installation': KarnatakaInstallationSite,
+  'karnataka/add-installation': KarnatakaInstallationSite,
+  'karnataka/swp/view-installation': KarnatakaViewInstallation,
+  'karnataka/view-installation': KarnatakaViewInstallation,
+  'karnataka/swp/add-payment': KarnatakaAddPayment,
+  'karnataka/add-payment': KarnatakaAddPayment,
+  'karnataka/swp/view-payment': KarnatakaViewPayment,
+  'karnataka/view-payment': KarnatakaViewPayment,
+  'karnataka/swp/material-details': KarnatakaMaterialDetails,
+  'karnataka/material-details': KarnatakaMaterialDetails,
+  'karnataka/swp/status-view': KarnatakaStatusView,
+  'karnataka/status-view': KarnatakaStatusView,
 
   // ══════════════ V-PORTAL: UTTAR PRADESH: SURVEY ══════════════
   'v/up/srt-surveys/create': UPSurveySRTAdd,

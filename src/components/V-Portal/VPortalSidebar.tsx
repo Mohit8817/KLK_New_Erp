@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessState } from '../../services/stateAccess';
 import './v-portal-sidebar.css';
@@ -420,7 +420,88 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
     ],
   },
 
-  /* ═══════════════════ JAMMU & KASHMIR ═══════════════════ */
+  /* ═══════════════════ KARNATAKA ═══════════════════ */
+  {
+    section: 'Karnataka',
+    state: 'karnataka',
+    categories: [
+      {
+        id: 'karnataka.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'karnataka.installation.swp',
+            title: 'SWP',
+            items: [
+              { title: 'Dashboard', to: '/v/karnataka/installation/swp/dashboard' },
+              { title: 'Installation Request', to: '/v/karnataka/installation/swp/request' },
+              { title: 'Installation Site', to: '/v/karnataka/installation/swp/site' },
+              { title: 'View Installation', to: '/v/karnataka/installation/swp/view' },
+              { title: 'Add Payment', to: '/v/karnataka/installation/swp/add-payment' },
+              { title: 'View Payment', to: '/v/karnataka/installation/swp/payment' },
+              { title: 'Material Details', to: '/v/karnataka/installation/swp/material-details' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+
+  /* ═══════════════════ PUNJAB ═══════════════════ */
+  {
+    section: 'Punjab',
+    state: 'punjab',
+    categories: [
+      {
+        id: 'punjab.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'punjab.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/punjab/ssl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/punjab/ssl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/punjab/ssl/installation/update-light-deatils' },
+              { title: 'Installation Detail', to: '/v/punjab/ssl/installation/complete-light' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ═══════════════════ ARUNACHAL PRADESH ═══════════════════ */
+  {
+    section: 'Arunachal Pradesh',
+    state: 'arunachal',
+    categories: [
+      {
+        id: 'arunachal.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'arunachal.installation.shl',
+            title: 'SHL',
+            items: [
+              { title: 'Dashboard', to: '/v/arunachal/shl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/arunachal/shl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/arunachal/shl/installation/install-light' },
+              { title: 'Installation Detail', to: '/v/arunachal/shl/installation/view-installation' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+    /* ═══════════════════ JAMMU & KASHMIR ═══════════════════ */
   {
     section: 'Jammu & Kashmir',
     state: 'jammu',
@@ -535,56 +616,6 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
             title: 'SSL',
             items: [
               { title: 'View Assign AMC', to: '/v/jammu/amc/ssl/view-assign-amc' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-
-  /* ═══════════════════ PUNJAB ═══════════════════ */
-  {
-    section: 'Punjab',
-    state: 'punjab',
-    categories: [
-      {
-        id: 'punjab.installation',
-        title: 'Installation',
-        icon: 'installation',
-        subgroups: [
-          {
-            id: 'punjab.installation.ssl',
-            title: 'SSL',
-            items: [
-              { title: 'Dashboard', to: '/v/punjab/ssl/installation/dashboard' },
-              { title: 'Assigned Lights', to: '/v/punjab/ssl/installation/view-assigned-light' },
-              { title: 'Install Light', to: '/v/punjab/ssl/installation/update-light-deatils' },
-              { title: 'Installation Detail', to: '/v/punjab/ssl/installation/complete-light' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-
-  /* ═══════════════════ ARUNACHAL PRADESH ═══════════════════ */
-  {
-    section: 'Arunachal Pradesh',
-    state: 'arunachal',
-    categories: [
-      {
-        id: 'arunachal.installation',
-        title: 'Installation',
-        icon: 'installation',
-        subgroups: [
-          {
-            id: 'arunachal.installation.shl',
-            title: 'SHL',
-            items: [
-              { title: 'Dashboard', to: '/v/arunachal/shl/installation/dashboard' },
-              { title: 'Assigned Lights', to: '/v/arunachal/shl/installation/view-assigned-light' },
-              { title: 'Install Light', to: '/v/arunachal/shl/installation/install-light' },
-              { title: 'Installation Detail', to: '/v/arunachal/shl/installation/view-installation' },
             ],
           },
         ],
