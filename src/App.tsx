@@ -15,8 +15,6 @@ import { DashboardSkeleton } from './common/skeletons';
 type PageComponent = ReturnType<typeof lazy>;
 
 
-
-const Sales = lazy(() => import('./pages/dashboards/Sales'));
 const SolarLogin = lazy(() => import('./pages/auth/Login'));
 const Error401 = lazy(() => import('./pages/error/Error401'));
 const Error403 = lazy(() => import('./pages/error/Error403'));
@@ -279,6 +277,36 @@ const BiharComplaintSRTAssign = lazy(() => import('./components/V-Portal/bihar/C
 
 const Bihar_Installation_ULA_PendingInstallation  = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/PenidngInstallation'));
 
+// ── Goa: Installation (SRT) ──
+const GoaInstSRTDb = lazy(() => import('./components/V-Portal/goa/Installation/SRT/Dashboard'));
+const GoaInstSRTRequest = lazy(() => import('./components/V-Portal/goa/Installation/SRT/RequestAccept'));
+const GoaInstSRTDetails = lazy(() => import('./components/V-Portal/goa/Installation/SRT/InstallationDetails'));
+const GoaInstSRTView = lazy(() => import('./components/V-Portal/goa/Installation/SRT/ViewInstallation'));
+const GoaInstSRTClaim = lazy(() => import('./components/V-Portal/goa/Installation/SRT/ClaimRequest'));
+const GoaInstSRTStatusView = lazy(() => import('./components/V-Portal/goa/Installation/SRT/StatusView'));
+
+// ── Goa: Survey (SRT) ──
+const GoaSurveySRTAdd = lazy(() => import('./components/V-Portal/goa/Survey/SRT/AddData'));
+const GoaSurveySRTView = lazy(() => import('./components/V-Portal/goa/Survey/SRT/ViewData'));
+
+// ── Goa: AMC (SRT) ──
+const GoaAmcSRTAdd = lazy(() => import('./components/V-Portal/goa/AMC/SRT/AddData'));
+const GoaAmcSRTView = lazy(() => import('./components/V-Portal/goa/AMC/SRT/ViewData'));
+const GoaAmcSRTComplaint = lazy(() => import('./components/V-Portal/goa/AMC/SRT/ComplaintRaised'));
+
+
+
+
+// ── V-PORTAL: KARNATAKA ──
+const KarnatakaDashboard = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/KarnatakaDashboard'));
+const KarnatakaInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/Installation'));
+const KarnatakaInstallationRequest = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationRequest'));
+const KarnatakaInstallationSite = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationSite'));
+const KarnatakaViewInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewInstallation'));
+const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/AddPayment'));
+const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
+const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
+const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
 
 
 
@@ -1036,7 +1064,161 @@ const shell: Record<string, PageComponent> = {
   'v/complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
   'complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
 
+  // ══════════════ V-PORTAL: GOA: INSTALLATION (SRT) ══════════════
+  'v/goa/vendor-srt-installation-dashboard': GoaInstSRTDb,
+  'goa/vendor-srt-installation-dashboard': GoaInstSRTDb,
+  'v/goa/srt/installation/dashboard': GoaInstSRTDb,
+  'goa/srt/installation/dashboard': GoaInstSRTDb,
+  'v/goa/srt-installation-dashboard': GoaInstSRTDb,
+  'goa/srt-installation-dashboard': GoaInstSRTDb,
+  'v/goa/srt/dashboard': GoaInstSRTDb,
+  'goa/srt/dashboard': GoaInstSRTDb,
+  'v/goa/installation/srt/dashboard': GoaInstSRTDb,
+  'goa/installation/srt/dashboard': GoaInstSRTDb,
+  'v/goa': GoaInstSRTDb,
+  'goa': GoaInstSRTDb,
 
+  // Request Accept / View Assigned Sites / Installation Request
+  'v/goa/srt/viewassignsite': GoaInstSRTRequest,
+  'goa/srt/viewassignsite': GoaInstSRTRequest,
+  'v/goa/srt/installation-request': GoaInstSRTRequest,
+  'goa/srt/installation-request': GoaInstSRTRequest,
+  'v/goa/srt/view-assign-site': GoaInstSRTRequest,
+  'goa/srt/view-assign-site': GoaInstSRTRequest,
+  'v/goa/srt/view': GoaInstSRTRequest,
+  'goa/srt/view': GoaInstSRTRequest,
+  'v/goa/srt/installation/view-assign-site': GoaInstSRTRequest,
+  'goa/srt/installation/view-assign-site': GoaInstSRTRequest,
+  'v/goa/srt/assign-srt': GoaInstSRTRequest,
+  'goa/srt/assign-srt': GoaInstSRTRequest,
+
+  // Fill Site Details / Installation Details
+  'v/goa/srt/installationsite': GoaInstSRTDetails,
+  'goa/srt/installationsite': GoaInstSRTDetails,
+  'v/goa/srt/installation-details': GoaInstSRTDetails,
+  'goa/srt/installation-details': GoaInstSRTDetails,
+  'v/goa/srt/installation-site': GoaInstSRTDetails,
+  'goa/srt/installation-site': GoaInstSRTDetails,
+  'v/goa/srt/installation/install-site': GoaInstSRTDetails,
+  'goa/srt/installation/install-site': GoaInstSRTDetails,
+  'v/goa/srt/installation/installationsite': GoaInstSRTDetails,
+  'goa/srt/installation/installationsite': GoaInstSRTDetails,
+
+  // View Installation
+  'v/goa/srt/allassignsite': GoaInstSRTView,
+  'goa/srt/allassignsite': GoaInstSRTView,
+  'v/goa/srt/view-installation': GoaInstSRTView,
+  'goa/srt/view-installation': GoaInstSRTView,
+  'v/goa/srt/installation/allassignsite': GoaInstSRTView,
+  'goa/srt/installation/allassignsite': GoaInstSRTView,
+  'v/goa/srt/installation/view-installation': GoaInstSRTView,
+  'goa/srt/installation/view-installation': GoaInstSRTView,
+  'v/goa/srt/verificationsite': GoaInstSRTView,
+  'goa/srt/verificationsite': GoaInstSRTView,
+
+  // Claim Request & Payment
+  'v/goa/srt/paymentsrtVendor': GoaInstSRTClaim,
+  'goa/srt/paymentsrtVendor': GoaInstSRTClaim,
+  'v/goa/srt/paymentsrtvendor': GoaInstSRTClaim,
+  'goa/srt/paymentsrtvendor': GoaInstSRTClaim,
+  'v/goa/srt/claimsite': GoaInstSRTClaim,
+  'goa/srt/claimsite': GoaInstSRTClaim,
+  'v/goa/srt/claim-request': GoaInstSRTClaim,
+  'goa/srt/claim-request': GoaInstSRTClaim,
+  'v/goa/srt/assignsrtpayment': GoaInstSRTClaim,
+  'goa/srt/assignsrtpayment': GoaInstSRTClaim,
+  'v/goa/srt/view-claim': GoaInstSRTClaim,
+  'goa/srt/view-claim': GoaInstSRTClaim,
+  'v/goa/srt/installation/claimsite': GoaInstSRTClaim,
+  'goa/srt/installation/claimsite': GoaInstSRTClaim,
+  'v/goa/srt/installation/view-payment': GoaInstSRTClaim,
+  'goa/srt/installation/view-payment': GoaInstSRTClaim,
+
+  // Status Drilldown
+  'v/goa/srt/installation/status-view': GoaInstSRTStatusView,
+  'goa/srt/installation/status-view': GoaInstSRTStatusView,
+  'v/goa/srt/status-view': GoaInstSRTStatusView,
+  'goa/srt/status-view': GoaInstSRTStatusView,
+  'v/goa/srt/installation/dashboard/view-data/:status': GoaInstSRTStatusView,
+  'goa/srt/installation/dashboard/view-data/:status': GoaInstSRTStatusView,
+  'v/goa/srt/installation/dashboard/districtwise/:status/:district': GoaInstSRTStatusView,
+  'goa/srt/installation/dashboard/districtwise/:status/:district': GoaInstSRTStatusView,
+
+  // ── V-PORTAL: GOA: SURVEY (SRT) ──
+  'v/goa/srt-survey': GoaSurveySRTAdd,
+  'goa/srt-survey': GoaSurveySRTAdd,
+  'v/goa/srt/survey': GoaSurveySRTAdd,
+  'goa/srt/survey': GoaSurveySRTAdd,
+  'v/goa/survey/srt/add': GoaSurveySRTAdd,
+  'goa/survey/srt/add': GoaSurveySRTAdd,
+  'v/goa/view-survey': GoaSurveySRTView,
+  'goa/view-survey': GoaSurveySRTView,
+  'v/goa/srt/view-survey': GoaSurveySRTView,
+  'goa/srt/view-survey': GoaSurveySRTView,
+  'v/goa/survey/srt/view': GoaSurveySRTView,
+  'goa/survey/srt/view': GoaSurveySRTView,
+
+  // ── V-PORTAL: GOA: AMC (SRT) ──
+  'v/goa-add-srt-amc': GoaAmcSRTAdd,
+  'goa-add-srt-amc': GoaAmcSRTAdd,
+  'v/goa/add-srt-amc': GoaAmcSRTAdd,
+  'goa/add-srt-amc': GoaAmcSRTAdd,
+  'v/goa/srt/amc/add': GoaAmcSRTAdd,
+  'goa/srt/amc/add': GoaAmcSRTAdd,
+  'v/goa-view-srt-amc': GoaAmcSRTView,
+  'goa-view-srt-amc': GoaAmcSRTView,
+  'v/goa/view-srt-amc': GoaAmcSRTView,
+  'goa/view-srt-amc': GoaAmcSRTView,
+  'v/goa/srt/amc/view': GoaAmcSRTView,
+  'goa/srt/amc/view': GoaAmcSRTView,
+  'v/goa-view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'goa-view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'v/goa/view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'goa/view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'v/goa/srt/amc/complaint': GoaAmcSRTComplaint,
+  'goa/srt/amc/complaint': GoaAmcSRTComplaint,
+
+
+
+
+  // ── V-PORTAL: KARNATAKA ──
+  'v/karnataka/installation/swp/dashboard': KarnatakaDashboard,
+  'v/karnataka/installation/swp/request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/installation-request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/installation-site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/view': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/view-installation': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/add-payment': KarnatakaAddPayment,
+  'v/karnataka/installation/swp/payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/view-payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/material-details': KarnatakaMaterialDetails,
+  'v/karnataka/installation/swp/status-view': KarnatakaStatusView,
+  'v/karnataka/installation/swp/status': KarnatakaStatusView,
+  'karnataka': KarnatakaDashboard,
+  'karnataka/dashboard': KarnatakaDashboard,
+  'karnataka/installation': KarnatakaInstallation,
+  'karnataka/swp': KarnatakaDashboard,
+  'karnataka/swp/dashboard': KarnatakaDashboard,
+  'karnataka/swp/installation-request': KarnatakaInstallationRequest,
+  'karnataka/installation-request': KarnatakaInstallationRequest,
+  'karnataka/swp/installation-site': KarnatakaInstallationSite,
+  'karnataka/installation-site': KarnatakaInstallationSite,
+  'karnataka/swp/add-installation': KarnatakaInstallationSite,
+  'karnataka/add-installation': KarnatakaInstallationSite,
+  'karnataka/swp/view-installation': KarnatakaViewInstallation,
+  'karnataka/view-installation': KarnatakaViewInstallation,
+  'karnataka/swp/add-payment': KarnatakaAddPayment,
+  'karnataka/add-payment': KarnatakaAddPayment,
+  'karnataka/swp/view-payment': KarnatakaViewPayment,
+  'karnataka/view-payment': KarnatakaViewPayment,
+  'karnataka/swp/material-details': KarnatakaMaterialDetails,
+  'karnataka/material-details': KarnatakaMaterialDetails,
+  'karnataka/swp/status-view': KarnatakaStatusView,
+  'karnataka/status-view': KarnatakaStatusView,
+
+
+  
   // 'dashboards/solar-erp': JammuDashboard,
   // 'dashboards/erp': JammuDashboard,
   // 'dashboards/analytics': DashboardsAnalytics,

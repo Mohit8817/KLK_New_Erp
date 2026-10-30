@@ -1,36 +1,39 @@
-import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import { authService } from '../../../../../services/authService';
+import { useAuth } from '../../../../../context/AuthContext';
 import {
   punjabSslInstallationService,
   resolvePunjabMediaUrl,
   type PunjabLightDropdownItem,
   type PunjabLightDetail,
 } from '../../punjab-services';
+import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
 
-// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Assam & Bihar reference)
+// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Arunachal & Assam reference)
 const SINGLE_CARD_FORM_CSS = `
 .swp-inst-form .ax-card {
-  border: 1px solid var(--ax-border);
+  border: 1px solid var(--ax-border, #e2e8f0);
   border-radius: var(--ax-radius-xl, 16px);
-  background: var(--ax-surface-solid);
-  box-shadow: var(--ax-shadow-sm);
+  background: var(--ax-surface-solid, #ffffff);
+  box-shadow: var(--ax-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   overflow: hidden;
 }
 .swp-inst-form .ax-card__header {
-  padding: var(--ax-space-5) var(--ax-space-6);
-  border-bottom: 1px solid var(--ax-border-subtle);
-  background: var(--ax-surface-subtle);
+  padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+  background: var(--ax-surface-subtle, #f8fafc);
   display: flex;
   flex-direction: column;
-  gap: var(--ax-space-4);
+  gap: var(--ax-space-4, 16px);
 }
-.swp-inst-form .ax-card__body { padding: var(--ax-space-6); }
+.swp-inst-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
 /* Quick Section Nav Pills */
 .swp-section-pills {
   display: flex;
-  gap: var(--ax-space-2);
+  gap: var(--ax-space-2, 8px);
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
@@ -40,42 +43,42 @@ const SINGLE_CARD_FORM_CSS = `
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: var(--ax-radius-pill);
-  font-size: var(--ax-text-xs);
+  border-radius: var(--ax-radius-pill, 9999px);
+  font-size: var(--ax-text-xs, 12px);
   font-weight: 500;
   white-space: nowrap;
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  color: var(--ax-text);
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  color: var(--ax-text, #0f172a);
   cursor: pointer;
-  transition: all var(--ax-motion-fast) var(--ax-ease-standard);
+  transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
 .swp-section-pill-btn:hover {
   border-color: #2563eb;
   color: #2563eb;
-  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid));
+  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
 }
 .swp-section-pill-btn .pill-num {
   width: 18px; height: 18px; border-radius: 50%;
-  background: var(--ax-surface-subtle);
+  background: var(--ax-surface-subtle, #f1f5f9);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 700;
 }
 
 /* Section Block */
-.swp-section-block { padding-top: var(--ax-space-2); }
+.swp-section-block { padding-top: var(--ax-space-2, 8px); }
 .swp-section-header {
   display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
-  gap: var(--ax-space-2);
-  margin-bottom: var(--ax-space-5);
-  padding-bottom: var(--ax-space-3);
-  border-bottom: 1px solid var(--ax-border-subtle);
+  gap: var(--ax-space-2, 8px);
+  margin-bottom: var(--ax-space-5, 20px);
+  padding-bottom: var(--ax-space-3, 12px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
 }
 .swp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
 .swp-section-divider {
   border: 0;
-  border-top: 1px dashed var(--ax-border);
-  margin: var(--ax-space-8) 0 var(--ax-space-6);
+  border-top: 1px dashed var(--ax-border, #cbd5e1);
+  margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
 }
 
 /* Floating Label Core */
@@ -84,21 +87,22 @@ const SINGLE_CARD_FORM_CSS = `
   width: 100%;
   height: 46px;
   padding: 12px 14px 4px 14px;
-  font-size: var(--ax-text-sm);
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-md);
-  color: var(--ax-text);
+  font-size: var(--ax-text-sm, 13.5px);
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  border-radius: var(--ax-radius-md, 8px);
+  color: var(--ax-text, #0f172a);
   outline: none;
-  transition: border-color var(--ax-motion-fast) var(--ax-ease-standard),
-              box-shadow var(--ax-motion-fast) var(--ax-ease-standard);
+  transition: border-color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              box-shadow var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
 .ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus::placeholder { color: #94a3b8; }
 .ax-float__input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
 }
-.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
+.ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
 .ax-float__label {
   position: absolute;
@@ -107,14 +111,14 @@ const SINGLE_CARD_FORM_CSS = `
   transform: translateY(-50%);
   margin: 0;
   padding: 0 4px;
-  font-size: var(--ax-text-sm);
-  color: var(--ax-text-subtle);
-  background: var(--ax-surface-solid);
-  border-radius: var(--ax-radius-xs);
+  font-size: var(--ax-text-sm, 13.5px);
+  color: var(--ax-text-subtle, #64748b);
+  background: var(--ax-surface-solid, #ffffff);
+  border-radius: var(--ax-radius-xs, 4px);
   pointer-events: none;
-  transition: top var(--ax-motion-fast) var(--ax-ease-standard),
-              font-size var(--ax-motion-fast) var(--ax-ease-standard),
-              color var(--ax-motion-fast) var(--ax-ease-standard);
+  transition: top var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              font-size var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
   z-index: 2;
   white-space: nowrap;
   max-width: calc(100% - 24px);
@@ -131,7 +135,7 @@ const SINGLE_CARD_FORM_CSS = `
   top: 0;
   font-size: 11px;
   font-weight: 500;
-  color: var(--ax-text-muted);
+  color: var(--ax-text-muted, #64748b);
 }
 
 /* GPS Section 3 columns in 1 line */
@@ -156,14 +160,25 @@ interface FloatingInputProps {
   disabled?: boolean;
   type?: string;
   placeholder?: string;
+  onCameraClick?: () => void;
 }
 
-function FloatingInput({ label, name, value, onChange, required, disabled, type = 'text', placeholder }: FloatingInputProps) {
+function FloatingInput({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+  disabled,
+  type = 'text',
+  placeholder,
+  onCameraClick,
+}: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
 
-  return (
-    <div className="ax-float">
+  const inputNode = (
+    <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
       <input
         type={type}
         id={name}
@@ -176,12 +191,52 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
         disabled={disabled}
         placeholder={placeholder || label}
         className="ax-float__input"
+        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
       </label>
     </div>
   );
+
+  if (onCameraClick) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'stretch', width: '100%' }}>
+        {inputNode}
+        <button
+          type="button"
+          className="ax-btn ax-btn--secondary"
+          onClick={onCameraClick}
+          title={`Scan barcode for ${label}`}
+          aria-label={`Scan barcode for ${label}`}
+          style={{
+            height: 46,
+            padding: '0 12px',
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0,
+            borderLeft: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            color: '#2563eb',
+            fontWeight: 600,
+            fontSize: '12px',
+            flexShrink: 0,
+            background: 'var(--ax-surface-subtle, #f8fafc)',
+            borderColor: 'var(--ax-border, #cbd5e1)',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          <span>Scan</span>
+        </button>
+      </div>
+    );
+  }
+
+  return inputNode;
 }
 
 /* ───────── Modern Upload Dropzone (matching reference code) ───────── */
@@ -309,7 +364,7 @@ function UploadDropzone({
                 <img
                   src={preview}
                   alt={label}
-                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)' }}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)' }}
                 />
               ) : (
                 <div
@@ -331,10 +386,10 @@ function UploadDropzone({
                 </div>
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file ? file.name : label}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
                   {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Photo captured'}
                 </div>
               </div>
@@ -371,7 +426,7 @@ function UploadDropzone({
               </svg>
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-              Click to upload or drag & drop
+              Choose File <span style={{ fontWeight: 400, color: 'var(--ax-text-muted, #64748b)', fontSize: 12 }}>No file chosen</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
               JPG, PNG or JPEG image — single file (Max 5MB)
@@ -392,8 +447,123 @@ function UploadDropzone({
 export function Punjab_Installation_SSL_InstallLight() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, rawResponse } = useAuth();
+
   const editId = searchParams.get('ssl_id') || searchParams.get('id') || searchParams.get('edit_id') || searchParams.get('light_id');
   const isEditMode = Boolean(editId);
+
+  // Logged-in Vendor name resolution from AuthContext, active session & storage
+  const loginVendorName = useMemo(() => {
+    const getCleanString = (val: any): string => {
+      if (
+        typeof val === 'string' &&
+        val.trim() &&
+        val.trim().toLowerCase() !== '[object object]' &&
+        val.trim().toLowerCase() !== 'null' &&
+        val.trim().toLowerCase() !== 'undefined'
+      ) {
+        return val.trim();
+      }
+      return '';
+    };
+
+    // 1. From AuthContext reactive state
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).vendor_id) ||
+        getCleanString((user as any).username) ||
+        getCleanString((user as any).email);
+      if (fromUser) return fromUser;
+    }
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor) ||
+        getCleanString(rawResponse?.data?.name) ||
+        getCleanString(rawResponse?.data?.user?.name) ||
+        getCleanString(rawResponse?.vendor_id) ||
+        getCleanString(rawResponse?.data?.vendor_id);
+      if (fromRaw) return fromRaw;
+    }
+
+    // 2. From authService storage methods
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.name) ||
+          getCleanString(session.vendor_id) ||
+          getCleanString(session.username);
+        if (fromSession) return fromSession;
+      }
+
+      const raw = authService.getRawResponse() as any;
+      if (raw) {
+        const fromRaw =
+          getCleanString(raw?.vendor?.name) ||
+          getCleanString(raw?.vendor?.vendor_name) ||
+          getCleanString(raw?.vendor) ||
+          getCleanString(raw?.vendor_name) ||
+          getCleanString(raw?.name) ||
+          getCleanString(raw?.user?.name) ||
+          getCleanString(raw?.data?.vendor?.name) ||
+          getCleanString(raw?.data?.vendor_name) ||
+          getCleanString(raw?.data?.vendor) ||
+          getCleanString(raw?.data?.name) ||
+          getCleanString(raw?.data?.user?.name) ||
+          getCleanString(raw?.vendor_id) ||
+          getCleanString(raw?.data?.vendor_id);
+        if (fromRaw) return fromRaw;
+      }
+    } catch {}
+
+    // 3. Direct localStorage / sessionStorage inspect fallback
+    try {
+      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
+      if (sessionStr) {
+        const parsed = JSON.parse(sessionStr);
+        const fromParsed =
+          getCleanString(parsed?.vendor_name) ||
+          getCleanString(parsed?.vendor) ||
+          getCleanString(parsed?.name) ||
+          getCleanString(parsed?.vendor_id);
+        if (fromParsed) return fromParsed;
+      }
+
+      const rawStr = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
+      if (rawStr) {
+        const parsedRaw = JSON.parse(rawStr);
+        const fromParsedRaw =
+          getCleanString(parsedRaw?.vendor?.name) ||
+          getCleanString(parsedRaw?.vendor?.vendor_name) ||
+          getCleanString(parsedRaw?.vendor) ||
+          getCleanString(parsedRaw?.vendor_name) ||
+          getCleanString(parsedRaw?.name) ||
+          getCleanString(parsedRaw?.user?.name) ||
+          getCleanString(parsedRaw?.data?.vendor?.name) ||
+          getCleanString(parsedRaw?.data?.vendor_name) ||
+          getCleanString(parsedRaw?.data?.vendor) ||
+          getCleanString(parsedRaw?.data?.name);
+        if (fromParsedRaw) return fromParsedRaw;
+      }
+    } catch {}
+
+    return '';
+  }, [user, rawResponse]);
 
   // Light Dropdown & Detail State
   const [lightsList, setLightsList] = useState<PunjabLightDropdownItem[]>([]);
@@ -402,7 +572,7 @@ export function Punjab_Installation_SSL_InstallLight() {
   const [siteDetail, setSiteDetail] = useState<PunjabLightDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Form State
+  // Form State (Section 3 manual entry)
   const [beneficiaryName, setBeneficiaryName] = useState('');
   const [contactNo, setContactNo] = useState('');
   const [wardNo, setWardNo] = useState('');
@@ -414,6 +584,9 @@ export function Punjab_Installation_SSL_InstallLight() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [remarks, setRemarks] = useState('');
+
+  // Camera Barcode Scanner Modal State
+  const [scannerTarget, setScannerTarget] = useState<'uuid' | 'panel' | 'battery' | 'light' | null>(null);
 
   // Photo Files & Previews (2 photos for Punjab SSL)
   const [files, setFiles] = useState<{
@@ -441,8 +614,6 @@ export function Punjab_Installation_SSL_InstallLight() {
   const sec1 = useRef<HTMLDivElement>(null);
   const sec2 = useRef<HTMLDivElement>(null);
   const sec3 = useRef<HTMLDivElement>(null);
-  const sec4 = useRef<HTMLDivElement>(null);
-  const sec5 = useRef<HTMLDivElement>(null);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -469,25 +640,46 @@ export function Punjab_Installation_SSL_InstallLight() {
   const handleLightSelect = async (lightIdOrUid: string) => {
     setSelectedLightId(lightIdOrUid);
     setSiteDetail(null);
+
+    // Keep all editable inputs in Section 3 ("Fill this Form") completely blank for manual entry!
+    setBeneficiaryName('');
+    setContactNo('');
+    setWardNo('');
+    setPoleNo('');
+    setUuidNo('');
+    setLightNo('');
+    setPanelNo('');
+    setBatteryNo('');
+    setLatitude('');
+    setLongitude('');
+    setRemarks('');
+    setFiles({ light_file: null, light_file2: null });
+    setPreviews({ light_file: '', light_file2: '' });
+
     if (!lightIdOrUid) return;
 
     try {
       setLoadingDetail(true);
       const detail = await punjabSslInstallationService.fetchLightDetail(lightIdOrUid);
       if (detail) {
+        // ONLY populate siteDetail for Section 2 (read-only display)
         setSiteDetail(detail);
         if (detail.id) setSelectedLightId(String(detail.id));
-        setBeneficiaryName(detail.beneficiary_name || '');
-        setContactNo(detail.contact_no || '');
-        setWardNo(detail.ward_no || '');
-        setPoleNo(detail.pole_no || '');
-        setUuidNo(detail.uuid_no || '');
-        setLightNo(detail.light_no || '');
-        setPanelNo(detail.panel_no || '');
-        setBatteryNo(detail.battery_serial_no || detail.battery_no || '');
-        setLatitude(detail.latitude ? String(detail.latitude) : '');
-        setLongitude(detail.longitude ? String(detail.longitude) : '');
-        setRemarks(detail.remark || detail.inst_remark || '');
+
+        // Editable form inputs in Section 3 ("Fill this Form") remain blank for manual entry by technician:
+        setBeneficiaryName('');
+        setContactNo('');
+        setWardNo('');
+        setPoleNo('');
+        setUuidNo('');
+        setLightNo('');
+        setPanelNo('');
+        setBatteryNo('');
+        setLatitude('');
+        setLongitude('');
+        setRemarks('');
+        setFiles({ light_file: null, light_file2: null });
+        setPreviews({ light_file: '', light_file2: '' });
       }
     } catch (err: any) {
       console.error('[Punjab SSL Installation] fetchLightDetail error:', err);
@@ -515,12 +707,12 @@ export function Punjab_Installation_SSL_InstallLight() {
           setSelectedLightId(idVal);
           setSiteDetail(detail);
           setBeneficiaryName(detail.beneficiary_name || '');
-          setContactNo(detail.contact_no || '');
-          setWardNo(detail.ward_no || '');
-          setPoleNo(detail.pole_no || '');
-          setUuidNo(detail.uuid_no || '');
-          setLightNo(detail.light_no || '');
-          setPanelNo(detail.panel_no || '');
+          setContactNo(detail.contact_no ? String(detail.contact_no) : '');
+          setWardNo(detail.ward_no ? String(detail.ward_no) : '');
+          setPoleNo(detail.pole_no ? String(detail.pole_no) : '');
+          setUuidNo(detail.uuid_no ? String(detail.uuid_no) : '');
+          setLightNo(detail.light_no ? String(detail.light_no) : '');
+          setPanelNo(detail.panel_no ? String(detail.panel_no) : '');
           setBatteryNo(detail.battery_serial_no || detail.battery_no || '');
           setLatitude(detail.latitude ? String(detail.latitude) : '');
           setLongitude(detail.longitude ? String(detail.longitude) : '');
@@ -586,18 +778,18 @@ export function Punjab_Installation_SSL_InstallLight() {
 
     if (!beneficiaryName.trim()) {
       setFeedback({ type: 'danger', text: 'Beneficiary Name is required.' });
-      scrollTo(sec2);
+      scrollTo(sec3);
       return;
     }
-    const cleanPhone = contactNo.replace(/\D/g, '');
+    const cleanPhone = contactNo.replace(/\D/g, '').trim();
     if (cleanPhone.length !== 10) {
       setFeedback({ type: 'danger', text: 'Contact Number must be exactly 10 digits.' });
-      scrollTo(sec2);
+      scrollTo(sec3);
       return;
     }
     if (!wardNo.trim()) {
       setFeedback({ type: 'danger', text: 'Ward Number is required.' });
-      scrollTo(sec2);
+      scrollTo(sec3);
       return;
     }
     if (!poleNo.trim()) {
@@ -607,11 +799,6 @@ export function Punjab_Installation_SSL_InstallLight() {
     }
     if (!uuidNo.trim()) {
       setFeedback({ type: 'danger', text: 'UUID Number is required.' });
-      scrollTo(sec3);
-      return;
-    }
-    if (!lightNo.trim()) {
-      setFeedback({ type: 'danger', text: 'Light Luminary Number is required.' });
       scrollTo(sec3);
       return;
     }
@@ -625,22 +812,27 @@ export function Punjab_Installation_SSL_InstallLight() {
       scrollTo(sec3);
       return;
     }
+    if (!lightNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Light Luminary Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
 
     if (!latitude.trim() || !longitude.trim()) {
       setFeedback({ type: 'danger', text: 'GPS Latitude and Longitude are required.' });
-      scrollTo(sec4);
+      scrollTo(sec3);
       return;
     }
 
     if (!isEditMode) {
       if (!files.light_file) {
         setFeedback({ type: 'danger', text: 'Light Installation Photo 1 is required.' });
-        scrollTo(sec5);
+        scrollTo(sec3);
         return;
       }
       if (!files.light_file2) {
         setFeedback({ type: 'danger', text: 'Light Installation Photo 2 is required.' });
-        scrollTo(sec5);
+        scrollTo(sec3);
         return;
       }
     }
@@ -672,6 +864,13 @@ export function Punjab_Installation_SSL_InstallLight() {
       if (remarks.trim()) {
         fd.append('remark', remarks.trim());
         fd.append('remarks', remarks.trim());
+      }
+
+      // Attach logged in vendor name if available
+      const vendorToSubmit = loginVendorName || siteDetail?.vendor || siteDetail?.vendor_name || '';
+      if (vendorToSubmit) {
+        fd.append('vendor', vendorToSubmit);
+        fd.append('vendor_name', vendorToSubmit);
       }
 
       if (files.light_file) {
@@ -755,21 +954,15 @@ export function Punjab_Installation_SSL_InstallLight() {
           </div>
 
           {/* Quick Nav Pills */}
-          <div className="swp-section-pills">
+          <div className="swp-section-pills" role="navigation" aria-label="Quick section navigation">
             <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
               <span className="pill-num">1</span> Site Selection
             </button>
             <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
-              <span className="pill-num">2</span> Beneficiary Info
+              <span className="pill-num">2</span> Beneficiary & Location Info
             </button>
             <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
-              <span className="pill-num">3</span> Equipment Numbers
-            </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
-              <span className="pill-num">4</span> Geo & Remarks
-            </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
-              <span className="pill-num">5</span> Site Photos
+              <span className="pill-num">3</span> Fill this Form
             </button>
           </div>
         </div>
@@ -840,116 +1033,109 @@ export function Punjab_Installation_SSL_InstallLight() {
 
           <hr className="swp-section-divider" />
 
-          {/* ════════ Section 2: Beneficiary / Location Information ════════ */}
+          {/* ════════ Section 2: Beneficiary & Location Information (Read-only fetched data) ════════ */}
           <div ref={sec2} className="swp-section-block">
             <div className="swp-section-header">
               <div className="swp-section-title-wrap">
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Beneficiary & Location Information</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
-                  Beneficiary identity, contact, ward and sanction details
+                  Auto-populated official beneficiary and site record (Read-only fetched details)
                 </span>
               </div>
             </div>
 
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
               <FloatingInput
+                label="Vendor Name"
+                name="vendor_display"
+                value={loginVendorName || siteDetail?.vendor || siteDetail?.vendor_name || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Unique ID"
+                name="unique_id_display"
+                value={siteDetail?.unique_id != null ? String(siteDetail.unique_id) : (selectedLightId ? String(selectedLightId) : '')}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
                 label="Beneficiary Name"
-                name="beneficiary_name"
-                value={beneficiaryName}
-                onChange={(e) => setBeneficiaryName(e.target.value)}
-                required
+                name="beneficiary_name_display"
+                value={siteDetail?.beneficiary_name || ''}
+                onChange={() => {}}
+                disabled
               />
               <FloatingInput
-                label="Contact Number (10 Digits)"
-                name="contact_no"
-                value={contactNo}
-                onChange={(e) => setContactNo(e.target.value)}
-                required
+                label="Contact Number"
+                name="contact_no_display"
+                value={siteDetail?.contact_no != null ? String(siteDetail.contact_no) : ''}
+                onChange={() => {}}
+                disabled
               />
               <FloatingInput
-                label="Ward Number"
-                name="ward_no"
-                value={wardNo}
-                onChange={(e) => setWardNo(e.target.value)}
-                required
+                label="State"
+                name="state_display"
+                value={siteDetail?.state || (selectedLightId ? 'Punjab' : '')}
+                onChange={() => {}}
+                disabled
               />
               <FloatingInput
-                label="Pole Number"
-                name="pole_no"
-                value={poleNo}
-                onChange={(e) => setPoleNo(e.target.value)}
-                required
+                label="District"
+                name="district_display"
+                value={siteDetail?.district || ''}
+                onChange={() => {}}
+                disabled
               />
-              <FloatingInput label="Panchayat" name="panchayat" value={siteDetail?.panchayat || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Block" name="block" value={siteDetail?.block || ''} onChange={() => {}} disabled />
-              <FloatingInput label="District" name="district" value={siteDetail?.district || ''} onChange={() => {}} disabled />
-              <FloatingInput label="State" name="state" value={siteDetail?.state || 'Punjab'} onChange={() => {}} disabled />
-              <FloatingInput label="Sarpanch Name" name="sarpanch_name" value={siteDetail?.sarpanch_name || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Sarpanch Contact" name="sarpanch_contact" value={siteDetail?.sarpanch_contact || ''} onChange={() => {}} disabled />
+              <FloatingInput
+                label="Block"
+                name="block_display"
+                value={siteDetail?.block || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Panchayat"
+                name="panchayat_display"
+                value={siteDetail?.panchayat || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Sarpanch Name"
+                name="sarpanch_name_display"
+                value={siteDetail?.sarpanch_name || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Sarpanch Contact"
+                name="sarpanch_contact_display"
+                value={siteDetail?.sarpanch_contact || ''}
+                onChange={() => {}}
+                disabled
+              />
+              {siteDetail?.address && (
+                <FloatingInput
+                  label="Address"
+                  name="address_display"
+                  value={siteDetail?.address || ''}
+                  onChange={() => {}}
+                  disabled
+                />
+              )}
             </div>
           </div>
 
           <hr className="swp-section-divider" />
 
-          {/* ════════ Section 3: Equipment Numbers ════════ */}
+          {/* ════════ Section 3: Fill this Form (Technician manual entry) ════════ */}
           <div ref={sec3} className="swp-section-block">
             <div className="swp-section-header">
               <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Equipment & Serial Numbers</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Fill this Form</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
-                  UUID, Pole, Luminary, Solar Panel and Battery serial numbers installed
-                </span>
-              </div>
-            </div>
-
-            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-              <FloatingInput
-                label="UUID Number"
-                name="uuid_no"
-                value={uuidNo}
-                onChange={(e) => setUuidNo(e.target.value)}
-                required
-              />
-              <FloatingInput
-                label="Pole Number"
-                name="pole_no_eq"
-                value={poleNo}
-                onChange={(e) => setPoleNo(e.target.value)}
-                required
-              />
-              <FloatingInput
-                label="Light Luminary Number"
-                name="light_no"
-                value={lightNo}
-                onChange={(e) => setLightNo(e.target.value)}
-                required
-              />
-              <FloatingInput
-                label="Solar Panel Number"
-                name="panel_no"
-                value={panelNo}
-                onChange={(e) => setPanelNo(e.target.value)}
-                required
-              />
-              <FloatingInput
-                label="Battery Serial Number"
-                name="battery_no"
-                value={batteryNo}
-                onChange={(e) => setBatteryNo(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <hr className="swp-section-divider" />
-
-          {/* ════════ Section 4: Geo Coordinates & Remarks ════════ */}
-          <div ref={sec4} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. GPS Coordinates & Remarks</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
-                  Exact site geotag coordinates (latitude & longitude)
+                  The field labels marked with <span style={{ color: 'var(--ax-danger, #ef4444)', fontWeight: 600 }}>*</span> are required fields.
                 </span>
               </div>
               <button
@@ -962,47 +1148,123 @@ export function Punjab_Installation_SSL_InstallLight() {
               </button>
             </div>
 
-            <div className="swp-gps-grid">
+            {/* Grid 1: Beneficiary, Ward, Pole */}
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <FloatingInput
+                label="Beneficiary Name"
+                name="beneficiary_name"
+                value={beneficiaryName}
+                onChange={(e) => setBeneficiaryName(e.target.value)}
+                placeholder="Enter Beneficiary Name"
+                required
+              />
+
+              <FloatingInput
+                label="Contact Number"
+                name="contact_no"
+                type="tel"
+                value={contactNo}
+                onChange={(e) => setContactNo(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="Enter Contact Number"
+                required
+              />
+
+              <FloatingInput
+                label="Ward Number"
+                name="ward_no"
+                value={wardNo}
+                onChange={(e) => setWardNo(e.target.value)}
+                placeholder="Enter Ward Number"
+                required
+              />
+
+              <FloatingInput
+                label="Pole Number"
+                name="pole_no"
+                value={poleNo}
+                onChange={(e) => setPoleNo(e.target.value)}
+                placeholder="Enter Pole Number"
+                required
+              />
+            </div>
+
+            {/* Grid 2: Equipment Serial Numbers with Barcode Scanner Buttons */}
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <FloatingInput
+                label="UUID Number"
+                name="uuid_no"
+                value={uuidNo}
+                onChange={(e) => setUuidNo(e.target.value)}
+                placeholder="Enter UUID Number"
+                required
+                onCameraClick={() => setScannerTarget('uuid')}
+              />
+
+              <FloatingInput
+                label="Solar Panel Number"
+                name="panel_no"
+                value={panelNo}
+                onChange={(e) => setPanelNo(e.target.value)}
+                placeholder="Enter Solar Panel Number"
+                required
+                onCameraClick={() => setScannerTarget('panel')}
+              />
+
+              <FloatingInput
+                label="Battery Serial Number"
+                name="battery_no"
+                value={batteryNo}
+                onChange={(e) => setBatteryNo(e.target.value)}
+                placeholder="Enter Battery Serial Number"
+                required
+                onCameraClick={() => setScannerTarget('battery')}
+              />
+
+              <FloatingInput
+                label="Light Luminary Number"
+                name="light_no"
+                value={lightNo}
+                onChange={(e) => setLightNo(e.target.value)}
+                placeholder="Enter Light Luminary Number"
+                required
+                onCameraClick={() => setScannerTarget('light')}
+              />
+            </div>
+
+            {/* Grid 3: GPS Coordinates & Remarks */}
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
               <FloatingInput
                 label="Installation Latitude"
                 name="latitude"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
+                placeholder="e.g. 30.9010"
                 required
               />
+
               <FloatingInput
                 label="Installation Longitude"
                 name="longitude"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
+                placeholder="e.g. 75.8573"
                 required
               />
+
               <FloatingInput
-                label="Installation Remarks (optional)"
+                label="Installation Remarks"
                 name="remarks"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Enter Remarks"
               />
             </div>
-          </div>
 
-          <hr className="swp-section-divider" />
-
-          {/* ════════ Section 5: Photo Uploads ════════ */}
-          <div ref={sec5} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Installation Photo Evidence</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)' }}>
-                  Upload clear photos of both required SSL views (Luminary, Pole & Panel)
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {/* Grid 4: Light Installation Photos (2 photos for Punjab SSL) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginTop: '8px' }}>
               <UploadDropzone
                 id="light_file"
-                label="1. Light Installation Photo 1"
+                label="Light Installation Photo 1"
                 required={!isEditMode}
                 file={files.light_file}
                 preview={previews.light_file}
@@ -1015,7 +1277,7 @@ export function Punjab_Installation_SSL_InstallLight() {
 
               <UploadDropzone
                 id="light_file2"
-                label="2. Light Installation Photo 2"
+                label="Light Installation Photo 2"
                 required={!isEditMode}
                 file={files.light_file2}
                 preview={previews.light_file2}
@@ -1029,7 +1291,7 @@ export function Punjab_Installation_SSL_InstallLight() {
           </div>
 
           {/* ════════ Submit Footer ════════ */}
-          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
             <Link to="/v/punjab/ssl/installation/complete-light" className="ax-btn ax-btn--secondary">
               Cancel
             </Link>
@@ -1050,6 +1312,30 @@ export function Punjab_Installation_SSL_InstallLight() {
           </div>
         </div>
       </form>
+
+      {/* ── Camera Barcode Scanner Modal ── */}
+      {scannerTarget && (
+        <CameraBarcodeScannerModal
+          open={Boolean(scannerTarget)}
+          fieldName={scannerTarget}
+          fieldLabel={
+            scannerTarget === 'uuid'
+              ? 'UUID Number'
+              : scannerTarget === 'panel'
+              ? 'Solar Panel Number'
+              : scannerTarget === 'battery'
+              ? 'Battery Serial Number'
+              : 'Light Luminary Number'
+          }
+          onScan={(val) => {
+            if (scannerTarget === 'uuid') setUuidNo(val);
+            else if (scannerTarget === 'panel') setPanelNo(val);
+            else if (scannerTarget === 'battery') setBatteryNo(val);
+            else if (scannerTarget === 'light') setLightNo(val);
+          }}
+          onClose={() => setScannerTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { authService } from '../../../../../services/authService';
+import { useAuth } from '../../../../../context/AuthContext';
 import {
   arunachalShlInstallationService,
   resolveArunachalMediaUrl,
@@ -96,11 +97,12 @@ const SINGLE_CARD_FORM_CSS = `
               box-shadow var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
 .ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus::placeholder { color: #94a3b8; }
 .ax-float__input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
 }
-.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
+.ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
 .ax-float__label {
   position: absolute;
@@ -224,7 +226,7 @@ function FloatingInput({
             borderColor: 'var(--ax-border, #cbd5e1)',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
           </svg>
@@ -424,7 +426,7 @@ function UploadDropzone({
               </svg>
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-              Click to upload or drag & drop
+              Choose File <span style={{ fontWeight: 400, color: 'var(--ax-text-muted, #64748b)', fontSize: 12 }}>No file chosen</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
               JPG, PNG, JPEG, WEBP or PDF image — single file (max 5120 KB)
@@ -445,14 +447,124 @@ function UploadDropzone({
 export function Arunachal_Installation_SHL_InstallLight() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, rawResponse } = useAuth();
 
   // Mode: Check if edit query parameter exists
   const editLightIdParam = searchParams.get('light_id') || searchParams.get('id') || searchParams.get('edit_id');
   const isEditMode = Boolean(editLightIdParam);
 
-  // Vendor session info
-  const session = authService.getSession() as any;
-  const vendorName = session?.vendor?.name || session?.user?.name || 'Vendor';
+  // Logged-in Vendor name resolution from AuthContext, active session & storage
+  const loginVendorName = useMemo(() => {
+    const getCleanString = (val: any): string => {
+      if (
+        typeof val === 'string' &&
+        val.trim() &&
+        val.trim().toLowerCase() !== '[object object]' &&
+        val.trim().toLowerCase() !== 'null' &&
+        val.trim().toLowerCase() !== 'undefined'
+      ) {
+        return val.trim();
+      }
+      return '';
+    };
+
+    // 1. From AuthContext reactive state
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).vendor_id) ||
+        getCleanString((user as any).username) ||
+        getCleanString((user as any).email);
+      if (fromUser) return fromUser;
+    }
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor) ||
+        getCleanString(rawResponse?.data?.name) ||
+        getCleanString(rawResponse?.data?.user?.name) ||
+        getCleanString(rawResponse?.vendor_id) ||
+        getCleanString(rawResponse?.data?.vendor_id);
+      if (fromRaw) return fromRaw;
+    }
+
+    // 2. From authService storage methods
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.name) ||
+          getCleanString(session.vendor_id) ||
+          getCleanString(session.username);
+        if (fromSession) return fromSession;
+      }
+
+      const raw = authService.getRawResponse() as any;
+      if (raw) {
+        const fromRaw =
+          getCleanString(raw?.vendor?.name) ||
+          getCleanString(raw?.vendor?.vendor_name) ||
+          getCleanString(raw?.vendor) ||
+          getCleanString(raw?.vendor_name) ||
+          getCleanString(raw?.name) ||
+          getCleanString(raw?.user?.name) ||
+          getCleanString(raw?.data?.vendor?.name) ||
+          getCleanString(raw?.data?.vendor_name) ||
+          getCleanString(raw?.data?.vendor) ||
+          getCleanString(raw?.data?.name) ||
+          getCleanString(raw?.data?.user?.name) ||
+          getCleanString(raw?.vendor_id) ||
+          getCleanString(raw?.data?.vendor_id);
+        if (fromRaw) return fromRaw;
+      }
+    } catch {}
+
+    // 3. Direct localStorage / sessionStorage inspect fallback
+    try {
+      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
+      if (sessionStr) {
+        const parsed = JSON.parse(sessionStr);
+        const fromParsed =
+          getCleanString(parsed?.vendor_name) ||
+          getCleanString(parsed?.vendor) ||
+          getCleanString(parsed?.name) ||
+          getCleanString(parsed?.vendor_id);
+        if (fromParsed) return fromParsed;
+      }
+
+      const rawStr = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
+      if (rawStr) {
+        const parsedRaw = JSON.parse(rawStr);
+        const fromParsedRaw =
+          getCleanString(parsedRaw?.vendor?.name) ||
+          getCleanString(parsedRaw?.vendor?.vendor_name) ||
+          getCleanString(parsedRaw?.vendor) ||
+          getCleanString(parsedRaw?.vendor_name) ||
+          getCleanString(parsedRaw?.name) ||
+          getCleanString(parsedRaw?.user?.name) ||
+          getCleanString(parsedRaw?.data?.vendor?.name) ||
+          getCleanString(parsedRaw?.data?.vendor_name) ||
+          getCleanString(parsedRaw?.data?.vendor) ||
+          getCleanString(parsedRaw?.data?.name);
+        if (fromParsedRaw) return fromParsedRaw;
+      }
+    } catch {}
+
+    return '';
+  }, [user, rawResponse]);
 
   // State: Dropdown lights list (API 3)
   const [lightsList, setLightsList] = useState<ArunachalLightDropdownItem[]>([]);
@@ -492,8 +604,6 @@ export function Arunachal_Installation_SHL_InstallLight() {
   const sec1 = useRef<HTMLDivElement>(null);
   const sec2 = useRef<HTMLDivElement>(null);
   const sec3 = useRef<HTMLDivElement>(null);
-  const sec4 = useRef<HTMLDivElement>(null);
-  const sec5 = useRef<HTMLDivElement>(null);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -525,32 +635,58 @@ export function Arunachal_Installation_SHL_InstallLight() {
     };
   }, [isEditMode]);
 
-  // 2. Load site details on site selection (API 4 or API 7)
+  // 2. Load site details on site selection (API 4)
   const handleLightSelect = async (lightId: string) => {
     setSelectedLightId(lightId);
     setSiteDetail(null);
     setFeedback(null);
-    if (!lightId) return;
+
+    // Keep all editable inputs in Section 3 ("Fill this Form") completely blank for manual entry!
+    setBeneficiaryName('');
+    setContactNo('');
+    setWardNo('');
+    setPoleNo('');
+    setUuidNo('');
+    setPanelNo('');
+    setBatteryNo('');
+    setLightNo('');
+    setLatitude('');
+    setLongitude('');
+    setRemarks('');
+    setFilePreview('');
+    setLightFile(null);
+
+    if (!lightId) {
+      return;
+    }
 
     try {
       setLoadingDetail(true);
       const det = await arunachalShlInstallationService.fetchLightDetail(lightId);
       if (det) {
+        // ONLY populate siteDetail for Section 2 (read-only display)
         setSiteDetail(det);
-        setBeneficiaryName(det.beneficiary_name || '');
-        setContactNo(det.contact_no ? String(det.contact_no) : '');
-        setWardNo(det.ward_no ? String(det.ward_no) : '');
-        setPoleNo(det.pole_no ? String(det.pole_no) : '');
-        setUuidNo(det.uuid_no ? String(det.uuid_no) : '');
-        setPanelNo(det.panel_no ? String(det.panel_no) : '');
-        setBatteryNo(det.battery_serial_no || det.battery_no || '');
-        setLightNo(det.light_no ? String(det.light_no) : '');
-        setLatitude(det.latitude ? String(det.latitude) : '');
-        setLongitude(det.longitude ? String(det.longitude) : '');
-        setRemarks(det.inst_remark || det.remark || '');
-        if (det.light_file) {
-          setFilePreview(resolveArunachalMediaUrl(det.light_file));
-        }
+
+        // Editable form inputs in Section 3 ("Fill this Form") remain blank for manual entry by technician:
+        // "bakii nichee kaa form khudd bharnaa hogaa voo fetch matt karvaa kahii se blank dataa rhene do"
+        setBeneficiaryName('');
+        setContactNo('');
+        setWardNo('');
+        setPoleNo('');
+        setUuidNo('');
+        setPanelNo('');
+        setBatteryNo('');
+        setLightNo('');
+        setLatitude('');
+        setLongitude('');
+        setRemarks('');
+        setFilePreview('');
+        setLightFile(null);
+      } else {
+        setFeedback({
+          type: 'danger',
+          text: 'Site details not found or not assigned to your vendor account.',
+        });
       }
     } catch (err: any) {
       console.error('[Arunachal SHL Installation] fetchDetail error:', err);
@@ -669,6 +805,30 @@ export function Arunachal_Installation_SHL_InstallLight() {
       return;
     }
 
+    if (!beneficiaryName.trim()) {
+      setFeedback({ type: 'danger', text: 'Benificiary Name is required.' });
+      scrollTo(sec3);
+      return;
+    }
+
+    const cleanContact = contactNo.replace(/\D/g, '').trim();
+    if (cleanContact.length !== 10) {
+      setFeedback({ type: 'danger', text: 'Benificiary Contact must be exactly 10 digits.' });
+      scrollTo(sec3);
+      return;
+    }
+
+    if (!wardNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Ward Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!poleNo.trim()) {
+      setFeedback({ type: 'danger', text: 'Pole Number is required.' });
+      scrollTo(sec3);
+      return;
+    }
+
     if (!uuidNo.trim()) {
       setFeedback({ type: 'danger', text: 'UUID Number is required.' });
       scrollTo(sec3);
@@ -690,45 +850,21 @@ export function Arunachal_Installation_SHL_InstallLight() {
       return;
     }
 
-    if (!beneficiaryName.trim()) {
-      setFeedback({ type: 'danger', text: 'Beneficiary Name is required.' });
-      scrollTo(sec4);
-      return;
-    }
-
-    const cleanContact = contactNo.replace(/\D/g, '').trim();
-    if (cleanContact.length !== 10) {
-      setFeedback({ type: 'danger', text: 'Beneficiary Contact must be exactly 10 digits.' });
-      scrollTo(sec4);
-      return;
-    }
-
-    if (!wardNo.trim()) {
-      setFeedback({ type: 'danger', text: 'Ward Number is required.' });
-      scrollTo(sec4);
-      return;
-    }
-    if (!poleNo.trim()) {
-      setFeedback({ type: 'danger', text: 'Pole Number is required.' });
-      scrollTo(sec4);
-      return;
-    }
-
     if (!latitude.trim() || !longitude.trim()) {
       setFeedback({ type: 'danger', text: 'GPS Latitude and Longitude are required.' });
-      scrollTo(sec4);
+      scrollTo(sec3);
       return;
     }
 
     if (!isEditMode && !lightFile) {
-      setFeedback({ type: 'danger', text: 'Solar Home Light installation photo is required.' });
-      scrollTo(sec5);
+      setFeedback({ type: 'danger', text: 'Light Image is required.' });
+      scrollTo(sec3);
       return;
     }
 
     if (lightFile && lightFile.size > 5120 * 1024) {
       setFeedback({ type: 'danger', text: 'Light Image size exceeds 5MB (5120 KB).' });
-      scrollTo(sec5);
+      scrollTo(sec3);
       return;
     }
 
@@ -743,12 +879,21 @@ export function Arunachal_Installation_SHL_InstallLight() {
       formData.append('light_no', lightNo.trim());
       formData.append('panel_no', panelNo.trim());
       formData.append('battery_serial_no', batteryNo.trim());
+      formData.append('battery_no', batteryNo.trim());
       formData.append('beneficiary_name', beneficiaryName.trim());
       formData.append('ward_no', wardNo.trim());
       formData.append('contact_no', cleanContact);
       formData.append('latitude', latitude.trim());
       formData.append('longitude', longitude.trim());
       formData.append('remark', remarks.trim());
+      formData.append('remarks', remarks.trim());
+
+      // Attach logged in vendor name if available
+      const vendorToSubmit = loginVendorName || siteDetail?.vendor || siteDetail?.vendor_name || '';
+      if (vendorToSubmit) {
+        formData.append('vendor', vendorToSubmit);
+        formData.append('vendor_name', vendorToSubmit);
+      }
 
       if (lightFile) {
         formData.append('light_file', lightFile);
@@ -838,16 +983,10 @@ export function Arunachal_Installation_SHL_InstallLight() {
               <span className="pill-num">1</span> Site Selection
             </button>
             <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
-              <span className="pill-num">2</span> Beneficiary Info
+              <span className="pill-num">2</span> Beneficiary & Location Info
             </button>
             <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
-              <span className="pill-num">3</span> Equipment Numbers
-            </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
-              <span className="pill-num">4</span> Geo & Remarks
-            </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
-              <span className="pill-num">5</span> Site Photos
+              <span className="pill-num">3</span> Fill this Form
             </button>
           </div>
         </div>
@@ -894,7 +1033,7 @@ export function Arunachal_Installation_SHL_InstallLight() {
                       <option value="">-- Choose Assigned Light / Unique ID --</option>
                       {lightsList.map((l) => (
                         <option key={l.id} value={String(l.id)}>
-                          #{l.id} - {l.unique_id}
+                          #{l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
                         </option>
                       ))}
                     </select>
@@ -906,6 +1045,15 @@ export function Arunachal_Installation_SHL_InstallLight() {
               </div>
             </div>
 
+            {!isEditMode && !loadingLights && lightsList.length === 0 && (
+              <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 13, color: 'var(--ax-text-muted)' }}>
+                ℹ️ No pending installation lights found. Please ensure you have accepted assigned light batches first in{' '}
+                <Link to="/v/arunachal/shl/installation/view-assigned-light" style={{ color: '#2563eb', fontWeight: 600 }}>
+                  Assigned Lights
+                </Link>.
+              </div>
+            )}
+
             {loadingDetail && (
               <div style={{ padding: '16px 0', color: '#2563eb', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="ax-spinner" /> Fetching light specifications & prefilled details...
@@ -915,45 +1063,154 @@ export function Arunachal_Installation_SHL_InstallLight() {
 
           <hr className="swp-section-divider" />
 
-          {/* ════════ Section 2: Beneficiary & Location Information ════════ */}
+          {/* ════════ Section 2: Beneficiary & Location Information (Read-only fetched data) ════════ */}
           <div ref={sec2} className="swp-section-block">
             <div className="swp-section-header">
               <div className="swp-section-title-wrap">
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Beneficiary & Location Information</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Auto-populated official beneficiary and site record
+                  Auto-populated official beneficiary and site record (Read-only fetched details)
                 </span>
               </div>
             </div>
 
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-              <FloatingInput label="Vendor Name" name="vendor" value={siteDetail?.vendor || vendorName} onChange={() => {}} disabled />
-              <FloatingInput label="Unique ID" name="unique_id" value={siteDetail?.unique_id || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Beneficiary Name" name="beneficiary_name_prefill" value={siteDetail?.beneficiary_name || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Contact Number" name="contact_no_prefill" value={siteDetail?.contact_no || ''} onChange={() => {}} disabled />
-              <FloatingInput label="State" name="state" value={siteDetail?.state || 'Arunachal Pradesh'} onChange={() => {}} disabled />
-              <FloatingInput label="Phase" name="phase" value={siteDetail?.phase || '—'} onChange={() => {}} disabled />
-              <FloatingInput label="District" name="district" value={siteDetail?.district || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Block" name="block" value={siteDetail?.block || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Panchayat" name="panchayat" value={siteDetail?.panchayat || ''} onChange={() => {}} disabled />
-              <FloatingInput label="Address" name="address" value={siteDetail?.address || ''} onChange={() => {}} disabled />
+              <FloatingInput
+                label="Vendor Name"
+                name="vendor_display"
+                value={loginVendorName || siteDetail?.vendor || siteDetail?.vendor_name || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Unique ID"
+                name="unique_id_display"
+                value={siteDetail?.unique_id != null ? String(siteDetail.unique_id) : (selectedLightId ? String(selectedLightId) : '')}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Beneficiary Name"
+                name="beneficiary_name_display"
+                value={siteDetail?.beneficiary_name || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Contact No."
+                name="contact_no_display"
+                value={siteDetail?.contact_no != null ? String(siteDetail.contact_no) : ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="State"
+                name="state_display"
+                value={siteDetail?.state || (selectedLightId ? 'arunachal' : '')}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Phase"
+                name="phase_display"
+                value={siteDetail?.phase || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="District"
+                name="district_display"
+                value={siteDetail?.district || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Block"
+                name="block_display"
+                value={siteDetail?.block || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Panchayat"
+                name="panchayat_display"
+                value={siteDetail?.panchayat || ''}
+                onChange={() => {}}
+                disabled
+              />
+              <FloatingInput
+                label="Address"
+                name="address_display"
+                value={siteDetail?.address || ''}
+                onChange={() => {}}
+                disabled
+              />
             </div>
           </div>
 
           <hr className="swp-section-divider" />
 
-          {/* ════════ Section 3: Equipment & Serial Numbers ════════ */}
+          {/* ════════ Section 3: Fill this Form (Technician manual entry) ════════ */}
           <div ref={sec3} className="swp-section-block">
             <div className="swp-section-header">
               <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Equipment & Serial Numbers</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Fill this Form</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Scan barcode with camera or enter unique serial numbers for UUID, Panel, Battery, and Light
+                  The field labels marked with <span style={{ color: 'var(--ax-danger, #ef4444)', fontWeight: 600 }}>*</span> are required fields.
                 </span>
               </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={detectLocation}
+                disabled={gettingLocation}
+              >
+                {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
+              </button>
             </div>
 
-            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {/* Grid 1: Beneficiary, Ward, Pole */}
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <FloatingInput
+                label="Benificiary Name"
+                name="beneficiary_name"
+                value={beneficiaryName}
+                onChange={(e) => setBeneficiaryName(e.target.value)}
+                placeholder="Enter Benificiary Name"
+                required
+              />
+
+              <FloatingInput
+                label="Benificiary Contact"
+                name="contact_no"
+                type="tel"
+                value={contactNo}
+                onChange={(e) => setContactNo(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="Enter Contact Number"
+                required
+              />
+
+              <FloatingInput
+                label="Ward Number"
+                name="ward_no"
+                value={wardNo}
+                onChange={(e) => setWardNo(e.target.value)}
+                placeholder="Enter Ward Number"
+                required
+              />
+
+              <FloatingInput
+                label="Pole Number"
+                name="pole_no"
+                value={poleNo}
+                onChange={(e) => setPoleNo(e.target.value)}
+                placeholder="Enter Pole Number"
+                required
+              />
+            </div>
+
+            {/* Grid 2: Equipment Serial Numbers with Barcode Scanner Buttons */}
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
               <FloatingInput
                 label="UUID NO"
                 name="uuid_no"
@@ -994,114 +1251,41 @@ export function Arunachal_Installation_SHL_InstallLight() {
                 onCameraClick={() => setScannerTarget('light')}
               />
             </div>
-          </div>
 
-          <hr className="swp-section-divider" />
-
-          {/* ════════ Section 4: Beneficiary Verification, Geolocation & Remarks ════════ */}
-          <div ref={sec4} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Beneficiary Verification, Geolocation & Remarks</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Confirm contact number, ward, pole number, GPS coordinates, and field notes
-                </span>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
-                disabled={gettingLocation}
-              >
-                {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
-              </button>
-            </div>
-
-            {/* Beneficiary Row */}
+            {/* Grid 3: GPS Coordinates & Remarks */}
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '16px' }}>
               <FloatingInput
-                label="Beneficiary Name"
-                name="beneficiary_name"
-                value={beneficiaryName}
-                onChange={(e) => setBeneficiaryName(e.target.value)}
-                placeholder="Enter Beneficiary Name"
-                required
-              />
-
-              <FloatingInput
-                label="Beneficiary Contact (10 digits)"
-                name="contact_no"
-                type="tel"
-                value={contactNo}
-                onChange={(e) => setContactNo(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                placeholder="Enter 10-digit Mobile Number"
-                required
-              />
-
-              <FloatingInput
-                label="Ward Number"
-                name="ward_no"
-                value={wardNo}
-                onChange={(e) => setWardNo(e.target.value)}
-                placeholder="Enter Ward Number"
-                required
-              />
-
-              <FloatingInput
-                label="Pole Number"
-                name="pole_no"
-                value={poleNo}
-                onChange={(e) => setPoleNo(e.target.value)}
-                placeholder="Enter Pole Number"
-                required
-              />
-            </div>
-
-            {/* GPS & Remarks Grid */}
-            <div className="swp-gps-grid">
-              <FloatingInput
-                label="Installation Latitude"
+                label="Latitude"
                 name="latitude"
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
-                placeholder="e.g. 27.0844"
+                placeholder="28.603171541160073"
                 required
               />
+
               <FloatingInput
-                label="Installation Longitude"
+                label="Longitude"
                 name="longitude"
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
-                placeholder="e.g. 93.6053"
+                placeholder="77.35741112118423"
                 required
               />
+
               <FloatingInput
-                label="Installation Remarks (optional)"
+                label="Remarks"
                 name="remarks"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Enter field remarks..."
+                placeholder="Enter Remarks"
               />
             </div>
-          </div>
 
-          <hr className="swp-section-divider" />
-
-          {/* ════════ Section 5: Photo Uploads ════════ */}
-          <div ref={sec5} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Installation Photo Evidence</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Upload clear photograph of installed Solar Home Light with pole, panel, and battery
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {/* Grid 4: Light Image Evidence */}
+            <div style={{ marginTop: '8px' }}>
               <UploadDropzone
                 id="light_file"
-                label="Solar Home Light Installation Photo"
+                label="Light Image"
                 required={!isEditMode}
                 file={lightFile}
                 preview={filePreview}

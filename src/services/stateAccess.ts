@@ -57,9 +57,9 @@ export const canAccessState = (state: string): boolean => {
   return allowed === 'ALL' || allowed.includes(normState(state));
 };
 
-const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab'];
+const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'arunachal', 'goa'];
 
-/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam' */
+/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam'; 'goa/...' → 'goa' */
 export const stateOfSlug = (slug: string): string | null => {
   let clean = slug.replace(/^\/+/, '');
   if (clean.startsWith('v/')) {
@@ -71,13 +71,14 @@ export const stateOfSlug = (slug: string): string | null => {
     if (KNOWN_STATES.includes(candidate)) return candidate;
     return null;
   }
-  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab)\//);
+  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab|arunachal|goa)\//);
   if (mV) return normState(mV[1]);
   if (clean.startsWith('up-') || clean.includes('/up/')) return 'up';
   if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
   if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
+  if (clean.startsWith('goa-') || clean.includes('goa')) return 'goa';
   return null;
 };
 
