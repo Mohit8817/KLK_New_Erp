@@ -195,6 +195,11 @@ const PAGE_CSS = `
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
+<<<<<<< HEAD
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+=======
+<<<<<<< HEAD
     background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center;
@@ -229,6 +234,46 @@ const OVERLAY_CSS = `
   .ax-modal__footer {
     display: flex; align-items: center; justify-content: flex-end; gap: 10px;
     padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+<<<<<<< HEAD
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
+=======
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px; border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
     background: var(--ax-surface-subtle, #f8fafc);
   }
 `;
@@ -373,6 +418,7 @@ function KpiCard({
   );
 }
 
+<<<<<<< HEAD
 const parseSiteIds = (val?: any): number[] => {
   if (val === null || val === undefined) return [];
   if (typeof val === 'number') {
@@ -397,6 +443,17 @@ const parseSiteIds = (val?: any): number[] => {
     const matches = trimmed.match(/\d+/g);
     if (matches && matches.length > 0) {
       return Array.from(new Set(matches.map(Number).filter((n) => Number.isFinite(n) && n > 0).map(Math.floor)));
+=======
+const parseSiteIds = (val?: string | number[]): number[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.map(Number).filter((n) => !isNaN(n));
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.map(Number).filter((n) => !isNaN(n));
+    } catch {
+      return val.replace(/[[\]"]/g, '').split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n));
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     }
   }
   return [];
@@ -445,6 +502,7 @@ export function InstallationRequest() {
   // Details Modal search filter
   const [modalSearch, setModalSearch] = useState('');
 
+<<<<<<< HEAD
   // Persisted accepted IDs (handles cases where backend returns 200 OK for site_id but assigns table status lags)
   const [acceptedIds, setAcceptedIds] = useState<Set<number>>(() => {
     try {
@@ -460,16 +518,27 @@ export function InstallationRequest() {
   // Dynamic server-based status: driven by API data (1 = Pending, 2 = Accepted) or confirmed acceptance
   const isSiteAccepted = useCallback((item: AssignedSiteItem) => {
     const aId = getAssignId(item) || item.id;
+=======
+  // Dynamic server-based status: strictly driven by API data (1 = Pending, 2 = Accepted)
+  // Backend spec: Effect: assigns.status = 2 set hota hai aur us assign ki sabhi sites me assam_swps.inst_accept = 1 ho jata hai.
+  const isSiteAccepted = useCallback((item: AssignedSiteItem) => {
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     return (
       Number(item.status) === 2 ||
       String(item.status) === '2' ||
       Number((item as any).inst_accept) === 1 ||
       String((item as any).inst_accept) === '1' ||
+<<<<<<< HEAD
       String(item.status).toLowerCase() === 'accepted' ||
       acceptedIds.has(Number(item.id)) ||
       (aId > 0 && acceptedIds.has(Number(aId)))
     );
   }, [acceptedIds]);
+=======
+      String(item.status).toLowerCase() === 'accepted'
+    );
+  }, []);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
   // Detail Modal state (API 2)
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -572,7 +641,11 @@ export function InstallationRequest() {
     const assignId = getAssignId(item) || getAssignId(extraDetail) || (activeItem ? getAssignId(activeItem) : 0);
 
     // Collect candidate site IDs (assam_swps.id)
+<<<<<<< HEAD
     let siteIds = Array.from(
+=======
+    const siteIds = Array.from(
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
       new Set([
         ...parseSiteIds(item?.site_id),
         ...parseSiteIds(extraDetail?.site_id),
@@ -582,6 +655,7 @@ export function InstallationRequest() {
       ])
     );
 
+<<<<<<< HEAD
     // If siteIds is empty and we have an assignId, prefetch details to discover site ID
     if (siteIds.length === 0 && assignId > 0) {
       try {
@@ -605,10 +679,15 @@ export function InstallationRequest() {
 
     if (!assignId && siteIds.length === 0) {
       setAcceptErrorMsg('Could not determine a valid assignment or site id for this row.');
+=======
+    if (!assignId && siteIds.length === 0) {
+      setAcceptErrorMsg('Could not determine a valid assignment or site id for this row. A valid assign id is required.');
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
       setTimeout(() => setAcceptErrorMsg(null), 6000);
       return false;
     }
 
+<<<<<<< HEAD
     const confirmMsg =
       siteIds.length > 0
         ? `Are you sure you want to accept SWP Installation Assignment #${assignId || siteIds[0]} (Site #${siteIds.join(', ')})?`
@@ -619,12 +698,21 @@ export function InstallationRequest() {
     }
 
     const rowKeyId = item?.id ?? assignId ?? siteIds[0];
+=======
+    const displayId = assignId || siteIds[0];
+    if (!window.confirm(`Are you sure you want to accept SWP Installation Assignment #${displayId}?`)) {
+      return false;
+    }
+
+    const rowKeyId = item?.id ?? displayId;
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
     setAcceptingId(rowKeyId);
     setAcceptErrorMsg(null);
     setAcceptSuccessMsg(null);
 
     try {
       let res: ApiResponse | null = null;
+<<<<<<< HEAD
       let usedId = siteIds[0] || assignId;
       let accepted = false;
 
@@ -660,10 +748,52 @@ export function InstallationRequest() {
 
       if (!accepted) {
         throw new Error('Failed to accept installation assignment with available IDs.');
+=======
+      let usedId = assignId;
+
+      // 1. Try with assignId first (official backend spec: exists:assigns,id)
+      if (assignId > 0) {
+        try {
+          res = await assamSwpService.acceptInstallation(assignId);
+        } catch (err: any) {
+          const errMsg = String(err?.message || '');
+          // If server failed with Laravel validation "The selected id is invalid."
+          // and we have site IDs, the backend may currently be checking exists:assam_swps,id
+          if (errMsg.toLowerCase().includes('selected id is invalid') && siteIds.length > 0) {
+            console.warn(
+              `[Accept Installation] Assign ID #${assignId} failed validation ("The selected id is invalid"). Retrying with site ID(s):`,
+              siteIds
+            );
+            let siteSuccess = false;
+            let lastSiteError = null;
+            for (const sId of siteIds) {
+              try {
+                res = await assamSwpService.acceptInstallation(sId);
+                usedId = sId;
+                siteSuccess = true;
+              } catch (siteErr: any) {
+                lastSiteError = siteErr;
+                console.warn(`[Accept Installation] Site ID #${sId} failed:`, siteErr);
+              }
+            }
+            if (!siteSuccess) {
+              throw lastSiteError || err;
+            }
+          } else {
+            throw err;
+          }
+        }
+      } else if (siteIds.length > 0) {
+        for (const sId of siteIds) {
+          res = await assamSwpService.acceptInstallation(sId);
+          usedId = sId;
+        }
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
       }
 
       setAcceptSuccessMsg(res?.message || 'Installation Accept Successfully!!!');
 
+<<<<<<< HEAD
       // Persist accepted status locally
       setAcceptedIds((prev) => {
         const next = new Set(prev);
@@ -676,6 +806,8 @@ export function InstallationRequest() {
         return next;
       });
 
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
       // Optimistically mark as accepted locally
       setData((prev) =>
         prev.map((r) => {
@@ -709,7 +841,11 @@ export function InstallationRequest() {
       const rawMsg = err?.message || 'Error occurred while accepting installation';
       let friendlyMsg = rawMsg;
       if (rawMsg.toLowerCase().includes('selected id is invalid')) {
+<<<<<<< HEAD
         friendlyMsg = `The selected ID is invalid on the server. Backend note: API currently validates site ID against 'assam_swps' table. Site ID: ${siteIds.join(', ') || 'N/A'}, Assign ID: ${assignId || 'N/A'}.`;
+=======
+        friendlyMsg = `The selected ID (#${assignId || siteIds.join(', ')}) is invalid on the server. Backend note: API requires 'exists:assigns,id' for assign ID. Please verify with backend team that this assignment entry exists in 'assigns' table on the live database.`;
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
       }
       setAcceptErrorMsg(friendlyMsg);
       setTimeout(() => setAcceptErrorMsg(null), 8000);

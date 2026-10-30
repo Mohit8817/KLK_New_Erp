@@ -17,7 +17,14 @@ import {
   type ClaimItem,
   type ClaimEligibleSite,
 } from '../../assam-services';
+<<<<<<< HEAD
 import { SAMPLE_PAYMENT_SITES } from '../../../../../data/demo/assamPayments';
+=======
+<<<<<<< HEAD
+import { SAMPLE_PAYMENT_SITES } from '../../../../../data/demo/assamPayments';
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
@@ -217,6 +224,10 @@ const PAGE_CSS = `
   }
 `;
 
+<<<<<<< HEAD
+/* ───────── Overlay CSS (modals & modern fields matching Bihar SSL reference) ───────── */
+=======
+<<<<<<< HEAD
 /* ───────── Overlay CSS (modals & modern fields matching Bihar SSL reference) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
@@ -341,6 +352,136 @@ const OVERLAY_CSS = `
   }
   @media (max-width: 540px) {
     .ax-modern-grid-2 { grid-template-columns: 1fr; }
+=======
+/* ───────── Overlay CSS (modals) ───────── */
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body {
+    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
+  }
+
+  /* ── Modern Form Controls (Matching Bihar SSL Supply Inspection design) ── */
+  .ax-modern-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em; margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444; font-weight: 700; margin-left: 3px;
+  }
+  .ax-modern-input-wrap {
+    display: flex; align-items: center;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px; background: var(--ax-surface-solid, #ffffff);
+    transition: all 0.2s ease; overflow: hidden;
+  }
+  .ax-modern-input-wrap:focus-within {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-addon {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 13px; height: 42px; background: var(--ax-surface-subtle, #f8fafc);
+    border-right: 1.5px solid var(--ax-border, #cbd5e1);
+    color: var(--ax-text-muted, #64748b); font-size: 14px; font-weight: 700; user-select: none;
+  }
+  .ax-modern-input {
+    width: 100%; height: 42px; padding: 0 14px;
+    border: none; outline: none; font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a); background: transparent;
+  }
+  .ax-modern-input::placeholder { color: var(--ax-text-muted, #94a3b8); }
+  .ax-modern-select {
+    width: 100%; height: 42px; padding: 0 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px; font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a); background: var(--ax-surface-solid, #ffffff);
+    outline: none; transition: all 0.2s ease;
+  }
+  .ax-modern-select:focus {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-textarea {
+    width: 100%; min-height: 80px; padding: 10px 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1); border-radius: 9px;
+    font-size: 13px; color: var(--ax-text-strong, #0f172a);
+    background: var(--ax-surface-solid, #ffffff); outline: none;
+    transition: all 0.2s ease; resize: vertical; line-height: 1.5;
+  }
+  .ax-modern-textarea:focus {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px; padding: 18px 16px;
+    background: var(--ax-surface-subtle, #f8fafc);
+<<<<<<< HEAD
+    text-align: center; cursor: pointer; transition: all 0.2s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #2563eb);
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+  }
+  .ax-modern-dropzone__icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 9px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #dcfce7; display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modern-grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  @media (max-width: 540px) {
+    .ax-modern-grid-2 { grid-template-columns: 1fr; }
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   }
 `;
 
@@ -361,6 +502,19 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
 );
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 /* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
@@ -368,7 +522,15 @@ function Modal({
   title,
   subtitle,
   children,
+<<<<<<< HEAD
   maxWidth = 580,
+=======
+<<<<<<< HEAD
+  maxWidth = 580,
+=======
+  maxWidth = 640,
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 }: {
   open: boolean;
   onClose: () => void;
@@ -392,6 +554,11 @@ function Modal({
   if (!open) return null;
 
   return createPortal(
+<<<<<<< HEAD
+    <div className="ax-modal" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="ax-modal__backdrop" />
+=======
+<<<<<<< HEAD
     <div className="ax-modal" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="ax-modal__backdrop" />
       <div
@@ -412,6 +579,34 @@ function Modal({
             aria-label="Close dialog"
           >
             ✕
+=======
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>{title}</h4>
+            {subtitle && <p style={{ margin: '3px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>{subtitle}</p>}
+          </div>
+<<<<<<< HEAD
+          <button
+            type="button"
+            className="ax-modal__close"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            ✕
+=======
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
           </button>
         </div>
         <div className="ax-modal__body">
@@ -565,7 +760,14 @@ export function ViewPayment() {
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState<string | null>(null);
+<<<<<<< HEAD
   const addFileRef = useRef<HTMLInputElement>(null);
+=======
+<<<<<<< HEAD
+  const addFileRef = useRef<HTMLInputElement>(null);
+=======
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
   // Update Claim Modal (API 13)
   const [editClaim, setEditClaim] = useState<ClaimItem | null>(null);
@@ -576,13 +778,28 @@ export function ViewPayment() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
+<<<<<<< HEAD
   const editFileRef = useRef<HTMLInputElement>(null);
 
   // Load Claims Data (API 11) & Eligible Completed Sites
+=======
+<<<<<<< HEAD
+  const editFileRef = useRef<HTMLInputElement>(null);
+
+  // Load Claims Data (API 11) & Eligible Completed Sites
+=======
+
+  // Load Claims Data (API 11)
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
       const [res, sitesList] = await Promise.all([
         assamSwpService.getViewClaims().catch((err) => {
           console.error('Failed to load installation claims:', err);
@@ -594,6 +811,7 @@ export function ViewPayment() {
         }),
       ]);
 
+<<<<<<< HEAD
       setClaims(res.data || []);
 
       let allSites: ClaimEligibleSite[] = [];
@@ -611,6 +829,30 @@ export function ViewPayment() {
       }
 
       setEligibleSites(allSites);
+=======
+      setClaims(res.data || []);
+
+      let allSites: ClaimEligibleSite[] = [];
+      if (Array.isArray(sitesList) && sitesList.length > 0) {
+        allSites = sitesList;
+      } else if (Array.isArray(res.sites) && res.sites.length > 0) {
+        allSites = res.sites;
+      }
+
+      if (allSites.length === 0 && SAMPLE_PAYMENT_SITES.length > 0) {
+        allSites = SAMPLE_PAYMENT_SITES.map((s) => ({
+          id: Number(s.id),
+          farmer_name: s.label,
+        }));
+      }
+
+      setEligibleSites(allSites);
+=======
+      const res = await assamSwpService.getViewClaims();
+      setClaims(res.data || []);
+      setEligibleSites(res.sites || []);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
     } catch (err: any) {
       console.error('Failed to load installation claims:', err);
       setError(err?.message || 'Failed to load installation claims');
@@ -1206,6 +1448,10 @@ export function ViewPayment() {
           </div>
         )}
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         <form onSubmit={handleAddClaimSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Amount Field with ₹ icon */}
@@ -1226,6 +1472,8 @@ export function ViewPayment() {
                   required
                   min={1}
                 />
+<<<<<<< HEAD
+=======
               </div>
             </div>
 
@@ -1414,6 +1662,225 @@ export function ViewPayment() {
             <button
               type="button"
               className="ax-btn ax-btn--secondary"
+=======
+        <form onSubmit={handleAddClaimSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="ax-field">
+            <label className="ax-label" htmlFor="add_amount">
+              Claim Amount (₹) <span style={{ color: 'red' }}>*</span>
+            </label>
+            <input
+              id="add_amount"
+              type="number"
+              className="ax-input"
+              value={addAmount}
+              onChange={(e) => setAddAmount(e.target.value)}
+              placeholder="e.g. 50000"
+              required
+              min={1}
+            />
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-label">
+              Select Eligible Completed Sites <span style={{ color: 'red' }}>*</span> ({addSelectedSites.length} selected)
+            </label>
+            {eligibleSites.length === 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--ax-text-muted)', padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6 }}>
+                No unclaimed eligible sites available (Sites must be verified and doc-approved).
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+              </div>
+            </div>
+
+            {/* Eligible Completed Sites Dropdown */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="add_site_select">
+                <span>
+                  Select Eligible Completed Sites{' '}
+                  {addSelectedSites.length > 0 && (
+                    <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>
+                      ({addSelectedSites.length} selected)
+                    </span>
+                  )}
+                </span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <select
+                id="add_site_select"
+                className="ax-modern-select"
+                value={addSelectedSites.length === 1 ? String(addSelectedSites[0]) : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const num = Number(val);
+                  if (!addSelectedSites.includes(num)) {
+                    setAddSelectedSites((prev) => [...prev, num]);
+                  }
+                }}
+                disabled={addSubmitting}
+                required={addSelectedSites.length === 0}
+              >
+                <option value="">
+                  {loading
+                    ? 'Fetching completed sites from server…'
+                    : eligibleSites.length === 0
+                    ? 'No unclaimed eligible sites available'
+                    : '-- Choose Eligible Completed Site --'}
+                </option>
+                {eligibleSites.map((site) => {
+                  const isSelected = addSelectedSites.includes(site.id);
+                  return (
+                    <option key={site.id} value={site.id}>
+                      #{site.id} — {site.farmer_name || 'Farmer'} {site.district ? `(${site.district})` : ''} {isSelected ? '✓ [Selected]' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Selected site tags */}
+              {addSelectedSites.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {addSelectedSites.map((sid) => {
+                    const match = eligibleSites.find((s) => s.id === sid);
+                    return (
+                      <span
+                        key={sid}
+                        className="ax-badge ax-badge--soft ax-badge--info"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '4px 10px',
+                          fontSize: '12px',
+                          borderRadius: 6,
+                        }}
+                      >
+                        <span>
+                          #{sid} — {match?.farmer_name || `Site #${sid}`}
+                          {match?.district ? ` (${match.district})` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAddSelectedSites((prev) => prev.filter((id) => id !== sid))}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '14px',
+                            color: 'currentColor',
+                            lineHeight: 1,
+                          }}
+                          title="Remove site"
+                          aria-label="Remove site"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Document Upload Dropzone */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label">
+                <span>Invoice / Bill File (PDF / JPG / PNG)</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <input
+                ref={addFileRef}
+                type="file"
+                accept=".pdf,image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => setAddFile(e.target.files?.[0] || null)}
+              />
+              {!addFile ? (
+                <div
+                  className="ax-modern-dropzone"
+                  onClick={() => addFileRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="ax-modern-dropzone__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                      Click to upload invoice / bill file
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                      Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="ax-modern-file-chip">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span className="ax-modern-file-chip__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {addFile.name}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                        {(addFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                    onClick={() => {
+                      setAddFile(null);
+                      if (addFileRef.current) addFileRef.current.value = '';
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Remarks */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="add_remarks">
+                <span>Claim Remarks / Description</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <textarea
+                id="add_remarks"
+                className="ax-modern-textarea"
+                rows={3}
+                value={addRemarks}
+                onChange={(e) => setAddRemarks(e.target.value)}
+                placeholder="Enter remarks or invoice details..."
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button
+              type="button"
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-btn ax-btn--ghost"
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
               onClick={() => setAddModalOpen(false)}
               disabled={addSubmitting}
             >
@@ -1451,6 +1918,10 @@ export function ViewPayment() {
         )}
 
         {editClaim && (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
           <form onSubmit={handleUpdateClaimSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Amount */}
@@ -1471,6 +1942,8 @@ export function ViewPayment() {
                     min={1}
                   />
                 </div>
+<<<<<<< HEAD
+=======
               </div>
 
               {/* Sites */}
@@ -1630,6 +2103,206 @@ export function ViewPayment() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary"
+=======
+          <form onSubmit={handleUpdateClaimSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="ax-field">
+              <label className="ax-label" htmlFor="edit_amount">
+                Claim Amount (₹) <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                id="edit_amount"
+                type="number"
+                className="ax-input"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                required
+                min={1}
+              />
+            </div>
+
+            <div className="ax-field">
+              <label className="ax-label">
+                Included Sites ({editSelectedSites.length > 0 ? editSelectedSites.length : 1} selected) <span style={{ color: 'red' }}>*</span>
+              </label>
+              <div style={{ fontSize: '13px', color: 'var(--ax-text-muted)', padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6, marginBottom: eligibleSites.length > 0 ? 8 : 0 }}>
+                Sites in this claim:{' '}
+                <b>
+                  {(() => {
+                    const names = editSelectedSites
+                      .map((id) => {
+                        const match = eligibleSites.find((s) => String(s.id) === String(id));
+                        return match ? match.farmer_name : String(id);
+                      })
+                      .filter(Boolean);
+                    if (names.length > 0) return names.join(', ');
+                    return String(editClaim.site_id || 'Included Site');
+                  })()}
+                </b>
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+              </div>
+
+              {/* Sites */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="edit_site_select">
+                  <span>Included Sites ({editSelectedSites.length > 0 ? editSelectedSites.length : 1} selected)</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <select
+                  id="edit_site_select"
+                  className="ax-modern-select"
+                  value={editSelectedSites.length === 1 ? String(editSelectedSites[0]) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    const num = Number(val);
+                    if (!editSelectedSites.some((id) => String(id) === String(num))) {
+                      setEditSelectedSites((prev) => [...prev, num]);
+                    }
+                  }}
+                >
+                  <option value="">-- Select Site from Dropdown to Add --</option>
+                  {eligibleSites.map((site) => {
+                    const isChecked = editSelectedSites.some((id) => String(id) === String(site.id));
+                    return (
+                      <option key={site.id} value={site.id}>
+                        #{site.id} — {site.farmer_name} {isChecked ? '✓ [Included]' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {editSelectedSites.map((sid) => {
+                    const match = eligibleSites.find((s) => String(s.id) === String(sid));
+                    return (
+                      <span
+                        key={sid}
+                        className="ax-badge ax-badge--soft ax-badge--info"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: '12px' }}
+                      >
+                        <span>#{sid} — {match?.farmer_name || String(sid)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditSelectedSites((prev) => prev.filter((id) => String(id) !== String(sid)))}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
+                          title="Remove site"
+                          aria-label="Remove site"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Replace Invoice File */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label">
+                  <span>Replace Invoice File (Optional)</span>
+                </label>
+                <input
+                  ref={editFileRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                />
+                {!editFile ? (
+                  <div>
+                    <div
+                      className="ax-modern-dropzone"
+                      onClick={() => editFileRef.current?.click()}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="ax-modern-dropzone__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                          Click to upload new invoice file
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                          Leave empty to keep existing invoice document
+                        </div>
+                      </div>
+                    </div>
+                    {editClaim.file && (
+                      <div style={{ marginTop: 8, fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                        Current invoice:{' '}
+                        <a href={resolveAssamMediaUrl(editClaim.file)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                          View Current ↗
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="ax-modern-file-chip">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span className="ax-modern-file-chip__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {editFile.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                          {(editFile.size / 1024).toFixed(1)} KB (New file)
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                      onClick={() => {
+                        setEditFile(null);
+                        if (editFileRef.current) editFileRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Remarks */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="edit_remarks">
+                  <span>Claim Remarks / Description</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <textarea
+                  id="edit_remarks"
+                  className="ax-modern-textarea"
+                  rows={3}
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+<<<<<<< HEAD
+                className="ax-btn ax-btn--secondary"
+=======
+                className="ax-btn ax-btn--ghost"
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
                 onClick={() => setEditClaim(null)}
                 disabled={editSubmitting}
               >

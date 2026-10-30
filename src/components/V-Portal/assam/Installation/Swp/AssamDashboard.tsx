@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactNode } from 'react';
+=======
+<<<<<<< HEAD
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, type ReactNode } from 'react';
+=======
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useDeferredValue, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -9,10 +18,24 @@ import {
   TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
+<<<<<<< HEAD
 import {
   assamSwpService,
   resolveAssamMediaUrl,
   normalizeAssamDashboardStatus,
+=======
+<<<<<<< HEAD
+import {
+  assamSwpService,
+  resolveAssamMediaUrl,
+  normalizeAssamDashboardStatus,
+=======
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import {
+  assamSwpService,
+  resolveAssamMediaUrl,
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   type AssamSwpDashboardResponse,
   type DistrictWiseDetail,
   type InstalledSiteItem,
@@ -256,6 +279,46 @@ const PAGE_CSS = `
   }
 `;
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+/* ───────── Overlay CSS (modals) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: var(--ax-surface-solid, #fff);
+    border-radius: var(--ax-radius-lg, 12px); border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); overflow: hidden;
+  }
+  .ax-modal__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+  .ax-modal__close {
+    border: none; background: transparent; cursor: pointer; padding: 4px;
+    border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted);
+  }
+  .ax-modal__close:hover { background: var(--ax-surface-hover, #e2e8f0); color: var(--ax-text-strong); }
+  .ax-modal__body { padding: 20px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px; border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+`;
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 /* ───────── SVG Icons matching DLE & Solar ERP design language ───────── */
 const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -272,8 +335,22 @@ const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
+<<<<<<< HEAD
+
+=======
+<<<<<<< HEAD
 
 
+=======
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 /* ───────── KPI card Component matching DLE Dashboard ───────── */
 interface KpiProps {
   icon: ReactNode;
@@ -364,7 +441,69 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
   );
 }
 
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+/* ───────── Accessible Modal Component ───────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  maxWidth = 920,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  maxWidth?: number;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '94%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div className="ax-modal__body">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
@@ -382,6 +521,24 @@ export function AssamDashboard() {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [tableQuery, setTableQuery] = useState<string>('');
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  // ── Status Drill-down Modal State (APIs 15 & 16) ──
+  const [drillModalOpen, setDrillModalOpen] = useState(false);
+  const [drillTitle, setDrillTitle] = useState('');
+  const [drillSubtitle, setDrillSubtitle] = useState('');
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillError, setDrillError] = useState<string | null>(null);
+  const [drillSites, setDrillSites] = useState<InstalledSiteItem[]>([]);
+  const [drillSearch, setDrillSearch] = useState('');
+
+  // Image Zoom Modal
+  const [zoomModal, setZoomModal] = useState<{ url: string; title: string } | null>(null);
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   // Chart heights
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
@@ -406,6 +563,12 @@ export function AssamDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
+<<<<<<< HEAD
+  // ── Status Drill-down Navigation (APIs 15 & 16 Common Page) ──
+  const openDrillDown = (statusKey: string, _label?: string, district?: string) => {
+    const normalizedStatus = normalizeAssamDashboardStatus(statusKey);
+=======
+<<<<<<< HEAD
   // ── Status Drill-down Navigation (APIs 15 & 16 Common Page) ──
   const openDrillDown = (statusKey: string, _label?: string, district?: string) => {
     const normalizedStatus = normalizeAssamDashboardStatus(statusKey);
@@ -437,6 +600,45 @@ export function AssamDashboard() {
     inst_pay_pending: 0,
   }, [data]);
 
+=======
+  // Open Drill-Down Modal (calling API 15 or API 16)
+  const openDrillDown = async (statusKey: string, label: string, district?: string) => {
+    setDrillModalOpen(true);
+    setDrillLoading(true);
+    setDrillError(null);
+    setDrillSites([]);
+    setDrillSearch('');
+
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+    const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
+    const params = new URLSearchParams();
+    params.set('status', normalizedStatus);
+    if (targetDistrict) {
+      params.set('district', targetDistrict);
+    }
+    navigate(`/v/assam/installation/swp/status-view?${params.toString()}`);
+  };
+
+  // Safe destructuring of API 14 data
+  const swp = useMemo(() => data?.swp || {
+    site_count: 0,
+    complete: 0,
+    pending: 0,
+    verify_pending: 0,
+    verify_approved: 0,
+    verify_reject: 0,
+    doc_approved: 0,
+    doc_pending: 0,
+    doc_reject: 0,
+    inst_claim_raised: 0,
+    inst_claim_approved: 0,
+    inst_claim_reject: 0,
+    inst_pay_complete: 0,
+    inst_pay_partially: 0,
+    inst_pay_pending: 0,
+  }, [data]);
+
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   const districtwise: DistrictWiseDetail[] = useMemo(() => data?.districtwise || [], [data]);
   const monthlyInstallations: DistrictMonthItem[] = useMemo(
     () => data?.district_installation_month || data?.monthly_installations || [],
@@ -602,10 +804,38 @@ export function AssamDashboard() {
     w.document.close();
     w.focus();
   };
+<<<<<<< HEAD
+=======
+
+<<<<<<< HEAD
+  return (
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+=======
+  // Filtered drill sites for modal
+  const filteredDrillSites = useMemo(() => {
+    const q = drillSearch.trim().toLowerCase();
+    if (!q) return drillSites;
+    return drillSites.filter((s) =>
+      String(s.id).includes(q) ||
+      (s.farmer_name || '').toLowerCase().includes(q) ||
+      (s.district || '').toLowerCase().includes(q) ||
+      (s.block || '').toLowerCase().includes(q) ||
+      (s.village || '').toLowerCase().includes(q) ||
+      (s.pump_capacity || '').toLowerCase().includes(q) ||
+      (s.customer_no || '').toLowerCase().includes(q)
+    );
+  }, [drillSites, drillSearch]);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+<<<<<<< HEAD
+=======
+      <style>{OVERLAY_CSS}</style>
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
       {/* 1. Page Header (NO refresh button as requested) */}
       <PageHead
@@ -628,12 +858,21 @@ export function AssamDashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Assam
             </span>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
             <Link to="/v/assam/installation/swp/status-view?status=complete" className="ax-btn ax-btn--secondary ax-btn--sm">
               Status Register
             </Link>
             <Link to="/v/assam/installation/swp/request" className="ax-btn ax-btn--secondary ax-btn--sm">
               Assigned Requests
             </Link>
+=======
+            <Link to="/v/assam/installation/swp/request" className="ax-btn ax-btn--secondary ax-btn--sm">
+              Assigned Requests
+            </Link>
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
             <Link to="/v/assam/installation/swp/view" className="ax-btn ax-btn--secondary ax-btn--sm">
               View Installations
             </Link>
@@ -770,7 +1009,15 @@ export function AssamDashboard() {
           unit="Sites"
           sub="Allocated solar pump sites"
           spark={siteSpark}
+<<<<<<< HEAD
           onClick={() => openDrillDown('total', 'Total Allocated Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('total', 'Total Allocated Sites')}
+=======
+          onClick={() => navigate('/v/assam/installation/swp/request')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -782,7 +1029,15 @@ export function AssamDashboard() {
           sub="Equipment & photos uploaded"
           badge={`${pctComplete}%`}
           spark={completeSpark}
+<<<<<<< HEAD
           onClick={() => openDrillDown('complete', 'Completed Installations')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('complete', 'Completed Installations')}
+=======
+          onClick={() => openDrillDown('Complete', 'Completed Installations')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -794,7 +1049,15 @@ export function AssamDashboard() {
           sub="Awaiting field execution"
           badge={`${pctPending}%`}
           spark={pendingSpark}
+<<<<<<< HEAD
           onClick={() => openDrillDown('pending', 'Pending Installations')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('pending', 'Pending Installations')}
+=======
+          onClick={() => openDrillDown('Pending', 'Pending Installations')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -806,7 +1069,15 @@ export function AssamDashboard() {
           sub={`${num(swp.verify_pending)} Audit in progress`}
           badge={`${pctVerified}%`}
           spark={verifySpark}
+<<<<<<< HEAD
           onClick={() => openDrillDown('verify-approved', 'Verified Approved Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('verify-approved', 'Verified Approved Sites')}
+=======
+          onClick={() => openDrillDown('VerifyApproved', 'Verified Approved Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -816,7 +1087,15 @@ export function AssamDashboard() {
           value={num(swp.verify_pending)}
           unit="Sites"
           sub="Field audit pending review"
+<<<<<<< HEAD
           onClick={() => openDrillDown('verify-pending', 'Verification Pending Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('verify-pending', 'Verification Pending Sites')}
+=======
+          onClick={() => openDrillDown('VerifyPending', 'Verification Pending Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -826,7 +1105,15 @@ export function AssamDashboard() {
           value={num(swp.verify_reject)}
           unit="Sites"
           sub="Requires vendor rework"
+<<<<<<< HEAD
           onClick={() => openDrillDown('verify-reject', 'Verification Rejected Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('verify-reject', 'Verification Rejected Sites')}
+=======
+          onClick={() => openDrillDown('VerifyReject', 'Verification Rejected Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -837,7 +1124,15 @@ export function AssamDashboard() {
           unit="Sites"
           sub={`${num(swp.doc_pending)} Document pending`}
           badge={`${pctDocApproved}%`}
+<<<<<<< HEAD
           onClick={() => openDrillDown('doc-approved', 'Document Approved Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('doc-approved', 'Document Approved Sites')}
+=======
+          onClick={() => openDrillDown('DocApproved', 'Document Approved Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -848,7 +1143,15 @@ export function AssamDashboard() {
           unit="Sites"
           sub={`${num(swp.inst_pay_partially)} Partially paid`}
           badge={`${pctPaid}%`}
+<<<<<<< HEAD
           onClick={() => openDrillDown('pay-complete', 'Payment Settled Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('pay-complete', 'Payment Settled Sites')}
+=======
+          onClick={() => openDrillDown('PaymentComplete', 'Payment Settled Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         {/* 5. Operational Highlights & Execution Tracker (matching section 5 in DLE Dashboard) */}
@@ -877,7 +1180,15 @@ export function AssamDashboard() {
           sub={`${num(swp.complete)} of ${num(swp.site_count)} sites installed`}
           badge="Installed"
           spark={[10, 25, 40, 60, pctComplete]}
+<<<<<<< HEAD
           onClick={() => openDrillDown('complete', 'Completed Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('complete', 'Completed Sites')}
+=======
+          onClick={() => openDrillDown('Complete', 'Completed Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -887,7 +1198,15 @@ export function AssamDashboard() {
           value={`${pctOf(swp.verify_approved, (swp.verify_approved + swp.verify_reject) || 1)}%`}
           sub={`${num(swp.verify_approved)} Passed · ${num(swp.verify_reject)} Rejected`}
           spark={[20, 45, 65, 80, pctVerified]}
+<<<<<<< HEAD
           onClick={() => openDrillDown('verify-approved', 'Approved Audits')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('verify-approved', 'Approved Audits')}
+=======
+          onClick={() => openDrillDown('VerifyApproved', 'Approved Audits')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -897,7 +1216,15 @@ export function AssamDashboard() {
           value={`${pctDocApproved}%`}
           sub={`${num(swp.doc_approved)} compliance docs accepted`}
           spark={[15, 30, 50, 75, pctDocApproved]}
+<<<<<<< HEAD
           onClick={() => openDrillDown('doc-approved', 'Document Cleared Sites')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('doc-approved', 'Document Cleared Sites')}
+=======
+          onClick={() => openDrillDown('DocApproved', 'Document Cleared Sites')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         <KpiCard
@@ -907,7 +1234,15 @@ export function AssamDashboard() {
           value={`${pctPaid}%`}
           sub={`${num(swp.inst_pay_complete)} sites disbursed`}
           spark={[5, 15, 30, 45, pctPaid]}
+<<<<<<< HEAD
           onClick={() => openDrillDown('pay-complete', 'Settled Claims')}
+=======
+<<<<<<< HEAD
+          onClick={() => openDrillDown('pay-complete', 'Settled Claims')}
+=======
+          onClick={() => openDrillDown('PaymentComplete', 'Settled Claims')}
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
         />
 
         {/* State Operations Executive Card (matching Bihar/UP ops cards in DLE Dashboard) */}
@@ -1001,7 +1336,15 @@ export function AssamDashboard() {
                     events: {
                       dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
                         const dist = chartDistricts[opts?.dataPointIndex]?.district;
+<<<<<<< HEAD
                         if (dist) openDrillDown('complete', 'Completed Installations', dist);
+=======
+<<<<<<< HEAD
+                        if (dist) openDrillDown('complete', 'Completed Installations', dist);
+=======
+                        if (dist) openDrillDown('Complete', 'Completed Installations', dist);
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
                       },
                     },
                   },
@@ -1036,7 +1379,15 @@ export function AssamDashboard() {
                   chart: {
                     events: {
                       dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+<<<<<<< HEAD
                         const labels = ['complete', 'pending', 'verify-reject'];
+=======
+<<<<<<< HEAD
+                        const labels = ['complete', 'pending', 'verify-reject'];
+=======
+                        const labels = ['Complete', 'Pending', 'VerifyReject'];
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
                         const key = labels[opts?.dataPointIndex];
                         if (key) openDrillDown(key, 'Sites Drilldown');
                       },
@@ -1060,9 +1411,21 @@ export function AssamDashboard() {
             </Suspense>
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
+<<<<<<< HEAD
                 { label: 'Installed', sub: 'Completed sites', v: swp.complete, p: pctComplete, color: LIGHT_GREEN, key: 'complete' },
                 { label: 'Pending', sub: 'Awaiting execution', v: swp.pending, p: pctPending, color: LIGHT_AMBER, key: 'pending' },
                 { label: 'Rework Required', sub: 'Audit rejected', v: swp.verify_reject, p: pctOf(swp.verify_reject, swp.site_count), color: LIGHT_RED, key: 'verify-reject' },
+=======
+<<<<<<< HEAD
+                { label: 'Installed', sub: 'Completed sites', v: swp.complete, p: pctComplete, color: LIGHT_GREEN, key: 'complete' },
+                { label: 'Pending', sub: 'Awaiting execution', v: swp.pending, p: pctPending, color: LIGHT_AMBER, key: 'pending' },
+                { label: 'Rework Required', sub: 'Audit rejected', v: swp.verify_reject, p: pctOf(swp.verify_reject, swp.site_count), color: LIGHT_RED, key: 'verify-reject' },
+=======
+                { label: 'Installed', sub: 'Completed sites', v: swp.complete, p: pctComplete, color: LIGHT_GREEN, key: 'Complete' },
+                { label: 'Pending', sub: 'Awaiting execution', v: swp.pending, p: pctPending, color: LIGHT_AMBER, key: 'Pending' },
+                { label: 'Rework Required', sub: 'Audit rejected', v: swp.verify_reject, p: pctOf(swp.verify_reject, swp.site_count), color: LIGHT_RED, key: 'VerifyReject' },
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
               ].map((s) => (
                 <li
                   key={s.label}
@@ -1158,6 +1521,7 @@ export function AssamDashboard() {
                 </div>
               );
             })}
+<<<<<<< HEAD
           </div>
         </section>
 
@@ -1211,6 +1575,8 @@ export function AssamDashboard() {
                     tabIndex={0}
                     onClick={() => openDrillDown('complete', 'District Installations', d.district)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
+<<<<<<< HEAD
+=======
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
@@ -1286,6 +1652,209 @@ export function AssamDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="ax-card__footer" style={footerStyle}>
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                pageSizeOptions={[10, 15, 25, 50]}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 9. District Quick-Access & Recent Activity (matching DLE Dashboard) */}
+        <section className="ax-card ax-col--4" role="region" aria-label="District Status & Quick Navigation">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">District Operations</span>
+              <h2 className="ax-card__title">District Quick Access</h2>
+              <p className="ax-card__subtitle">Installation progress by district</p>
+=======
+          </div>
+        </section>
+
+        {/* 8. District Wise Detailed Table (matching DLE Dashboard, ALL COLUMNS SCROLLABLE, NO COLUMNS TOGGLE BUTTON) */}
+        <section className="ax-card ax-col--8" role="region" aria-label="District wise summary table">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Geographic Breakdown</span>
+              <h2 className="ax-card__title">District Wise SWP Summary</h2>
+              <p className="ax-card__subtitle">Allocated, installed, verification & payment metrics per district</p>
+            </div>
+            <div className="ax-card__actions">
+              <div className="ax-cluster" style={actionsRowStyle}>
+                <SearchInput
+                  value={tableQuery}
+                  onChange={setTableQuery}
+                  placeholder="Search district…"
+                  ariaLabel="Search districts"
+                />
+                {/* TableExportToolbar without columns toggle (F 1I Columns section removed) */}
+                <TableExportToolbar
+                  onCopy={() => copyToClipboard(tableDistricts, districtCols)}
+                  onExportCSV={() => exportToCSV(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableDistricts, districtCols, fileTitle)}
+                />
+              </div>
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div>
+              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                  Top Execution Districts
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(swp.complete)} Installed</span>
+              </div>
+              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
+                {districtwise.slice(0, 8).map((d) => (
+                  <button
+                    key={d.district}
+                    type="button"
+                    className="ax-cluster"
+                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                    style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', border: 0, background: 'transparent', padding: '6px 0', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
+                  >
+                    <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
+                    <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                      {num(d.complete || 0)} / {num(d.site_count || 0)} ({pctOf(d.complete || 0, d.site_count || 1)}%)
+                    </b>
+                  </button>
+                ))}
+                {districtwise.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
+              </div>
+            </div>
+
+<<<<<<< HEAD
+            <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
+
+            {/* Quick Actions Links */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Quick Module Actions
+              </span>
+              <Link to="/v/assam/installation/swp/request" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+                <span>Accept Assigned Requests</span>
+                <span>→</span>
+              </Link>
+              <Link to="/v/assam/installation/swp/site" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+                <span>Record New Installation</span>
+                <span>+</span>
+              </Link>
+              <Link to="/v/assam/installation/swp/claim" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+                <span>Submit Payment Claim</span>
+                <span>₹</span>
+              </Link>
+            </div>
+=======
+          {/* Table container: all columns scrollable, NO sticky/fixed column */}
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover">
+              <thead className="ax-table__head">
+                <tr>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Doc Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedDistricts.map((d) => (
+                  <tr
+                    key={d.district}
+                    className="ax-table__row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDrillDown('Complete', 'District Installations', d.district)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('Complete', 'District Installations', d.district); } }}
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                      <b>{d.district}</b>
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ fontWeight: 600, cursor: 'pointer' }}
+                      title={`View all allocated sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Sites', d.district); }}
+                    >
+                      {num(d.site_count || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View completed sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Sites', d.district); }}
+                    >
+                      {num(d.complete || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View pending sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Sites', d.district); }}
+                    >
+                      {num(d.pending || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View verify approved sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Sites', d.district); }}
+                    >
+                      {num(d.verify_approved || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View doc approved sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('doc-approved', 'Doc Approved Sites', d.district); }}
+                    >
+                      {num(d.doc_approved || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View payment settled sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay-complete', 'Payment Settled Sites', d.district); }}
+                    >
+                      {num(d.inst_pay_complete || 0)}
+                    </td>
+                  </tr>
+                ))}
+                {!loading && pagedDistricts.length === 0 && (
+                  <tr>
+                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                      No districts match the filter criteria.
+                    </td>
+                  </tr>
+                )}
+                {pagedDistricts.length > 0 && (
+                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
+                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Districts)</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ cursor: 'pointer' }} title="View all allocated sites" onClick={() => openDrillDown('total', 'Total Allocated Sites')}>{num(swp.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed sites" onClick={() => openDrillDown('complete', 'Total Installed Sites')}>{num(swp.complete)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending sites" onClick={() => openDrillDown('pending', 'Total Pending Sites')}>{num(swp.pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved sites" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Sites')}>{num(swp.verify_approved)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', cursor: 'pointer' }} title="View doc approved sites" onClick={() => openDrillDown('doc-approved', 'Total Doc Approved Sites')}>{num(swp.doc_approved)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View payment settled sites" onClick={() => openDrillDown('pay-complete', 'Total Payment Settled Sites')}>{num(swp.inst_pay_complete)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
           </div>
 
           <div className="ax-card__footer" style={footerStyle}>

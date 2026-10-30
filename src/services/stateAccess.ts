@@ -77,13 +77,24 @@ export const stateOfSlug = (slug: string): string | null => {
   if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
   if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
+<<<<<<< HEAD
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
+<<<<<<< HEAD
   if (clean.startsWith('karnataka-') || clean.includes('karnataka')) return 'karnataka';
   if (clean.startsWith('arunachal-') || clean.includes('arunachal')) return 'arunachal';
+=======
+=======
+  if (clean.startsWith('ssl/') || clean.startsWith('ssl-')) return 'bihar';
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   return null;
 };
 
 export const canAccessSlug = (slug: string): boolean => {
+  const clean = slug.replace(/^\/+/, '');
+  if (clean.startsWith('v/') || clean.startsWith('ssl/') || clean.startsWith('vendor/') || clean.startsWith('v-')) {
+    return true;
+  }
   const st = stateOfSlug(slug);
   return !st || canAccessState(st);
 };
