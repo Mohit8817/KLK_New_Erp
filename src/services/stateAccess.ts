@@ -54,7 +54,16 @@ export const getAllowedStates = (): string[] | 'ALL' => {
 
 export const canAccessState = (state: string): boolean => {
   const allowed = getAllowedStates();
-  return allowed === 'ALL' || allowed.includes(normState(state));
+  if (allowed === 'ALL') return true;
+  const nState = normState(state);
+  if (allowed.includes(nState)) return true;
+  if (
+    (nState === 'kashmir' && (allowed.includes('jammu') || allowed.includes('kashmir'))) ||
+    (nState === 'jammu' && (allowed.includes('kashmir') || allowed.includes('jammu')))
+  ) {
+    return true;
+  }
+  return false;
 };
 
 const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'arunachal', 'goa'];

@@ -12,6 +12,7 @@ export interface PaginationProps {
   rangeStart?: number;
   rangeEnd?: number;
   showSummary?: boolean;
+  totalPages?: number;
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: number[];
   style?: CSSProperties;

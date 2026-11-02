@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import { useAuth } from '../../../../../context/AuthContext';
+import authService from '../../../../../services/authService';
 import {
   goaSrtInstallationService,
   type GoaSrtSiteDropdownItem,
@@ -27,8 +29,10 @@ const SINGLE_CARD_FORM_CSS = `
 .ax-float__input { width: 100%; height: 46px; padding: 12px 14px 4px 14px; font-size: var(--ax-text-sm); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-md); color: var(--ax-text); outline: none; transition: border-color var(--ax-motion-fast) var(--ax-ease-standard), box-shadow var(--ax-motion-fast) var(--ax-ease-standard); }
 .ax-float__input::placeholder { color: transparent; }
 .ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
-.ax-float__input[readonly] { background: var(--ax-surface-subtle); }
+.ax-float__input[readonly] { background: var(--ax-surface-subtle); cursor: default; }
 .ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
+.ax-float--readonly .ax-float__input { background: var(--ax-surface-subtle); cursor: default; color: var(--ax-text-strong); font-weight: 500; }
+.ax-float--readonly .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs); font-weight: 500; color: var(--ax-text-muted); }
 
 .ax-float__label { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top var(--ax-motion-fast) var(--ax-ease-standard), font-size var(--ax-motion-fast) var(--ax-ease-standard), color var(--ax-motion-fast) var(--ax-ease-standard); z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
 
@@ -52,6 +56,8 @@ const SINGLE_CARD_FORM_CSS = `
 
 .goa-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
 @media (min-width: 1024px) { .goa-form-grid--3col { grid-template-columns: repeat(3, 1fr); } }
+.goa-form-grid--4col { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--ax-space-4); }
+@media (min-width: 1200px) { .goa-form-grid--4col { grid-template-columns: repeat(4, 1fr); } }
 .goa-form-col-span-full { grid-column: 1 / -1; }
 .goa-gps-cell { height: 46px; }
 
@@ -94,12 +100,124 @@ export function Goa_Installation_SRT_InstallationDetails() {
   const initialSiteId = searchParams.get('site_id') || searchParams.get('id') || '';
   const isEditMode = Boolean(searchParams.get('edit') === '1' || searchParams.get('edit_id'));
 
+  const { user, rawResponse } = useAuth();
+
   // Site dropdown & detail
   const [siteOptions, setSiteOptions] = useState<GoaSrtSiteDropdownItem[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>(initialSiteId);
   const [siteDetail, setSiteDetail] = useState<GoaSrtSiteDetailItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Resolved logged-in vendor name
+  const loginVendorName = useMemo(() => {
+    const getCleanString = (val: any): string => {
+      if (
+        typeof val === 'string' &&
+        val.trim() &&
+        val.trim().toLowerCase() !== '[object object]' &&
+        val.trim().toLowerCase() !== 'null' &&
+        val.trim().toLowerCase() !== 'undefined'
+      ) {
+        return val.trim();
+      }
+      return '';
+    };
+
+    // 1. From AuthContext state
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).firm_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).vendor_id ? `Vendor (${(user as any).vendor_id})` : '') ||
+        getCleanString((user as any).username);
+      if (fromUser) return fromUser;
+    }
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.firm_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.firm_name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name);
+      if (fromRaw) return fromRaw;
+    }
+
+    // 2. From authService session
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.name) ||
+          getCleanString(session.firm_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.vendor_id ? `Vendor (${session.vendor_id})` : '') ||
+          getCleanString(session.username) ||
+          getCleanString(session.vendors?.name) ||
+          getCleanString(session.vendor?.name);
+        if (fromSession) return fromSession;
+      }
+
+      const raw = authService.getRawResponse() as any;
+      if (raw) {
+        const fromRaw =
+          getCleanString(raw?.vendor?.vendor_name) ||
+          getCleanString(raw?.vendor?.name) ||
+          getCleanString(raw?.vendor?.firm_name) ||
+          getCleanString(raw?.vendor_name) ||
+          getCleanString(raw?.data?.vendor?.vendor_name) ||
+          getCleanString(raw?.data?.vendor?.name) ||
+          getCleanString(raw?.data?.vendor_name) ||
+          getCleanString(raw?.name) ||
+          getCleanString(raw?.user?.name);
+        if (fromRaw) return fromRaw;
+      }
+    } catch {
+      // fallback
+    }
+
+    // 3. Direct localStorage / sessionStorage fallback
+    try {
+      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
+      if (sessionStr) {
+        const parsed = JSON.parse(sessionStr);
+        const fromParsed =
+          getCleanString(parsed?.vendor_name) ||
+          getCleanString(parsed?.name) ||
+          getCleanString(parsed?.firm_name) ||
+          getCleanString(parsed?.vendor) ||
+          getCleanString(parsed?.vendor_id ? `Vendor (${parsed.vendor_id})` : '');
+        if (fromParsed) return fromParsed;
+      }
+
+      const rawStr = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
+      if (rawStr) {
+        const parsedRaw = JSON.parse(rawStr);
+        const fromParsedRaw =
+          getCleanString(parsedRaw?.vendor?.vendor_name) ||
+          getCleanString(parsedRaw?.vendor?.name) ||
+          getCleanString(parsedRaw?.vendor_name) ||
+          getCleanString(parsedRaw?.data?.vendor?.name) ||
+          getCleanString(parsedRaw?.data?.vendor_name);
+        if (fromParsedRaw) return fromParsedRaw;
+      }
+    } catch {
+      // fallback
+    }
+
+    // 4. Fallback to site detail or generic label
+    return getCleanString(siteDetail?.firm_name) || getCleanString(siteDetail?.vendor_name) || 'Vendor';
+  }, [user, rawResponse, siteDetail]);
 
   // Form + files
   const [formData, setFormData] = useState({ ...INITIAL_FORM });
@@ -342,6 +460,10 @@ export function Goa_Installation_SRT_InstallationDetails() {
       const fd = new FormData();
       fd.append('id', String(selectedSiteId));
       fd.append('site_id', String(selectedSiteId));
+      if (loginVendorName) {
+        fd.append('vendor_name', loginVendorName);
+        fd.append('vendor', loginVendorName);
+      }
       fd.append('contact_person', formData.contact_person.trim());
       fd.append('contact_number', formData.contact_number.trim());
       fd.append('ca_no', formData.ca_no.trim());
@@ -517,7 +639,14 @@ export function Goa_Installation_SRT_InstallationDetails() {
                 title="Contact & CA Identifiers"
                 desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
               />
-              <div className="goa-form-grid goa-form-grid--3col">
+              <div className="goa-form-grid--4col">
+                <FloatingInput
+                  id="goa-inst-vendor"
+                  label="Vendor Name"
+                  readOnly
+                  placeholder=" "
+                  value={loginVendorName}
+                />
                 <FloatingInput id="goa-inst-person" label="Contact Person Name" required placeholder="Nodal contact person" {...f('contact_person')} />
                 <FloatingInput id="goa-inst-contact" label="Contact Number" type="tel" required placeholder="Contact number" {...f('contact_number')} />
                 <FloatingInput id="goa-inst-ca" label="CA Number" required placeholder="Discom CA number" {...f('ca_no')} />
@@ -664,7 +793,7 @@ interface FloatingInputProps {
 function FloatingInput({ id, label, type = 'text', required, readOnly, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   return (
     <div>
-      <div className="ax-float">
+      <div className={`ax-float${readOnly ? ' ax-float--readonly' : ''}`}>
         <input
           id={id}
           type={type}

@@ -545,71 +545,6 @@ export function AddJammuSRT70MWSingleCard() {
     return { className: '', isValid: false, isInvalid: false };
   };
 
-  const handleFillDemo = () => {
-    setForm({
-      district: 'Jammu',
-      location: 'Civil Secretariat Complex, Jammu Tawi',
-      volume: '1',
-      siteName: 'Jammu High Court Administration Block',
-      department: 'PDD (Power Development Department)',
-      siteCode: 'JAM-SRT-70M-0382',
-      feasibleSite: 'Yes',
-      workOrderNo: 'WO-JAM-001 (Urban Rooftop Tier-1)',
-      workOrderDate: '2026-04-15',
-      loaNo: 'LOA/JAKEDA/70MW/2026/89',
-      phase: 'Phase 3',
-      sanctionLoadKwp: '25.00',
-      plantSanctionKwp: '20.00',
-      connectionPhase: 'Three Phase',
-      caNo: 'CA-JPDCL-9823410',
-      payment70: 'Approved',
-      payment70Doc: new File(['mock content'], 'Payment_70_Approval_Receipt.pdf', { type: 'application/pdf' }),
-      payment10: 'Pending',
-      payment10Doc: null,
-      amc1: 'Due',
-      amc2: 'Pending',
-      amc3: 'Pending',
-      amc4: 'Pending',
-      amc5: 'Pending',
-      materialStatus: 'Material Dispatched',
-      materialDispatchDate: '2026-05-10',
-      installationStatus: 'In Progress',
-      installationVendor: 'Tata Power Solar Systems',
-      installationDate: '2026-06-02',
-      contactPerson: 'Er. Rajesh Choudhary',
-      contactNo: '9419123456',
-      installationRemarks: 'Mounting structure completed on RCC roof. Inverter setup in basement electrical room. Cable routing verified with DISCOM engineer.',
-      panelNo: 'TP-540-W-88912',
-      panelImage: new File(['mock content'], 'Solar_Panel_Array.jpg', { type: 'image/jpeg' }),
-      systemImage: new File(['mock content'], 'SRT_70MW_System_Overview.jpg', { type: 'image/jpeg' }),
-      inverterNo: 'INV-HUA-2026-904',
-      inverterImage: new File(['mock content'], 'Inverter_Wiring_Box.jpg', { type: 'image/jpeg' }),
-      netMeterInstall: 'Installed',
-      solarMeterNo: 'SLR-MTR-4401',
-      netSmartMeterNo: 'SMRT-JPDCL-8921',
-      netSmartMeterImage: new File(['mock content'], 'Smart_Meter_Screen.jpg', { type: 'image/jpeg' }),
-      rmsStatus: 'Active / Online',
-      rmsLogerNo: 'RMS-LOG-77218',
-      logerImage: new File(['mock content'], 'RMS_Device.jpg', { type: 'image/jpeg' }),
-      simNo: '8991204018823194',
-      simFile: new File(['mock content'], 'Sim_Activation_Form.pdf', { type: 'application/pdf' }),
-      latitude: '32.7266',
-      longitude: '74.8570',
-      installationVerify: 'Verified',
-      claimRaised: 'Under Review',
-      claimInvoice: new File(['mock content'], 'Tax_Invoice_70MW_0382.pdf', { type: 'application/pdf' }),
-      claimAmount: '985000',
-      installerPay80Status: 'Approved',
-      installerPay80Amount: '788000',
-      installerPay80Date: '2026-06-20',
-      installationDocSubmit: 'Submitted',
-      installerPay20Status: 'Pending',
-      installerPay20Amount: '197000',
-      installerPay20Date: '',
-    });
-    setErrors({});
-    setTouched({});
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -699,10 +634,6 @@ export function AddJammuSRT70MWSingleCard() {
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>
               <span className="ax-btn__label">Jammu Dashboard</span>
             </Link>
-            <button type="button" onClick={handleFillDemo} className="ax-btn ax-btn--ghost" title="Auto-fill realistic Jammu site data">
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
-              <span className="ax-btn__label">Fill Sample Data</span>
-            </button>
             <button type="button" onClick={handleReset} className="ax-btn ax-btn--ghost ax-btn--icon" title="Reset Form">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
             </button>

@@ -1,30 +1,91 @@
-import { PageHead } from '../../../../shell/PageHead';
+import {
+  upComplaintService,
+  type UpKusumCComplaintItem,
+} from '../../up-services';
+import { documentCol, pick, textCol, type ComplaintColumn } from '../../Complaint/CommonSharedComplaints/UpComplaintsShared';
+import { AssignedComplaintPage } from '../../Complaint/CommonSharedComplaints/AssignedComplaints';
 
-export function UP_Complaint_KusumC_AssignedComplaint() {
+type Row = UpKusumCComplaintItem;
+const T = (h: string, keys: string[], o?: Parameters<typeof textCol>[2]) => textCol<Row>(h, keys, o);
+
+const COLUMNS: ComplaintColumn<Row>[] = [
+  T('Complaint ID', ['complaint_id', 'id'], { accent: true }),
+  T('Complaint Date', ['complaint_date']),
+  T('Complaint', ['complaint'], { clamp: true }),
+  T('State', ['state'], { fallback: 'UP' }),
+  T('District', ['district'], { strong: true }),
+  T('Post', ['post']),
+  T('Village', ['village']),
+  T('Farmer Name', ['farmer_name', 'beneficiary_name'], { strong: true }),
+  T('Father Name', ['father_name']),
+  T('Contact No', ['contact_no']),
+  T('Lot No', ['lot_no']),
+  T('Pump Capacity', ['pump_capacity'], { strong: true }),
+  T('Contractor Name', ['contractor_name']),
+  T('Contractor No', ['contractor_mobile_no', 'contractor_no']),
+  T('Installation Date', ['installation_date']),
+  documentCol<Row>(),
+  T('Assigned Date', ['assigned_date']),
+];
+
+export function UPComplaintKCAssigned() {
   return (
-    <div className="ax-page">
-      <PageHead
-        title="Uttar Pradesh - Complaint > KusumC > AssignedComplaint"
-        subtitle="AssignedComplaint management portal for Uttar Pradesh operations"
-        breadcrumbs={[
-          { label: 'Uttar Pradesh' },
-          { label: 'Complaint' },
-          { label: 'KusumC' },
-          { label: 'AssignedComplaint' },
-        ]}
-      />
-      <div className="ax-dash-grid">
-        <div className="ax-card ax-col--12">
-          <div className="ax-card__header">
-            <h3 className="ax-card__title">AssignedComplaint Overview</h3>
-          </div>
-          <div className="ax-card__body">
-            <p>Uttar Pradesh Complaint - KusumC - AssignedComplaint operational data and details.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AssignedComplaintPage<Row>
+      title="View Vendor UP Kusum C Complaints"
+      subtitle="Manage assigned solar water pump complaints and file resolution closures"
+      breadcrumbs={[
+        { label: 'Home', href: '/v' },
+        { label: 'UP' },
+        { label: 'Complaints' },
+        { label: 'Kusum C Assigned' },
+      ]}
+      cardTitle="Report Bifurcation"
+      kpiSub={{
+        total: 'Assigned water pumps',
+        open: 'Pumps requiring service',
+        approved: 'Submitted repair verification',
+        close: 'Successfully verified & closed',
+      }}
+      searchPlaceholder="Search ID, farmer, village, contact, pump…"
+      fetchData={() => upComplaintService.getKusumCAssignedComplaints()}
+      columns={COLUMNS}
+      searchFields={(c) => [
+        pick(c, ['complaint_id', 'id'], ''),
+        pick(c, ['farmer_name', 'beneficiary_name'], ''),
+        pick(c, ['district'], ''),
+        pick(c, ['post'], ''),
+        pick(c, ['village'], ''),
+        pick(c, ['contact_no'], ''),
+        pick(c, ['pump_capacity'], ''),
+        pick(c, ['complaint'], ''),
+      ]}
+      exportName="UP_KusumC_Assigned"
+      exportTitle="UP Kusum C Assigned Complaints"
+      close={{
+        heading: 'Close Kusum C Complaint',
+        defaultSuccess: 'Complaint closed successfully!',
+        summary: (c) => [
+          { label: 'Farmer', value: pick(c, ['farmer_name', 'beneficiary_name']) },
+          { label: 'Contact', value: pick(c, ['contact_no']) },
+          { label: 'Location', value: `${pick(c, ['district'])}, ${pick(c, ['village'])}` },
+          { label: 'Pump Capacity', value: pick(c, ['pump_capacity']) },
+        ],
+        remarksPlaceholder: 'Describe resolution details (e.g. replaced burnt cable, serviced pump motor)…',
+        fileLabel: 'Repair / site verification document',
+        fileHint: 'Post-repair photo or signed customer satisfaction sheet',
+        submit: (v, item) => {
+          const fd = new FormData();
+          fd.append('id', String(item.id || ''));
+          if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
+          fd.append('remarks', v.remarks);
+          fd.append('closing_date', v.date);
+          fd.append('document', v.file);
+          fd.append('file', v.file);
+          return upComplaintService.closeKusumCComplaint(fd);
+        },
+      }}
+    />
   );
 }
 
-export default UP_Complaint_KusumC_AssignedComplaint;
+export default UPComplaintKCAssigned;

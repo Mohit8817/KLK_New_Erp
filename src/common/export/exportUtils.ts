@@ -1,7 +1,23 @@
-export interface ExportColumn<T> {
-  header: string;
-  accessor: keyof T | ((item: T) => any);
+export interface ExportColumn<T = any> {
+  label?: string;
+  key?: string;
+  header?: string;
+  accessor?: any;
+  [key: string]: any;
 }
+
+const extractHeader = (c: ExportColumn<any>): string => c.header || c.label || c.key || '';
+
+const extractValue = (c: ExportColumn<any>, item: any, idx: number): any => {
+  const acc = c.accessor || c.key;
+  if (typeof acc === 'function') {
+    return acc(item, idx);
+  }
+  if (acc !== undefined && acc !== null && typeof acc === 'string') {
+    return item[acc];
+  }
+  return '';
+};
 
 /**
  * Low-level CSV export from raw headers and rows.
@@ -34,14 +50,9 @@ export function exportDataToCSV<T>(
   data: T[],
   columns: ExportColumn<T>[]
 ): void {
-  const headers = columns.map((c) => c.header);
-  const rows = data.map((item) =>
-    columns.map((c) => {
-      if (typeof c.accessor === 'function') {
-        return c.accessor(item);
-      }
-      return item[c.accessor];
-    })
+  const headers = columns.map(extractHeader);
+  const rows = data.map((item, idx) =>
+    columns.map((c) => extractValue(c, item, idx))
   );
 
   exportToCSV(filename, headers, rows);
@@ -92,17 +103,17 @@ export function exportDataToExcel<T>(
       <table>
         <thead>
           <tr>
-            ${columns.map((c) => `<th>${escapeXml(c.header)}</th>`).join('')}
+            ${columns.map((c) => `<th>${escapeXml(extractHeader(c))}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${data
             .map(
-              (item) => `
+              (item, idx) => `
             <tr>
               ${columns
                 .map((c) => {
-                  const val = typeof c.accessor === 'function' ? c.accessor(item) : item[c.accessor];
+                  const val = extractValue(c, item, idx);
                   return `<td>${escapeXml(val)}</td>`;
                 })
                 .join('')}
@@ -127,11 +138,11 @@ export async function copyTableDataToClipboard<T>(
   columns: ExportColumn<T>[]
 ): Promise<boolean> {
   try {
-    const headers = columns.map((c) => c.header).join('\t');
-    const rows = data.map((item) =>
+    const headers = columns.map(extractHeader).join('\t');
+    const rows = data.map((item, idx) =>
       columns
         .map((c) => {
-          const val = typeof c.accessor === 'function' ? c.accessor(item) : item[c.accessor];
+          const val = extractValue(c, item, idx);
           return val === null || val === undefined ? '' : String(val).replace(/\t|\r|\n/g, ' ');
         })
         .join('\t')
@@ -181,16 +192,16 @@ export function printTableData<T>(
         <div class="meta">Exported on ${new Date().toLocaleString()} | Total Records: ${data.length}</div>
         <table>
           <thead>
-            <tr>${columns.map((c) => `<th>${c.header}</th>`).join('')}</tr>
+            <tr>${columns.map((c) => `<th>${extractHeader(c)}</th>`).join('')}</tr>
           </thead>
           <tbody>
             ${data
               .map(
-                (item) => `
+                (item, idx) => `
               <tr>
                 ${columns
                   .map((c) => {
-                    const val = typeof c.accessor === 'function' ? c.accessor(item) : item[c.accessor];
+                    const val = extractValue(c, item, idx);
                     return `<td>${val ?? ''}</td>`;
                   })
                   .join('')}
@@ -220,12 +231,11 @@ function triggerDownload(blob: Blob, filename: string) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 100);
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
-function ensureExtension(filename: string, ext: string) {
-  return filename.endsWith(ext) ? filename : `${filename}${ext}`;
+function ensureExtension(filename: string, ext: string): string {
+  if (filename.toLowerCase().endsWith(ext.toLowerCase())) return filename;
+  return `${filename}${ext}`;
 }

@@ -147,6 +147,13 @@ export interface GoaSrtSurveyViewData {
 }
 
 class GoaSrtSurveyService {
+  resolveImageUrl(path?: string | null): string {
+    if (!path) return '';
+    if (/^(https?:|data:|blob:)/i.test(path)) return path;
+    const candidates = getGoaSrtSurveyImageCandidates(path);
+    return candidates[0] || `${BACKEND_BASE}/${path.replace(/^\/+/, '')}`;
+  }
+
   private getHeaders(isMultipart = false): Record<string, string> {
     const token = authService.getToken();
     const headers: Record<string, string> = {

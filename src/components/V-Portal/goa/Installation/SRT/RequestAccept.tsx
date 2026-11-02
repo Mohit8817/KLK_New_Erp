@@ -585,7 +585,7 @@ export function Goa_Installation_SRT_RequestAccept() {
   // Export Columns (Exact match with 10 table headers)
   const exportCols: ExportColumn<GoaSrtAssignBatchItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, i) => String((i ?? 0) + 1) },
+      { header: 'Sr. No.', accessor: (r: GoaSrtAssignBatchItem) => String(r.id || DASH) },
       { header: 'Vendor', accessor: (r) => r.vendors?.name || (r as any).vendor_name || `Vendor #${r.vendor}` },
       { header: 'Assign Date', accessor: (r) => r.assign_date || r.created_at || DASH },
       { header: 'State', accessor: (r) => r.state || 'goa' },
@@ -847,7 +847,6 @@ export function Goa_Installation_SRT_RequestAccept() {
                             ? 'No records match your filters or search. Try clearing your query.'
                             : 'Assigned installation sites will appear here.'
                         }
-                        query={search}
                         onClear={hasFilters ? resetFilters : undefined}
                       />
                     </td>

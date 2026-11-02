@@ -114,6 +114,7 @@ const UPInstSSLAssigned = lazy(() => import('./components/V-Portal/up/Installati
 const UPInstSSLInstall = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallLight'));
 const UPInstSSLDetail = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallationDetail'));
 const UPInstSSLClaim = lazy(() => import('./components/V-Portal/up/Installation/SSL/ClaimRequest'));
+const UPInstSSLStatusView = lazy(() => import('./components/V-Portal/up/Installation/SSL/StatusView'));
 const UPInstKCDb = lazy(() => import('./components/V-Portal/up/Installation/KusumC/Dashboard'));
 const UPInstKCReq = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallationRequest'));
 const UPInstKCInstall = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallSite'));
@@ -179,6 +180,7 @@ const UPComplaintSRLMView = lazy(() => import('./components/V-Portal/up/Complain
 const UPComplaintSRLMAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AssignedComplaint'));
 
 // ── Jammu ──
+
 const JMSurveyRescoAssign = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Assign_Survey'));
 const JMSurveyRescoPending = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Pending_Survey'));
 const JMSurveyRescoView = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/View_Survey'));
@@ -189,23 +191,27 @@ const JMInstRescoAssigned = lazy(() => import('./components/V-Portal/jammu/Insta
 const JMInstRescoInstall = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallSite'));
 const JMInstRescoDetail = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallationDetails'));
 const JMInstRescoClaim = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoClaimRequest'));
+const JMInstRescoStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoStatusView'));
 
 const JMInstSRTAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/AssignSite'));
 const JMInstSRTInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallSites'));
 const JMInstSRTDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallationDetails'));
 const JMInstSRTClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/ClaimRequest'));
+const JMInstSRTStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/StatusView'));
 
 const JMInstSSLDb = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLDashboard'));
 const JMInstSSLAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/AssignLights'));
 const JMInstSSLInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/InstallLights'));
 const JMInstSSLDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLInstallationDetails'));
 const JMInstSSLClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLClaimRequest'));
+const JMInstSSLStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLStatusView'));
 
 const JMInstSWPDb = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPDashboard'));
 const JMInstSWPReq = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationRequest'));
 const JMInstSWPSite = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationSite'));
 const JMInstSWPView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewInstallation'));
 const JMInstSWPPay = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewPayment'));
+const JMInstSWPStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPStatusView'));
 
 const JMExpRequest = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/RequestExpenses'));
 const JMExpView = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewExpenses'));
@@ -307,6 +313,19 @@ const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/I
 const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
 const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
 const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
+
+// ── V-PORTAL: KASHMIR ──
+const KashmirSurveySRT70MWAdd = lazy(() => import('./components/V-Portal/kashmir/Survey/SRT_70MW/AddData'));
+const KashmirSurveySRT70MWView = lazy(() => import('./components/V-Portal/kashmir/Survey/SRT_70MW/ViewData'));
+const KashmirInstSRT70MWDb = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/Dashboard'));
+const KashmirInstSRT70MWStatus = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/StatusView'));
+const KashmirInstSRT70MWAssign = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/AssignSite'));
+const KashmirInstSRT70MWInstall = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/InstallSites'));
+const KashmirInstSRT70MWDetail = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/InstallationDetails'));
+const KashmirInstSRT70MWClaim = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/ClaimRequest'));
+const KashmirExpensesRequest = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/RequestExpenses'));
+const KashmirExpensesView = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewExpenses'));
+const KashmirExpensesPayment = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewPayments'));
 
 
 
@@ -604,16 +623,21 @@ const shell: Record<string, PageComponent> = {
   'up/installation/resco/monthly-bill': UPInstRescoBill,
 
   'v/up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'v/up/ssl-18w-installation-dashboard-status': UPInstSSLStatusView,
+  'v/up/ssl-installation-status-view': UPInstSSLStatusView,
   'v/up/view-18w-assign-installation-sites': UPInstSSLAssigned,
   'v/up/ssl-install-18w-light': UPInstSSLInstall,
   'v/up/ssl-view-installed-18w-light': UPInstSSLDetail,
   'v/up/ssl-view-installation-18w-claim': UPInstSSLClaim,
   'up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'up/ssl-18w-installation-dashboard-status': UPInstSSLStatusView,
+  'up/ssl-installation-status-view': UPInstSSLStatusView,
   'up/view-18w-assign-installation-sites': UPInstSSLAssigned,
   'up/ssl-install-18w-light': UPInstSSLInstall,
   'up/ssl-view-installed-18w-light': UPInstSSLDetail,
   'up/ssl-view-installation-18w-claim': UPInstSSLClaim,
   'up/installation/ssl/dashboard': UPInstSSLDb,
+  'up/installation/ssl/status-view': UPInstSSLStatusView,
   'up/installation/ssl/assigned-lights': UPInstSSLAssigned,
   'up/installation/ssl/install-light': UPInstSSLInstall,
   'up/installation/ssl/installation-detail': UPInstSSLDetail,
@@ -806,7 +830,10 @@ const shell: Record<string, PageComponent> = {
   'up/complaint/srlmsrt/view-complaint': UPComplaintSRLMView,
   'up/complaint/srlmsrt/assigned-complaint': UPComplaintSRLMAssigned,
 
-  // ══════════════ V-PORTAL: JAMMU & KASHMIR ══════════════
+
+
+
+  // ══════════════ V-PORTAL: JAMMU  ══════════════
   'v/jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
   'v/jammu/survey/resco/pending-survey': JMSurveyRescoPending,
   'v/jammu/survey/resco/view-survey': JMSurveyRescoView,
@@ -823,22 +850,26 @@ const shell: Record<string, PageComponent> = {
   'v/jammu/installation/resco/install-site': JMInstRescoInstall,
   'v/jammu/installation/resco/installation-details': JMInstRescoDetail,
   'v/jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'v/jammu/installation/resco/status-view': JMInstRescoStatusView,
   'jammu/installation/resco/dashboard': JMInstRescoDb,
   'jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
   'jammu/installation/resco/install-site': JMInstRescoInstall,
   'jammu/installation/resco/installation-details': JMInstRescoDetail,
   'jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'jammu/installation/resco/status-view': JMInstRescoStatusView,
 
   'v/jammu/installation/srt-70mw/dashboard': JammuDashboard,
   'v/jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
   'v/jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
   'v/jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
   'v/jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'v/jammu/installation/srt-70mw/status-view': JMInstSRTStatusView,
   'jammu/installation/srt-70mw/dashboard': JammuDashboard,
   'jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
   'jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
   'jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
   'jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'jammu/installation/srt-70mw/status-view': JMInstSRTStatusView,
   'jammu/dashboard': JammuDashboard,
 
   'v/jammu/installation/ssl/dashboard': JMInstSSLDb,
@@ -846,22 +877,30 @@ const shell: Record<string, PageComponent> = {
   'v/jammu/installation/ssl/install-lights': JMInstSSLInstall,
   'v/jammu/installation/ssl/installation-details': JMInstSSLDetail,
   'v/jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'v/jammu/installation/ssl/status-view': JMInstSSLStatusView,
   'jammu/installation/ssl/dashboard': JMInstSSLDb,
   'jammu/installation/ssl/assign-lights': JMInstSSLAssign,
   'jammu/installation/ssl/install-lights': JMInstSSLInstall,
   'jammu/installation/ssl/installation-details': JMInstSSLDetail,
   'jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'jammu/installation/ssl/status-view': JMInstSSLStatusView,
 
   'v/jammu/installation/swp/dashboard': JMInstSWPDb,
   'v/jammu/installation/swp/installation-request': JMInstSWPReq,
   'v/jammu/installation/swp/installation-site': JMInstSWPSite,
   'v/jammu/installation/swp/view-installation': JMInstSWPView,
   'v/jammu/installation/swp/view-payment': JMInstSWPPay,
+  'v/jammu/installation/swp/status-view': JMInstSWPStatusView,
+  'v/jammu/installation/swp/status': JMInstSWPStatusView,
+  'v/jammu-install-swp-site': JMInstSWPSite,
+  'jammu-install-swp-site': JMInstSWPSite,
   'jammu/installation/swp/dashboard': JMInstSWPDb,
   'jammu/installation/swp/installation-request': JMInstSWPReq,
   'jammu/installation/swp/installation-site': JMInstSWPSite,
   'jammu/installation/swp/view-installation': JMInstSWPView,
   'jammu/installation/swp/view-payment': JMInstSWPPay,
+  'jammu/installation/swp/status-view': JMInstSWPStatusView,
+  'jammu/installation/swp/status': JMInstSWPStatusView,
 
   'v/jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
   'v/jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
@@ -1216,6 +1255,41 @@ const shell: Record<string, PageComponent> = {
   'karnataka/material-details': KarnatakaMaterialDetails,
   'karnataka/swp/status-view': KarnatakaStatusView,
   'karnataka/status-view': KarnatakaStatusView,
+
+  // ══════════════ V-PORTAL: KASHMIR ══════════════
+  // Survey (SRT 70MW)
+  'v/kashmir/srt70mw/survey-add': KashmirSurveySRT70MWAdd,
+  'kashmir/srt70mw/survey-add': KashmirSurveySRT70MWAdd,
+  'v/kashmir/srt70mw/survey-view': KashmirSurveySRT70MWView,
+  'kashmir/srt70mw/survey-view': KashmirSurveySRT70MWView,
+  'v/kashmir/srt70mw/survey-edit/:id': KashmirSurveySRT70MWAdd,
+  'kashmir/srt70mw/survey-edit/:id': KashmirSurveySRT70MWAdd,
+
+  // Installation (SRT 70MW)
+  'v/kashmir/srt/70mw/installation/dashboard': KashmirInstSRT70MWDb,
+  'kashmir/srt/70mw/installation/dashboard': KashmirInstSRT70MWDb,
+  'v/kashmir/srt/70mw/installation/status-view': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw/installation/status-view': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw-installation-view-dashboard/:status': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw-installation-view-dashboard/:status': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw-installation-districtwise/:status/:district': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw-installation-districtwise/:status/:district': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw/installation/assign-site': KashmirInstSRT70MWAssign,
+  'kashmir/srt/70mw/installation/assign-site': KashmirInstSRT70MWAssign,
+  'v/kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
+  'kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
+  'v/kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
+  'kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
+
+  // Installation Expenses (SRT 70MW)
+  'v/kashmir/srt70mw/installation-expenses-create': KashmirExpensesRequest,
+  'kashmir/srt70mw/installation-expenses-create': KashmirExpensesRequest,
+  'v/kashmir/srt70mw/installation-expenses': KashmirExpensesView,
+  'kashmir/srt70mw/installation-expenses': KashmirExpensesView,
+  'v/kashmir/srt70mw/installation-expenses-view-payment': KashmirExpensesPayment,
+  'kashmir/srt70mw/installation-expenses-view-payment': KashmirExpensesPayment,
 
 
   

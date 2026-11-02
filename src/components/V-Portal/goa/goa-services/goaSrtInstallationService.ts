@@ -125,6 +125,8 @@ export interface GoaSrtAssignBatchItem {
 export interface GoaSrtSiteDropdownItem {
   id: number;
   site_name: string;
+  ca_no?: string;
+  [key: string]: any;
 }
 
 export interface GoaSrtSiteDetailItem {
@@ -220,6 +222,13 @@ export interface GoaSrtCompletedData {
 }
 
 class GoaSrtInstallationService {
+  resolveImageUrl(path?: string | null): string {
+    if (!path) return '';
+    if (/^(https?:|data:|blob:)/i.test(path)) return path;
+    const candidates = getGoaSrtInstallationImageCandidates(path);
+    return candidates[0] || `${BACKEND_BASE}/${path.replace(/^\/+/, '')}`;
+  }
+
   private getHeaders(isMultipart = false): Record<string, string> {
     const token = authService.getToken();
     const headers: Record<string, string> = {

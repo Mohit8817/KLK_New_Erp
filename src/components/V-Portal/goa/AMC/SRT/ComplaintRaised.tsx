@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -238,8 +238,6 @@ function Modal({
 }
 
 export function Goa_AMC_SRT_ComplaintRaised() {
-  const navigate = useNavigate();
-
   // Data states
   const [loading, setLoading] = useState(true);
   const [complaints, setComplaints] = useState<GoaAmcComplaintRecord[]>([]);
@@ -315,30 +313,48 @@ export function Goa_AMC_SRT_ComplaintRaised() {
   }, [complaints, districtFilter, searchQuery]);
 
   // Paginated rows
-  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
   const pagedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, currentPage, pageSize]);
 
   // Export Columns (Exact 16 requested columns)
-  const exportColumns: ExportColumn[] = [
-    { key: 'srNo', label: 'Sr. no.' },
-    { key: 'complaint_id', label: 'Complaint ID' },
-    { key: 'start_date', label: 'Complaint Date' },
-    { key: 'complaint', label: 'Complaint' },
-    { key: 'state', label: 'State' },
-    { key: 'discom', label: 'Discom' },
-    { key: 'district', label: 'District' },
-    { key: 'dept_name', label: 'Dept Name' },
-    { key: 'site_name', label: 'Site Name' },
-    { key: 'location', label: 'Location' },
-    { key: 'firm_name', label: 'Firm Name' },
-    { key: 'ca_no', label: 'CA No' },
-    { key: 'sanction_load', label: 'Sanction Load' },
-    { key: 'plant_sc', label: 'Plant SC' },
-    { key: 'wo_no', label: 'WO No' },
-    { key: 'phase', label: 'Phase' },
+  type ExportRow = {
+    srNo: number;
+    complaint_id: string;
+    start_date: string;
+    complaint: string;
+    state: string;
+    discom: string;
+    district: string;
+    dept_name: string;
+    site_name: string;
+    location: string;
+    firm_name: string;
+    ca_no: string;
+    sanction_load: string;
+    plant_sc: string;
+    wo_no: string;
+    phase: string;
+  };
+
+  const exportColumns: ExportColumn<ExportRow>[] = [
+    { header: 'Sr. no.', accessor: 'srNo' },
+    { header: 'Complaint ID', accessor: 'complaint_id' },
+    { header: 'Complaint Date', accessor: 'start_date' },
+    { header: 'Complaint', accessor: 'complaint' },
+    { header: 'State', accessor: 'state' },
+    { header: 'Discom', accessor: 'discom' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Dept Name', accessor: 'dept_name' },
+    { header: 'Site Name', accessor: 'site_name' },
+    { header: 'Location', accessor: 'location' },
+    { header: 'Firm Name', accessor: 'firm_name' },
+    { header: 'CA No', accessor: 'ca_no' },
+    { header: 'Sanction Load', accessor: 'sanction_load' },
+    { header: 'Plant SC', accessor: 'plant_sc' },
+    { header: 'WO No', accessor: 'wo_no' },
+    { header: 'Phase', accessor: 'phase' },
   ];
 
   const exportData = useMemo(() => {
@@ -453,10 +469,10 @@ export function Goa_AMC_SRT_ComplaintRaised() {
               />
 
               <TableExportToolbar
-                onCopy={() => copyTableDataToClipboard(exportColumns, exportData)}
-                onExportCSV={() => exportDataToCSV(exportColumns, exportData, 'Goa_SRT_AMC_Complaints.csv')}
-                onExportExcel={() => exportDataToExcel(exportColumns, exportData, 'Goa_SRT_AMC_Complaints.xlsx')}
-                onExportPDF={() => printTableData(exportColumns, exportData, 'View SRT AMC Site Complaint')}
+                onCopy={() => copyTableDataToClipboard(exportData, exportColumns)}
+                onExportCSV={() => exportDataToCSV('Goa_SRT_AMC_Complaints', exportData, exportColumns)}
+                onExportExcel={() => exportDataToExcel('Goa_SRT_AMC_Complaints', exportData, exportColumns)}
+                onExportPDF={() => printTableData('View SRT AMC Site Complaint', exportData, exportColumns)}
               />
             </div>
           </div>
@@ -499,8 +515,7 @@ export function Goa_AMC_SRT_ComplaintRaised() {
                     <TableEmptyState
                       title="No data available in table"
                       message={hasFilters ? 'No complaint records match your query. Try clearing filters.' : 'Complaint records will appear here.'}
-                      query={searchQuery}
-                      onClear={resetFilters}
+                      onClear={hasFilters ? resetFilters : undefined}
                     />
                   </td>
                 </tr>
@@ -550,7 +565,6 @@ export function Goa_AMC_SRT_ComplaintRaised() {
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
               totalItems={filteredRows.length}
               pageSize={pageSize}
               pageSizeOptions={[10, 25, 50, 100]}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -365,50 +365,71 @@ export function Goa_AMC_SRT_ViewData() {
   }, [activeList, searchQuery]);
 
   // Paginated rows
-  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
   const pagedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, currentPage, pageSize]);
 
   // Export Columns based on tab
-  const incompleteExportCols: ExportColumn[] = [
-    { key: 'srNo', label: 'Sr. No.' },
-    { key: 'amc', label: 'AMC Type' },
-    { key: 'state', label: 'State' },
-    { key: 'district', label: 'District' },
-    { key: 'dept_name', label: 'Dept Name' },
-    { key: 'site_name', label: 'Site Name' },
-    { key: 'location', label: 'Location' },
-    { key: 'firm_name', label: 'Firm Name' },
-    { key: 'ca_no', label: 'CA No' },
-    { key: 'sanction_load', label: 'Sanction Load' },
-    { key: 'plant_sc', label: 'Plant SC' },
-    { key: 'wo_no', label: 'WO No' },
-    { key: 'phase', label: 'Phase' },
-    { key: 'amc_status', label: 'Amc Status' },
+  type AmcExportRow = {
+    srNo: number;
+    amc: string;
+    state: string;
+    district: string;
+    dept_name: string;
+    site_name: string;
+    location: string;
+    amc_beneficiary_name?: string;
+    amc_beneficiary_contact?: string;
+    amc_latitude?: string | number;
+    amc_longitude?: string | number;
+    firm_name: string;
+    ca_no: string;
+    sanction_load: string;
+    plant_sc: string;
+    wo_no: string;
+    phase: string;
+    amc_status: string;
+    amcverify_status?: string;
+  };
+
+  const incompleteExportCols: ExportColumn<AmcExportRow>[] = [
+    { header: 'Sr. No.', accessor: 'srNo' },
+    { header: 'AMC Type', accessor: 'amc' },
+    { header: 'State', accessor: 'state' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Dept Name', accessor: 'dept_name' },
+    { header: 'Site Name', accessor: 'site_name' },
+    { header: 'Location', accessor: 'location' },
+    { header: 'Firm Name', accessor: 'firm_name' },
+    { header: 'CA No', accessor: 'ca_no' },
+    { header: 'Sanction Load', accessor: 'sanction_load' },
+    { header: 'Plant SC', accessor: 'plant_sc' },
+    { header: 'WO No', accessor: 'wo_no' },
+    { header: 'Phase', accessor: 'phase' },
+    { header: 'Amc Status', accessor: 'amc_status' },
   ];
 
-  const completeExportCols: ExportColumn[] = [
-    { key: 'srNo', label: 'Sr. No.' },
-    { key: 'amc', label: 'AMC Type' },
-    { key: 'state', label: 'State' },
-    { key: 'district', label: 'District' },
-    { key: 'dept_name', label: 'Dept Name' },
-    { key: 'site_name', label: 'Site Name' },
-    { key: 'location', label: 'Location' },
-    { key: 'amc_beneficiary_name', label: 'Amc Beneficiary Name' },
-    { key: 'amc_beneficiary_contact', label: 'Amc Beneficiary Contact' },
-    { key: 'amc_latitude', label: 'Amc Beneficiary Latitude' },
-    { key: 'amc_longitude', label: 'Amc Beneficiary Longitude' },
-    { key: 'firm_name', label: 'Firm Name' },
-    { key: 'ca_no', label: 'CA No' },
-    { key: 'sanction_load', label: 'Sanction Load' },
-    { key: 'plant_sc', label: 'Plant SC' },
-    { key: 'wo_no', label: 'WO No' },
-    { key: 'phase', label: 'Phase' },
-    { key: 'amc_status', label: 'Amc Status' },
-    { key: 'amcverify_status', label: 'AMC Verify Status' },
+  const completeExportCols: ExportColumn<AmcExportRow>[] = [
+    { header: 'Sr. No.', accessor: 'srNo' },
+    { header: 'AMC Type', accessor: 'amc' },
+    { header: 'State', accessor: 'state' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Dept Name', accessor: 'dept_name' },
+    { header: 'Site Name', accessor: 'site_name' },
+    { header: 'Location', accessor: 'location' },
+    { header: 'Amc Beneficiary Name', accessor: 'amc_beneficiary_name' },
+    { header: 'Amc Beneficiary Contact', accessor: 'amc_beneficiary_contact' },
+    { header: 'Amc Beneficiary Latitude', accessor: (r) => String(r.amc_latitude ?? DASH) },
+    { header: 'Amc Beneficiary Longitude', accessor: (r) => String(r.amc_longitude ?? DASH) },
+    { header: 'Firm Name', accessor: 'firm_name' },
+    { header: 'CA No', accessor: 'ca_no' },
+    { header: 'Sanction Load', accessor: 'sanction_load' },
+    { header: 'Plant SC', accessor: 'plant_sc' },
+    { header: 'WO No', accessor: 'wo_no' },
+    { header: 'Phase', accessor: 'phase' },
+    { header: 'Amc Status', accessor: 'amc_status' },
+    { header: 'AMC Verify Status', accessor: 'amcverify_status' },
   ];
 
   const exportData = useMemo(() => {
@@ -558,10 +579,10 @@ export function Goa_AMC_SRT_ViewData() {
                 />
 
                 <TableExportToolbar
-                  onCopy={() => copyTableDataToClipboard(activeCols, exportData)}
-                  onExportCSV={() => exportDataToCSV(activeCols, exportData, `Goa_SRT_AMC_${currentTab}_List.csv`)}
-                  onExportExcel={() => exportDataToExcel(activeCols, exportData, `Goa_SRT_AMC_${currentTab}_List.xlsx`)}
-                  onExportPDF={() => printTableData(activeCols, exportData, `Goa SRT AMC ${currentTab} Sites`)}
+                  onCopy={() => copyTableDataToClipboard(exportData, activeCols)}
+                  onExportCSV={() => exportDataToCSV(`Goa_SRT_AMC_${currentTab}_List`, exportData, activeCols)}
+                  onExportExcel={() => exportDataToExcel(`Goa_SRT_AMC_${currentTab}_List`, exportData, activeCols)}
+                  onExportPDF={() => printTableData(`Goa SRT AMC ${currentTab} Sites`, exportData, activeCols)}
                 />
               </div>
             </div>
@@ -609,8 +630,7 @@ export function Goa_AMC_SRT_ViewData() {
                           <TableEmptyState
                             title="No data available in table"
                             message="No pending AMC sites match your search."
-                            query={searchQuery}
-                            onClear={() => setSearchQuery('')}
+                            onClear={searchQuery ? () => setSearchQuery('') : undefined}
                           />
                         </td>
                       </tr>
@@ -693,8 +713,7 @@ export function Goa_AMC_SRT_ViewData() {
                           <TableEmptyState
                             title="No data available in table"
                             message="No completed AMC records match your query."
-                            query={searchQuery}
-                            onClear={() => setSearchQuery('')}
+                            onClear={searchQuery ? () => setSearchQuery('') : undefined}
                           />
                         </td>
                       </tr>
@@ -784,7 +803,6 @@ export function Goa_AMC_SRT_ViewData() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={currentPage}
-                totalPages={totalPages}
                 totalItems={filteredRows.length}
                 pageSize={pageSize}
                 pageSizeOptions={[10, 25, 50, 100]}

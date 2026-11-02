@@ -1,29 +1,21 @@
-import { PageHead } from '../../../../shell/PageHead';
+import { UpAmcPaymentPage } from '../CommonSharedAMC';
+import { upSslAmcApi } from '../../up-services';
 
 export function UP_AMC_SSL_Payment() {
   return (
-    <div className="ax-page">
-      <PageHead
-        title="Uttar Pradesh - AMC > SSL > Payment"
-        subtitle="Payment management portal for Uttar Pradesh operations"
-        breadcrumbs={[
-          { label: 'Uttar Pradesh' },
-          { label: 'AMC' },
-          { label: 'SSL' },
-          { label: 'Payment' },
-        ]}
-      />
-      <div className="ax-dash-grid">
-        <div className="ax-card ax-col--12">
-          <div className="ax-card__header">
-            <h3 className="ax-card__title">Payment Overview</h3>
-          </div>
-          <div className="ax-card__body">
-            <p>Uttar Pradesh AMC - SSL - Payment operational data and details.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <UpAmcPaymentPage
+      title="UP SSL — AMC Payment & Claims"
+      subtitle="View verified solar street light reports eligible for payment claims and track claim history"
+      breadcrumbs={[
+        { label: 'Home', href: '/v' },
+        { label: 'UP AMC' },
+        { label: 'SSL', href: '/v/up-ssl-amc-view-light' },
+        { label: 'Payment' },
+      ]}
+      projectName="Solar Street Light (SSL)"
+      onFetchClaimData={upSslAmcApi.getClaimLight}
+      onStoreClaim={upSslAmcApi.storeClaim}
+    />
   );
 }
 

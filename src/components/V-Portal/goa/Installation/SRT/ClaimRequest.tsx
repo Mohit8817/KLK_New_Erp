@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   goaSrtInstallationService,
@@ -554,13 +554,11 @@ export function Goa_Installation_SRT_ClaimRequest() {
   const totalAmount = claims.reduce((acc, c) => acc + (Number(c.inst_claim_amount) || 0), 0);
   const approvedClaims = claims.filter((c) => Number(c.inst_claim_status) === 2).length;
   const pendingClaims = claims.filter((c) => Number(c.inst_claim_status) === 1 || Number(c.inst_claim_status) === 0).length;
-  const pay2Count = claims.filter((c) => Number(c.inst_pay2_status) === 1).length;
-  const pay3Count = claims.filter((c) => Number(c.inst_pay3_status) === 1).length;
 
   // Export Columns (Exact match with table headers)
   const exportCols: ExportColumn<GoaSrtInstalledSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
+      { header: 'Sr. No.', accessor: (r: GoaSrtInstalledSiteItem) => String(r.id || DASH) },
       { header: 'State', accessor: (r) => r.state || 'Goa' },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Site Name', accessor: (r) => r.site_name || `Site #${r.id}` },

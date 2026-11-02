@@ -42,7 +42,6 @@ const ICON_REFRESH = (
 );
 
 const DASH = '—';
-const num = (x: unknown) => (Number(x) || 0).toLocaleString('en-IN');
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
@@ -504,7 +503,7 @@ export function Goa_Installation_SRT_ViewInstallation() {
   // Export Columns
   const exportCols: ExportColumn<GoaSrtInstalledSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, i) => String((i || 0) + 1) },
+      { header: 'Sr. No.', accessor: (r: GoaSrtInstalledSiteItem) => String(r.id || DASH) },
       { header: 'State', accessor: (r) => r.state || 'goa' },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Site Name', accessor: (r) => r.site_name || DASH },

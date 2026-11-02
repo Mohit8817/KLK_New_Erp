@@ -351,7 +351,6 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' } as const;
-const sectionHeadStyle = { margin: 'var(--ax-space-3) 0 var(--ax-space-1) 0', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' } as const;
 
 export function Goa_Installation_SRT_Dashboard() {
   const navigate = useNavigate();

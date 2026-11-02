@@ -494,7 +494,7 @@ export function Goa_AMC_SRT_AddData() {
                 <FloatingInput id="goa-amc-plant" label="Plant SC" readOnly value={siteDetail?.plant_sc || ''} />
                 <FloatingInput id="goa-amc-wo" label="WO No." readOnly value={siteDetail?.wo_no || ''} />
                 <FloatingInput id="goa-amc-phase" label="Phase" readOnly value={siteDetail?.phase || ''} />
-                <FloatingInput id="goa-amc-vendor" label="Vendor" readOnly value={siteDetail?.vendor || ''} />
+                <FloatingInput id="goa-amc-vendor" label="Vendor" readOnly value={siteDetail?.vendor !== undefined && siteDetail?.vendor !== null ? String(siteDetail.vendor) : ''} />
                 <FloatingInput id="goa-amc-date" label="Date" readOnly value={siteDetail?.date || ''} />
                 <FloatingInput id="goa-amc-inv-date" label="Material Invoice Date" readOnly value={siteDetail?.material_invoice_date || ''} />
                 <FloatingInput id="goa-amc-inv" label="Material Bill Invoice" readOnly value={siteDetail?.material_bill_invoice || ''} />

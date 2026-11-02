@@ -3,6 +3,8 @@ export interface TableEmptyStateProps {
   message?: string;
   onClear?: () => void;
   clearLabel?: string;
+  query?: string;
+  [key: string]: any;
 }
 
 /**

@@ -500,4 +500,8 @@ class AuthService {
 export const authService =
   new AuthService();
 
+export function getCurrentUser(): UserSession | null {
+  return authService.getSession();
+}
+
 export default authService;

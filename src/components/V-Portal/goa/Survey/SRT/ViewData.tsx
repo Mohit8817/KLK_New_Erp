@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -546,59 +546,107 @@ export function Goa_Survey_SRT_ViewData() {
   }, [surveyList, districtFilter, statusFilter, searchQuery]);
 
   // Paginated rows
-  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
   const pagedRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredRows.slice(start, start + pageSize);
   }, [filteredRows, currentPage, pageSize]);
 
   // Export Columns
-  const exportColumns: ExportColumn[] = [
-    { key: 'srNo', label: 'Sr. No.' },
-    { key: 'uid', label: 'Unique ID' },
-    { key: 'state', label: 'State' },
-    { key: 'district', label: 'District' },
-    { key: 'division', label: 'Division' },
-    { key: 'sub_division', label: 'Sub Division' },
-    { key: 'dept_name', label: 'Department' },
-    { key: 'site_name', label: 'Site Name' },
-    { key: 'address', label: 'Site Address' },
-    { key: 'ca_no', label: 'CA No.' },
-    { key: 'survey_address', label: 'Survey Address' },
-    { key: 'near_landmark', label: 'Nearest Landmark' },
-    { key: 'agency_person_name', label: 'Agency Contact Person Name' },
-    { key: 'agency_person_contact', label: 'Agency Contact Number' },
-    { key: 'nodal_person', label: 'Nodal Person' },
-    { key: 'contact_nodal', label: 'Nodal Person Contact' },
-    { key: 'latitude', label: 'Latitude' },
-    { key: 'longitude', label: 'Longitude' },
-    { key: 'load_type', label: 'Load Type' },
-    { key: 'connection_phase', label: 'Connection Phase' },
-    { key: 'meter_connection', label: 'Meter Connection Type' },
-    { key: 'meter_number', label: 'Meter Number' },
-    { key: 'meter_type', label: 'Meter Type' },
-    { key: 'sanction_load', label: 'Sanction Load (KW/KVA)' },
-    { key: 'connected_load', label: 'Connected Load (KW)' },
-    { key: 'grid_power', label: 'Grid Power Availability' },
-    { key: 'all_3_phase_ltdb', label: 'Three-Phase Availability' },
-    { key: 'missing_phase', label: 'Missing Phase' },
-    { key: 'ltdb_present', label: 'LTDB Present' },
-    { key: 'roof_condition', label: 'Roof Condition' },
-    { key: 'area_roof', label: 'Total Roof Area (Sq.Feet)' },
-    { key: 'free_space_solar', label: 'Free Space for Solar Installation (in Sq.Feet)' },
-    { key: 'free_space_inverter', label: 'Free Space for Control Room/Inverter (in Sq.Feet)' },
-    { key: 'earth_pit', label: 'Earth Pit Position' },
-    { key: 'building_age', label: 'Age of Building' },
-    { key: 'roof_access', label: 'Access to the Roof (Availability of Staircase)' },
-    { key: 'rooftop_height', label: 'Rooftop Height (Feet)' },
-    { key: 'parapet_height', label: 'Parapet Height (Feet)' },
-    { key: 'floors_number', label: 'No. of Floors (G+...)' },
-    { key: 'water_source', label: 'Water Source for Cleaning' },
-    { key: 'site_access', label: 'Access to Site' },
-    { key: 'site_distance', label: 'Distance of Site from Main Road (km)' },
-    { key: 'survey_status_label', label: 'Survey Status' },
-    { key: 'verify_status_label', label: 'Verify Status' },
-    { key: 'verify_remarks', label: 'Verify Remarks' },
+  type SurveyExportRow = {
+    srNo: number;
+    uid: string;
+    state: string;
+    district: string;
+    division: string;
+    sub_division: string;
+    dept_name: string;
+    site_name: string;
+    address: string;
+    ca_no: string;
+    survey_address: string;
+    near_landmark: string;
+    agency_person_name: string;
+    agency_person_contact: string;
+    nodal_person: string;
+    contact_nodal: string;
+    latitude: string | number;
+    longitude: string | number;
+    load_type: string;
+    connection_phase: string;
+    meter_connection: string;
+    meter_number: string;
+    meter_type: string;
+    sanction_load: string;
+    connected_load: string;
+    grid_power: string;
+    all_3_phase_ltdb: string;
+    missing_phase: string;
+    ltdb_present: string;
+    roof_condition: string;
+    area_roof: string | number;
+    free_space_solar: string | number;
+    free_space_inverter: string | number;
+    earth_pit: string;
+    building_age: string;
+    roof_access: string;
+    rooftop_height: string;
+    parapet_height: string;
+    floors_number: string;
+    water_source: string;
+    site_access: string;
+    site_distance: string;
+    survey_status_label: string;
+    verify_status_label: string;
+    verify_remarks: string;
+    [key: string]: any;
+  };
+
+  const exportColumns: ExportColumn<SurveyExportRow>[] = [
+    { header: 'Sr. No.', accessor: 'srNo' },
+    { header: 'Unique ID', accessor: 'uid' },
+    { header: 'State', accessor: 'state' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Division', accessor: 'division' },
+    { header: 'Sub Division', accessor: 'sub_division' },
+    { header: 'Department', accessor: 'dept_name' },
+    { header: 'Site Name', accessor: 'site_name' },
+    { header: 'Site Address', accessor: 'address' },
+    { header: 'CA No.', accessor: 'ca_no' },
+    { header: 'Survey Address', accessor: 'survey_address' },
+    { header: 'Nearest Landmark', accessor: 'near_landmark' },
+    { header: 'Agency Contact Person Name', accessor: 'agency_person_name' },
+    { header: 'Agency Contact Number', accessor: 'agency_person_contact' },
+    { header: 'Nodal Person', accessor: 'nodal_person' },
+    { header: 'Nodal Person Contact', accessor: 'contact_nodal' },
+    { header: 'Latitude', accessor: 'latitude' },
+    { header: 'Longitude', accessor: 'longitude' },
+    { header: 'Load Type', accessor: 'load_type' },
+    { header: 'Connection Phase', accessor: 'connection_phase' },
+    { header: 'Meter Connection Type', accessor: 'meter_connection' },
+    { header: 'Meter Number', accessor: 'meter_number' },
+    { header: 'Meter Type', accessor: 'meter_type' },
+    { header: 'Sanction Load (KW/KVA)', accessor: 'sanction_load' },
+    { header: 'Connected Load (KW)', accessor: 'connected_load' },
+    { header: 'Grid Power Availability', accessor: 'grid_power' },
+    { header: 'Three-Phase Availability', accessor: 'all_3_phase_ltdb' },
+    { header: 'Missing Phase', accessor: 'missing_phase' },
+    { header: 'LTDB Present', accessor: 'ltdb_present' },
+    { header: 'Roof Condition', accessor: 'roof_condition' },
+    { header: 'Total Roof Area (Sq.Feet)', accessor: 'area_roof' },
+    { header: 'Free Space for Solar Installation (in Sq.Feet)', accessor: 'free_space_solar' },
+    { header: 'Free Space for Control Room/Inverter (in Sq.Feet)', accessor: 'free_space_inverter' },
+    { header: 'Earth Pit Position', accessor: 'earth_pit' },
+    { header: 'Age of Building', accessor: 'building_age' },
+    { header: 'Access to the Roof (Availability of Staircase)', accessor: 'roof_access' },
+    { header: 'Rooftop Height (Feet)', accessor: 'rooftop_height' },
+    { header: 'Parapet Height (Feet)', accessor: 'parapet_height' },
+    { header: 'No. of Floors (G+...)', accessor: 'floors_number' },
+    { header: 'Water Source for Cleaning', accessor: 'water_source' },
+    { header: 'Access to Site', accessor: 'site_access' },
+    { header: 'Distance of Site from Main Road (km)', accessor: 'site_distance' },
+    { header: 'Survey Status', accessor: 'survey_status_label' },
+    { header: 'Verify Status', accessor: 'verify_status_label' },
+    { header: 'Verify Remarks', accessor: 'verify_remarks' },
   ];
 
   const exportData = useMemo(() => {
@@ -1066,10 +1114,10 @@ export function Goa_Survey_SRT_ViewData() {
               />
 
               <TableExportToolbar
-                onCopy={() => copyTableDataToClipboard(exportColumns, exportData)}
-                onExportCSV={() => exportDataToCSV(exportColumns, exportData, 'Goa_SRT_Survey_List.csv')}
-                onExportExcel={() => exportDataToExcel(exportColumns, exportData, 'Goa_SRT_Survey_List.xlsx')}
-                onExportPDF={() => printTableData(exportColumns, exportData, 'View Goa SRT Survey Information')}
+                onCopy={() => copyTableDataToClipboard(exportData, exportColumns)}
+                onExportCSV={() => exportDataToCSV('Goa_SRT_Survey_List', exportData, exportColumns)}
+                onExportExcel={() => exportDataToExcel('Goa_SRT_Survey_List', exportData, exportColumns)}
+                onExportPDF={() => printTableData('View Goa SRT Survey Information', exportData, exportColumns)}
               />
             </div>
           </div>
@@ -1147,8 +1195,7 @@ export function Goa_Survey_SRT_ViewData() {
                     <TableEmptyState
                       title="No data available in table"
                       message={hasFilters ? 'No records match your query. Try clearing filters.' : 'Survey records will appear here.'}
-                      query={searchQuery}
-                      onClear={resetFilters}
+                      onClear={hasFilters ? resetFilters : undefined}
                     />
                   </td>
                 </tr>
@@ -1298,7 +1345,6 @@ export function Goa_Survey_SRT_ViewData() {
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
               totalItems={filteredRows.length}
               pageSize={pageSize}
               pageSizeOptions={[10, 25, 50, 100]}

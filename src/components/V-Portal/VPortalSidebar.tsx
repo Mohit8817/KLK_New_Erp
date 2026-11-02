@@ -559,9 +559,10 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
   },
 
 
-    /* ═══════════════════ JAMMU & KASHMIR ═══════════════════ */
+
+      /* ═══════════════════ JAMMU  ═══════════════════ */
   {
-    section: 'Jammu & Kashmir',
+    section: 'Jammu',
     state: 'jammu',
     categories: [
       {
@@ -680,7 +681,63 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       },
     ],
   },
-  
+
+  /* ═══════════════════ KASHMIR ═══════════════════ */
+  {
+    section: 'Kashmir',
+    state: 'kashmir',
+    categories: [
+      {
+        id: 'kashmir.survey',
+        title: 'Survey',
+        icon: 'survey',
+        subgroups: [
+          {
+            id: 'kashmir.survey.srt-70mw',
+            title: 'SRT 70MW Survey',
+            items: [
+              { title: 'Add Data', to: '/v/kashmir/srt70mw/survey-add' },
+              { title: 'View Data', to: '/v/kashmir/srt70mw/survey-view' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'kashmir.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'kashmir.installation.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Dashboard', to: '/v/kashmir/srt/70mw/installation/dashboard' },
+              { title: 'Assign Site', to: '/v/kashmir/srt/70mw/installation/assign-site' },
+              { title: 'Install Sites', to: '/v/kashmir/srt/70mw/installation/site' },
+              { title: 'Installation Details', to: '/v/kashmir/srt/70mw/view-install-sites' },
+              { title: 'Claim Request', to: '/v/kashmir/srt70mw/view-claim-request' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'kashmir.expenses',
+        title: 'Installation Expenses',
+        icon: 'expenses',
+        subgroups: [
+          {
+            id: 'kashmir.expenses.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Request Expenses', to: '/v/kashmir/srt70mw/installation-expenses-create' },
+              { title: 'View Expenses', to: '/v/kashmir/srt70mw/installation-expenses' },
+              { title: 'View Payments', to: '/v/kashmir/srt70mw/installation-expenses-view-payment' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'dashboard' }) {

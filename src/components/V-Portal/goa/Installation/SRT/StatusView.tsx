@@ -544,7 +544,7 @@ export default function StatusView() {
   // Export columns (same as table headers)
   const exportCols: ExportColumn<GoaSrtInstalledSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
+      { header: 'Sr. No.', accessor: (r: GoaSrtInstalledSiteItem) => String(r.id || DASH) },
       { header: 'State', accessor: (r) => txt(r, 'state') || 'Goa' },
       { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
       { header: 'Site Name', accessor: (r) => txt(r, 'site_name') || txt(r, 'farmer_name') || DASH },
