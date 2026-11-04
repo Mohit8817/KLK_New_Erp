@@ -1049,7 +1049,7 @@ export function SSLClaimRequest() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <InstallationThumbnail
                               src={row.claim_invoice}
-                              alt={`Invoice #${row.id}`}
+                              alt={`Invoice ${row.id}`}
                               onPreview={openPreview}
                               size={28}
                             />

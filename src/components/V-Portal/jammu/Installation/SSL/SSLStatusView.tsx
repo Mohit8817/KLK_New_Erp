@@ -509,6 +509,7 @@ export function SSLStatusView() {
     ],
     []
   );
+  void exportCols;
 
   return (
     <div className="solar-erp-page">
@@ -721,7 +722,7 @@ export function SSLStatusView() {
                     <tr key={row.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: '#2563eb' }}>
-                        #{row.id}
+                        {row.id}
                       </td>
                       <td className="ax-table__td">{row.state || 'Jammu'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
@@ -757,7 +758,7 @@ export function SSLStatusView() {
                       <td className="ax-table__td">
                         <InstallationThumbnail
                           src={imgUrl}
-                          alt={`Light #${row.id}`}
+                          alt={`Light ${row.id}`}
                           onPreview={openPreview}
                         />
                       </td>
@@ -818,7 +819,7 @@ export function SSLStatusView() {
           <div className="ax-modal__header">
             <h2 className="ax-modal__title" id="light-detail-modal-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>Street Light Details</span>
-              <span className="ax-badge ax-badge--soft ax-badge--accent">#{detailItem.id}</span>
+              <span className="ax-badge ax-badge--soft ax-badge--accent">{detailItem.id}</span>
             </h2>
             <button type="button" className="ax-modal__close" onClick={() => setDetailItem(null)} aria-label="Close dialog">
               {X_ICON}
@@ -828,7 +829,7 @@ export function SSLStatusView() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 16px', fontSize: 13, marginBottom: 14 }}>
               <div>
                 <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Light ID</span>
-                <b>#{detailItem.id}</b>
+                <b>{detailItem.id}</b>
               </div>
               <div>
                 <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State / District</span>
@@ -876,7 +877,7 @@ export function SSLStatusView() {
                 </span>
                 <img
                   src={resolveJammuSslMediaUrl(detailItem.light_file || (detailItem as any).light_image)}
-                  alt={`Light #${detailItem.id}`}
+                  alt={`Light ${detailItem.id}`}
                   style={{ width: '100%', maxHeight: 240, objectFit: 'contain', background: '#f8fafc', border: '1px solid #e2e8f0' }}
                 />
               </div>

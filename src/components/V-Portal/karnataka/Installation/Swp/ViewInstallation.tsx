@@ -90,6 +90,59 @@ const fmtSerials = (val?: any): string => {
   return String(val);
 };
 
+const parseModuleSerials = (val?: any): string[] => {
+  if (!val) return [];
+  const rawItems: string[] = [];
+
+  const extract = (v: any) => {
+    if (v === null || v === undefined) return;
+    if (Array.isArray(v)) {
+      v.forEach(extract);
+      return;
+    }
+    if (typeof v === 'string') {
+      const trimmed = v.trim();
+      if (!trimmed || trimmed === '[]' || trimmed === '[""]') return;
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          extract(parsed);
+          return;
+        } catch {}
+      }
+      const cleaned = trimmed.replace(/[\[\]"']/g, '');
+      const parts = cleaned.split(/[\r\n,;]+/);
+      if (parts.length > 1) {
+        parts.forEach(extract);
+        return;
+      }
+      const spaceParts = cleaned.split(/\s+/).filter(Boolean);
+      if (spaceParts.length > 1 && spaceParts.every((p) => p.length > 6)) {
+        spaceParts.forEach(extract);
+        return;
+      }
+      if (cleaned.trim()) {
+        rawItems.push(cleaned.trim());
+      }
+      return;
+    }
+    if (typeof v === 'number') {
+      rawItems.push(String(v));
+      return;
+    }
+    if (typeof v === 'object') {
+      const cand = v.serial || v.module_no || v.module_serial || v.serial_no || v.no;
+      if (cand) extract(cand);
+    }
+  };
+
+  extract(val);
+
+  return rawItems
+    .map((s) => String(s).trim())
+    .filter((s) => s && s !== 'null' && s !== 'undefined' && s !== '[]' && s !== '—' && s !== '-');
+};
+
 /* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -378,6 +431,198 @@ function RowActionDropdown({
           document.body
         )}
     </>
+  );
+}
+
+/* ───────── Solar PV Module Serials View More Modal ───────── */
+function ModuleSerialsModal({
+  data,
+  onClose,
+  onCopySuccess,
+}: {
+  data: {
+    farmer: string;
+    siteId: number | string;
+    district?: string;
+    pumpCapacity?: string;
+    serials: string[];
+  } | null;
+  onClose: () => void;
+  onCopySuccess: (msg: string) => void;
+}) {
+  const [filter, setFilter] = useState('');
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  if (!data) return null;
+
+  const serials = data.serials;
+  const filtered = filter.trim()
+    ? serials.filter((s) => s.toLowerCase().includes(filter.trim().toLowerCase()))
+    : serials;
+
+  const handleCopySingle = (s: string, idx: number) => {
+    navigator.clipboard.writeText(s);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 1800);
+    onCopySuccess(`Copied module serial (${s}) to clipboard!`);
+  };
+
+  const handleCopyAll = () => {
+    const text = serials.join('\n');
+    navigator.clipboard.writeText(text);
+    onCopySuccess(`Copied all ${serials.length} module serial numbers!`);
+  };
+
+  const handleDownloadTxt = () => {
+    const blob = new Blob([serials.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Site_${data.siteId}_Module_Serials.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Modal open onClose={onClose} labelledBy="module-serials-modal-title" dialogClass="ax-modal__dialog--md">
+      <div className="ax-modal__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="module-serials-modal-title">
+            Solar PV Module Serial Numbers ({serials.length})
+          </h4>
+          <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+            Farmer: <b>{data.farmer}</b> · Site ID: <b>{data.siteId}</b>
+            {data.district ? ` · District: ${data.district}` : ''}
+            {data.pumpCapacity ? ` · Pump: ${data.pumpCapacity}` : ''}
+          </p>
+        </div>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+          {X_ICON}
+        </button>
+      </div>
+
+      {/* Quick Action Toolbar */}
+      <div
+        style={{
+          padding: '12px 20px',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <input
+          type="text"
+          className="ax-input ax-input--sm"
+          style={{ width: 220, height: 32, fontSize: 12 }}
+          placeholder="Filter serial numbers…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+            Showing <b>{filtered.length}</b> of <b>{serials.length}</b>
+          </span>
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary ax-btn--sm"
+            onClick={handleCopyAll}
+            title="Copy all serials to clipboard"
+          >
+            Copy All ({serials.length})
+          </button>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--sm"
+            onClick={handleDownloadTxt}
+            title="Download serial numbers as TXT"
+          >
+            Download TXT
+          </button>
+        </div>
+      </div>
+
+      {/* Grid / List of Serials */}
+      <div className="ax-modal__body" style={{ maxHeight: '55vh', overflowY: 'auto', padding: 20 }}>
+        {filtered.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--ax-text-muted)', margin: '20px 0' }}>
+            No serial numbers match your search "{filter}".
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+            {filtered.map((sn, idx) => {
+              const origIdx = serials.indexOf(sn);
+              const isCopied = copiedIdx === (origIdx >= 0 ? origIdx : idx);
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'var(--ax-surface-subtle, #f8fafc)',
+                    border: '1px solid var(--ax-border, #e2e8f0)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--ax-text-muted)',
+                        minWidth: 24,
+                      }}
+                    >
+                      {(origIdx >= 0 ? origIdx : idx) + 1}.
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: 'var(--ax-text-strong, #0f172a)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={sn}
+                    >
+                      {sn}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopySingle(sn, origIdx >= 0 ? origIdx : idx)}
+                    className="ax-btn ax-btn--ghost ax-btn--xs"
+                    style={{
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      color: isCopied ? '#16a34a' : '#2563eb',
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                    title="Copy serial"
+                  >
+                    {isCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button type="button" className="ax-btn ax-btn--ghost" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -789,6 +1034,15 @@ export function KarnatakaViewInstallation() {
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
+  // Module serials modal state (view all serial numbers in popup)
+  const [serialModalData, setSerialModalData] = useState<{
+    farmer: string;
+    siteId: number | string;
+    district?: string;
+    pumpCapacity?: string;
+    serials: string[];
+  } | null>(null);
+
   // Document modal (API 9: multipart upload)
   const [docModalSite, setDocModalSite] = useState<InstalledSiteItem | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -937,7 +1191,7 @@ export function KarnatakaViewInstallation() {
       fd.append('doc_remarks', docRemarks.trim());
 
       await karnatakaSwpService.uploadInstDoc(fd);
-      setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${siteId}!` });
+      setToastMsg({ type: 'success', text: `Document submitted successfully for Site ${siteId}!` });
 
       // Save to localStorage so status persists across reload & API refresh
       saveUploadedDocToStorage({
@@ -1396,7 +1650,7 @@ export function KarnatakaViewInstallation() {
                   const lat = txt(row, 'latitude') || txt(row, 'inst_latitude');
                   const lng = txt(row, 'longitude') || txt(row, 'inst_longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const farmerLabel = row.f_farmer_name || row.farmer_name || `Site #${row.id}`;
+                  const farmerLabel = row.f_farmer_name || row.farmer_name || `Site ${row.id}`;
                   const docUrl = resolveKarnatakaMediaUrl(row.inst_doc || row.document || row.doc_file);
                   const moduleImg = row.module_image || row.module_photo;
                   const controllerImg = row.controller_image || row.controller_photo;
@@ -1404,6 +1658,7 @@ export function KarnatakaViewInstallation() {
                   const waterImg = row.running_water_image || row.running_water_photo;
                   const foundationImg = row.foundation_image || row.foundation_photo;
                   const ser = fmtSerials(row.module_serial_no || row.module_serials);
+                  const parsedSerials = parseModuleSerials(row.module_serial_no || row.module_serials);
                   const blockText = txt(row, 'block') || txt(row, 'tehsil') || txt(row, 'f_tehsil');
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
@@ -1436,8 +1691,117 @@ export function KarnatakaViewInstallation() {
                       <td className="ax-table__td" style={monoCell}>{row.pump_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.motor_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.imei_no || DASH}</td>
-                      <td className="ax-table__td" style={{ ...monoCell, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {ser}
+                      <td
+                        className="ax-table__td"
+                        style={{
+                          ...monoCell,
+                          width: 240,
+                          minWidth: 220,
+                          maxWidth: 260,
+                          overflow: 'hidden',
+                          boxSizing: 'border-box',
+                          verticalAlign: 'middle',
+                          whiteSpace: 'normal',
+                        }}
+                      >
+                        <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
+                          {parsedSerials.length === 0 ? (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                          ) : parsedSerials.length === 1 ? (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                              <span
+                                style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '11.5px',
+                                  padding: '2px 6px',
+                                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                                  border: '1px solid var(--ax-border, #e2e8f0)',
+                                  borderRadius: 4,
+                                  color: 'var(--ax-text-strong)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  maxWidth: 160,
+                                }}
+                                title={parsedSerials[0]}
+                              >
+                                {parsedSerials[0]}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSerialModalData({
+                                    farmer: farmerLabel,
+                                    siteId: row.id,
+                                    district: txt(row, 'district'),
+                                    pumpCapacity: row.pump_capacity || (row.hp ? `${row.hp} HP` : ''),
+                                    serials: parsedSerials,
+                                  })
+                                }
+                                className="ax-btn ax-btn--ghost ax-btn--xs"
+                                style={{ color: '#2563eb', padding: '1px 5px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}
+                                title="Click to view module serial popup"
+                              >
+                                View
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: '100%' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', maxWidth: '100%' }}>
+                                {parsedSerials.slice(0, 2).map((s, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    style={{
+                                      fontFamily: 'monospace',
+                                      fontSize: '11.5px',
+                                      padding: '2px 6px',
+                                      background: 'var(--ax-surface-subtle, #f8fafc)',
+                                      border: '1px solid var(--ax-border, #e2e8f0)',
+                                      borderRadius: 4,
+                                      color: 'var(--ax-text-strong)',
+                                      maxWidth: 105,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={s}
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSerialModalData({
+                                    farmer: farmerLabel,
+                                    siteId: row.id,
+                                    district: txt(row, 'district'),
+                                    pumpCapacity: row.pump_capacity || (row.hp ? `${row.hp} HP` : ''),
+                                    serials: parsedSerials,
+                                  })
+                                }
+                                className="ax-btn ax-btn--ghost ax-btn--xs"
+                                style={{
+                                  color: '#2563eb',
+                                  fontWeight: 600,
+                                  fontSize: '11.5px',
+                                  padding: '2px 6px',
+                                  height: 'auto',
+                                  lineHeight: 1.2,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  width: 'fit-content',
+                                  cursor: 'pointer',
+                                }}
+                                title={`Click to view all ${parsedSerials.length} module serial numbers in popup`}
+                              >
+                                +{parsedSerials.length - 2} View More ({parsedSerials.length}) &rarr;
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Photo Thumbnails: NO BORDER RADIUS, Real Candidates, Click-to-Zoom */}
@@ -1585,6 +1949,15 @@ export function KarnatakaViewInstallation() {
 
       {/* ── Photo Preview Modal (Zoom, Fullscreen, Open in Tab) ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Solar PV Module Serials View More Modal ── */}
+      {serialModalData && (
+        <ModuleSerialsModal
+          data={serialModalData}
+          onClose={() => setSerialModalData(null)}
+          onCopySuccess={(msg) => setToastMsg({ type: 'success', text: msg })}
+        />
+      )}
 
       {/* ── Document Submit Modal (API 9: real multipart upload) ── */}
       <Modal open={!!docModalSite} onClose={closeDocModal} labelledBy="swp-doc-title" dialogClass="ax-modal__dialog--md">

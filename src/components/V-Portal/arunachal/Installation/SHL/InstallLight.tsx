@@ -972,7 +972,7 @@ export function Arunachal_Installation_SHL_InstallLight() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.beneficiary_name ? `${siteDetail.beneficiary_name} (${siteDetail.district || ''})` : `Light #${siteDetail.id}`}
+                {siteDetail.beneficiary_name ? `${siteDetail.beneficiary_name} (${siteDetail.district || ''})` : `Light ${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -1013,7 +1013,7 @@ export function Arunachal_Installation_SHL_InstallLight() {
                       id="shl-select-uid"
                       type="text"
                       className="ax-float__input"
-                      value={`Light #${selectedLightId} - ${siteDetail?.unique_id || ''}`}
+                      value={`Light ${selectedLightId} - ${siteDetail?.unique_id || ''}`}
                       disabled
                     />
                     <label htmlFor="shl-select-uid" className="ax-float__label floating">
@@ -1033,7 +1033,7 @@ export function Arunachal_Installation_SHL_InstallLight() {
                       <option value="">-- Choose Assigned Light / Unique ID --</option>
                       {lightsList.map((l) => (
                         <option key={l.id} value={String(l.id)}>
-                          #{l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
+                          {l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
                         </option>
                       ))}
                     </select>

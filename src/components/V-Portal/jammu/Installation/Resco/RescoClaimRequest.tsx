@@ -624,14 +624,28 @@ export function RescoClaimRequest() {
         });
       }
 
-      setSitesDropdown(approved);
+      const cleanApproved = approved.filter(
+        (s: any) =>
+          s &&
+          s.site_name &&
+          !String(s.site_name).toLowerCase().includes('dummy') &&
+          !String(s.site_name).toLowerCase().includes('fake')
+      );
+
+      setSitesDropdown(cleanApproved);
     } catch (err: any) {
       console.error('[Jammu Resco Claims] fetch approved sites error:', err);
       const pool = [
         ...(claimData.pay1 || []),
         ...(claimData.pay2 || []),
         ...(claimData.pay3 || []),
-      ];
+      ].filter(
+        (s: any) =>
+          s &&
+          s.site_name &&
+          !String(s.site_name).toLowerCase().includes('dummy') &&
+          !String(s.site_name).toLowerCase().includes('fake')
+      );
       setSitesDropdown(pool);
     } finally {
       setLoadingSites(false);
@@ -757,7 +771,7 @@ export function RescoClaimRequest() {
     return {
       id: siteId,
       site_id: siteId,
-      site_name: site.site_name || `Site #${siteId}`,
+      site_name: site.site_name || `Site ${siteId}`,
       amount: site.amount || rawPayAmt || site.claim_amount || '',
       file: site.inst_doc_file || site.file || site.invoice || null,
       invoice: site.inst_doc_file || site.file || site.invoice || null,
@@ -766,9 +780,12 @@ export function RescoClaimRequest() {
       pay_type: payType,
       payment_amount: rawPayAmt || site.payment_amount || '',
       payment_balance: site.payment_balance || '',
-      payment_date: site[payDateKey] || site.payment_date || null,
-      payment_remarks: site.payment_remarks || site.inst_doc_verify_remarks || '',
-      payment_status: Number(rawPayStatus) || 0,
+      payment_remarks:
+        site.payment_remarks ||
+        site.inst_doc_verify_remarks ||
+        site.inst_verify_remarks ||
+        site.approved_remarks ||
+        '',
       date: site.inst_date || site.inst_assigned_date || site.created_at || null,
       created_at: site.created_at || null,
       district: site.district || '',
@@ -801,7 +818,7 @@ export function RescoClaimRequest() {
         usedClaimIds.add(Number(matchedClaim.id));
         return {
           ...matchedClaim,
-          site_name: matchedClaim.site_name || s.site_name || `Site #${siteId}`,
+          site_name: matchedClaim.site_name || s.site_name || `Site ${siteId}`,
           district: matchedClaim.district || s.district,
           state: matchedClaim.state || s.state,
           pay_type: 1,
@@ -822,7 +839,10 @@ export function RescoClaimRequest() {
       }
     });
 
-    return list;
+    return list.filter((c) => {
+      const name = String(c.site_name || '').toLowerCase();
+      return !name.includes('dummy') && !name.includes('fake');
+    });
   }, [claimData.pay1, payments, normalizeSiteToPayment]);
 
   // 2. Payment 30 % (Milestone 2)
@@ -843,7 +863,7 @@ export function RescoClaimRequest() {
         usedClaimIds.add(Number(matchedClaim.id));
         return {
           ...matchedClaim,
-          site_name: matchedClaim.site_name || s.site_name || `Site #${siteId}`,
+          site_name: matchedClaim.site_name || s.site_name || `Site ${siteId}`,
           district: matchedClaim.district || s.district,
           state: matchedClaim.state || s.state,
           pay_type: 2,
@@ -863,7 +883,10 @@ export function RescoClaimRequest() {
       }
     });
 
-    return list;
+    return list.filter((c) => {
+      const name = String(c.site_name || '').toLowerCase();
+      return !name.includes('dummy') && !name.includes('fake');
+    });
   }, [claimData.pay2, payments, normalizeSiteToPayment]);
 
   // 3. Payment 30 % (Milestone 3)
@@ -885,7 +908,7 @@ export function RescoClaimRequest() {
         usedClaimIds.add(Number(matchedClaim.id));
         return {
           ...matchedClaim,
-          site_name: matchedClaim.site_name || s.site_name || `Site #${siteId}`,
+          site_name: matchedClaim.site_name || s.site_name || `Site ${siteId}`,
           district: matchedClaim.district || s.district,
           state: matchedClaim.state || s.state,
           pay_type: 3,
@@ -905,7 +928,10 @@ export function RescoClaimRequest() {
       }
     });
 
-    return list;
+    return list.filter((c) => {
+      const name = String(c.site_name || '').toLowerCase();
+      return !name.includes('dummy') && !name.includes('fake');
+    });
   }, [claimData.pay3, payments, normalizeSiteToPayment]);
 
   // 4. Combined List for 'all' (Resco Installation Payment)
@@ -996,7 +1022,7 @@ export function RescoClaimRequest() {
   }, [tabFilteredPayments, search, statusFilter]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredPayments, initialPageSize: 25 });
+    usePagination({ data: filteredPayments, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -1014,9 +1040,9 @@ export function RescoClaimRequest() {
     () => [
       { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
       { header: 'Date', accessor: (r) => txt(r, 'date') || txt(r, 'claim_date') || txt(r, 'created_at') },
-      { header: 'Claim', accessor: (r) => (r.is_site_record && !r.has_claim ? `Site #${r.site_id || r.id}` : `Claim #${r.id}`) },
+      { header: 'Claim', accessor: (r) => (r.is_site_record && !r.has_claim ? `Site ${r.site_id || r.id}` : `Claim ${r.id}`) },
       { header: 'Milestone', accessor: (r) => (Number(r.pay_type) === 1 ? 'Payment 40 %' : Number(r.pay_type) === 2 ? 'Payment 30 %' : Number(r.pay_type) === 3 ? 'Payment 30 %' : 'Payment 40 %') },
-      { header: 'Sites', accessor: (r) => r.site_name || `Site #${r.site_id || r.id}` },
+      { header: 'Sites', accessor: (r) => r.site_name || `Site ${r.site_id || r.id}` },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Amount', accessor: (r) => (Number(r.amount || 0) > 0 ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : r.sanction_load ? `Load: ${r.sanction_load} kW` : DASH) },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
@@ -1384,8 +1410,8 @@ export function RescoClaimRequest() {
                       <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)' }}>
                         <div style={{ fontWeight: 600 }}>
                           {(row as any).is_site_record && !(row as any).has_claim
-                            ? `Site #${row.site_id || row.id}`
-                            : `Claim #${row.id}`}
+                            ? `Site ${row.site_id || row.id}`
+                            : `Claim ${row.id}`}
                         </div>
                         <span
                           className="ax-badge ax-badge--soft"
@@ -1413,7 +1439,7 @@ export function RescoClaimRequest() {
                       </td>
                       <td className="ax-table__td">
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {row.site_name || `Site #${row.site_id || row.id}`}
+                          {row.site_name || `Site ${row.site_id || row.id}`}
                         </span>
                         {row.district && (
                           <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
@@ -1536,7 +1562,7 @@ export function RescoClaimRequest() {
                                   if (invoiceUrl) {
                                     openPreview(invoiceUrl, `Claim Invoice - ${row.site_name || row.id}`);
                                   } else {
-                                    alert(`Claim #${row.id} is under review.`);
+                                    alert(`Claim ${row.id} is under review.`);
                                   }
                                 }}
                                 style={{ height: 26, fontSize: 11, padding: '0 8px' }}
@@ -1576,7 +1602,7 @@ export function RescoClaimRequest() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1666,7 +1692,7 @@ export function RescoClaimRequest() {
                   const sid = String(s.id ?? s.site_id);
                   return (
                     <option key={sid} value={sid}>
-                      #{sid} - {s.site_name || `Site #${sid}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
+                      {s.site_name || `Site ${sid}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
                     </option>
                   );
                 })}
@@ -1819,7 +1845,7 @@ export function RescoClaimRequest() {
           <div className="ax-modal__header">
             <div>
               <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="edit-claim-title">
-                Update RESCO Claim #{editingClaimId}
+                Update RESCO Claim {editingClaimId}
               </h4>
             </div>
             <button

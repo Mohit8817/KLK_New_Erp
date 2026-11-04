@@ -770,7 +770,7 @@ class AssamSwpService {
             seen.add(sid);
             list.push({
               id: sid,
-              farmer_name: s.farmer_name || `Site #${sid}`,
+              farmer_name: s.farmer_name || `Site ${sid}`,
               district: s.district,
               state: s.state,
               inst_verify_status: s.inst_verify_status,
@@ -794,7 +794,7 @@ class AssamSwpService {
             seen.add(sid);
             list.push({
               id: sid,
-              farmer_name: s.farmer_name || `Site #${sid}`,
+              farmer_name: s.farmer_name || `Site ${sid}`,
               district: s.district,
               state: s.state,
               inst_verify_status: Number(s.inst_verify_status ?? 0),
@@ -820,7 +820,7 @@ class AssamSwpService {
               seen.add(sid);
               list.push({
                 id: sid,
-                farmer_name: s.site_name || (s as any).farmer_name || `Site #${sid}`,
+                farmer_name: s.site_name || (s as any).farmer_name || `Site ${sid}`,
               });
             }
           }

@@ -948,7 +948,7 @@ export function Punjab_Installation_SSL_InstallLight() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.beneficiary_name ? `${siteDetail.beneficiary_name} (${siteDetail.district || ''})` : `Light #${siteDetail.unique_id || siteDetail.id}`}
+                {siteDetail.beneficiary_name ? `${siteDetail.beneficiary_name} (${siteDetail.district || ''})` : `Light ${siteDetail.unique_id || siteDetail.id}`}
               </span>
             )}
           </div>
@@ -989,7 +989,7 @@ export function Punjab_Installation_SSL_InstallLight() {
                       id="site_id_select"
                       type="text"
                       className="ax-float__input"
-                      value={`Light #${selectedLightId} - ${siteDetail?.unique_id || ''} (${siteDetail?.district || ''})`}
+                      value={`Light ${selectedLightId} - ${siteDetail?.unique_id || ''} (${siteDetail?.district || ''})`}
                       disabled
                     />
                     <label htmlFor="site_id_select" className="ax-float__label floating">
@@ -1011,7 +1011,7 @@ export function Punjab_Installation_SSL_InstallLight() {
                         const optVal = String(item.id || item.unique_id);
                         return (
                           <option key={optVal} value={optVal}>
-                            #{item.unique_id} {item.panchayat ? `· ${item.panchayat}` : ''}
+                            {item.unique_id} {item.panchayat ? `· ${item.panchayat}` : ''}
                           </option>
                         );
                       })}

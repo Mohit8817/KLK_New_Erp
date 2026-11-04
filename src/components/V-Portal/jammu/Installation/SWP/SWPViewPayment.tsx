@@ -517,20 +517,20 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-// Requested headers for SWP Installation Payment
+// Requested headers for SWP Installation Payment (Exact 13 columns)
 const PAYMENT_HEADERS = [
-  'S.No.',
-  'Date',
-  'Sites',
-  'Invoice',
-  'Amount',
-  'Remarks',
-  'Claim Status',
-  'Payment Amount',
-  'Payment Balance',
-  'Payment Date',
-  'Payment Remarks',
+  'Sr. No.',
+  'Vendor',
+  'State',
+  'District',
+  'Beneficiary Name',
+  'Application No.',
+  'Status',
+  'Survey Status',
   'Payment Status',
+  'Payment Date',
+  'Payment Amount',
+  'Payment Remarks',
   'Action',
 ];
 
@@ -840,35 +840,21 @@ export function SWPViewPayment() {
     setPage(1);
   };
 
-  // Export Columns definition
+  // Export Columns definition (Exact columns)
   const exportCols: ExportColumn<JammuSwpClaimItem>[] = useMemo(
     () => [
-      { header: 'S.No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Date', accessor: (r) => txt(r, 'date') || txt(r, 'created_at') },
-      { header: 'Sites', accessor: (r) => fmtSites(r.site_id) },
-      { header: 'Invoice', accessor: (r) => txt(r, 'file') },
-      { header: 'Amount (₹)', accessor: (r) => `₹ ${Number(r.amount || 0).toLocaleString('en-IN')}` },
-      { header: 'Remarks', accessor: (r) => txt(r, 'remarks') },
-      {
-        header: 'Claim Status',
-        accessor: (r) =>
-          Number(r.claim_status) === 2
-            ? 'Approved'
-            : Number(r.claim_status) === 3
-            ? 'Rejected'
-            : 'Raised (Pending Audit)',
-      },
-      { header: 'Payment Amount (₹)', accessor: (r) => (r.payment_amount ? `₹ ${Number(r.payment_amount).toLocaleString('en-IN')}` : '') },
-      { header: 'Payment Balance (₹)', accessor: (r) => (r.payment_balance ? `₹ ${Number(r.payment_balance).toLocaleString('en-IN')}` : '') },
-      { header: 'Payment Date', accessor: (r) => txt(r, 'payment_date') },
-      { header: 'Payment Remarks', accessor: (r) => txt(r, 'payment_remarks') },
-      {
-        header: 'Payment Status',
-        accessor: (r) =>
-          Number(r.payment_status) === 1 || String(r.payment_status).toLowerCase() === 'paid'
-            ? 'Disbursed'
-            : 'Pending',
-      },
+      { header: 'Sr. No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Vendor', accessor: (r: any) => txt(r, 'vendor_name') || txt(r, 'vendor') || DASH },
+      { header: 'State', accessor: (r: any) => r.state || 'Jammu' },
+      { header: 'District', accessor: (r: any) => txt(r, 'district') || DASH },
+      { header: 'Beneficiary Name', accessor: (r: any) => r.f_farmer_name || txt(r, 'beneficiary_name') || fmtSites(r.site_id) || DASH },
+      { header: 'Application No.', accessor: (r: any) => txt(r, 'application_no') || txt(r, 'app_no') || String(r.id) },
+      { header: 'Status', accessor: (r: any) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending') },
+      { header: 'Survey Status', accessor: (r: any) => (Number(r.survey_status ?? r.inst_verify_status) === 1 ? 'Completed' : 'Pending') },
+      { header: 'Payment Status', accessor: (r: any) => (Number(r.payment_status) === 1 || String(r.payment_status).toLowerCase() === 'paid' ? 'Disbursed' : 'Pending') },
+      { header: 'Payment Date', accessor: (r: any) => txt(r, 'payment_date') || DASH },
+      { header: 'Payment Amount', accessor: (r: any) => (r.payment_amount ? `₹ ${Number(r.payment_amount).toLocaleString('en-IN')}` : (r.amount ? `₹ ${Number(r.amount).toLocaleString('en-IN')}` : DASH)) },
+      { header: 'Payment Remarks', accessor: (r: any) => txt(r, 'payment_remarks') || txt(r, 'remarks') || DASH },
     ],
     []
   );
@@ -902,7 +888,7 @@ export function SWPViewPayment() {
       columns.map((c) => c.header),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -1152,85 +1138,55 @@ export function SWPViewPayment() {
                   return (
                     <tr key={row.id} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'date') || txt(row, 'created_at') || DASH}
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row, 'vendor_name') || txt(row, 'vendor') || DASH}</td>
+                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
+                      <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
+                      <td className="ax-table__td" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {fmtSites(row.site_id)}
+                          {row.f_farmer_name || txt(row, 'beneficiary_name') || fmtSites(row.site_id) || DASH}
                         </span>
                       </td>
-
-                      {/* Invoice file thumbnail */}
-                      <td className="ax-table__td">
-                        {row.file ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <InstallationThumbnail
-                              src={row.file}
-                              alt={`Invoice #${row.id}`}
-                              onPreview={openPreview}
-                              size={28}
-                            />
-                            <a
-                              href={invoiceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
-                              title="Open invoice file"
-                            >
-                              View ↗
-                            </a>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                        )}
+                      <td className="ax-table__td ax-num" style={monoCell}>
+                        {txt(row, 'application_no') || txt(row, 'app_no') || String(row.id)}
                       </td>
-
-                      {/* Amount */}
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
-                        ₹ {Number(row.amount || 0).toLocaleString('en-IN')}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={Number(row.inst_status) === 1 ? 'success' : 'warning'}>
+                          {Number(row.inst_status) === 1 ? 'Installed' : 'Pending'}
+                        </Badge>
                       </td>
-
-                      {/* Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'remarks') || DASH}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'success' : 'neutral'}>
+                          {Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'Completed' : 'Pending'}
+                        </Badge>
                       </td>
-
-                      {/* Claim Status */}
-                      <td className="ax-table__td">
-                        <ClaimStatusBadge status={row.claim_status} />
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <PaymentStatusBadge status={row.payment_status} />
                       </td>
-
-                      {/* Payment Amount */}
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#16a34a' }}>
-                        {row.payment_amount ? `₹ ${Number(row.payment_amount).toLocaleString('en-IN')}` : DASH}
-                      </td>
-
-                      {/* Payment Balance */}
-                      <td className="ax-table__td">
-                        {row.payment_balance ? `₹ ${Number(row.payment_balance).toLocaleString('en-IN')}` : DASH}
-                      </td>
-
-                      {/* Payment Date */}
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
                         {txt(row, 'payment_date') || DASH}
                       </td>
-
-                      {/* Payment Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'payment_remarks') || DASH}
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#16a34a' }}>
+                        {row.payment_amount ? `₹ ${Number(row.payment_amount).toLocaleString('en-IN')}` : (row.amount ? `₹ ${Number(row.amount).toLocaleString('en-IN')}` : DASH)}
                       </td>
-
-                      {/* Payment Status */}
-                      <td className="ax-table__td">
-                        <PaymentStatusBadge status={row.payment_status} />
+                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: '12px' }}>
+                        {txt(row, 'payment_remarks') || txt(row, 'remarks') || DASH}
                       </td>
 
                       {/* Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          {!isApproved ? (
+                          {row.file && (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ height: 26, fontSize: 11.5, padding: '0 6px', color: '#2563eb' }}
+                              onClick={() => openPreview(invoiceUrl, `Payment File #${row.id}`)}
+                              title="Inspect invoice document"
+                            >
+                              View
+                            </button>
+                          )}
+                          {!isApproved && (
                             <button
                               type="button"
                               className="ax-btn ax-btn--secondary ax-btn--xs"
@@ -1239,37 +1195,6 @@ export function SWPViewPayment() {
                               title="Edit claim details"
                             >
                               Edit
-                            </button>
-                          ) : (
-                            <span
-                              className="ax-badge ax-badge--soft"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '4px 8px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: 'var(--ax-text-muted, #64748b)',
-                                background: 'var(--ax-surface-subtle, #f1f5f9)',
-                                border: '1px solid var(--ax-border, #cbd5e1)',
-                                borderRadius: 6,
-                              }}
-                              title="Claim is Approved & Settled"
-                            >
-                              ✓ Settled
-                            </span>
-                          )}
-
-                          {row.file && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 6px', color: '#2563eb' }}
-                              onClick={() => openPreview(invoiceUrl, `Claim Invoice #${row.id}`)}
-                              title="Inspect invoice document"
-                            >
-                              Inspect
                             </button>
                           )}
                         </div>
@@ -1351,7 +1276,7 @@ export function SWPViewPayment() {
                 <option value="">-- Select --</option>
                 {claimableSites.map((s) => (
                   <option key={s.id} value={s.id}>
-                    #{s.id} - {s.f_farmer_name} {s.district ? `(${s.district})` : ''}
+                    {s.f_farmer_name} {s.district ? `(${s.district})` : ''}
                   </option>
                 ))}
               </select>
@@ -1503,7 +1428,7 @@ export function SWPViewPayment() {
                 Edit Payment Claim
               </h4>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Claim ID: <b>#{editingClaimId}</b>
+                Claim ID: <b>{editingClaimId}</b>
               </p>
             </div>
             <button

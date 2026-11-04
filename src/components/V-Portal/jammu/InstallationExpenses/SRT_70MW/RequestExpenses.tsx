@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -6,16 +6,81 @@ import {
   type JammuExpenseSiteItem,
 } from '../../jammu-services';
 
-/* ───────── Form Page CSS (matching Karnataka / Jammu Single Card Form) ───────── */
+/* ───────── Single Card Layout matching Jammu InstallSites pattern ───────── */
 const FORM_PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
-  .solar-erp-page .ax-card { min-width: 0; }
-  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .jammu-exp-form .ax-card {
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: var(--ax-radius-xl, 16px);
+    background: var(--ax-surface-solid, #ffffff);
+    box-shadow: var(--ax-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
+    overflow: hidden;
+  }
+  .jammu-exp-form .ax-card__header {
+    padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
+    border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+    background: var(--ax-surface-subtle, #f8fafc);
+    display: flex;
+    flex-direction: column;
+    gap: var(--ax-space-4, 16px);
+  }
+  .jammu-exp-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
-  /* Floating label core */
+  /* Quick Section Nav Pills */
+  .swp-section-pills {
+    display: flex;
+    gap: var(--ax-space-2, 8px);
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .swp-section-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: var(--ax-radius-pill, 9999px);
+    font-size: var(--ax-text-xs, 12px);
+    font-weight: 500;
+    white-space: nowrap;
+    background: var(--ax-surface-solid, #ffffff);
+    border: 1px solid var(--ax-border, #cbd5e1);
+    color: var(--ax-text, #0f172a);
+    cursor: pointer;
+    transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
+  }
+  .swp-section-pill-btn:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
+  }
+  .swp-section-pill-btn .pill-num {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--ax-surface-subtle, #f1f5f9);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+  }
+
+  /* Section Block */
+  .swp-section-block { padding-top: var(--ax-space-2, 8px); }
+  .swp-section-header {
+    display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+    gap: var(--ax-space-2, 8px);
+    margin-bottom: var(--ax-space-5, 20px);
+    padding-bottom: var(--ax-space-3, 12px);
+    border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+  }
+  .swp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .swp-section-divider {
+    border: 0;
+    border-top: 1px dashed var(--ax-border, #cbd5e1);
+    margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
+  }
+
+  /* Floating Label Core */
   .ax-float { position: relative; width: 100%; }
   .ax-float__input {
     width: 100%;
@@ -25,60 +90,142 @@ const FORM_PAGE_CSS = `
     background: var(--ax-surface-solid, #ffffff);
     border: 1px solid var(--ax-border, #cbd5e1);
     border-radius: var(--ax-radius-md, 8px);
-    color: var(--ax-text, #1e293b);
+    color: var(--ax-text, #0f172a);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+                box-shadow var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
   }
   .ax-float__input::placeholder { color: transparent; }
+  .ax-float__input:focus::placeholder { color: #94a3b8; }
   .ax-float__input:focus {
     border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
   }
+  .ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
+
   .ax-float__label {
     position: absolute;
-    left: 14px;
+    inset-inline-start: 12px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: var(--ax-text-sm, 13px);
-    color: var(--ax-text-muted, #64748b);
+    margin: 0;
+    padding: 0 4px;
+    font-size: var(--ax-text-sm, 13.5px);
+    color: var(--ax-text-subtle, #64748b);
+    background: var(--ax-surface-solid, #ffffff);
+    border-radius: var(--ax-radius-xs, 4px);
     pointer-events: none;
-    transition: all 0.15s ease;
-    background: transparent;
-    padding: 0 2px;
+    transition: top var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+                font-size var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+                color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
+    z-index: 2;
+    white-space: nowrap;
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .ax-float__input:focus ~ .ax-float__label,
-  .ax-float__input:not(:placeholder-shown) ~ .ax-float__label {
-    top: 6px;
-    transform: translateY(0);
-    font-size: 10.5px;
-    font-weight: 600;
+  .ax-float__label.floating {
+    top: 0;
+    font-size: 11px;
+    font-weight: 500;
     color: #2563eb;
   }
+  .ax-float__label.has-val:not(.floating) {
+    top: 0;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ax-text-muted, #64748b);
+  }
 
-  .file-dropzone-box {
-    border: 2px dashed var(--ax-border, #cbd5e1);
-    border-radius: var(--ax-radius-md, 8px);
-    padding: 16px;
-    text-align: center;
+  /* Modern Dropzone */
+  .ax-modern-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ax-modern-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em; margin: 0;
+  }
+  .ax-modern-req {
+    color: #ef4444; font-weight: 700; margin-left: 3px;
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px; padding: 22px 16px;
     background: var(--ax-surface-subtle, #f8fafc);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    text-align: center; cursor: pointer; transition: all 0.2s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   }
-  .file-dropzone-box:hover {
-    border-color: #2563eb;
-    background: #f0f7ff;
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #2563eb);
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
   }
-  .file-dropzone-box.has-file {
-    border-color: #10b981;
-    background: #ecfdf5;
+  .ax-modern-dropzone__icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: #dcfce7; display: flex; align-items: center; justify-content: center;
   }
 `;
+
+interface FloatingInputProps {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  required?: boolean;
+  disabled?: boolean;
+  type?: string;
+  placeholder?: string;
+  min?: string | number;
+  step?: string | number;
+}
+
+function FloatingInput({
+  label,
+  name,
+  value,
+  onChange,
+  required,
+  disabled,
+  type = 'text',
+  placeholder,
+  min,
+  step,
+}: FloatingInputProps) {
+  const [focused, setFocused] = useState(false);
+  const hasVal = Boolean(value && String(value).length > 0);
+
+  return (
+    <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder || label}
+        min={min}
+        step={step}
+        className="ax-float__input"
+      />
+      <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
+        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
+      </label>
+    </div>
+  );
+}
 
 const PREDEFINED_PURPOSES = [
   'Material Transportation & Freight',
@@ -88,7 +235,10 @@ const PREDEFINED_PURPOSES = [
   'Electrical Cabling & Conduit Laying',
   'Local Discom Liaisoning & Net Metering',
   'Safety Equipment & PPE Incidentals',
+  'Travel & Site Visit Expenses',
+  'Lodging & Food Expenses',
   'Emergency Site Repairs / Contingency',
+  'Other',
 ];
 
 export function RequestExpenses() {
@@ -98,98 +248,143 @@ export function RequestExpenses() {
   const [loadingSites, setLoadingSites] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  // Form state
+  // Form states per API 17 specification
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+  const [expenseDate, setExpenseDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [purpose, setPurpose] = useState<string>('');
   const [customPurpose, setCustomPurpose] = useState<string>('');
-  const [amount, setAmount] = useState<string>('');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [claimAmount, setClaimAmount] = useState<string>('');
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [remarks, setRemarks] = useState<string>('');
 
-  // Notifications
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load sites from API 16 (GET /jammu/installation-expenses-create)
+  // Section references for quick navigation
+  const sec1 = useRef<HTMLDivElement>(null);
+  const sec2 = useRef<HTMLDivElement>(null);
+  const sec3 = useRef<HTMLDivElement>(null);
+
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Feedback notifications
+  const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
   useEffect(() => {
-    let isMounted = true;
-    async function fetchSites() {
-      setLoadingSites(true);
-      try {
-        const data = await jammuExpenseService.getExpenseSites();
-        if (isMounted) {
-          setSites(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        console.error('Failed to load expense sites from API:', err);
-        if (isMounted) setSites([]);
-      } finally {
-        if (isMounted) setLoadingSites(false);
-      }
+    if (!toastMsg) return;
+    const t = window.setTimeout(() => setToastMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toastMsg]);
+
+  // Load sites from API 16: GET /jammu/installation-expenses-create
+  const fetchSites = async () => {
+    setLoadingSites(true);
+    try {
+      const data = await jammuExpenseService.getExpenseSites();
+      setSites(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('[Jammu SRT Expenses] fetch sites error:', err);
+      setSites([]);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites for expense claim.' });
+    } finally {
+      setLoadingSites(false);
     }
+  };
+
+  useEffect(() => {
     fetchSites();
-    return () => { isMounted = false; };
   }, []);
+
+  // Selected site object
+  const selectedSite = useMemo(() => {
+    return sites.find((s) => String(s.id) === String(selectedSiteId)) || null;
+  }, [sites, selectedSiteId]);
 
   const handleReset = () => {
     setSelectedSiteId('');
+    setExpenseDate(new Date().toISOString().slice(0, 10));
     setPurpose('');
     setCustomPurpose('');
-    setAmount('');
-    setReceiptFile(null);
+    setClaimAmount('');
+    setInvoiceFile(null);
     setRemarks('');
-    setNotification(null);
+    setToastMsg(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Form Submit Handler (API 17: POST /jammu/installation-expenses-store)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setToastMsg(null);
+
     if (!selectedSiteId) {
-      setNotification({ type: 'error', message: 'Please select an installation site for this expense claim.' });
+      setToastMsg({ type: 'danger', text: 'Please select an assigned installation site.' });
+      scrollTo(sec1);
       return;
     }
 
     const finalPurpose = purpose === 'Other' ? customPurpose.trim() : purpose.trim();
     if (!finalPurpose) {
-      setNotification({ type: 'error', message: 'Please specify the expense purpose / head.' });
+      setToastMsg({ type: 'danger', text: 'Please specify the expense purpose / head.' });
+      scrollTo(sec2);
       return;
     }
 
-    if (!amount || Number(amount) <= 0) {
-      setNotification({ type: 'error', message: 'Please enter a valid expense amount in INR.' });
+    const numAmt = Number(claimAmount);
+    if (!claimAmount || isNaN(numAmt) || numAmt < 1) {
+      setToastMsg({ type: 'danger', text: 'Please enter a valid claim amount in INR (minimum ₹ 1).' });
+      scrollTo(sec2);
+      return;
+    }
+
+    if (!invoiceFile) {
+      setToastMsg({ type: 'danger', text: 'Please upload the supporting tax invoice / payment voucher receipt.' });
+      scrollTo(sec3);
+      return;
+    }
+
+    // Max 5120 KB check (5 MB)
+    if (invoiceFile.size > 5120 * 1024) {
+      setToastMsg({ type: 'danger', text: 'Claim invoice file size exceeds maximum limit of 5 MB (5120 KB).' });
+      scrollTo(sec3);
       return;
     }
 
     setSubmitting(true);
-    setNotification(null);
 
     try {
       const fd = new FormData();
+      // Required backend parameters per API 17
       fd.append('site_id', selectedSiteId);
+      fd.append('project', 'srt70mw');
+      fd.append('date', expenseDate);
+      fd.append('claim_amount', String(numAmt));
+      fd.append('amount', String(numAmt)); // Fail-safe alias
+      fd.append('claim_invoice', invoiceFile);
+      fd.append('file', invoiceFile); // Fail-safe alias
       fd.append('purpose', finalPurpose);
-      fd.append('amount', amount);
-      if (remarks) fd.append('remarks', remarks);
-      if (receiptFile) fd.append('file', receiptFile);
+
+      if (remarks.trim()) {
+        fd.append('remarks', remarks.trim());
+      }
 
       const res = await jammuExpenseService.storeExpenseClaim(fd);
 
-      if (res?.success) {
-        setNotification({
-          type: 'success',
-          message: 'Installation expense requisition submitted successfully! Routing to accounts approval.',
-        });
-        setTimeout(() => {
-          handleReset();
-          navigate('/v/jammu/installation-expenses/srt-70mw/view-expenses');
-        }, 1500);
-      } else {
-        setNotification({
-          type: 'error',
-          message: res?.message || 'Failed to submit expense request. Please check inputs and try again.',
-        });
-      }
+      setToastMsg({
+        type: 'success',
+        text: res.message || 'Installation expense claim submitted successfully! Forwarded for audit.',
+      });
+
+      setTimeout(() => {
+        handleReset();
+        navigate('/v/jammu/installation-expenses/srt-70mw/view-expenses');
+      }, 1500);
     } catch (err: any) {
-      setNotification({
-        type: 'error',
-        message: err.message || 'Error communicating with expense management server.',
+      console.error('[Jammu SRT Expense Claim] submit error:', err);
+      setToastMsg({
+        type: 'danger',
+        text: err?.message || 'An error occurred while submitting the expense claim.',
       });
     } finally {
       setSubmitting(false);
@@ -197,219 +392,385 @@ export function RequestExpenses() {
   };
 
   return (
-    <div className="ax-page solar-erp-page">
+    <div className="solar-erp-page jammu-exp-form">
       <style>{FORM_PAGE_CSS}</style>
 
+      {/* ── Page Head ── */}
       <PageHead
         title="Jammu SRT 70MW - Request Expenses"
-        subtitle="Submit field expense requisitions, mobilization vouchers, transport receipts, and local labor claims"
+        subtitle="Submit vendor installation expense claims, site mobilization charges, freight invoices, and local civil work reimbursements"
         breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu & Kashmir' },
           { label: 'Installation Expenses' },
           { label: 'SRT 70MW' },
           { label: 'Request Expenses' },
         ]}
+        actions={
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            <Link to="/v/jammu/installation-expenses/srt-70mw/view-expenses" className="ax-btn ax-btn--secondary ax-btn--sm">
+              <span className="ax-btn__label">View Expenses</span>
+            </Link>
+            <Link to="/v/jammu/installation-expenses/srt-70mw/view-payments" className="ax-btn ax-btn--secondary ax-btn--sm">
+              <span className="ax-btn__label">View Payments</span>
+            </Link>
+          </div>
+        }
       />
 
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          style={{
-            marginBottom: '16px',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            backgroundColor: notification.type === 'success' ? '#ecfdf5' : '#fef2f2',
-            border: `1px solid ${notification.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: notification.type === 'success' ? '#065f46' : '#991b1b',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '13.5px',
-          }}
-        >
-          <span>{notification.message}</span>
-          <button
-            type="button"
-            onClick={() => setNotification(null)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'inherit' }}
-          >
-            ✕
-          </button>
+      {toastMsg && (
+        <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
 
-      {/* Main Single Card Form */}
-      <form onSubmit={handleSubmit}>
-        <div className="ax-card">
-          <div className="ax-card__header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)', background: 'var(--ax-surface-subtle, #f8fafc)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      {/* ── Main Form Card ── */}
+      <form onSubmit={handleSubmit} className="ax-card">
+        {/* Header with Section Pills */}
+        <div className="ax-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <h3 className="ax-card__title" style={{ fontSize: '17px', fontWeight: 700, margin: 0 }}>
-                Installation Field Expense Requisition
-              </h3>
-              <p className="ax-card__subtitle" style={{ fontSize: '12.5px', color: '#64748b', margin: '4px 0 0 0' }}>
-                Reimbursement claims for freight, local shifting, specialized civil work, and project incidentals
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                Installation Expense Requisition Form
+              </h2>
+              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted, #64748b)', margin: '2px 0 0' }}>
+                State: <b>Jammu & Kashmir</b> · Project: <b>SRT 70MW</b> · Type: <b>Installation</b>
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Link to="/v/jammu/installation-expenses/srt-70mw/view-expenses" className="ax-btn ax-btn--secondary ax-btn--sm">
-                View Claims Ledger
-              </Link>
-              <Link to="/v/jammu/installation-expenses/srt-70mw/view-payments" className="ax-btn ax-btn--secondary ax-btn--sm">
-                Disbursal Status
-              </Link>
-            </div>
+            {selectedSite && (
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
+                {selectedSite.site_name} {selectedSite.site_code ? `[${selectedSite.site_code}]` : ''}
+              </span>
+            )}
           </div>
 
-          <div className="ax-card__body" style={{ padding: '24px' }}>
-            {/* Site Selection */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-                Select Project Site *
-              </label>
+          {/* Quick Nav Pills */}
+          <div className="swp-section-pills" role="navigation" aria-label="Quick section navigation">
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+              <span className="pill-num">1</span> Site Selection
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+              <span className="pill-num">2</span> Expense Details
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> Voucher & Remarks
+            </button>
+          </div>
+        </div>
+
+        <div className="ax-card__body">
+          {/* ════════ Section 1: Site Selection ════════ */}
+          <div ref={sec1} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Select Installation Site</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Choose from vendor's allocated sites under Jammu SRT 70MW for this expense requisition
+                </span>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={fetchSites}
+                disabled={loadingSites}
+                title="Refresh site list"
+              >
+                {loadingSites ? 'Refreshing...' : '🔄 Refresh Sites'}
+              </button>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               <div className="ax-float">
                 <select
+                  id="jammu-expense-site"
                   className="ax-float__input"
-                  style={{ paddingTop: '10px' }}
                   value={selectedSiteId}
                   onChange={(e) => setSelectedSiteId(e.target.value)}
-                  disabled={loadingSites}
+                  disabled={loadingSites || submitting}
                   required
                 >
-                  <option value="">-- Choose Site for Expense Allocation --</option>
+                  <option value="">-- Choose Installed Site --</option>
                   {sites.map((s) => (
-                    <option key={s.id} value={s.id}>
+                    <option key={s.id} value={String(s.id)}>
                       {s.site_name} {s.site_code ? `[${s.site_code}]` : ''} {s.district ? `(${s.district})` : ''}
                     </option>
                   ))}
                 </select>
+                <label htmlFor="jammu-expense-site" className="ax-float__label floating">
+                  Select Site <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+                </label>
               </div>
+
+              <FloatingInput
+                label="State"
+                name="state_display"
+                value="Jammu & Kashmir"
+                onChange={() => {}}
+                disabled
+              />
+
+              <FloatingInput
+                label="Project"
+                name="project_display"
+                value="SRT 70MW (srt70mw)"
+                onChange={() => {}}
+                disabled
+              />
             </div>
 
-            {/* Purpose & Amount */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-                  Expense Purpose / Head *
-                </label>
-                <div className="ax-float">
-                  <select
-                    className="ax-float__input"
-                    style={{ paddingTop: '10px' }}
-                    value={purpose}
-                    onChange={(e) => setPurpose(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Select Expense Purpose --</option>
-                    {PREDEFINED_PURPOSES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                    <option value="Other">Other / Custom Head</option>
-                  </select>
+            {selectedSite && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: '12px 16px',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  border: '1px solid var(--ax-border, #e2e8f0)',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  fontSize: 13,
+                }}
+              >
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>Selected Site</span>
+                  <b style={{ color: 'var(--ax-text-strong)' }}>{selectedSite.site_name}</b>
+                  {selectedSite.site_code && (
+                    <span style={{ marginLeft: 8, fontFamily: 'monospace', color: '#2563eb' }}>
+                      ({selectedSite.site_code})
+                    </span>
+                  )}
                 </div>
-
-                {purpose === 'Other' && (
-                  <div className="ax-float" style={{ marginTop: '12px' }}>
-                    <input
-                      type="text"
-                      className="ax-float__input"
-                      placeholder=" "
-                      value={customPurpose}
-                      onChange={(e) => setCustomPurpose(e.target.value)}
-                      required
-                    />
-                    <label className="ax-float__label">Specify Custom Expense Head *</label>
+                {selectedSite.district && (
+                  <div>
+                    <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>District</span>
+                    <b>{selectedSite.district}</b>
+                  </div>
+                )}
+                {selectedSite.ca_no && (
+                  <div>
+                    <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>CA Number</span>
+                    <b style={{ fontFamily: 'monospace' }}>{selectedSite.ca_no}</b>
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-                  Requisition Amount (INR ₹) *
-                </label>
-                <div className="ax-float">
-                  <input
-                    type="number"
-                    className="ax-float__input"
-                    placeholder=" "
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    min="1"
-                    required
-                  />
-                  <label className="ax-float__label">Amount in INR (e.g. 15000)</label>
-                </div>
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 2: Expense Requisition Details ════════ */}
+          <div ref={sec2} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Expense Requisition Details</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Specify date, expenditure purpose head, and INR claim amount
+                </span>
               </div>
             </div>
 
-            {/* Supporting Voucher / Bill Upload */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-                Supporting Bill / Payment Receipt / Voucher (PDF or Image)
-              </label>
-              <label className={`file-dropzone-box ${receiptFile ? 'has-file' : ''}`}>
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
-                />
-                <div style={{ fontSize: '28px', marginBottom: '6px' }}>🧾</div>
-                {receiptFile ? (
-                  <>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#059669' }}>
-                      ✓ {receiptFile.name} ({(receiptFile.size / 1024).toFixed(1)} KB)
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Click to replace file</span>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>
-                      Click or drag receipt voucher here
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                      Supports PDF, PNG, JPG up to 10MB
-                    </span>
-                  </>
-                )}
-              </label>
-            </div>
-
-            {/* Field Remarks */}
-            <div style={{ marginBottom: '28px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-                Detailed Field Remarks / Justification
-              </label>
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+              {/* Expense Date */}
               <div className="ax-float">
-                <textarea
+                <input
+                  type="date"
+                  id="expense_date"
+                  name="expense_date"
                   className="ax-float__input"
-                  style={{ height: '80px', paddingTop: '16px' }}
-                  placeholder=" "
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                  disabled={submitting}
+                  required
                 />
-                <label className="ax-float__label">Enter justification details, vendor name, or invoice reference...</label>
+                <label htmlFor="expense_date" className="ax-float__label floating">
+                  Date of Expense <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+                </label>
+              </div>
+
+              {/* Expense Purpose / Head */}
+              <div className="ax-float">
+                <select
+                  id="expense_purpose_select"
+                  className="ax-float__input"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  disabled={submitting}
+                  required
+                >
+                  <option value="">-- Select Purpose Head --</option>
+                  {PREDEFINED_PURPOSES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <label htmlFor="expense_purpose_select" className="ax-float__label floating">
+                  Expense Purpose / Head <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+                </label>
+              </div>
+
+              {/* Claim Amount */}
+              <FloatingInput
+                label="Claim Amount (₹)"
+                name="claim_amount"
+                type="number"
+                min="1"
+                step="0.01"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                placeholder="e.g. 15000"
+                required
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Custom Purpose input if 'Other' selected */}
+            {purpose === 'Other' && (
+              <div style={{ marginTop: 14 }}>
+                <FloatingInput
+                  label="Specify Custom Expense Purpose / Head"
+                  name="custom_purpose"
+                  value={customPurpose}
+                  onChange={(e) => setCustomPurpose(e.target.value)}
+                  placeholder="Enter details of custom expenditure head"
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            )}
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 3: Voucher / Tax Invoice Upload & Remarks ════════ */}
+          <div ref={sec3} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Supporting Invoice & Remarks</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Attach valid payment receipts, bills, or invoices and optional field notes
+                </span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                onClick={handleReset}
-                disabled={submitting}
-              >
-                Reset
-              </button>
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary"
-                disabled={submitting}
-                style={{ minWidth: '180px' }}
-              >
-                {submitting ? 'Submitting Requisition...' : '✓ Submit Expense Claim'}
-              </button>
+            {/* Modern Invoice Upload Dropzone */}
+            <div className="ax-modern-field" style={{ marginBottom: 18 }}>
+              <label className="ax-modern-label">
+                <span>Tax Invoice / Payment Voucher File</span>
+                <span className="ax-modern-req">* (JPG, JPEG, PNG, PDF up to 5 MB)</span>
+              </label>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="claim_invoice_file"
+                accept=".pdf,image/jpeg,image/jpg,image/png"
+                style={{ display: 'none' }}
+                onChange={(e) => setInvoiceFile(e.target.files?.[0] || null)}
+              />
+
+              {!invoiceFile ? (
+                <div
+                  className="ax-modern-dropzone"
+                  onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                >
+                  <div className="ax-modern-dropzone__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                      Click to upload verified tax invoice / receipt voucher
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                      Supported formats: JPG, JPEG, PNG, PDF (Maximum 5120 KB)
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="ax-modern-file-chip">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span className="ax-modern-file-chip__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                      </svg>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {invoiceFile.name}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                        {(invoiceFile.size / 1024).toFixed(1)} KB · Ready to upload
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                    onClick={() => {
+                      setInvoiceFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Remarks Textarea */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="expense_remarks">
+                <span>Field Remarks / Justification (Optional)</span>
+              </label>
+              <textarea
+                id="expense_remarks"
+                className="ax-input"
+                style={{ width: '100%', padding: '10px 14px', minHeight: 75, fontSize: 13 }}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Enter justification notes, vehicle number, or vendor invoice reference..."
+                rows={3}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {/* ════════ Submit Footer ════════ */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={handleReset}
+              disabled={submitting}
+            >
+              Reset
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submitting || !selectedSiteId || !claimAmount || !invoiceFile}
+              style={{ minWidth: 190 }}
+            >
+              {submitting ? 'Submitting Claim...' : '✓ Submit Expense Claim'}
+            </button>
           </div>
         </div>
       </form>

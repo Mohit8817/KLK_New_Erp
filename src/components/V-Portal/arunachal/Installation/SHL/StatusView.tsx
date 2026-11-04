@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -366,12 +366,13 @@ const monoCell = { fontFamily: 'var(--ax-font-mono, monospace)', fontSize: 'var(
 
 export function Arunachal_Installation_SHL_StatusView() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const routeParams = useParams<{ status?: string; district?: string }>();
 
-  // Read URL query params: status and district
-  const rawStatus = searchParams.get('status') || 'inst-complete';
+  // Read URL query params or route params: status and district
+  const rawStatus = searchParams.get('status') || routeParams.status || 'inst-complete';
   const activeStatus = normalizeArunachalDashboardStatus(rawStatus);
-  const activeDistrict = (searchParams.get('district') || '').trim();
+  const activeDistrict = (searchParams.get('district') || routeParams.district || '').trim();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -498,35 +499,35 @@ export function Arunachal_Installation_SHL_StatusView() {
     setPageSize,
     paginatedData,
     totalItems,
-  } = usePagination({ data: filteredRecords, initialPageSize: 25 });
+  } = usePagination({ data: filteredRecords, initialPageSize: 100 });
 
   // Status change handler
   const handleStatusChange = (newStatus: string) => {
     const valid = normalizeArunachalDashboardStatus(newStatus);
-    const p = new URLSearchParams(searchParams);
+    const p = new URLSearchParams();
     p.set('status', valid);
-    setSearchParams(p);
+    if (activeDistrict && activeDistrict !== 'All') {
+      p.set('district', activeDistrict);
+    }
+    navigate(`/v/arunachal/shl/installation/status-view?${p.toString()}`);
     setPage(1);
   };
 
   // District change handler
   const handleDistrictChange = (newDistrict: string) => {
-    const p = new URLSearchParams(searchParams);
-    if (!newDistrict || newDistrict === 'All') {
-      p.delete('district');
-    } else {
+    const p = new URLSearchParams();
+    p.set('status', activeStatus);
+    if (newDistrict && newDistrict !== 'All') {
       p.set('district', newDistrict);
     }
-    setSearchParams(p);
+    navigate(`/v/arunachal/shl/installation/status-view?${p.toString()}`);
     setPage(1);
   };
 
   // Reset filters
   const resetFilters = () => {
     setSearch('');
-    const p = new URLSearchParams();
-    p.set('status', activeStatus);
-    setSearchParams(p);
+    navigate(`/v/arunachal/shl/installation/status-view?status=${activeStatus}`);
     setPage(1);
   };
 
@@ -548,7 +549,7 @@ export function Arunachal_Installation_SHL_StatusView() {
 
   // Export Columns definition
   const exportCols: ExportColumn<ArunachalStatusDrillRow>[] = useMemo(() => [
-    { header: 'Site ID', accessor: (r) => r.unique_id || `#${r.id}` },
+    { header: 'Site ID', accessor: (r) => r.unique_id || r.id },
     { header: 'State', accessor: (r) => txt(r, 'state') || 'Arunachal Pradesh' },
     { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
     { header: 'Block', accessor: (r) => txt(r, 'block') || DASH },
@@ -906,7 +907,7 @@ export function Arunachal_Installation_SHL_StatusView() {
                   const lat = txt(row, 'latitude');
                   const lng = txt(row, 'longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const beneficiaryLabel = row.beneficiary_name || row.unique_id || `Site #${row.id}`;
+                  const beneficiaryLabel = row.beneficiary_name || row.unique_id || (row.id ? `Site ${row.id}` : 'Site');
                   const lightImg = row.light_file || row.photo || row.image;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const isVerifyApproved = vStatus === 1;
@@ -918,7 +919,7 @@ export function Arunachal_Installation_SHL_StatusView() {
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
                       <td className="ax-table__td">
                         <span className="ax-badge" style={{ background: 'rgba(37, 99, 235, 0.12)', color: '#2563eb', fontWeight: 700 }}>
-                          {row.unique_id || `#${row.id}`}
+                          {row.unique_id || row.id}
                         </span>
                       </td>
                       <td className="ax-table__td">{txt(row, 'state') || 'Arunachal Pradesh'}</td>
@@ -1042,7 +1043,7 @@ export function Arunachal_Installation_SHL_StatusView() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>

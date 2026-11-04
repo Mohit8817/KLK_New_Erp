@@ -627,7 +627,7 @@ export function SWPInstallationSite() {
       } else {
         setFeedback({
           type: 'danger',
-          text: `Site #${siteIdStr} details not found or not assigned to your vendor account.`,
+          text: `Site ${siteIdStr} details not found or not assigned to your vendor account.`,
         });
       }
     } catch (err: any) {
@@ -888,7 +888,7 @@ export function SWPInstallationSite() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.f_farmer_name ? `${siteDetail.f_farmer_name} (${siteDetail.district || ''})` : `Site #${siteDetail.id}`}
+                {siteDetail.f_farmer_name ? `${siteDetail.f_farmer_name} (${siteDetail.district || ''})` : `Site ${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -941,7 +941,7 @@ export function SWPInstallationSite() {
                   <option value="">-- Select Applicant --</option>
                   {sitesList.map((s) => (
                     <option key={s.id} value={String(s.id)}>
-                      #{s.id} - {s.f_farmer_name} {s.district ? `(${s.district})` : ''}
+                      {s.f_farmer_name} {s.district ? `(${s.district})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1149,7 +1149,7 @@ export function SWPInstallationSite() {
                         name={`module_serial_no_${idx + 1}`}
                         value={mVal}
                         onChange={(e) => handleModuleChange(idx, e.target.value)}
-                        placeholder={`Enter Module #${idx + 1} Serial`}
+                        placeholder={`Enter Module ${idx + 1} Serial`}
                         required={idx === 0}
                         onCameraClick={() => setScannerTarget(`module-${idx}`)}
                       />

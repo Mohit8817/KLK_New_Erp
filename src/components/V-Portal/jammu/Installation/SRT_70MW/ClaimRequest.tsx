@@ -533,19 +533,25 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-// Table Column Headers
+// Table Column Headers (Exact 17 columns per specification)
 const CLAIM_HEADERS = [
   'Sr. No.',
   'State',
   'District',
   'Site Name',
-  'Site Code',
-  'Claim Amount (₹)',
-  'Claim Date',
-  'Invoice File',
-  'Document Status',
-  'Disbursal Status',
-  'Action',
+  'Claim Raised Date',
+  'Claim Invoice',
+  'Claim Amount',
+  'Claim Update Date',
+  'Claim Update by',
+  'Claim Status',
+  'Payment 80% Date',
+  'Payment 80% Amount',
+  'Payment 80% Status',
+  'Document Submit',
+  'Payment 20% Date',
+  'Payment 20% Amount',
+  'Payment 20% Status',
 ];
 
 export function ClaimRequest() {
@@ -821,37 +827,36 @@ export function ClaimRequest() {
   };
 
   // Export Columns definition
+  // Export Columns definition (Exact 17 columns)
   const exportCols: ExportColumn<JammuClaimItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: () => 'Jammu & Kashmir' },
-      { header: 'District', accessor: (r) => txt(r, 'district') },
-      { header: 'Site Name', accessor: (r) => txt(r, 'site_name') },
-      { header: 'Site Code', accessor: (r) => txt(r, 'site_code') },
-      { header: 'Claim Amount (₹)', accessor: (r) => `₹ ${Number(r.inst_claim_amount || 0).toLocaleString('en-IN')}` },
-      { header: 'Claim Date', accessor: (r) => txt(r, 'inst_claim_date') },
-      { header: 'Invoice File', accessor: (r) => txt(r, 'inst_claim_invoice') },
+      { header: 'State', accessor: (r) => r.state || 'Jammu & Kashmir' },
+      { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
+      { header: 'Site Name', accessor: (r) => txt(r, 'site_name') || DASH },
+      { header: 'Claim Raised Date', accessor: (r) => txt(r, 'inst_claim_date') || DASH },
+      { header: 'Claim Invoice', accessor: (r) => txt(r, 'inst_claim_invoice') || DASH },
+      { header: 'Claim Amount', accessor: (r) => (r.inst_claim_amount ? `₹ ${Number(r.inst_claim_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Claim Update Date', accessor: (r) => txt(r, 'claim_updated_at') || txt(r, 'updated_at') || DASH },
+      { header: 'Claim Update by', accessor: (r) => txt(r, 'claim_updated_by') || txt(r, 'updated_by') || DASH },
       {
-        header: 'Document Status',
-        accessor: (r) => {
-          const s = Number(r.inst_doc_submit ?? r.document_status ?? 0);
-          if (s === 2) return 'Approved';
-          if (s === 3) return 'Rejected';
-          if (s === 1 || r.inst_doc) return 'Submitted (Pending)';
-          return 'Not Submitted';
-        },
-      },
-      {
-        header: 'Disbursal Status',
+        header: 'Claim Status',
         accessor: (r) =>
           Number(r.inst_claim_status) === 2
-            ? 'Approved / Disbursed'
+            ? 'Approved'
             : Number(r.inst_claim_status) === 1
-            ? 'Raised (Pending Audit)'
+            ? 'Raised'
             : Number(r.inst_claim_status) === 3
             ? 'Rejected'
-            : 'Draft',
+            : 'Not Raised',
       },
+      { header: 'Payment 80% Date', accessor: (r) => txt(r, 'inst_pay80_date') || DASH },
+      { header: 'Payment 80% Amount', accessor: (r) => (r.inst_pay80_amount ? `₹ ${Number(r.inst_pay80_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment 80% Status', accessor: (r) => (Number(r.inst_pay80_status) === 1 ? 'Paid' : 'Pending') },
+      { header: 'Document Submit', accessor: (r) => (Number(r.inst_doc_submit) === 1 ? 'Submitted' : 'Pending') },
+      { header: 'Payment 20% Date', accessor: (r) => txt(r, 'inst_pay20_date') || DASH },
+      { header: 'Payment 20% Amount', accessor: (r) => (r.inst_pay20_amount ? `₹ ${Number(r.inst_pay20_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment 20% Status', accessor: (r) => (Number(r.inst_pay20_status) === 1 ? 'Paid' : 'Pending') },
     ],
     []
   );
@@ -1050,7 +1055,7 @@ export function ClaimRequest() {
       <section className="ax-card ax-col--12" role="region" aria-label="Jammu SRT 70MW Claim Requisitions">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">Claim Requisition Register</h2>
+            <h2 className="ax-card__title">View Claim Request Details</h2>
             <p className="ax-card__subtitle">
               <span className="ax-num">{filteredClaims.length}</span> of <span className="ax-num">{claims.length}</span> claims
               {' '}· Approved <b className="ax-num">{kpis.approvedCount}</b> · Pending <b className="ax-num">{kpis.pendingCount}</b>
@@ -1182,22 +1187,18 @@ export function ClaimRequest() {
                   return (
                     <tr key={row.id} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td">Jammu & Kashmir</td>
+                      <td className="ax-table__td">{row.state || 'Jammu & Kashmir'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
                       <td className="ax-table__td">
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                           {row.site_name || DASH}
                         </span>
                       </td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'site_code') || DASH}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
-                        ₹ {Number(row.inst_claim_amount || 0).toLocaleString('en-IN')}
-                      </td>
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
                         {txt(row, 'inst_claim_date') || DASH}
                       </td>
 
-                      {/* Invoice File */}
+                      {/* Claim Invoice */}
                       <td className="ax-table__td">
                         {row.inst_claim_invoice ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1223,69 +1224,63 @@ export function ClaimRequest() {
                         )}
                       </td>
 
-                      {/* Document Status */}
+                      {/* Claim Amount */}
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
+                        {row.inst_claim_amount ? `₹ ${Number(row.inst_claim_amount).toLocaleString('en-IN')}` : DASH}
+                      </td>
+
+                      {/* Claim Update Date */}
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
+                        {txt(row, 'claim_updated_at') || txt(row, 'updated_at') || DASH}
+                      </td>
+
+                      {/* Claim Update by */}
+                      <td className="ax-table__td">
+                        {txt(row, 'claim_updated_by') || txt(row, 'updated_by') || DASH}
+                      </td>
+
+                      {/* Claim Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <ClaimStatusBadge status={row.inst_claim_status} />
+                      </td>
+
+                      {/* Payment 80% Date */}
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
+                        {txt(row, 'inst_pay80_date') || DASH}
+                      </td>
+
+                      {/* Payment 80% Amount */}
+                      <td className="ax-table__td">
+                        {row.inst_pay80_amount ? `₹ ${Number(row.inst_pay80_amount).toLocaleString('en-IN')}` : DASH}
+                      </td>
+
+                      {/* Payment 80% Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Badge tone={Number(row.inst_pay80_status) === 1 ? 'success' : 'warning'}>
+                          {Number(row.inst_pay80_status) === 1 ? 'Paid' : 'Pending'}
+                        </Badge>
+                      </td>
+
+                      {/* Document Submit */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <DocBadge status={dStatus} docUrl={docUrl} />
                       </td>
 
-                      {/* Disbursal Status */}
-                      <td className="ax-table__td">
-                        <ClaimStatusBadge status={row.inst_claim_status} />
+                      {/* Payment 20% Date */}
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>
+                        {txt(row, 'inst_pay20_date') || DASH}
                       </td>
 
-                      {/* Action */}
+                      {/* Payment 20% Amount */}
+                      <td className="ax-table__td">
+                        {row.inst_pay20_amount ? `₹ ${Number(row.inst_pay20_amount).toLocaleString('en-IN')}` : DASH}
+                      </td>
+
+                      {/* Payment 20% Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          {dStatus !== 1 && dStatus !== 2 && (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 8px' }}
-                              onClick={() => handleOpenDocModal(row)}
-                              title="Submit commissioning / handover document"
-                            >
-                              Submit Doc
-                            </button>
-                          )}
-                          {isApproved ? (
-                            <span
-                              className="ax-badge ax-badge--soft"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                padding: '4px 8px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: 'var(--ax-text-muted, #64748b)',
-                                background: 'var(--ax-surface-subtle, #f1f5f9)',
-                                border: '1px solid var(--ax-border, #cbd5e1)',
-                                borderRadius: 6,
-                              }}
-                              title="Claim is Approved & Settled"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12, color: '#10b981' }}>
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              <span>Settled</span>
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ height: 26, fontSize: 11.5, padding: '0 8px' }}
-                              onClick={() => {
-                                if (row.inst_claim_invoice) {
-                                  openPreview(invoiceUrl, `Claim Invoice - ${row.site_name}`);
-                                } else {
-                                  alert(`Claim for ${row.site_name} is under review.`);
-                                }
-                              }}
-                            >
-                              Inspect
-                            </button>
-                          )}
-                        </div>
+                        <Badge tone={Number(row.inst_pay20_status) === 1 ? 'success' : 'warning'}>
+                          {Number(row.inst_pay20_status) === 1 ? 'Paid' : 'Pending'}
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -1361,7 +1356,7 @@ export function ClaimRequest() {
                 <option value="">-- Choose Installed Site --</option>
                 {sitesDropdown.map((s) => (
                   <option key={s.id} value={String(s.id)}>
-                    #{s.id} - {s.site_name} {s.district ? `(${s.district})` : ''}
+                    {s.site_name} {s.district ? `(${s.district})` : ''}
                   </option>
                 ))}
               </select>
@@ -1512,7 +1507,7 @@ export function ClaimRequest() {
                   Submit Installation Document
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                  Site: <b>{docModalSite.site_name || DASH}</b> (#{docModalSite.srt_id || docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
+                  Site: <b>{docModalSite.site_name || DASH}</b> ({docModalSite.srt_id || docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
                 </p>
               </div>
               <button

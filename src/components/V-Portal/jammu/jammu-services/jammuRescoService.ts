@@ -376,6 +376,42 @@ export interface JammuRescoCreateBillData {
   bills: JammuRescoBillItem[];
 }
 
+export function extractRescoSiteArray(json: any): JammuRescoInstalledSiteItem[] {
+  if (!json) return [];
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json?.install_detail)) return json.install_detail;
+  if (Array.isArray(json?.data)) return json.data;
+  if (Array.isArray(json?.sites)) return json.sites;
+  if (Array.isArray(json?.resco)) return json.resco;
+  if (Array.isArray(json?.installed)) return json.installed;
+  if (Array.isArray(json?.list)) return json.list;
+  if (Array.isArray(json?.records)) return json.records;
+
+  if (json?.data && typeof json.data === 'object') {
+    if (Array.isArray(json.data.sites)) return json.data.sites;
+    if (Array.isArray(json.data.install_detail)) return json.data.install_detail;
+    if (Array.isArray(json.data.resco)) return json.data.resco;
+    if (Array.isArray(json.data.installed)) return json.data.installed;
+    if (Array.isArray(json.data.list)) return json.data.list;
+    if (Array.isArray(json.data.records)) return json.data.records;
+    for (const key of Object.keys(json.data)) {
+      if (Array.isArray(json.data[key]) && json.data[key].length > 0 && typeof json.data[key][0] === 'object') {
+        return json.data[key];
+      }
+    }
+  }
+
+  if (typeof json === 'object') {
+    for (const key of Object.keys(json)) {
+      if (key !== 'status' && key !== 'message' && Array.isArray(json[key]) && json[key].length > 0 && typeof json[key][0] === 'object') {
+        return json[key];
+      }
+    }
+  }
+
+  return [];
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Jammu RESCO Service Implementation
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -1023,20 +1059,47 @@ class JammuRescoService {
    * GET /jk/resco-installation-view-data/{status}
    */
   async getStatusWiseData(status: string): Promise<JammuRescoInstalledSiteItem[]> {
-    const res = await fetch(JAMMU_API.INSTALLATION.RESCO.VIEW_DATA_STATUS(status), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+    const clean = (status || 'total').trim();
+    const norm = normalizeRescoStatus(clean);
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch status data (${res.status} ${res.statusText})`);
+    // Build candidate status slug sequence (clean input, normalized, hyphen/underscore variations)
+    const candidates = [clean];
+    if (!candidates.includes(norm)) candidates.push(norm);
+    const altClean = clean.includes('_') ? clean.replace(/_/g, '-') : clean.replace(/-/g, '_');
+    if (!candidates.includes(altClean)) candidates.push(altClean);
+    const altNorm = norm.includes('_') ? norm.replace(/_/g, '-') : norm.replace(/-/g, '_');
+    if (!candidates.includes(altNorm)) candidates.push(altNorm);
+
+    let lastError: Error | null = null;
+    for (const st of candidates) {
+      try {
+        const url = JAMMU_API.INSTALLATION.RESCO.VIEW_DATA_STATUS(st);
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
+
+        if (res.status === 404) {
+          continue; // Try alternative status slug
+        }
+
+        if (!res.ok) {
+          lastError = new Error(`Failed to fetch status data (${res.status} ${res.statusText})`);
+          continue;
+        }
+
+        const json = await res.json().catch(() => null);
+        if (json) {
+          return extractRescoSiteArray(json);
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
     }
 
-    const json = await res.json();
-    if (Array.isArray(json?.install_detail)) return json.install_detail;
-    if (Array.isArray(json?.data)) return json.data;
-    if (Array.isArray(json?.sites)) return json.sites;
-    if (Array.isArray(json)) return json;
+    if (lastError) {
+      console.warn('[Jammu RESCO getStatusWiseData] Warning:', lastError);
+    }
     return [];
   }
 
@@ -1045,20 +1108,51 @@ class JammuRescoService {
    * GET /jk/resco-installation-view-districtwise/{status}/{district}
    */
   async getDistrictWiseData(status: string, district: string): Promise<JammuRescoInstalledSiteItem[]> {
-    const res = await fetch(JAMMU_API.INSTALLATION.RESCO.VIEW_DATA_DISTRICTWISE(status, district), {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch district data (${res.status} ${res.statusText})`);
+    const cleanDist = (district || '').trim();
+    if (!cleanDist || cleanDist.toLowerCase() === 'all') {
+      return this.getStatusWiseData(status);
     }
 
-    const json = await res.json();
-    if (Array.isArray(json?.install_detail)) return json.install_detail;
-    if (Array.isArray(json?.data)) return json.data;
-    if (Array.isArray(json?.sites)) return json.sites;
-    if (Array.isArray(json)) return json;
+    const clean = (status || 'total').trim();
+    const norm = normalizeRescoStatus(clean);
+
+    const candidates = [clean];
+    if (!candidates.includes(norm)) candidates.push(norm);
+    const altClean = clean.includes('_') ? clean.replace(/_/g, '-') : clean.replace(/-/g, '_');
+    if (!candidates.includes(altClean)) candidates.push(altClean);
+    const altNorm = norm.includes('_') ? norm.replace(/_/g, '-') : norm.replace(/-/g, '_');
+    if (!candidates.includes(altNorm)) candidates.push(altNorm);
+
+    let lastError: Error | null = null;
+    for (const st of candidates) {
+      try {
+        const url = JAMMU_API.INSTALLATION.RESCO.VIEW_DATA_DISTRICTWISE(st, cleanDist);
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
+
+        if (res.status === 404) {
+          continue;
+        }
+
+        if (!res.ok) {
+          lastError = new Error(`Failed to fetch district data (${res.status} ${res.statusText})`);
+          continue;
+        }
+
+        const json = await res.json().catch(() => null);
+        if (json) {
+          return extractRescoSiteArray(json);
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    if (lastError) {
+      console.warn('[Jammu RESCO getDistrictWiseData] Warning:', lastError);
+    }
     return [];
   }
 }

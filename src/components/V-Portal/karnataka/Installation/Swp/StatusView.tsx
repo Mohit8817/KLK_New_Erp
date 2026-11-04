@@ -1339,7 +1339,7 @@ export function KarnatakaStatusView() {
                   const lat = txt(row, 'inst_latitude') || txt(row, 'latitude');
                   const lng = txt(row, 'inst_longitude') || txt(row, 'longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const siteLabel = row.id ? `Site #${row.id}` : `SWP #${index + 1}`;
+                  const siteLabel = row.id ? `Site ${row.id}` : `SWP ${index + 1}`;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
@@ -1349,7 +1349,7 @@ export function KarnatakaStatusView() {
                   return (
                     <tr key={row.id || index} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>#{row.id}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>{row.id}</td>
                       <td className="ax-table__td">{txt(row, 'state') || 'Karnataka'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
                       <td className="ax-table__td">{row.f_tehsil || row.tehsil || DASH}</td>
@@ -1517,7 +1517,7 @@ export function KarnatakaStatusView() {
             <div className="ax-modal__header">
               <div>
                 <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} id="kswp-detail-title">
-                  SWP Installation Record #{detailModalItem.id}
+                  SWP Installation Record {detailModalItem.id}
                 </h4>
                 <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
                   {detailModalItem.district ? `District: ${detailModalItem.district} · ` : ''}State: Karnataka

@@ -488,9 +488,9 @@ export function KarnatakaMaterialDetails() {
     return list;
   }, [rawSites, districtFilter, capacityFilter, search]);
 
-  // Pagination hook (matching reference)
+  // Pagination hook (matching reference) - default 100 items per user requirement
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredSites, initialPageSize: 25 });
+    usePagination({ data: filteredSites, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -957,7 +957,7 @@ export function KarnatakaMaterialDetails() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1045,7 +1045,7 @@ export function KarnatakaMaterialDetails() {
                       className="ax-badge ax-badge--soft ax-badge--neutral"
                       style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12, padding: '5px 10px', borderRadius: 6 }}
                     >
-                      <b style={{ color: 'var(--asw-primary)', marginRight: 4 }}>#{idx + 1}</b> {sn.trim()}
+                      <b style={{ color: 'var(--asw-primary)', marginRight: 4 }}>{idx + 1}.</b> {sn.trim()}
                     </span>
                   ));
                 })()}

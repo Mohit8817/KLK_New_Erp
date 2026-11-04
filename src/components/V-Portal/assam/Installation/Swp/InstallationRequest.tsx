@@ -460,6 +460,7 @@ export function InstallationRequest() {
   // Dynamic server-based status: driven by API data (1 = Pending, 2 = Accepted) or confirmed acceptance
   const isSiteAccepted = useCallback((item: AssignedSiteItem) => {
     const aId = getAssignId(item) || item.id;
+    const siteIds = parseSiteIds(item?.site_id);
     return (
       Number(item.status) === 2 ||
       String(item.status) === '2' ||
@@ -467,7 +468,8 @@ export function InstallationRequest() {
       String((item as any).inst_accept) === '1' ||
       String(item.status).toLowerCase() === 'accepted' ||
       acceptedIds.has(Number(item.id)) ||
-      (aId > 0 && acceptedIds.has(Number(aId)))
+      (aId > 0 && acceptedIds.has(Number(aId))) ||
+      siteIds.some((sid) => acceptedIds.has(Number(sid)))
     );
   }, [acceptedIds]);
 
@@ -611,8 +613,8 @@ export function InstallationRequest() {
 
     const confirmMsg =
       siteIds.length > 0
-        ? `Are you sure you want to accept SWP Installation Assignment #${assignId || siteIds[0]} (Site #${siteIds.join(', ')})?`
-        : `Are you sure you want to accept SWP Installation Assignment #${assignId}?`;
+        ? `Are you sure you want to accept SWP Installation Assignment ${assignId || siteIds[0]} (Site ${siteIds.join(', ')})?`
+        : `Are you sure you want to accept SWP Installation Assignment ${assignId}?`;
 
     if (!window.confirm(confirmMsg)) {
       return false;
@@ -641,7 +643,7 @@ export function InstallationRequest() {
             accepted = true;
             break; // Calling accept on a site marks the entire assignment as accepted (status = 2) in backend
           } catch (siteErr: any) {
-            console.warn(`[Accept Installation] Site ID #${sId} failed:`, siteErr);
+            console.warn(`[Accept Installation] Site ID ${sId} failed:`, siteErr);
           }
         }
       }
@@ -653,7 +655,7 @@ export function InstallationRequest() {
           usedId = assignId;
           accepted = true;
         } catch (assignErr: any) {
-          console.warn(`[Accept Installation] Assign ID #${assignId} failed:`, assignErr);
+          console.warn(`[Accept Installation] Assign ID ${assignId} failed:`, assignErr);
           throw assignErr;
         }
       }
@@ -670,6 +672,7 @@ export function InstallationRequest() {
         if (rowKeyId) next.add(Number(rowKeyId));
         if (assignId) next.add(Number(assignId));
         if (item?.id) next.add(Number(item.id));
+        siteIds.forEach((sid) => next.add(Number(sid)));
         try {
           localStorage.setItem('assam_swp_accepted_ids', JSON.stringify(Array.from(next)));
         } catch {}
@@ -761,7 +764,7 @@ export function InstallationRequest() {
 
   // Pagination hook
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 25 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -786,7 +789,7 @@ export function InstallationRequest() {
   // Export Columns definition
   const exportCols: ExportColumn<AssignedSiteItem>[] = useMemo(() => [
     { header: 'Sr. No.', accessor: (_r: AssignedSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-    { header: 'Vendor', accessor: (r: AssignedSiteItem) => r.vendors?.name || `Vendor #${r.vendor || r.company_id}` },
+    { header: 'Vendor', accessor: (r: AssignedSiteItem) => r.vendors?.name || `Vendor ${r.vendor || r.company_id}` },
     { header: 'Assign Date', accessor: (r: AssignedSiteItem) => fmtDate(r.assign_date || r.created_at) },
     { header: 'State', accessor: (r: AssignedSiteItem) => r.state?.toUpperCase() || 'ASSAM' },
     { header: 'District', accessor: (r: AssignedSiteItem) => r.district || (r.Names && r.Names[0]?.district) || '—' },
@@ -1131,10 +1134,10 @@ export function InstallationRequest() {
                       {/* 2. Vendor */}
                       <td className="ax-table__td">
                         <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {item.vendors?.name || (item.vendor ? `Vendor #${item.vendor}` : (item.company_id || '—'))}
+                          {item.vendors?.name || (item.vendor ? `Vendor ${item.vendor}` : (item.company_id || '—'))}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                          Assign #{getAssignId(item) || item.id}
+                          Assign {getAssignId(item) || item.id}
                           {siteIds.length > 0 && ` · Sites: [${siteIds.join(', ')}]`}
                         </div>
                       </td>
@@ -1246,14 +1249,7 @@ export function InstallationRequest() {
                               {acceptingId === item.id || (getAssignId(item) > 0 && acceptingId === getAssignId(item)) ? 'Accepting…' : 'Accept'}
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--ghost ax-btn--sm"
-                              style={{ color: 'var(--asw-primary)', fontWeight: 600 }}
-                              onClick={() => navigate('/v/assam/installation/swp/site')}
-                            >
-                              Install Site &rarr;
-                            </button>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -1273,7 +1269,7 @@ export function InstallationRequest() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1283,7 +1279,7 @@ export function InstallationRequest() {
       <Modal
         open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
-        title={activeItem ? `Assignment Details · #${getAssignId(activeItem) || activeItem.id}` : 'Assignment Details'}
+        title={activeItem ? `Assignment Details · ${getAssignId(activeItem) || activeItem.id}` : 'Assignment Details'}
         subtitle="Individual beneficiary and assignment configuration details"
         maxWidth={1100}
         footer={

@@ -290,7 +290,7 @@ export function RescoAssignedSites() {
       const res = await jammuRescoService.acceptAssignment(numId);
       setToastMsg({
         type: 'success',
-        text: res.message || `Installation Assignment #${numId} accepted successfully!`,
+        text: res.message || `Installation Assignment ${numId} accepted successfully!`,
       });
 
       // Update local state optimistically
@@ -609,7 +609,6 @@ export function RescoAssignedSites() {
                 <th className="ax-table__th" scope="col">Site Name - Deadline</th>
                 <th className="ax-table__th" scope="col">Count</th>
                 <th className="ax-table__th" scope="col">File</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>View</th>
                 <th className="ax-table__th" scope="col">Remarks</th>
                 <th className="ax-table__th" scope="col">Status</th>
                 <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
@@ -618,14 +617,14 @@ export function RescoAssignedSites() {
             <tbody aria-busy={loading}>
               {loading && (
                 <tr>
-                  <td colSpan={12} style={centerCell}>
+                  <td colSpan={11} style={centerCell}>
                     <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned RESCO sites from server…
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: 0 }}>
+                  <td colSpan={11} style={{ padding: 0 }}>
                     <TableEmptyState
                       title="No assigned RESCO sites found"
                       message={hasFilters ? 'No records match your filters. Try clearing your query.' : 'No site allocations currently assigned.'}
@@ -665,7 +664,7 @@ export function RescoAssignedSites() {
                             borderRadius: 6,
                           }}
                         >
-                          <b style={{ color: 'var(--ax-text-strong)' }}>{row.site_name || `Site #${row.site_id || row.id}`}</b>
+                          <b style={{ color: 'var(--ax-text-strong)' }}>{row.site_name || `Site ${row.site_id || row.id}`}</b>
                           {deadlineDate !== '—' && (
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, marginLeft: 6 }}>
                               (Deadline: {deadlineDate})
@@ -696,19 +695,6 @@ export function RescoAssignedSites() {
                         )}
                       </td>
 
-                      {/* View Button Column */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => handleOpenDetailModal(row)}
-                          title="View site assignment details"
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          View
-                        </button>
-                      </td>
-
                       {/* Remarks */}
                       <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>
                         {row.remarks || row.remark || '—'}
@@ -726,6 +712,16 @@ export function RescoAssignedSites() {
                       {/* Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            onClick={() => handleOpenDetailModal(row)}
+                            title="View site assignment details"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                          >
+                            View
+                          </button>
+
                           {!isAccepted ? (
                             <button
                               type="button"
@@ -744,14 +740,7 @@ export function RescoAssignedSites() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to={`/v/jammu/installation/resco/install-site?id=${row.site_id || row.id}`}
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to installation form"
-                            >
-                              Install Site ➔
-                            </Link>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -772,7 +761,7 @@ export function RescoAssignedSites() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -787,7 +776,7 @@ export function RescoAssignedSites() {
               <h2 className="ax-modal__title" id="resco-assign-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                 <span>RESCO Assignment Details</span>
                 <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
-                  #{detailModalItem.id}
+                  {detailModalItem.id}
                 </span>
               </h2>
               <button
@@ -804,7 +793,7 @@ export function RescoAssignedSites() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assignment ID</span>
-                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>#{detailModalItem.id}</b>
+                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>
@@ -820,7 +809,7 @@ export function RescoAssignedSites() {
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site Name</span>
-                  <b>{detailModalItem.site_name || `Site #${detailModalItem.site_id || detailModalItem.id}`}</b>
+                  <b>{detailModalItem.site_name || `Site ${detailModalItem.site_id || detailModalItem.id}`}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Installation Deadline</span>

@@ -407,7 +407,7 @@ export function AssignLights() {
       return String(rowVendor).trim();
     }
     if (loginVendorName) return loginVendorName;
-    if (rowVendor) return `Vendor #${rowVendor}`;
+    if (rowVendor) return `Vendor ${rowVendor}`;
     return '—';
   }, [loginVendorName]);
 
@@ -877,14 +877,7 @@ export function AssignLights() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to={`/v/jammu/installation/ssl/install-lights?ssl_id=${rowId}`}
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to installation form"
-                            >
-                              Install Light ➔
-                            </Link>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -903,7 +896,7 @@ export function AssignLights() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -919,7 +912,7 @@ export function AssignLights() {
                 <span>Jammu SSL Assignment Details</span>
                 {detailModalItem.id && (
                   <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
-                    #{detailModalItem.id}
+                    {detailModalItem.id}
                   </span>
                 )}
               </h2>
@@ -936,7 +929,7 @@ export function AssignLights() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch ID</span>
-                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>#{detailModalItem.id}</b>
+                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>

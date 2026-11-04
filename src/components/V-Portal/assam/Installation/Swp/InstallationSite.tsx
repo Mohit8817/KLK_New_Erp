@@ -768,7 +768,7 @@ export function Assam_Installation_SWP_Site() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.farmer_name ? `${siteDetail.farmer_name} (${siteDetail.district || ''})` : `Site #${siteDetail.id}`}
+                {siteDetail.farmer_name ? `${siteDetail.farmer_name} (${siteDetail.district || ''})` : `Site ${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -815,7 +815,7 @@ export function Assam_Installation_SWP_Site() {
                       id="site_id_select"
                       type="text"
                       className="ax-float__input"
-                      value={`Site #${selectedSiteId} - ${siteDetail?.farmer_name || ''}`}
+                      value={`Site ${selectedSiteId} - ${siteDetail?.farmer_name || ''}`}
                       disabled
                     />
                     <label htmlFor="site_id_select" className="ax-float__label floating">
@@ -835,7 +835,7 @@ export function Assam_Installation_SWP_Site() {
                       <option value="">-- Choose Assigned SWP Site --</option>
                       {sitesList.map((s) => (
                         <option key={s.site_id} value={s.site_id}>
-                          #{s.site_id} - {s.site_name}
+                          {s.site_id} - {s.site_name}
                         </option>
                       ))}
                     </select>
@@ -939,7 +939,7 @@ export function Assam_Installation_SWP_Site() {
                   <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <div style={{ flex: 1 }}>
                       <FloatingInput
-                        label={`Module #${idx + 1} Serial`}
+                        label={`Module ${idx + 1} Serial`}
                         name={`module_serial_${idx}`}
                         value={serial}
                         onChange={(e) => handleModuleChange(idx, e.target.value)}

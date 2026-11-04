@@ -692,7 +692,7 @@ export function RescoInstallSite() {
         } else {
           setFeedback({
             type: 'danger',
-            text: `Site #${siteIdStr} details not found.`,
+            text: `Site ${siteIdStr} details not found.`,
           });
         }
       }
@@ -996,7 +996,7 @@ export function RescoInstallSite() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.site_name ? `${siteDetail.site_name} (${siteDetail.district || ''})` : `Site #${siteDetail.id}`}
+                {siteDetail.site_name ? `${siteDetail.site_name} (${siteDetail.district || ''})` : `Site ${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -1049,7 +1049,7 @@ export function RescoInstallSite() {
                   <option value="">-- Select Assigned Site --</option>
                   {sitesList.map((s) => (
                     <option key={s.id} value={String(s.id)}>
-                      #{s.id} - {s.site_name || s.f_farmer_name || s.name || `Site #${s.id}`} {s.district ? `(${s.district})` : ''}
+                      {s.site_name || s.f_farmer_name || s.name || `Site ${s.id}`} {s.district ? `(${s.district})` : ''}
                     </option>
                   ))}
                 </select>

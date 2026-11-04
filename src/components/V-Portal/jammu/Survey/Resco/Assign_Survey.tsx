@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import { useAuth } from '../../../../../context/AuthContext';
+import { authService } from '../../../../../services/authService';
 import {
   Pagination,
   usePagination,
@@ -10,12 +12,11 @@ import {
   TableEmptyState,
 } from '../../../../../common';
 import {
-  getStoredAssignedSites,
+  jammuRescoSurveyService,
+  type JammuRescoAssignedSurveyItem,
+} from '../../jammu-services';
 
-  type AssignedRescoSite,
-} from './rescoSurveyData';
-
-/* ───────── Responsive Page CSS (Matching Karnataka / Solar ERP Reference) ───────── */
+/* ───────── Responsive Page CSS (Solar ERP Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -238,6 +239,8 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
   <span className={`ax-badge ax-badge--soft ax-badge--${tone} ax-badge--pill`}>
@@ -307,6 +310,34 @@ function KpiCard({
   );
 }
 
+const formatDate = (d?: string | null): string => {
+  if (!d) return '—';
+  const trimmed = String(d).trim();
+  if (!trimmed || trimmed === '—' || trimmed === 'null' || trimmed === 'undefined') return '—';
+
+  try {
+    const normalized = trimmed.includes(' ') && !trimmed.includes('T') ? trimmed.replace(' ', 'T') : trimmed;
+    const dt = new Date(normalized);
+    if (!isNaN(dt.getTime())) {
+      return dt.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+  } catch {}
+
+  const datePart = trimmed.split(/[ T]/)[0];
+  return datePart || trimmed;
+};
+
+const cleanText = (v: unknown): string => {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' || s === '—') return '';
+  return s;
+};
+
 const X_ICON = (
   <svg
     viewBox="0 0 24 24"
@@ -324,21 +355,108 @@ const X_ICON = (
 );
 
 export function Assign_Survey() {
-
-  const [records, setRecords] = useState<AssignedRescoSite[]>([]);
+  const navigate = useNavigate();
+  const { user, rawResponse } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [records, setRecords] = useState<JammuRescoAssignedSurveyItem[]>([]);
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
+  // Vendor resolution
+  const loginVendorName = useMemo(() => {
+    const getCleanString = (val: any): string => {
+      if (
+        typeof val === 'string' &&
+        val.trim() &&
+        val.trim().toLowerCase() !== '[object object]' &&
+        val.trim().toLowerCase() !== 'null' &&
+        val.trim().toLowerCase() !== 'undefined'
+      ) {
+        return val.trim();
+      }
+      return '';
+    };
+
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).company_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).vendor_id) ||
+        getCleanString((user as any).username) ||
+        getCleanString((user as any).email);
+      if (fromUser) return fromUser;
+    }
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor) ||
+        getCleanString(rawResponse?.data?.name);
+      if (fromRaw) return fromRaw;
+    }
+
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.name) ||
+          getCleanString(session.company_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.vendor_id);
+        if (fromSession) return fromSession;
+      }
+    } catch {}
+
+    return '';
+  }, [user, rawResponse]);
+
+  const getVendorDisplay = useCallback((row: JammuRescoAssignedSurveyItem) => {
+    if (row.vendors?.name && String(row.vendors.name).trim()) {
+      return String(row.vendors.name).trim();
+    }
+    if (row.vendor && String(row.vendor).trim() && isNaN(Number(row.vendor))) {
+      return String(row.vendor).trim();
+    }
+    if (loginVendorName) return loginVendorName;
+    if (row.vendor) return `Vendor ${row.vendor}`;
+    return '—';
+  }, [loginVendorName]);
+
   // Modal item for details preview
-  const [detailModalItem, setDetailModalItem] = useState<AssignedRescoSite | null>(null);
+  const [detailModalItem, setDetailModalItem] = useState<JammuRescoAssignedSurveyItem | null>(null);
   const detailDialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(detailDialogRef, !!detailModalItem);
 
-  useEffect(() => {
-    setRecords(getStoredAssignedSites());
+  // Load from Live API 8: GET /jk/view-assigned-resco-survey
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const list = await jammuRescoSurveyService.getAssignedSurveys();
+      setRecords(Array.isArray(list) ? list : []);
+    } catch (err: any) {
+      console.error('[Jammu Resco AssignedSurveys] load error:', err);
+      setRecords([]);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load assigned RESCO surveys.' });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (!toastMsg) return;
@@ -359,146 +477,53 @@ export function Assign_Survey() {
   const filtered = useMemo(() => {
     let list = records;
     if (districtFilter !== 'all') {
-      list = list.filter((r) => r.district.toLowerCase() === districtFilter.toLowerCase());
-    }
-    if (statusFilter !== 'all') {
-      list = list.filter((r) => r.surveyStatus === statusFilter);
+      list = list.filter((r) => (r.district || '').toLowerCase() === districtFilter.toLowerCase());
     }
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((r) => {
+        const vName = getVendorDisplay(r).toLowerCase();
+        const idStr = String(r.id);
+        const dist = (r.district || '').toLowerCase();
+        const site = (r.site_name || '').toLowerCase();
+        const ca = (r.ca_no || '').toLowerCase();
+        const dept = (r.dept_name || '').toLowerCase();
+        const purpose = (r.purpose || '').toLowerCase();
         return (
-          r.vendor.toLowerCase().includes(q) ||
-          r.id.toLowerCase().includes(q) ||
-          r.siteName.toLowerCase().includes(q) ||
-          r.district.toLowerCase().includes(q) ||
-          r.department.toLowerCase().includes(q) ||
-          r.caNo.toLowerCase().includes(q) ||
-          r.location.toLowerCase().includes(q) ||
-          r.remarks.toLowerCase().includes(q)
+          vName.includes(q) ||
+          idStr.includes(q) ||
+          dist.includes(q) ||
+          site.includes(q) ||
+          ca.includes(q) ||
+          dept.includes(q) ||
+          purpose.includes(q)
         );
       });
     }
     return list;
-  }, [records, search, districtFilter, statusFilter]);
+  }, [records, search, districtFilter, getVendorDisplay]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 8 });
+    usePagination({ data: filtered, initialPageSize: 25 });
 
   useEffect(() => {
     setPage(1);
-  }, [search, districtFilter, statusFilter, setPage]);
+  }, [search, districtFilter, setPage]);
 
-  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all';
   const resetFilters = () => {
     setSearch('');
     setDistrictFilter('all');
-    setStatusFilter('all');
     setPage(1);
   };
 
   // Top metric stats
-  const totalAssignedSites = records.length;
-  const completedCount = records.filter((r) => r.surveyStatus === 'completed').length;
-  const pendingCount = records.filter((r) => r.surveyStatus === 'pending').length;
-  const totalSiteCount = records.reduce((s, r) => s + (r.siteCount || 1), 0);
-
-  /* ───────── Export Actions ───────── */
-  const EXPORT_HEADERS = [
-    'Sr. No.',
-    'Vendor',
-    'Assign Date',
-    'State',
-    'District',
-    'Site Name',
-    'Site Count',
-    'File',
-    'Remarks',
-    'Status',
-  ];
-
-  const handleCopy = () => {
-    if (!filtered.length) return;
-    const lines = [
-      EXPORT_HEADERS.join('\t'),
-      ...filtered.map((r, i) =>
-        [
-          i + 1,
-          r.vendor,
-          r.assignDate,
-          r.state,
-          r.district,
-          r.siteName,
-          r.siteCount,
-          r.fileUrl,
-          r.remarks,
-          r.surveyStatus === 'completed' ? 'Survey Completed' : 'Pending Survey',
-        ].join('\t')
-      ),
-    ].join('\n');
-    navigator.clipboard.writeText(lines);
-    setToastMsg({ type: 'success', text: `Copied ${filtered.length} assigned RESCO sites to clipboard!` });
-  };
-
-  const handleExportCSV = () => {
-    if (!filtered.length) return;
-    const lines = [
-      EXPORT_HEADERS.map((h) => `"${h}"`).join(','),
-      ...filtered.map((r, i) =>
-        [
-          i + 1,
-          `"${r.vendor}"`,
-          `"${r.assignDate}"`,
-          `"${r.state}"`,
-          `"${r.district}"`,
-          `"${r.siteName.replace(/"/g, '""')}"`,
-          r.siteCount,
-          `"${r.fileUrl}"`,
-          `"${r.remarks.replace(/"/g, '""')}"`,
-          `"${r.surveyStatus === 'completed' ? 'Survey Completed' : 'Pending Survey'}"`,
-        ].join(',')
-      ),
-    ].join('\n');
-    const blob = new Blob([lines], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Jammu_Assigned_Resco_Sites_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setToastMsg({ type: 'success', text: 'CSV assigned sites file exported successfully!' });
-  };
-
-  const handleExportExcel = () => {
-    if (!filtered.length) return;
-    const headerRow = `<tr>${EXPORT_HEADERS.map((h) => `<th style="background:#2563eb;color:#fff;padding:6px;border:1px solid #ccc;">${h}</th>`).join('')}</tr>`;
-    const dataRows = filtered
-      .map(
-        (r, i) =>
-          `<tr>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${i + 1}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.vendor}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.assignDate}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.state}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.district}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.siteName}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;text-align:center;">${r.siteCount}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.fileUrl}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.remarks}</td>
-            <td style="border:1px solid #ccc;padding:4px 8px;">${r.surveyStatus === 'completed' ? 'Survey Completed' : 'Pending Survey'}</td>
-          </tr>`
-      )
-      .join('');
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"/></head><body><table border="1">${headerRow}${dataRows}</table></body></html>`;
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Jammu_Assigned_Resco_Sites_${new Date().toISOString().slice(0, 10)}.xls`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setToastMsg({ type: 'success', text: 'Excel assigned sites file exported successfully!' });
-  };
+  const totalBatches = records.length;
+  const activeDistricts = districts.length;
+  const totalSitesAllocated = records.reduce(
+    (sum, r) => sum + (Number(r.sitecount ?? r.site_count ?? r.count) || 1),
+    0
+  );
 
   return (
     <div className="solar-erp-page">
@@ -506,34 +531,40 @@ export function Assign_Survey() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="Assigned Resco Site"
-        subtitle="Review institutional and government rooftop solar sites allocated under the RESCO model across Jammu & Kashmir"
+        title="Jammu RESCO: Assign Survey"
+        subtitle="Manage assigned rooftop solar survey batches, review site allocations, and conduct feasibility audits"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu & Kashmir' },
           { label: 'Survey' },
           { label: 'RESCO' },
-          { label: 'Assigned Resco Site' },
+          { label: 'Assign Survey' },
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button
               type="button"
               className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={() => {
-                setRecords(getStoredAssignedSites());
-                setToastMsg({ type: 'success', text: 'Assigned RESCO sites reloaded!' });
-              }}
-              title="Refresh assigned sites"
+              onClick={loadData}
+              disabled={loading}
             >
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                className="ax-btn__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
                 <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
               </svg>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <Link to="/v/jammu/survey/resco/pending-survey" className="ax-btn ax-btn--primary ax-btn--sm">
-              <span className="ax-btn__label">+ Conduct Feasibility Survey</span>
+              <span className="ax-btn__label">+ Conduct Survey</span>
             </Link>
           </div>
         }
@@ -550,9 +581,9 @@ export function Assign_Survey() {
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
-          label="Total Assigned Sites"
-          value={totalAssignedSites.toLocaleString('en-IN')}
-          sub={`${totalSiteCount} total site units`}
+          label="Total Survey Batches"
+          value={totalBatches.toLocaleString('en-IN')}
+          sub="Allocated to vendor"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -562,23 +593,10 @@ export function Assign_Survey() {
         />
 
         <KpiCard
-          tone="amber"
-          label="Pending Feasibility"
-          value={pendingCount.toLocaleString('en-IN')}
-          sub="Awaiting engineer site visit"
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 15" />
-            </svg>
-          }
-        />
-
-        <KpiCard
           tone="emerald"
-          label="Completed Surveys"
-          value={completedCount.toLocaleString('en-IN')}
-          sub="Feasibility reports registered"
+          label="Total Allocated Sites"
+          value={totalSitesAllocated.toLocaleString('en-IN')}
+          sub="Sites ready for survey"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
@@ -588,27 +606,40 @@ export function Assign_Survey() {
         />
 
         <KpiCard
-          tone="violet"
-          label="Covered Districts"
-          value={`${districts.length} Districts`}
-          sub="Across Jammu Division"
+          tone="cyan"
+          label="Active Districts"
+          value={activeDistricts.toLocaleString('en-IN')}
+          sub="Coverage across J&K"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="11" r="3" />
-              <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Project Type"
+          value="RESCO"
+          sub="Rooftop Solar Program"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
           }
         />
       </div>
 
       {/* ── Main Table Card ── */}
-      <section className="ax-card ax-col--12" role="region" aria-label="Assigned RESCO sites table">
+      <section className="ax-card ax-col--12" role="region" aria-label="Assigned RESCO Surveys">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">Assigned Resco Sites</h2>
+            <h2 className="ax-card__title">Assigned Resco Site</h2>
             <p className="ax-card__subtitle">
-              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{records.length}</span> sites
-              {' '}· Completed <b className="ax-num">{completedCount}</b> · Pending <b className="ax-num">{pendingCount}</b>
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{records.length}</span> records
+              {' '}· State: <b className="ax-num">Jammu & Kashmir</b>
             </p>
           </div>
 
@@ -620,7 +651,6 @@ export function Assign_Survey() {
                   style={{ width: 140, height: 32 }}
                   value={districtFilter}
                   onChange={(e) => setDistrictFilter(e.target.value)}
-                  aria-label="Filter by District"
                 >
                   <option value="all">All Districts ({districts.length})</option>
                   {districts.map((d) => (
@@ -628,18 +658,6 @@ export function Assign_Survey() {
                   ))}
                 </select>
               )}
-
-              <select
-                className="ax-input ax-input--sm"
-                style={{ width: 140, height: 32 }}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by Survey Status"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending Survey</option>
-                <option value="completed">Completed Survey</option>
-              </select>
 
               {hasFilters && (
                 <button
@@ -655,176 +673,148 @@ export function Assign_Survey() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search vendor, site, CA, district…"
+                placeholder="Search vendor, district…"
                 size="sm"
-                ariaLabel="Search assigned RESCO sites"
+                ariaLabel="Search assigned surveys"
               />
 
               <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleExportCSV}
-                onExportExcel={handleExportExcel}
+                onCopy={() => {
+                  const t = filtered
+                    .map((r, i) =>
+                      [
+                        i + 1,
+                        getVendorDisplay(r),
+                        formatDate(r.assign_date || r.created_at),
+                        r.state || 'Jammu',
+                        cleanText(r.district) || '—',
+                        cleanText(r.site_name) || (r.sites ? (Array.isArray(r.sites) ? r.sites.join(', ') : String(r.sites)) : `Batch #${r.id}`),
+                        r.sitecount ?? r.site_count ?? r.count ?? 1,
+                        r.file || r.document || '—',
+                        cleanText(r.remarks || r.remark) || '—',
+                      ].join('\t')
+                    )
+                    .join('\n');
+                  navigator.clipboard.writeText(t);
+                  setToastMsg({ type: 'success', text: 'Copied to clipboard!' });
+                }}
+                onExportCSV={() => {
+                  const out = [
+                    'Sr. No.,Vendor,Assign Date,State,District,Site Name,Site Count,File,Remarks',
+                    ...filtered.map(
+                      (r, i) =>
+                        `"${i + 1}","${getVendorDisplay(r)}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${cleanText(r.district)}","${cleanText(r.site_name) || (r.sites ? (Array.isArray(r.sites) ? r.sites.join(', ') : String(r.sites)) : `Batch #${r.id}`)}","${r.sitecount ?? r.site_count ?? r.count ?? 1}","${r.file || r.document || '—'}","${cleanText(r.remarks || r.remark) || '—'}"`
+                    ),
+                  ].join('\n');
+                  const blob = new Blob([out], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Assigned_Resco_Site.csv';
+                  a.click();
+                }}
+                onExportExcel={() => {
+                  const out = [
+                    'Sr. No.,Vendor,Assign Date,State,District,Site Name,Site Count,File,Remarks',
+                    ...filtered.map(
+                      (r, i) =>
+                        `"${i + 1}","${getVendorDisplay(r)}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${cleanText(r.district)}","${cleanText(r.site_name) || (r.sites ? (Array.isArray(r.sites) ? r.sites.join(', ') : String(r.sites)) : `Batch #${r.id}`)}","${r.sitecount ?? r.site_count ?? r.count ?? 1}","${r.file || r.document || '—'}","${cleanText(r.remarks || r.remark) || '—'}"`
+                    ),
+                  ].join('\n');
+                  const blob = new Blob([out], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Assigned_Resco_Site.xls';
+                  a.click();
+                }}
                 onExportPDF={() => window.print()}
               />
             </div>
           </div>
         </div>
 
-        {/* ── Table with exact user columns: Sr. No., Vendor, Assign Date, State, District, Site Name, Site Count, File, Remarks ── */}
+        {/* ── Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-            <thead className="ax-table__head" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap' }}>
+            <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" scope="col" style={{ width: 60, textAlign: 'center', position: 'sticky', left: 0, background: 'var(--ax-surface-subtle, #f8fafc)', zIndex: 12 }}>
-                  Sr. No.
-                </th>
+                <th className="ax-table__th" scope="col">Sr. No.</th>
                 <th className="ax-table__th" scope="col">Vendor</th>
                 <th className="ax-table__th" scope="col">Assign Date</th>
                 <th className="ax-table__th" scope="col">State</th>
                 <th className="ax-table__th" scope="col">District</th>
                 <th className="ax-table__th" scope="col">Site Name</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Site Count</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>File</th>
+                <th className="ax-table__th" scope="col">Site Count</th>
+                <th className="ax-table__th" scope="col">File</th>
                 <th className="ax-table__th" scope="col">Remarks</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center', position: 'sticky', right: 0, background: 'var(--ax-surface-subtle, #f8fafc)', zIndex: 12 }}>
-                  Action
-                </th>
               </tr>
             </thead>
-            <tbody>
-              {filtered.length === 0 ? (
+            <tbody aria-busy={loading}>
+              {loading && (
                 <tr>
-                  <td colSpan={10} style={{ padding: 0 }}>
+                  <td colSpan={9} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned survey batches from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ padding: 0 }}>
                     <TableEmptyState
-                      title="No assigned RESCO sites found"
-                      message={hasFilters ? 'No sites match your current filters. Try resetting search.' : 'No RESCO survey assignments registered.'}
+                      title="No data available in table"
+                      message={hasFilters ? 'No records match your filters. Try clearing your search.' : 'No survey batches currently assigned to your vendor account.'}
                       onClear={hasFilters ? resetFilters : undefined}
                     />
                   </td>
                 </tr>
-              ) : (
+              )}
+              {!loading &&
                 paginatedData.map((row, idx) => {
-                  const serialNumber = (currentPage - 1) * pageSize + idx + 1;
-                  const isCompleted = row.surveyStatus === 'completed';
+                  const vendorName = getVendorDisplay(row);
+                  const siteDisplay = cleanText(row.site_name) || (row.sites ? (Array.isArray(row.sites) ? row.sites.join(', ') : String(row.sites)) : `Batch #${row.id}`);
+                  const assignedDate = formatDate(row.assign_date || row.created_at);
+                  const siteCount = row.sitecount ?? row.site_count ?? row.count ?? 1;
+                  const fileUrl = row.file || row.document || (row as any).file_url;
+                  const remarksText = cleanText(row.remarks || row.remark) || '—';
 
                   return (
-                    <tr key={row.id} className="ax-table__row">
-                      {/* Sr. No. */}
-                      <td
-                        className="ax-table__td ax-num"
-                        style={{
-                          textAlign: 'center',
-                          position: 'sticky',
-                          left: 0,
-                          background: 'var(--ax-surface-solid)',
-                          zIndex: 6,
-                        }}
-                      >
-                        {serialNumber}
-                      </td>
-
-                      {/* Vendor */}
+                    <tr key={row.id || idx} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                        {row.vendor}
+                        {vendorName}
                       </td>
-
-                      {/* Assign Date */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.assignDate}
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>{assignedDate}</td>
+                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
+                      <td className="ax-table__td"><b>{row.district || '—'}</b></td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {siteDisplay}
                       </td>
-
-                      {/* State */}
-                      <td className="ax-table__td">{row.state}</td>
-
-                      {/* District */}
+                      <td className="ax-table__td ax-num" style={{ fontWeight: 600 }}>{siteCount}</td>
                       <td className="ax-table__td">
-                        <b>{row.district}</b>
-                      </td>
-
-                      {/* Site Name */}
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)', maxWidth: 280, whiteSpace: 'normal' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span>{row.siteName}</span>
-                          <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>{row.id} · {row.caNo}</span>
-                        </div>
-                      </td>
-
-                      {/* Site Count */}
-                      <td className="ax-table__td ax-num" style={{ textAlign: 'center', fontWeight: 700 }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--neutral">
-                          {row.siteCount}
-                        </span>
-                      </td>
-
-                      {/* File */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setToastMsg({ type: 'success', text: `Work Order document downloaded for ${row.siteName}` })}
-                          style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                          title="Download Work Order PDF"
-                        >
-                          📄 View File
-                        </button>
-                      </td>
-
-                      {/* Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 260, whiteSpace: 'normal', fontSize: 12 }}>
-                        {row.remarks}
-                      </td>
-
-                      {/* Action */}
-                      <td
-                        className="ax-table__td"
-                        style={{
-                          textAlign: 'center',
-                          position: 'sticky',
-                          right: 0,
-                          background: 'var(--ax-surface-solid)',
-                          zIndex: 6,
-                          boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.06)',
-                        }}
-                      >
-                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <button
-                            type="button"
+                        {fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
                             className="ax-btn ax-btn--ghost ax-btn--xs"
-                            onClick={() => setDetailModalItem(row)}
-                            title="View allocation details"
-                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11 }}
+                            title="Open file in new tab"
                           >
-                            Details
-                          </button>
-
-                          {!isCompleted ? (
-                            <Link
-                              to={`/v/jammu/survey/resco/pending-survey?siteId=${row.id}`}
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600 }}
-                            >
-                              Conduct Survey ➔
-                            </Link>
-                          ) : (
-                            <Link
-                              to="/v/jammu/survey/resco/view-survey"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a' }}
-                            >
-                              ✓ Surveyed
-                            </Link>
-                          )}
-                        </div>
+                            View File ↗
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
                       </td>
+                      <td className="ax-table__td">{remarksText}</td>
                     </tr>
                   );
-                })
-              )}
+                })}
             </tbody>
           </table>
         </div>
 
-        {/* ── Footer Pagination ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -833,20 +823,25 @@ export function Assign_Survey() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[5, 8, 15, 25, 50]}
+              pageSizeOptions={[10, 25, 50, 100]}
             />
           </div>
         </div>
       </section>
 
-      {/* ── View Detail Modal ── */}
+      {/* ── View Batch Detail Modal ── */}
       {detailModalItem && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="assigned-site-detail-title">
+        <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="assigned-resco-batch-detail-title">
           <div className="ax-modal__backdrop" onClick={() => setDetailModalItem(null)} />
-          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 640 }}>
+          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 620 }}>
             <div className="ax-modal__header">
-              <h2 className="ax-modal__title" id="assigned-site-detail-title" style={{ fontSize: 15, fontWeight: 700 }}>
-                RESCO Allocation Details: {detailModalItem.id}
+              <h2 className="ax-modal__title" id="assigned-resco-batch-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>Jammu RESCO Survey Assignment Details</span>
+                {detailModalItem.id && (
+                  <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
+                    #{detailModalItem.id}
+                  </span>
+                )}
               </h2>
               <button
                 type="button"
@@ -860,61 +855,65 @@ export function Assign_Survey() {
             <div className="ax-modal__body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Unique ID</span>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assignment ID</span>
                   <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>
-                  <b>{detailModalItem.vendor}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor Name</span>
+                  <b>{getVendorDisplay(detailModalItem)}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site Name</span>
-                  <b>{detailModalItem.siteName}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State</span>
+                  <b>{detailModalItem.state || 'Jammu'}</b>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>District</span>
+                  <b>{cleanText(detailModalItem.district) || '—'}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Department</span>
-                  <b>{detailModalItem.department}</b>
+                  <b>{cleanText(detailModalItem.dept_name) || '—'}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>District &amp; Division</span>
-                  <b>{detailModalItem.district} · {detailModalItem.division}</b>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Sub Division</span>
-                  <b>{detailModalItem.subDivision}</b>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Location &amp; Address</span>
-                  <b>{detailModalItem.location}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site Name</span>
+                  <b>{cleanText(detailModalItem.site_name) || `Batch #${detailModalItem.id}`}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>CA Number</span>
-                  <b style={{ fontFamily: 'monospace' }}>{detailModalItem.caNo}</b>
+                  <b>{cleanText(detailModalItem.ca_no) || '—'}</b>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assigned Date</span>
+                  <b>{formatDate(detailModalItem.created_at || detailModalItem.assign_date)}</b>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Type / Purpose</span>
+                  <b>{detailModalItem.type || 'RESCO'} · {detailModalItem.purpose || 'Survey'}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Status</span>
-                  {detailModalItem.surveyStatus === 'completed' ? (
-                    <Badge tone="success">Survey Completed</Badge>
-                  ) : (
-                    <Badge tone="warning">Pending Feasibility</Badge>
-                  )}
+                  <Badge tone="warning">Assigned (Survey Pending)</Badge>
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Remarks</span>
                   <p style={{ margin: '4px 0 0 0', fontSize: 13, background: 'var(--ax-surface-subtle, #f8fafc)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                    {detailModalItem.remarks}
+                    {cleanText(detailModalItem.remarks || detailModalItem.remark) || 'No remarks provided.'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="ax-modal__footer">
-              <Link
-                to={`/v/jammu/survey/resco/pending-survey?siteId=${detailModalItem.id}`}
+              <button
+                type="button"
                 className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={() => {
+                  setDetailModalItem(null);
+                  navigate(`/v/jammu/survey/resco/pending-survey?siteId=${detailModalItem.id}`);
+                }}
               >
-                Go to Feasibility Form ➔
-              </Link>
+                Conduct Survey ➔
+              </button>
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"

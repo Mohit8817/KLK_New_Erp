@@ -1191,7 +1191,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
                   const lat = txt(row, 'latitude');
                   const lng = txt(row, 'longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const lightLabel = row.unique_id || `Light #${row.id}`;
+                  const lightLabel = row.unique_id || `Light ${row.id}`;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
@@ -1341,7 +1341,7 @@ export function Punjab_Installation_SSL_InstallationDetail() {
             <div className="ax-modal__header">
               <div>
                 <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} id="punjab-detail-title">
-                  Light Installation Record #{detailModalItem.unique_id || detailModalItem.id}
+                  Light Installation Record {detailModalItem.unique_id || detailModalItem.id}
                 </h4>
                 <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
                   {detailModalItem.district ? `District: ${detailModalItem.district} · ` : ''}State: Punjab

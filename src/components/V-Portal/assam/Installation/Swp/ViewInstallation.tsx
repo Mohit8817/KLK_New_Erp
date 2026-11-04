@@ -918,7 +918,7 @@ export function ViewInstallation() {
       fd.append('doc_remarks', 'Installation document uploaded');
 
       await assamSwpService.submitInstallationDoc(fd);
-      setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${siteId}!` });
+      setToastMsg({ type: 'success', text: `Document submitted successfully for Site ${siteId}!` });
 
       // Save to localStorage so status persists across reload & API refresh
       saveUploadedDocToStorage({
@@ -1359,7 +1359,7 @@ export function ViewInstallation() {
                   const lat = txt(row, 'latitude') || txt(row, 'inst_latitude');
                   const lng = txt(row, 'longitude') || txt(row, 'inst_longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const farmerLabel = row.farmer_name || `Site #${row.id}`;
+                  const farmerLabel = row.farmer_name || `Site ${row.id}`;
                   const docUrl = resolveAssamMediaUrl(row.inst_doc || row.document || row.doc_file);
                   const moduleImg = row.module_photo || row.module_image;
                   const invImg = row.inverter_vfd_photo || row.inverter_vfd_image;
@@ -1517,7 +1517,7 @@ export function ViewInstallation() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100, 200]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1536,7 +1536,7 @@ export function ViewInstallation() {
                   Submit Installation Document
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                  Site: <b>{docModalSite.farmer_name || DASH}</b> (#{docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
+                  Site: <b>{docModalSite.farmer_name || DASH}</b> ({docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
                 </p>
               </div>
               <button

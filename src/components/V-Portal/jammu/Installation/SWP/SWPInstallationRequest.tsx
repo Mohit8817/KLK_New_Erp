@@ -393,7 +393,7 @@ export function SWPInstallationRequest() {
   const getVendorDisplay = useCallback(
     (rowVendor?: string | number | null) => {
       if (loginVendorName) return loginVendorName;
-      if (rowVendor) return `Vendor #${rowVendor}`;
+      if (rowVendor) return `Vendor ${rowVendor}`;
       return 'ABC Solar Pvt Ltd';
     },
     [loginVendorName]
@@ -865,17 +865,19 @@ export function SWPInstallationRequest() {
                       <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
                         {siteList.length || 1}
                       </td>
+                      {/* View */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <button
                           type="button"
                           className="ax-btn ax-btn--ghost ax-btn--xs"
                           onClick={() => handleOpenDetailModal(row)}
-                          title="View full batch details"
+                          title="View assigned sites list"
                           style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
                         >
-                          👁️ View
+                          View
                         </button>
                       </td>
+                      {/* File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {row.file ? (
                           <a
@@ -904,6 +906,16 @@ export function SWPInstallationRequest() {
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            onClick={() => handleOpenDetailModal(row)}
+                            title="View full batch details"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                          >
+                            View
+                          </button>
+
                           {!isAccepted ? (
                             <button
                               type="button"
@@ -922,14 +934,7 @@ export function SWPInstallationRequest() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to="/v/jammu/installation/swp/installation-site"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to SWP installation form"
-                            >
-                              Install Site ➔
-                            </Link>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -947,8 +952,9 @@ export function SWPInstallationRequest() {
               totalItems={totalItems}
               pageSize={pageSize}
               onPageChange={setPage}
+              setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -964,7 +970,7 @@ export function SWPInstallationRequest() {
                 <span>SWP Batch Assignment Details</span>
                 {detailModalItem.id && (
                   <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
-                    #{detailModalItem.id}
+                    {detailModalItem.id}
                   </span>
                 )}
               </h2>
@@ -987,7 +993,7 @@ export function SWPInstallationRequest() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                     <div>
                       <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch ID</span>
-                      <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>#{detailModalItem.id}</b>
+                      <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
                     </div>
                     <div>
                       <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>
@@ -1050,7 +1056,7 @@ export function SWPInstallationRequest() {
                           <div>
                             <b style={{ color: 'var(--ax-text-strong)', display: 'block' }}>{s.f_farmer_name}</b>
                             <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                              Site ID: #{s.id} {detailModalItem.district ? `• District: ${detailModalItem.district}` : ''}
+                              Site ID: {s.id} {detailModalItem.district ? `• District: ${detailModalItem.district}` : ''}
                             </span>
                           </div>
                           {detailModalItem.deadline && (

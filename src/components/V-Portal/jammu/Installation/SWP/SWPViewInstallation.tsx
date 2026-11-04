@@ -558,28 +558,28 @@ const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as cons
 // Exactly 24 requested headers:
 const HEADERS_24 = [
   'Sr. No.',
+  'Vendor',
   'State',
   'District',
-  'Tehsil',
-  'Block',
-  'Village',
-  'Applicant Name',
-  'VFD No.',
-  'Motor No.',
-  'Pump No.',
-  'Module Serial No.',
-  'Farmer With Module Image',
-  'Inverter and VFD with Farmer Image',
-  'Running Water With Farmer Image',
-  'Pole With Farmer Image',
-  'Remarks',
-  'Verify Status',
-  'Verify Remarks',
-  'Document Status',
-  'Document Remarks',
-  'Doc Verify Remarks',
-  'Claim Status',
-  'Payment Status',
+  'Application No.',
+  'Beneficiary Name',
+  'Contact Number',
+  'Latitude',
+  'Longitude',
+  'Pump Type',
+  'Pump Capacity',
+  'Pump Head (in Mtr)',
+  'Water Source',
+  'Total Dynamic Head (in Mtr)',
+  'Borewell Depth (in Mtr)',
+  'Water Delivery Output (in Ltr)',
+  'Panel Capacity (in Watts)',
+  'No. of Panels',
+  'Inverter Serial No.',
+  'Pump Serial No.',
+  'Motor Serial No.',
+  'Status',
+  'Survey Status',
   'Action',
 ];
 
@@ -890,37 +890,29 @@ export function SWPViewInstallation() {
   // Export Columns definition
   const exportCols: ExportColumn<JammuSwpInstalledSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: () => 'Jammu & Kashmir' },
-      { header: 'District', accessor: (r) => txt(r, 'district') },
-      { header: 'Tehsil', accessor: (r) => txt(r, 'tehsil') },
-      { header: 'Block', accessor: (r) => txt(r, 'block') },
-      { header: 'Village', accessor: (r) => txt(r, 'village') },
-      { header: 'Applicant Name', accessor: (r) => txt(r, 'f_farmer_name') },
-      { header: 'VFD No.', accessor: (r) => txt(r, 'vfd_no') },
-      { header: 'Motor No.', accessor: (r) => txt(r, 'mt_motor_no') },
-      { header: 'Pump No.', accessor: (r) => txt(r, 'mt_pump_no') },
-      { header: 'Module Serial No.', accessor: (r) => fmtModules(r) },
-      { header: 'Remarks', accessor: (r) => txt(r, 'inst_remarks') },
-      {
-        header: 'Verify Status',
-        accessor: (r) => (Number(r.inst_verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status) === 2 ? 'Rejected' : 'Pending'),
-      },
-      { header: 'Verify Remarks', accessor: (r) => txt(r, 'inst_verify_remarks') },
-      {
-        header: 'Document Status',
-        accessor: (r) => (Number(r.inst_doc_status) === 2 ? 'Approved' : Number(r.inst_doc_status) === 1 ? 'Submitted' : 'Not Submitted'),
-      },
-      { header: 'Document Remarks', accessor: (r) => txt(r, 'inst_doc_remarks') },
-      { header: 'Doc Verify Remarks', accessor: (r) => txt(r, 'inst_doc_verify_remarks') },
-      {
-        header: 'Claim Status',
-        accessor: (r) => (Number(r.inst_claim_status) === 2 ? 'Approved' : Number(r.inst_claim_status) === 1 ? 'Raised' : 'Not Raised'),
-      },
-      {
-        header: 'Payment Status',
-        accessor: (r) => (Number(r.inst_pay_status) === 1 ? 'Done' : Number(r.inst_pay_status) === 2 ? 'Partially' : 'Pending'),
-      },
+      { header: 'Sr. No.', accessor: (_r: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Vendor', accessor: (r: any) => txt(r, 'vendor_name') || txt(r, 'vendor') || DASH },
+      { header: 'State', accessor: (r: any) => r.state || 'Jammu' },
+      { header: 'District', accessor: (r: any) => txt(r, 'district') || DASH },
+      { header: 'Application No.', accessor: (r: any) => txt(r, 'application_no') || txt(r, 'app_no') || String(r.id) },
+      { header: 'Beneficiary Name', accessor: (r: any) => r.f_farmer_name || txt(r, 'beneficiary_name') || DASH },
+      { header: 'Contact Number', accessor: (r: any) => txt(r, 'contact_no') || txt(r, 'mobile') || txt(r, 'phone') || DASH },
+      { header: 'Latitude', accessor: (r: any) => txt(r, 'inst_latitude') || txt(r, 'latitude') || DASH },
+      { header: 'Longitude', accessor: (r: any) => txt(r, 'inst_longitude') || txt(r, 'longitude') || DASH },
+      { header: 'Pump Type', accessor: (r: any) => txt(r, 'pump_type') || DASH },
+      { header: 'Pump Capacity', accessor: (r: any) => txt(r, 'pump_capacity') || txt(r, 'capacity') || DASH },
+      { header: 'Pump Head (in Mtr)', accessor: (r: any) => txt(r, 'pump_head') || txt(r, 'head') || DASH },
+      { header: 'Water Source', accessor: (r: any) => txt(r, 'water_source') || DASH },
+      { header: 'Total Dynamic Head (in Mtr)', accessor: (r: any) => txt(r, 'total_dynamic_head') || txt(r, 'tdh') || DASH },
+      { header: 'Borewell Depth (in Mtr)', accessor: (r: any) => txt(r, 'borewell_depth') || txt(r, 'depth') || DASH },
+      { header: 'Water Delivery Output (in Ltr)', accessor: (r: any) => txt(r, 'water_delivery_output') || txt(r, 'discharge') || DASH },
+      { header: 'Panel Capacity (in Watts)', accessor: (r: any) => txt(r, 'panel_capacity') || txt(r, 'module_capacity') || DASH },
+      { header: 'No. of Panels', accessor: (r: any) => txt(r, 'no_of_panels') || String(r.jammuModulee?.length || r.jammu_modules?.length || DASH) },
+      { header: 'Inverter Serial No.', accessor: (r: any) => txt(r, 'vfd_no') || txt(r, 'inverter_sr_no') || DASH },
+      { header: 'Pump Serial No.', accessor: (r: any) => txt(r, 'mt_pump_no') || txt(r, 'pump_sr_no') || DASH },
+      { header: 'Motor Serial No.', accessor: (r: any) => txt(r, 'mt_motor_no') || txt(r, 'motor_sr_no') || DASH },
+      { header: 'Status', accessor: (r: any) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending') },
+      { header: 'Survey Status', accessor: (r: any) => (Number(r.survey_status ?? r.inst_verify_status) === 1 ? 'Completed' : 'Pending') },
     ],
     []
   );
@@ -954,7 +946,7 @@ export function SWPViewInstallation() {
       columns.map((c) => c.header),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -1217,7 +1209,7 @@ export function SWPViewInstallation() {
               )}
               {!loading &&
                 paginatedData.map((row, index) => {
-                  const siteLabel = row.f_farmer_name || `Site #${row.id}`;
+                  const siteLabel = row.f_farmer_name || `Site ${row.id}`;
                   const isVerifyApproved = Number(row.inst_verify_status) === 1;
                   const isHocSubmitted = Number(row.inst_doc_status) === 1 || Number(row.inst_doc_status) === 2 || Boolean(row.inst_doc);
                   const canSubmitHoc = isVerifyApproved && !isHocSubmitted;
@@ -1226,88 +1218,53 @@ export function SWPViewInstallation() {
                   return (
                     <tr key={row.id} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td">{row.state || 'jammu'}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row, 'vendor_name') || txt(row, 'vendor') || DASH}</td>
+                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
-                      <td className="ax-table__td">{txt(row, 'tehsil') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'block') || DASH}</td>
-                      <td className="ax-table__td">{txt(row, 'village') || DASH}</td>
+                      <td className="ax-table__td ax-num" style={monoCell}>{txt(row, 'application_no') || txt(row, 'app_no') || String(row.id)}</td>
                       <td className="ax-table__td">
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {row.f_farmer_name || DASH}
+                          {row.f_farmer_name || txt(row, 'beneficiary_name') || DASH}
                         </span>
                       </td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'vfd_no') || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_motor_no') || DASH}</td>
-                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_pump_no') || DASH}</td>
-                      <td className="ax-table__td" style={{ ...monoCell, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {fmtModules(row)}
-                      </td>
-
-                      {/* 4 Photo Thumbnails with click-to-preview lightbox */}
-                      <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.module_image}
-                          alt={`${siteLabel} - Farmer With Module Image`}
-                          onPreview={openPreview}
-                        />
-                      </td>
-                      <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.vfd_image}
-                          alt={`${siteLabel} - Inverter and VFD with Farmer Image`}
-                          onPreview={openPreview}
-                        />
-                      </td>
-                      <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.running_water_image}
-                          alt={`${siteLabel} - Running Water With Farmer Image`}
-                          onPreview={openPreview}
-                        />
-                      </td>
-                      <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.pole_image}
-                          alt={`${siteLabel} - Pole With Farmer Image`}
-                          onPreview={openPreview}
-                        />
-                      </td>
-
-                      {/* Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'inst_remarks') || DASH}
-                      </td>
-
-                      {/* Verify Status & Remarks */}
+                      <td className="ax-table__td" style={monoCell}>{txt(row, 'contact_no') || txt(row, 'mobile') || txt(row, 'phone') || DASH}</td>
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'inst_latitude') || txt(row, 'latitude') || DASH}</td>
+                      <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'inst_longitude') || txt(row, 'longitude') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'pump_type') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'pump_capacity') || txt(row, 'capacity') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'pump_head') || txt(row, 'head') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'water_source') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'total_dynamic_head') || txt(row, 'tdh') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'borewell_depth') || txt(row, 'depth') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'water_delivery_output') || txt(row, 'discharge') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'panel_capacity') || txt(row, 'module_capacity') || DASH}</td>
+                      <td className="ax-table__td">{txt(row, 'no_of_panels') || String(row.jammuModulee?.length || row.jammu_modules?.length || DASH)}</td>
+                      <td className="ax-table__td" style={monoCell}>{txt(row, 'vfd_no') || txt(row, 'inverter_sr_no') || DASH}</td>
+                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_pump_no') || txt(row, 'pump_sr_no') || DASH}</td>
+                      <td className="ax-table__td" style={monoCell}>{txt(row, 'mt_motor_no') || txt(row, 'motor_sr_no') || DASH}</td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <VerifyBadge value={row.inst_verify_status} />
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'inst_verify_remarks') || DASH}
-                      </td>
-
-                      {/* Document Status & Remarks */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <DocStatusBadge status={row.inst_doc_status} docUrl={docUrl} />
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'inst_doc_remarks') || DASH}
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {txt(row, 'inst_doc_verify_remarks') || DASH}
-                      </td>
-
-                      {/* Claim & Payment Status */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <ClaimBadge status={row.inst_claim_status} />
+                        <Badge tone={Number(row.inst_status) === 1 ? 'success' : 'warning'}>
+                          {Number(row.inst_status) === 1 ? 'Installed' : 'Pending'}
+                        </Badge>
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <PaymentStatusBadge status={row.inst_pay_status} />
+                        <Badge tone={Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'success' : 'neutral'}>
+                          {Number(row.survey_status ?? row.inst_verify_status) === 1 ? 'Completed' : 'Pending'}
+                        </Badge>
                       </td>
 
                       {/* Action */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            onClick={() => handleOpenDetailModal(row)}
+                            title="View full site installation specifications"
+                            style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
+                          >
+                            View
+                          </button>
                           {canSubmitHoc && (
                             <button
                               type="button"
@@ -1319,8 +1276,7 @@ export function SWPViewInstallation() {
                               Submit HOC
                             </button>
                           )}
-
-                          {!isVerifyApproved ? (
+                          {!isVerifyApproved && (
                             <button
                               type="button"
                               className="ax-btn ax-btn--secondary ax-btn--xs"
@@ -1329,28 +1285,6 @@ export function SWPViewInstallation() {
                             >
                               Edit
                             </button>
-                          ) : (
-                            !canSubmitHoc && (
-                              <span
-                                className="ax-badge ax-badge--soft"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 4,
-                                  padding: '4px 8px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  color: 'var(--ax-text-muted, #64748b)',
-                                  background: 'var(--ax-surface-subtle, #f1f5f9)',
-                                  border: '1px solid var(--ax-border, #cbd5e1)',
-                                  borderRadius: 6,
-                                  cursor: 'not-allowed',
-                                }}
-                                title="Installation Verified & Approved. Actions locked."
-                              >
-                                🔒 Locked
-                              </span>
-                            )
                           )}
                         </div>
                       </td>
@@ -1389,7 +1323,7 @@ export function SWPViewInstallation() {
                 Edit SWP Installation Details
               </h4>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Applicant: <b>{editForm.farmer_name}</b> (#{editingId})
+                Applicant: <b>{editForm.farmer_name}</b> ({editingId})
               </p>
             </div>
             <button
@@ -1484,7 +1418,7 @@ export function SWPViewInstallation() {
                           className="ax-input"
                           style={{ flex: 1 }}
                           value={m}
-                          placeholder={`Module #${mIdx + 1}`}
+                          placeholder={`Module ${mIdx + 1}`}
                           onChange={(e) => {
                             const val = e.target.value;
                             setEditForm((prev) => {
@@ -1642,7 +1576,7 @@ export function SWPViewInstallation() {
                   Submit HOC Document
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                  Applicant: <b>{docModalSite.f_farmer_name || DASH}</b> (#{docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
+                  Applicant: <b>{docModalSite.f_farmer_name || DASH}</b> ({docModalSite.id}) {docModalSite.district ? `· ${docModalSite.district}` : ''}
                 </p>
               </div>
               <button

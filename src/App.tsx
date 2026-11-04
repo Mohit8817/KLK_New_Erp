@@ -327,6 +327,19 @@ const KashmirExpensesRequest = lazy(() => import('./components/V-Portal/kashmir/
 const KashmirExpensesView = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewExpenses'));
 const KashmirExpensesPayment = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewPayments'));
 
+// ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
+const VendorDailyReport = lazy(() => import('./components/V-Portal/reports/DailyReport'));
+const VendorAddReport = lazy(() => import('./components/V-Portal/reports/AddReport'));
+const VendorViewReport = lazy(() => import('./components/V-Portal/reports/ViewReport'));
+
+const VendorComplaintDashboard = lazy(() => import('./components/V-Portal/complaints/VendorComplaintDashboard'));
+const VendorAddComplaint = lazy(() => import('./components/V-Portal/complaints/AddComplaint'));
+const VendorViewComplaint = lazy(() => import('./components/V-Portal/complaints/ViewComplaint'));
+
+const VendorUsersDashboard = lazy(() => import('./components/V-Portal/users/UsersDashboard'));
+const VendorAddUser = lazy(() => import('./components/V-Portal/users/AddUser'));
+const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers'));
+
 
 
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
@@ -554,6 +567,32 @@ const shell: Record<string, PageComponent> = {
   'v-dashboard': VPortalDashboard,
   'v-portal': VPortalDashboard,
   'vendor/dashboard': VPortalDashboard,
+
+  // ══════════════ V-PORTAL: COMMON MODULES ══════════════
+  // Reports
+  'v/reports': VendorDailyReport,
+  'v/reports/daily-report': VendorDailyReport,
+  'v/reports/add-report': VendorAddReport,
+  'v/reports/view-report': VendorViewReport,
+  'v/vendor-daily-view-progress': VendorDailyReport,
+  'v/vendor-add-progress': VendorAddReport,
+  'v/vendor-view-progress': VendorViewReport,
+
+  // Complaints
+  'v/complaints': VendorComplaintDashboard,
+  'v/complaints/vendor-complaint': VendorComplaintDashboard,
+  'v/complaints/add-complaint': VendorAddComplaint,
+  'v/complaints/view-complaint': VendorViewComplaint,
+  'v/vendor-add-complaint': VendorAddComplaint,
+  'v/vendor-view-complaint': VendorViewComplaint,
+
+  // Users
+  'v/users': VendorUsersDashboard,
+  'v/users/overview': VendorUsersDashboard,
+  'v/users/add-user': VendorAddUser,
+  'v/users/view-users': VendorViewUsers,
+  'v/vendor-add-user': VendorAddUser,
+  'v/vendor-view-user': VendorViewUsers,
 
   // ══════════════ V-PORTAL: ASSAM ══════════════
   'v/assam/installation/swp/dashboard': AssamDashboard,

@@ -896,7 +896,7 @@ export function KarnatakaViewPayment() {
   }, [claims, search, statusFilter, payFilter, sitesMap]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 25 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -936,7 +936,7 @@ export function KarnatakaViewPayment() {
         return sids
           .map((sid) => {
             const sObj = sitesMap[String(sid)];
-            return sObj?.f_farmer_name ? `${sid} (${sObj.f_farmer_name})` : `#${sid}`;
+            return sObj?.f_farmer_name ? `${sid} (${sObj.f_farmer_name})` : `${sid}`;
           })
           .join(', ');
       },
@@ -1322,7 +1322,7 @@ export function KarnatakaViewPayment() {
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                                     <span className="ax-badge ax-badge--soft ax-badge--primary" style={{ fontWeight: 700, fontSize: 10.5 }}>
-                                      Site #{sid}
+                                      Site {sid}
                                     </span>
                                     {pump && (
                                       <span style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600 }}>
@@ -1381,7 +1381,7 @@ export function KarnatakaViewPayment() {
                               type="button"
                               className="ax-btn ax-btn--ghost ax-btn--xs"
                               style={{ color: 'var(--asw-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              onClick={() => setPreviewImage({ url: invoiceUrl, title: `Invoice Document - Claim #${c.id}` })}
+                              onClick={() => setPreviewImage({ url: invoiceUrl, title: `Invoice Document - Claim ${c.id}` })}
                             >
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 13, height: 13 }}>
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -1504,7 +1504,7 @@ export function KarnatakaViewPayment() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>

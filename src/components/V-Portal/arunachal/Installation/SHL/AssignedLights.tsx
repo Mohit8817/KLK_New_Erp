@@ -428,7 +428,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
   }, [records, search, statusFilter, districtFilter]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 50 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -631,7 +631,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
                     .map((r, i) =>
                       [
                         i + 1,
-                        `#${r.id}`,
+                        r.id,
                         r.company_id || '',
                         r.vendor || '',
                         r.state || 'Arunachal Pradesh',
@@ -741,7 +741,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
                     <tr key={row.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 700, color: '#2563eb' }}>
-                        #{row.id}
+                        {row.id}
                       </td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                         {row.vendor || '—'}
@@ -812,14 +812,23 @@ export function Arunachal_Installation_SHL_AssignedLights() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to="/v/arunachal/shl/installation/install-light"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to installation form"
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '3px 10px',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                userSelect: 'none',
+                                cursor: 'default',
+                              }}
+                              title="Site Accepted"
                             >
-                              Install Light ➔
-                            </Link>
+                              <span className="ax-badge__dot" />
+                              Done
+                            </span>
                           )}
                         </div>
                       </td>
@@ -838,7 +847,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -851,7 +860,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
           <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 650 }}>
             <div className="ax-modal__header">
               <h2 className="ax-modal__title" id="assigned-batch-detail-title" style={{ fontSize: 15, fontWeight: 700 }}>
-                Batch Assignment Details: #{detailModalItem.id}
+                Batch Assignment Details: {detailModalItem.id}
               </h2>
               <button
                 type="button"
@@ -866,7 +875,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch ID</span>
-                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>#{detailModalItem.id}</b>
+                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Company ID</span>
@@ -987,16 +996,22 @@ export function Arunachal_Installation_SHL_AssignedLights() {
                   {acceptingId === detailModalItem.id ? 'Accepting…' : 'Accept Assignment'}
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  onClick={() => {
-                    setDetailModalItem(null);
-                    navigate('/v/arunachal/shl/installation/install-light');
+                <span
+                  className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 12px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    userSelect: 'none',
+                    cursor: 'default',
                   }}
                 >
-                  Install Light ➔
-                </button>
+                  <span className="ax-badge__dot" />
+                  Done
+                </span>
               )}
               <button
                 type="button"

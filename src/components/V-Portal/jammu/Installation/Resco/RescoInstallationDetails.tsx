@@ -760,7 +760,7 @@ export function RescoInstallationDetails() {
   }, [sites, districtFilter, verifyFilter, search]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filteredSites, initialPageSize: 25 });
+    usePagination({ data: filteredSites, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -1184,7 +1184,7 @@ export function RescoInstallationDetails() {
                   const lat = txt(row, 'inst_latitude') || txt(row, 'latitude');
                   const lng = txt(row, 'inst_longitude') || txt(row, 'longitude');
                   const hasGeo = lat !== '' && lng !== '' && !isNaN(Number(lat)) && !isNaN(Number(lng));
-                  const siteLabel = row.site_name || `Site #${row.id}`;
+                  const siteLabel = row.site_name || `Site ${row.id}`;
 
                   const panelImg = row.panel_image;
                   const systemImg = row.system_image;
@@ -1371,7 +1371,7 @@ export function RescoInstallationDetails() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1389,7 +1389,7 @@ export function RescoInstallationDetails() {
                 Edit RESCO Installation Details
               </h4>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Site: <b>{editForm.site_name}</b> (#{editingId})
+                Site: <b>{editForm.site_name}</b> ({editingId})
               </p>
             </div>
             <button
@@ -1580,7 +1580,7 @@ export function RescoInstallationDetails() {
                   Submit Installation Document
                 </h4>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                  Site: <b>{docModalSite.site_name || DASH}</b> (#{docModalSite.site_id || docModalSite.id})
+                  Site: <b>{docModalSite.site_name || DASH}</b> ({docModalSite.site_id || docModalSite.id})
                 </p>
               </div>
               <button

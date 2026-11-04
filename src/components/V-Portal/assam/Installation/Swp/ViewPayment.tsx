@@ -17,7 +17,6 @@ import {
   type ClaimItem,
   type ClaimEligibleSite,
 } from '../../assam-services';
-import { SAMPLE_PAYMENT_SITES } from '../../../../../data/demo/assamPayments';
 
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
@@ -603,13 +602,6 @@ export function ViewPayment() {
         allSites = res.sites;
       }
 
-      if (allSites.length === 0 && SAMPLE_PAYMENT_SITES.length > 0) {
-        allSites = SAMPLE_PAYMENT_SITES.map((s) => ({
-          id: Number(s.id),
-          farmer_name: s.label,
-        }));
-      }
-
       setEligibleSites(allSites);
     } catch (err: any) {
       console.error('Failed to load installation claims:', err);
@@ -799,7 +791,7 @@ export function ViewPayment() {
 
   // Pagination hook
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 25 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -1180,7 +1172,7 @@ export function ViewPayment() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -1268,7 +1260,7 @@ export function ViewPayment() {
                   const isSelected = addSelectedSites.includes(site.id);
                   return (
                     <option key={site.id} value={site.id}>
-                      #{site.id} — {site.farmer_name || 'Farmer'} {site.district ? `(${site.district})` : ''} {isSelected ? '✓ [Selected]' : ''}
+                      {site.id} — {site.farmer_name || 'Farmer'} {site.district ? `(${site.district})` : ''} {isSelected ? '✓ [Selected]' : ''}
                     </option>
                   );
                 })}
@@ -1293,7 +1285,7 @@ export function ViewPayment() {
                         }}
                       >
                         <span>
-                          #{sid} — {match?.farmer_name || `Site #${sid}`}
+                          {sid} — {match?.farmer_name || `Site ${sid}`}
                           {match?.district ? ` (${match.district})` : ''}
                         </span>
                         <button
@@ -1497,7 +1489,7 @@ export function ViewPayment() {
                     const isChecked = editSelectedSites.some((id) => String(id) === String(site.id));
                     return (
                       <option key={site.id} value={site.id}>
-                        #{site.id} — {site.farmer_name} {isChecked ? '✓ [Included]' : ''}
+                        {site.id} — {site.farmer_name} {isChecked ? '✓ [Included]' : ''}
                       </option>
                     );
                   })}
@@ -1512,7 +1504,7 @@ export function ViewPayment() {
                         className="ax-badge ax-badge--soft ax-badge--info"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: '12px' }}
                       >
-                        <span>#{sid} — {match?.farmer_name || String(sid)}</span>
+                        <span>{sid} — {match?.farmer_name || String(sid)}</span>
                         <button
                           type="button"
                           onClick={() => setEditSelectedSites((prev) => prev.filter((id) => String(id) !== String(sid)))}

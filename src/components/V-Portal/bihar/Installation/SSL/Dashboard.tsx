@@ -735,7 +735,7 @@ export function Bihar_Installation_SSL_Dashboard() {
 
             <div className="ax-cluster ssl-filter-scope" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Showing Company <b style={{ color: 'var(--ax-accent)' }}>#{activeCompanyId}</b> · <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
               </span>
             </div>
           </div>
@@ -748,7 +748,7 @@ export function Bihar_Installation_SSL_Dashboard() {
               <p className="ax-welcome__eyebrow">Solar Street Light Installation Management System · Bihar State Hub</p>
               <h2 className="ax-card__title">Welcome to Bihar SSL Installation Dashboard</h2>
               <p className="ax-welcome__lede">
-                Bihar state solar street light installation overview for Company #{activeCompanyId}: <b>{dash(ssl.site_count)} lights</b> allocated across <b>{dash(filtersActive ? 1 : districtwise.length)} districts</b>.
+                Bihar state solar street light installation overview: <b>{dash(ssl.site_count)} lights</b> allocated across <b>{dash(filtersActive ? 1 : districtwise.length)} districts</b>.
                 <b> {dash(ssl.complete)} ({instPct}%)</b> lights installed, with <b>{dash(ssl.verify_approved)} ({approvedPct}%)</b> verified and approved by BREDA inspectors.
               </p>
             </div>

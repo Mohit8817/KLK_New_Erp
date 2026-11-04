@@ -617,19 +617,19 @@ export function VPortalDashboard() {
 
             <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>⚡ Active Installations:</span>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Active Installations:</span>
                 <strong style={{ color: 'var(--ax-viz-emerald)' }}>{st.activeInstallations}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>📋 Verified Surveys:</span>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Verified Surveys:</span>
                 <strong style={{ color: 'var(--ax-viz-cyan)' }}>{st.surveysDone}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>🛡️ AMC Maintenance:</span>
+                <span style={{ color: 'var(--ax-text-muted)' }}>AMC Maintenance:</span>
                 <strong style={{ color: 'var(--ax-viz-amber)' }}>{st.amcUnits}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
-                <span style={{ color: 'var(--ax-text-muted)' }}>🚨 Open Complaints:</span>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Open Complaints:</span>
                 <strong style={{ color: 'var(--ax-viz-red)' }}>{st.complaints}</strong>
               </div>
 

@@ -614,7 +614,7 @@ export function InstallLights() {
       } else {
         setFeedback({
           type: 'danger',
-          text: `Light #${sslIdStr} details not found or not accepted by your vendor account.`,
+          text: `Light ${sslIdStr} details not found or not accepted by your vendor account.`,
         });
       }
     } catch (err: any) {
@@ -845,7 +845,7 @@ export function InstallLights() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                Light #{siteDetail.id} {siteDetail.village ? `· ${siteDetail.village}` : ''}
+                Light {siteDetail.id} {siteDetail.village ? `· ${siteDetail.village}` : ''}
               </span>
             )}
           </div>
@@ -898,7 +898,7 @@ export function InstallLights() {
                   <option value="">-- Select Unique ID's --</option>
                   {uniqueIdsList.map((item) => (
                     <option key={item.id} value={String(item.id)}>
-                      #{item.id} {item.village ? `- ${item.village}` : ''} {item.district ? `(${item.district})` : ''}
+                      {item.village ? item.village : `Light ${item.id}`} {item.district ? `(${item.district})` : ''}
                     </option>
                   ))}
                 </select>

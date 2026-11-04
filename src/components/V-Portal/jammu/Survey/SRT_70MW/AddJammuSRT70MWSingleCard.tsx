@@ -1,123 +1,109 @@
-import { useState, useRef, useId } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import {
+  jammuSrtSurveyService,
+  resolveJammuSurveyMediaUrl,
+  type JammuSrtSurveyItem,
+} from '../../jammu-services';
 
-// CSS for Unified Single-Card Layout with Floating Labels & Section Dividers
+/* ───────── Unified Single-Card Layout matching Reference Design ───────── */
 const SINGLE_CARD_FORM_CSS = `
-.jammu-single-card-form .ax-card {
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-xl);
-  background: var(--ax-surface-solid);
-  box-shadow: var(--ax-shadow-sm);
+.solar-erp-page {
+  --asw-primary: #2563eb;
+  --asw-primary-rgb: 37, 99, 235;
+}
+.jammu-srt-form .ax-card {
+  border: 1px solid var(--ax-border, #e2e8f0);
+  border-radius: var(--ax-radius-xl, 16px);
+  background: var(--ax-surface-solid, #ffffff);
+  box-shadow: var(--ax-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   overflow: hidden;
 }
-
-.jammu-single-card-form .ax-card__header {
-  padding: var(--ax-space-5) var(--ax-space-6);
-  border-bottom: 1px solid var(--ax-border-subtle);
-  background: var(--ax-surface-subtle);
+.jammu-srt-form .ax-card__header {
+  padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
+  background: var(--ax-surface-subtle, #f8fafc);
   display: flex;
   flex-direction: column;
-  gap: var(--ax-space-4);
+  gap: var(--ax-space-4, 16px);
 }
+.jammu-srt-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
-.jammu-single-card-form .ax-card__body {
-  padding: var(--ax-space-6);
-}
-
-/* Quick Section Nav Pills inside Single Card */
-.jammu-section-pills {
+/* Quick Section Nav Pills */
+.swp-section-pills {
   display: flex;
-  gap: var(--ax-space-2);
+  gap: var(--ax-space-2, 8px);
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
 }
-.jammu-section-pill-btn {
+.swp-section-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: var(--ax-radius-pill);
-  font-size: var(--ax-text-xs);
+  border-radius: var(--ax-radius-pill, 9999px);
+  font-size: var(--ax-text-xs, 12px);
   font-weight: 500;
   white-space: nowrap;
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  color: var(--ax-text);
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  color: var(--ax-text, #0f172a);
   cursor: pointer;
-  transition: all var(--ax-motion-fast) var(--ax-ease-standard);
-  text-decoration: none;
+  transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
-.jammu-section-pill-btn:hover {
-  border-color: var(--ax-accent);
-  color: var(--ax-accent);
-  background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid));
+.swp-section-pill-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
 }
-.jammu-section-pill-btn .pill-num {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--ax-surface-subtle);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
+.swp-section-pill-btn .pill-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ax-surface-subtle, #f1f5f9);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
 }
 
-/* Section Block inside Single Card */
-.jammu-section-block {
-  padding-top: var(--ax-space-2);
+/* Section Block */
+.swp-section-block { padding-top: var(--ax-space-2, 8px); }
+.swp-section-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+  gap: var(--ax-space-2, 8px);
+  margin-bottom: var(--ax-space-5, 20px);
+  padding-bottom: var(--ax-space-3, 12px);
+  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
 }
-.jammu-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--ax-space-2);
-  margin-bottom: var(--ax-space-5);
-  padding-bottom: var(--ax-space-3);
-  border-bottom: 1px solid var(--ax-border-subtle);
-}
-.jammu-section-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.jammu-section-divider {
+.swp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.swp-section-divider {
   border: 0;
-  border-top: 1px dashed var(--ax-border);
-  margin: var(--ax-space-8) 0 var(--ax-space-6);
+  border-top: 1px dashed var(--ax-border, #cbd5e1);
+  margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
 }
 
 /* Floating Label Core */
-.ax-float {
-  position: relative;
-  width: 100%;
-}
+.ax-float { position: relative; width: 100%; }
 .ax-float__input {
   width: 100%;
   height: 46px;
   padding: 12px 14px 4px 14px;
-  font-size: var(--ax-text-sm);
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-md);
-  color: var(--ax-text);
+  font-size: var(--ax-text-sm, 13.5px);
+  background: var(--ax-surface-solid, #ffffff);
+  border: 1px solid var(--ax-border, #cbd5e1);
+  border-radius: var(--ax-radius-md, 8px);
+  color: var(--ax-text, #0f172a);
   outline: none;
-  transition: border-color var(--ax-motion-fast) var(--ax-ease-standard),
-              box-shadow var(--ax-motion-fast) var(--ax-ease-standard);
+  transition: border-color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              box-shadow var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
-.ax-float__input::placeholder {
-  color: transparent;
-}
+.ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus::placeholder { color: #94a3b8; }
 .ax-float__input:focus {
-  border-color: var(--ax-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
 }
+.ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
-/* Floating Label Text */
 .ax-float__label {
   position: absolute;
   inset-inline-start: 12px;
@@ -125,2050 +111,1389 @@ const SINGLE_CARD_FORM_CSS = `
   transform: translateY(-50%);
   margin: 0;
   padding: 0 4px;
-  font-size: var(--ax-text-sm);
-  color: var(--ax-text-subtle);
-  background: var(--ax-surface-solid);
-  border-radius: var(--ax-radius-xs);
+  font-size: var(--ax-text-sm, 13.5px);
+  color: var(--ax-text-subtle, #64748b);
+  background: var(--ax-surface-solid, #ffffff);
+  border-radius: var(--ax-radius-xs, 4px);
   pointer-events: none;
-  transition: top var(--ax-motion-fast) var(--ax-ease-standard),
-              font-size var(--ax-motion-fast) var(--ax-ease-standard),
-              color var(--ax-motion-fast) var(--ax-ease-standard);
+  transition: top var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              font-size var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease),
+              color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
   z-index: 2;
   white-space: nowrap;
   max-width: calc(100% - 24px);
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* Active Floating State (focus, filled, select, date, file) */
-.ax-float__input:focus + .ax-float__label,
-.ax-float__input:not(:placeholder-shown) + .ax-float__label,
-.ax-float--select .ax-float__label,
-.ax-float--date .ax-float__label,
-.ax-float--file .ax-float__label,
-.ax-float--active .ax-float__label {
+.ax-float__label.floating {
   top: 0;
-  transform: translateY(-50%);
-  font-size: var(--ax-text-2xs);
+  font-size: 11px;
   font-weight: 500;
-  color: var(--ax-text-muted);
+  color: #2563eb;
 }
-.ax-float__input:focus + .ax-float__label {
-  color: var(--ax-accent);
-}
-
-/* Validation States & Status Colors */
-.ax-float__input.is-invalid {
-  border-color: var(--ax-danger-500) !important;
-}
-.ax-float__input.is-invalid:focus {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger-500) 24%, transparent) !important;
-}
-.ax-float__input.is-invalid + .ax-float__label,
-.ax-float--file.is-invalid .ax-float__label {
-  color: var(--ax-danger-500) !important;
-}
-
-.ax-float__input.is-valid {
-  border-color: var(--ax-success-500) !important;
-}
-.ax-float__input.is-valid:focus {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-success-500) 24%, transparent) !important;
-}
-.ax-float__input.is-valid + .ax-float__label,
-.ax-float--file.is-valid .ax-float__label {
-  color: var(--ax-success-500) !important;
-}
-
-/* Textarea Floating */
-.ax-float--area .ax-float__input {
-  height: auto;
-  min-height: 84px;
-  padding-top: 18px;
-  resize: vertical;
-}
-.ax-float--area .ax-float__label {
-  top: 18px;
-  transform: none;
-}
-.ax-float--area .ax-float__input:focus + .ax-float__label,
-.ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label {
+.ax-float__label.has-val:not(.floating) {
   top: 0;
-  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted, #64748b);
 }
 
-/* Custom File Upload with Floating Label */
-.ax-float--file .ax-file-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ax-space-3);
-  height: 46px;
-  padding: 6px 12px;
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-md);
-  cursor: pointer;
-  transition: all var(--ax-motion-fast) var(--ax-ease-standard);
-}
-.ax-float--file .ax-file-box:hover {
-  border-color: var(--ax-border-strong);
-  background: var(--ax-surface-subtle);
-}
-.ax-float--file.is-invalid .ax-file-box {
-  border-color: var(--ax-danger-500) !important;
-}
-.ax-float--file.is-valid .ax-file-box {
-  border-color: var(--ax-success-500) !important;
-}
-
-/* Feedback Helper Messages */
-.ax-field-feedback {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  font-size: var(--ax-text-2xs);
-  min-height: 16px;
-}
-.ax-field-feedback--error {
-  color: var(--ax-danger-500);
-}
-.ax-field-feedback--success {
-  color: var(--ax-success-500);
-}
-
-/* Form Responsive Grid */
-.jammu-form-grid {
+/* Upload dropzone grid */
+.jammu-upload-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--ax-space-4) var(--ax-space-4);
-}
-@media (min-width: 1024px) {
-  .jammu-form-grid--3col {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .jammu-form-grid--4col {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-.jammu-form-col-span-full {
-  grid-column: 1 / -1;
-}
-
-/* Sticky Action Footer */
-.jammu-form-sticky-bar {
-  position: sticky;
-  bottom: var(--ax-space-4);
-  z-index: 30;
-  margin-top: var(--ax-space-6);
-  padding: var(--ax-space-3) var(--ax-space-5);
-  background: var(--ax-surface-solid);
-  border: 1px solid var(--ax-border);
-  border-radius: var(--ax-radius-xl);
-  box-shadow: var(--ax-shadow-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--ax-space-3);
-  backdrop-filter: blur(12px);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
 }
 `;
 
-// Dropdown constants tailored for Jammu 70MW SRT Project
-const JAMMU_DISTRICTS = [
-  'Jammu',
-  'Kathua',
-  'Samba',
-  'Udhampur',
-  'Rajouri',
-  'Poonch',
-  'Doda',
-  'Ramban',
-  'Reasi',
-  'Kishtwar',
-];
-
-const SRT_PHASES = [
-  'Phase 1',
-  'Phase 2',
-  'Phase 3',
-  'Phase 4',
-  'Phase 5',
-  'Phase 6',
-  'Phase 7',
-  'Phase 8',
-  'Phase NA',
-];
-
-const INSTALLATION_VENDORS = [
-  'Tata Power Solar Systems',
-  'Waaree Energies Ltd',
-  'Adani Solar / Mundra Solar',
-  'Vikram Solar Limited',
-  'Goldi Solar Pvt Ltd',
-  'KLK Solar Tech',
-  'SunPower Infra',
-];
-
-const DEPARTMENTS = [
-  'JAKEDA (J&K Energy Development Agency)',
-  'JPDCL (Jammu Power Distribution Corp Ltd)',
-  'PDD (Power Development Department)',
-  'Higher Education Department J&K',
-  'School Education Department J&K',
-  'Health & Medical Education Department',
-  'PWD (R&B) Jammu',
-  'Agriculture Production Department',
-  'Forest, Ecology & Environment',
-  'Housing & Urban Development Department',
-];
-
-// Required fields list
-const REQUIRED_FIELDS = [
-  'district',
-  'location',
-  'volume',
-  'siteName',
-  'department',
-  'siteCode',
-  'feasibleSite',
-  'workOrderNo',
-  'workOrderDate',
-  'systemImage',
-] as const;
-
-type RequiredFieldKey = typeof REQUIRED_FIELDS[number];
-
-interface FormState {
-  // 1. Site Details
-  district: string;
-  location: string;
-  volume: string;
-  siteName: string;
-  department: string;
-  siteCode: string;
-  feasibleSite: string;
-
-  // 2. Work Order Details
-  workOrderNo: string;
-  workOrderDate: string;
-  loaNo: string;
-  phase: string;
-  sanctionLoadKwp: string;
-  plantSanctionKwp: string;
-  connectionPhase: string;
-  caNo: string;
-
-  // 3. Payment & AMC Details
-  payment70: string;
-  payment70Doc: File | null;
-  payment10: string;
-  payment10Doc: File | null;
-  amc1: string;
-  amc2: string;
-  amc3: string;
-  amc4: string;
-  amc5: string;
-
-  // 4. Material & Installation
-  materialStatus: string;
-  materialDispatchDate: string;
-  installationStatus: string;
-  installationVendor: string;
-  installationDate: string;
-  contactPerson: string;
-  contactNo: string;
-  installationRemarks: string;
-
-  // 5. Hardware & Metering
-  panelNo: string;
-  panelImage: File | null;
-  systemImage: File | null;
-  inverterNo: string;
-  inverterImage: File | null;
-  netMeterInstall: string;
-  solarMeterNo: string;
-  netSmartMeterNo: string;
-  netSmartMeterImage: File | null;
-
-  // 6. RMS & Telemetry
-  rmsStatus: string;
-  rmsLogerNo: string;
-  logerImage: File | null;
-  simNo: string;
-  simFile: File | null;
-  latitude: string;
-  longitude: string;
-
-  // 7. Verification & Claims
-  installationVerify: string;
-  claimRaised: string;
-  claimInvoice: File | null;
-  claimAmount: string;
-  installerPay80Status: string;
-  installerPay80Amount: string;
-  installerPay80Date: string;
-  installationDocSubmit: string;
-  installerPay20Status: string;
-  installerPay20Amount: string;
-  installerPay20Date: string;
-}
-
-const INITIAL_FORM_STATE: FormState = {
-  district: '',
-  location: '',
-  volume: '1',
-  siteName: '',
-  department: '',
-  siteCode: '',
-  feasibleSite: '',
-  workOrderNo: '',
-  workOrderDate: '',
-  loaNo: '',
-  phase: '',
-  sanctionLoadKwp: '',
-  plantSanctionKwp: '',
-  connectionPhase: '',
-  caNo: '',
-  payment70: '',
-  payment70Doc: null,
-  payment10: '',
-  payment10Doc: null,
-  amc1: '',
-  amc2: '',
-  amc3: '',
-  amc4: '',
-  amc5: '',
-  materialStatus: '',
-  materialDispatchDate: '',
-  installationStatus: '',
-  installationVendor: '',
-  installationDate: '',
-  contactPerson: '',
-  contactNo: '',
-  installationRemarks: '',
-  panelNo: '',
-  panelImage: null,
-  systemImage: null,
-  inverterNo: '',
-  inverterImage: null,
-  netMeterInstall: '',
-  solarMeterNo: '',
-  netSmartMeterNo: '',
-  netSmartMeterImage: null,
-  rmsStatus: '',
-  rmsLogerNo: '',
-  logerImage: null,
-  simNo: '',
-  simFile: null,
-  latitude: '',
-  longitude: '',
-  installationVerify: '',
-  claimRaised: '',
-  claimInvoice: null,
-  claimAmount: '',
-  installerPay80Status: '',
-  installerPay80Amount: '',
-  installerPay80Date: '',
-  installationDocSubmit: '',
-  installerPay20Status: '',
-  installerPay20Amount: '',
-  installerPay20Date: '',
-};
-
-export function AddJammuSRT70MWSingleCard() {
-  const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const firstErrorRef = useRef<HTMLDivElement>(null);
-
-  // Validate a single field
-  const validateField = (name: string, value: unknown): string => {
-    if (REQUIRED_FIELDS.includes(name as RequiredFieldKey)) {
-      if (name === 'systemImage') {
-        if (!value) return 'System image is required.';
-      } else if (!value || String(value).trim() === '') {
-        return 'This field is required.';
-      }
-    }
-
-    if (name === 'contactNo' && value && String(value).trim() !== '') {
-      const cleaned = String(value).replace(/\D/g, '');
-      if (cleaned.length < 10) return 'Enter a valid 10-digit phone number.';
-    }
-
-    if (name === 'latitude' && value && String(value).trim() !== '') {
-      const lat = parseFloat(String(value));
-      if (isNaN(lat) || lat < -90 || lat > 90) return 'Latitude must be between -90 and 90.';
-    }
-
-    if (name === 'longitude' && value && String(value).trim() !== '') {
-      const lng = parseFloat(String(value));
-      if (isNaN(lng) || lng < -180 || lng > 180) return 'Longitude must be between -180 and 180.';
-    }
-
-    return '';
-  };
-
-  const handleChange = (name: keyof FormState, value: unknown) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
-    const err = validateField(name, value);
-    setErrors((prev) => ({ ...prev, [name]: err }));
-  };
-
-  const handleBlur = (name: keyof FormState) => {
-    setTouched((prev) => ({ ...prev, [name]: true }));
-    const err = validateField(name, form[name]);
-    setErrors((prev) => ({ ...prev, [name]: err }));
-  };
-
-  const getFieldStatus = (name: keyof FormState): { className: string; isValid: boolean; isInvalid: boolean } => {
-    const isFieldTouched = touched[name] || submitted;
-    const error = errors[name];
-    const val = form[name];
-
-    if (!isFieldTouched) return { className: '', isValid: false, isInvalid: false };
-
-    if (error) {
-      return { className: 'is-invalid', isValid: false, isInvalid: true };
-    }
-
-    if (val !== null && val !== undefined && String(val).trim() !== '') {
-      return { className: 'is-valid', isValid: true, isInvalid: false };
-    }
-
-    return { className: '', isValid: false, isInvalid: false };
-  };
-
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-
-    const newErrors: Record<string, string> = {};
-    let hasError = false;
-
-    REQUIRED_FIELDS.forEach((key) => {
-      const err = validateField(key, form[key]);
-      if (err) {
-        newErrors[key] = err;
-        hasError = true;
-      }
-    });
-
-    ['contactNo', 'latitude', 'longitude'].forEach((key) => {
-      const err = validateField(key, form[key as keyof FormState]);
-      if (err) {
-        newErrors[key] = err;
-        hasError = true;
-      }
-    });
-
-    setErrors(newErrors);
-
-    if (hasError) {
-      setTimeout(() => {
-        const firstErr = document.querySelector('.is-invalid');
-        if (firstErr) {
-          firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          (firstErr as HTMLElement).focus?.();
-        }
-      }, 50);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitSuccess(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 900);
-  };
-
-  const handleReset = () => {
-    setForm(INITIAL_FORM_STATE);
-    setTouched({});
-    setErrors({});
-    setSubmitted(false);
-    setSubmitSuccess(false);
-  };
-
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const totalRequired = REQUIRED_FIELDS.length;
-  const completedRequired = REQUIRED_FIELDS.filter((f) => {
-    const v = form[f];
-    return v !== null && v !== undefined && String(v).trim() !== '';
-  }).length;
-  const progressPercent = Math.round((completedRequired / totalRequired) * 100);
-
-  return (
-    <div className="jammu-single-card-form">
-      <style>{SINGLE_CARD_FORM_CSS}</style>
-
-      {/* Header */}
-      <PageHead
-        title="Add Jammu SRT 70M"
-        subtitle={
-          <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Single Main Card View · Section 1 to 7 Sequential Breakdown · Jammu 70MW Grid-Connected Scheme
-          </span>
-        }
-        actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Link to="/jammu/add-srt-70mw" className="ax-btn ax-btn--secondary ax-btn--pill" title="Switch to multi-card view">
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" /><path d="M4 12l16 0" /></svg>
-              <span className="ax-btn__label">Multi-Card View</span>
-            </Link>
-            <Link to="/jammu/dashboard" className="ax-btn ax-btn--secondary ax-btn--pill">
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>
-              <span className="ax-btn__label">Jammu Dashboard</span>
-            </Link>
-            <button type="button" onClick={handleReset} className="ax-btn ax-btn--ghost ax-btn--icon" title="Reset Form">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
-            </button>
-          </div>
-        }
-      />
-
-      {/* Success Alert Banner */}
-      {submitSuccess && (
-        <div className="ax-alert ax-alert--success" role="status" style={{ marginBottom: 'var(--ax-space-6)' }}>
-          <span className="ax-alert__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-          </span>
-          <div className="ax-alert__content">
-            <h3 className="ax-alert__title" style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600 }}>
-              Jammu SRT 70MW Record Submitted Successfully!
-            </h3>
-            <p className="ax-alert__message" style={{ margin: '4px 0 0' }}>
-              Site <strong>{form.siteCode || 'JAM-SRT-001'}</strong> ({form.siteName || 'Solar Rooftop Site'}) has been registered under <strong>{form.district}</strong> district. All 59 field parameters have been recorded into the single-card registry.
-            </p>
-          </div>
-          <div className="ax-alert__actions">
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setSubmitSuccess(false)}>
-              <span className="ax-btn__label">Dismiss</span>
-            </button>
-            <Link to="/jammu/dashboard" className="ax-btn ax-btn--primary ax-btn--sm">
-              <span className="ax-btn__label">View on Dashboard</span>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Form Validation Error Summary if attempted and has errors */}
-      {submitted && Object.keys(errors).filter((k) => errors[k]).length > 0 && (
-        <div ref={firstErrorRef} className="ax-alert ax-alert--danger" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
-          <span className="ax-alert__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /><path d="M12 16h.01" /></svg>
-          </span>
-          <div className="ax-alert__content">
-            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>Please Complete All Required Fields (*)</h4>
-            <p className="ax-alert__message" style={{ margin: '4px 0 0' }}>
-              There are {Object.keys(errors).filter((k) => errors[k]).length} mandatory fields needing attention before this Jammu 70MW record can be saved.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Main Single Card Form */}
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="ax-card">
-          
-          {/* Card Header with Title and Section Stepper Pills */}
-          <div className="ax-card__header">
-            <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-3)' }}>
-              <div>
-                <span className="ax-card__eyebrow">Unified Card Architecture</span>
-                <h2 className="ax-card__title" style={{ margin: 0 }}>Add Jammu SRT 70MW Form</h2>
-                <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
-                  All 59 input fields organized inside one main card across 7 dedicated sections.
-                </p>
-              </div>
-
-              <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                Completion: {completedRequired} / {totalRequired} ({progressPercent}%)
-              </span>
-            </div>
-
-            {/* Quick Section Jump Navigator */}
-            <div className="jammu-section-pills" role="navigation" aria-label="Jump to section">
-              {[
-                { id: 'sec-1', num: '1', title: 'Site Details' },
-                { id: 'sec-2', num: '2', title: 'Work Order' },
-                { id: 'sec-3', num: '3', title: 'Financials & AMC' },
-                { id: 'sec-4', num: '4', title: 'Materials & Install' },
-                { id: 'sec-5', num: '5', title: 'Hardware & Meters' },
-                { id: 'sec-6', num: '6', title: 'RMS Telemetry' },
-                { id: 'sec-7', num: '7', title: 'Claims & Payouts' },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => scrollToSection(s.id)}
-                  className="jammu-section-pill-btn"
-                >
-                  <span className="pill-num">{s.num}</span>
-                  <span>{s.title}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Card Body containing all 7 sections */}
-          <div className="ax-card__body">
-
-            {/* ========================================================
-             * Section 1 of 7: Site & Administrative Details
-             * ======================================================== */}
-            <div id="sec-1" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 1 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Site &amp; Administrative Details
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Core location, nodal department and site feasibility status.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* District * */}
-                <div>
-                  <FloatingSelect
-                    id="sc-district"
-                    label="District"
-                    required
-                    placeholder="Select District"
-                    value={form.district}
-                    options={JAMMU_DISTRICTS}
-                    onChange={(val) => handleChange('district', val)}
-                    onBlur={() => handleBlur('district')}
-                    status={getFieldStatus('district')}
-                    error={errors.district}
-                  />
-                </div>
-
-                {/* Location * */}
-                <div>
-                  <FloatingInput
-                    id="sc-location"
-                    label="Location"
-                    required
-                    placeholder="Enter Location"
-                    value={form.location}
-                    onChange={(val) => handleChange('location', val)}
-                    onBlur={() => handleBlur('location')}
-                    status={getFieldStatus('location')}
-                    error={errors.location}
-                  />
-                </div>
-
-                {/* Volume * */}
-                <div>
-                  <FloatingInput
-                    id="sc-volume"
-                    label="Volume"
-                    type="number"
-                    min={1}
-                    required
-                    placeholder="1"
-                    value={form.volume}
-                    onChange={(val) => handleChange('volume', val)}
-                    onBlur={() => handleBlur('volume')}
-                    status={getFieldStatus('volume')}
-                    error={errors.volume}
-                  />
-                </div>
-
-                {/* Name of the Site * */}
-                <div className="jammu-form-col-span-full">
-                  <FloatingInput
-                    id="sc-site-name"
-                    label="Name of the Site"
-                    required
-                    placeholder="Enter Name of the Site"
-                    value={form.siteName}
-                    onChange={(val) => handleChange('siteName', val)}
-                    onBlur={() => handleBlur('siteName')}
-                    status={getFieldStatus('siteName')}
-                    error={errors.siteName}
-                  />
-                </div>
-
-                {/* Department * */}
-                <div>
-                  <FloatingInputWithDatalist
-                    id="sc-department"
-                    label="Department"
-                    required
-                    placeholder="Enter Department"
-                    value={form.department}
-                    suggestions={DEPARTMENTS}
-                    onChange={(val) => handleChange('department', val)}
-                    onBlur={() => handleBlur('department')}
-                    status={getFieldStatus('department')}
-                    error={errors.department}
-                  />
-                </div>
-
-                {/* Site Code * */}
-                <div>
-                  <FloatingInput
-                    id="sc-site-code"
-                    label="Site Code"
-                    required
-                    placeholder="Enter Site Code"
-                    value={form.siteCode}
-                    onChange={(val) => handleChange('siteCode', val)}
-                    onBlur={() => handleBlur('siteCode')}
-                    status={getFieldStatus('siteCode')}
-                    error={errors.siteCode}
-                  />
-                </div>
-
-                {/* Feasible Site * */}
-                <div>
-                  <FloatingSelect
-                    id="sc-feasible-site"
-                    label="Feasible Site"
-                    required
-                    placeholder="-- Select --"
-                    value={form.feasibleSite}
-                    options={['Yes', 'No', 'Conditional Feasible']}
-                    onChange={(val) => handleChange('feasibleSite', val)}
-                    onBlur={() => handleBlur('feasibleSite')}
-                    status={getFieldStatus('feasibleSite')}
-                    error={errors.feasibleSite}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 2 of 7: Work Order & Sanction Details
-             * ======================================================== */}
-            <div id="sec-2" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 2 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Work Order &amp; Sanction Details
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Work order contract, sanction loads, and electrical grid phase assignment.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--4col">
-                {/* Work Order No.* */}
-                <div>
-                  <FloatingInput
-                    id="sc-wo-no"
-                    label="Work Order No."
-                    required
-                    placeholder="Enter Work Order No."
-                    value={form.workOrderNo}
-                    onChange={(val) => handleChange('workOrderNo', val)}
-                    onBlur={() => handleBlur('workOrderNo')}
-                    status={getFieldStatus('workOrderNo')}
-                    error={errors.workOrderNo}
-                  />
-                </div>
-
-                {/* Work Order Date* */}
-                <div>
-                  <FloatingDateInput
-                    id="sc-wo-date"
-                    label="Work Order Date"
-                    required
-                    value={form.workOrderDate}
-                    onChange={(val) => handleChange('workOrderDate', val)}
-                    onBlur={() => handleBlur('workOrderDate')}
-                    status={getFieldStatus('workOrderDate')}
-                    error={errors.workOrderDate}
-                  />
-                </div>
-
-                {/* LOA No. */}
-                <div>
-                  <FloatingInput
-                    id="sc-loa-no"
-                    label="LOA No."
-                    placeholder="Enter LOA Number"
-                    value={form.loaNo}
-                    onChange={(val) => handleChange('loaNo', val)}
-                    onBlur={() => handleBlur('loaNo')}
-                    status={getFieldStatus('loaNo')}
-                  />
-                </div>
-
-                {/* Phase */}
-                <div>
-                  <FloatingSelect
-                    id="sc-phase"
-                    label="Phase"
-                    placeholder="-- Select --"
-                    value={form.phase}
-                    options={SRT_PHASES}
-                    onChange={(val) => handleChange('phase', val)}
-                    onBlur={() => handleBlur('phase')}
-                    status={getFieldStatus('phase')}
-                  />
-                </div>
-
-                {/* Sanction load in kwp */}
-                <div>
-                  <FloatingInput
-                    id="sc-sanction-load"
-                    label="Sanction load in kwp"
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter Sanction load in kwp"
-                    value={form.sanctionLoadKwp}
-                    onChange={(val) => handleChange('sanctionLoadKwp', val)}
-                    onBlur={() => handleBlur('sanctionLoadKwp')}
-                    status={getFieldStatus('sanctionLoadKwp')}
-                  />
-                </div>
-
-                {/* Plant Sanction in kwp */}
-                <div>
-                  <FloatingInput
-                    id="sc-plant-sanction"
-                    label="Plant Sanction in kwp"
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter Plant Sanction in kwp"
-                    value={form.plantSanctionKwp}
-                    onChange={(val) => handleChange('plantSanctionKwp', val)}
-                    onBlur={() => handleBlur('plantSanctionKwp')}
-                    status={getFieldStatus('plantSanctionKwp')}
-                  />
-                </div>
-
-                {/* Connection Phase */}
-                <div>
-                  <FloatingSelect
-                    id="sc-conn-phase"
-                    label="Connection Phase"
-                    placeholder="-- Select --"
-                    value={form.connectionPhase}
-                    options={['Single Phase', 'Three Phase']}
-                    onChange={(val) => handleChange('connectionPhase', val)}
-                    onBlur={() => handleBlur('connectionPhase')}
-                    status={getFieldStatus('connectionPhase')}
-                  />
-                </div>
-
-                {/* CA No. */}
-                <div>
-                  <FloatingInput
-                    id="sc-ca-no"
-                    label="CA No."
-                    placeholder="Enter CA No."
-                    value={form.caNo}
-                    onChange={(val) => handleChange('caNo', val)}
-                    onBlur={() => handleBlur('caNo')}
-                    status={getFieldStatus('caNo')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 3 of 7: Financial Milestones & AMC Retention
-             * ======================================================== */}
-            <div id="sec-3" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 3 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Financial Milestones &amp; AMC Retention
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    70% Discom subsidy, 10% retention release and 5-year AMC milestones.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* Payment 70% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-pay-70"
-                    label="Payment 70%"
-                    placeholder="-- Select --"
-                    value={form.payment70}
-                    options={['Pending', 'Approved', 'Released', 'Rejected', 'Under Verification']}
-                    onChange={(val) => handleChange('payment70', val)}
-                    onBlur={() => handleBlur('payment70')}
-                    status={getFieldStatus('payment70')}
-                  />
-                </div>
-
-                {/* Payment 70% Document */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <FloatingFileInput
-                    id="sc-pay-70-doc"
-                    label="Payment 70% Document"
-                    file={form.payment70Doc}
-                    onChange={(file) => handleChange('payment70Doc', file)}
-                    onBlur={() => handleBlur('payment70Doc')}
-                    status={getFieldStatus('payment70Doc')}
-                  />
-                </div>
-
-                {/* Payment 10% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-pay-10"
-                    label="Payment 10%"
-                    placeholder="-- Select --"
-                    value={form.payment10}
-                    options={['Pending', 'Approved', 'Released', 'Rejected', 'Under Verification']}
-                    onChange={(val) => handleChange('payment10', val)}
-                    onBlur={() => handleBlur('payment10')}
-                    status={getFieldStatus('payment10')}
-                  />
-                </div>
-
-                {/* Payment 10% Document */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <FloatingFileInput
-                    id="sc-pay-10-doc"
-                    label="Payment 10% Document"
-                    file={form.payment10Doc}
-                    onChange={(file) => handleChange('payment10Doc', file)}
-                    onBlur={() => handleBlur('payment10Doc')}
-                    status={getFieldStatus('payment10Doc')}
-                  />
-                </div>
-
-                {/* 1st AMC 4% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-amc-1"
-                    label="1st AMC 4%"
-                    placeholder="-- Select --"
-                    value={form.amc1}
-                    options={['Pending', 'Due', 'In Progress', 'Released', 'N/A']}
-                    onChange={(val) => handleChange('amc1', val)}
-                    onBlur={() => handleBlur('amc1')}
-                    status={getFieldStatus('amc1')}
-                  />
-                </div>
-
-                {/* 2nd AMC 4% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-amc-2"
-                    label="2nd AMC 4%"
-                    placeholder="-- Select --"
-                    value={form.amc2}
-                    options={['Pending', 'Due', 'In Progress', 'Released', 'N/A']}
-                    onChange={(val) => handleChange('amc2', val)}
-                    onBlur={() => handleBlur('amc2')}
-                    status={getFieldStatus('amc2')}
-                  />
-                </div>
-
-                {/* 3rd AMC 4% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-amc-3"
-                    label="3rd AMC 4%"
-                    placeholder="-- Select --"
-                    value={form.amc3}
-                    options={['Pending', 'Due', 'In Progress', 'Released', 'N/A']}
-                    onChange={(val) => handleChange('amc3', val)}
-                    onBlur={() => handleBlur('amc3')}
-                    status={getFieldStatus('amc3')}
-                  />
-                </div>
-
-                {/* 4th AMC 4% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-amc-4"
-                    label="4th AMC 4%"
-                    placeholder="-- Select --"
-                    value={form.amc4}
-                    options={['Pending', 'Due', 'In Progress', 'Released', 'N/A']}
-                    onChange={(val) => handleChange('amc4', val)}
-                    onBlur={() => handleBlur('amc4')}
-                    status={getFieldStatus('amc4')}
-                  />
-                </div>
-
-                {/* 5th AMC 4% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-amc-5"
-                    label="5th AMC 4%"
-                    placeholder="-- Select --"
-                    value={form.amc5}
-                    options={['Pending', 'Due', 'In Progress', 'Released', 'N/A']}
-                    onChange={(val) => handleChange('amc5', val)}
-                    onBlur={() => handleBlur('amc5')}
-                    status={getFieldStatus('amc5')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 4 of 7: Material Logistics & Site Installation
-             * ======================================================== */}
-            <div id="sec-4" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 4 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Material Dispatch &amp; Installation Progress
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Equipment logistics, vendor execution dates, and site contact info.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* Material Status */}
-                <div>
-                  <FloatingSelect
-                    id="sc-mat-status"
-                    label="Material Status"
-                    placeholder="-- Select --"
-                    value={form.materialStatus}
-                    options={['Material Dispatched', 'In-Transit', 'Delivered at Site', 'Material Pending', 'Partially Dispatched']}
-                    onChange={(val) => handleChange('materialStatus', val)}
-                    onBlur={() => handleBlur('materialStatus')}
-                    status={getFieldStatus('materialStatus')}
-                  />
-                </div>
-
-                {/* Material Dispatch Date */}
-                <div>
-                  <FloatingDateInput
-                    id="sc-mat-date"
-                    label="Material Dispatch Date"
-                    value={form.materialDispatchDate}
-                    onChange={(val) => handleChange('materialDispatchDate', val)}
-                    onBlur={() => handleBlur('materialDispatchDate')}
-                    status={getFieldStatus('materialDispatchDate')}
-                  />
-                </div>
-
-                {/* Installation Status */}
-                <div>
-                  <FloatingSelect
-                    id="sc-inst-status"
-                    label="Installation Status"
-                    placeholder="-- Select --"
-                    value={form.installationStatus}
-                    options={['Not Started', 'In Progress', 'Completed', 'Under Inspection', 'On Hold']}
-                    onChange={(val) => handleChange('installationStatus', val)}
-                    onBlur={() => handleBlur('installationStatus')}
-                    status={getFieldStatus('installationStatus')}
-                  />
-                </div>
-
-                {/* Installation Vendor */}
-                <div>
-                  <FloatingSelect
-                    id="sc-inst-vendor"
-                    label="Installation Vendor"
-                    placeholder="-- Select --"
-                    value={form.installationVendor}
-                    options={INSTALLATION_VENDORS}
-                    onChange={(val) => handleChange('installationVendor', val)}
-                    onBlur={() => handleBlur('installationVendor')}
-                    status={getFieldStatus('installationVendor')}
-                  />
-                </div>
-
-                {/* Installation Date */}
-                <div>
-                  <FloatingDateInput
-                    id="sc-inst-date"
-                    label="Installation Date"
-                    value={form.installationDate}
-                    onChange={(val) => handleChange('installationDate', val)}
-                    onBlur={() => handleBlur('installationDate')}
-                    status={getFieldStatus('installationDate')}
-                  />
-                </div>
-
-                {/* Contact Person */}
-                <div>
-                  <FloatingInput
-                    id="sc-contact-person"
-                    label="Contact Person"
-                    placeholder="Enter Contact Person Name"
-                    value={form.contactPerson}
-                    onChange={(val) => handleChange('contactPerson', val)}
-                    onBlur={() => handleBlur('contactPerson')}
-                    status={getFieldStatus('contactPerson')}
-                  />
-                </div>
-
-                {/* Contact No. */}
-                <div>
-                  <FloatingInput
-                    id="sc-contact-no"
-                    label="Contact No."
-                    type="tel"
-                    placeholder="Enter Contact Number"
-                    value={form.contactNo}
-                    onChange={(val) => handleChange('contactNo', val)}
-                    onBlur={() => handleBlur('contactNo')}
-                    status={getFieldStatus('contactNo')}
-                    error={errors.contactNo}
-                  />
-                </div>
-
-                {/* Installation Remarks */}
-                <div className="jammu-form-col-span-full">
-                  <FloatingTextarea
-                    id="sc-inst-remarks"
-                    label="Installation Remarks"
-                    placeholder="Enter Remarks..."
-                    value={form.installationRemarks}
-                    onChange={(val) => handleChange('installationRemarks', val)}
-                    onBlur={() => handleBlur('installationRemarks')}
-                    status={getFieldStatus('installationRemarks')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 5 of 7: Solar PV, Inverter & Metering Hardware
-             * ======================================================== */}
-            <div id="sec-5" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 5 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Solar PV, Inverter &amp; Metering Hardware
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Module serials, inverter numbers, photos and net/smart meter integration.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* Panel No */}
-                <div>
-                  <FloatingInput
-                    id="sc-panel-no"
-                    label="Panel No"
-                    placeholder="Enter Panel Number"
-                    value={form.panelNo}
-                    onChange={(val) => handleChange('panelNo', val)}
-                    onBlur={() => handleBlur('panelNo')}
-                    status={getFieldStatus('panelNo')}
-                  />
-                </div>
-
-                {/* Panel Image */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-panel-img"
-                    label="Panel Image"
-                    file={form.panelImage}
-                    onChange={(file) => handleChange('panelImage', file)}
-                    onBlur={() => handleBlur('panelImage')}
-                    status={getFieldStatus('panelImage')}
-                  />
-                </div>
-
-                {/* System Image * (MANDATORY) */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-system-img"
-                    label="System Image"
-                    required
-                    file={form.systemImage}
-                    onChange={(file) => handleChange('systemImage', file)}
-                    onBlur={() => handleBlur('systemImage')}
-                    status={getFieldStatus('systemImage')}
-                    error={errors.systemImage}
-                  />
-                </div>
-
-                {/* Inverter No */}
-                <div>
-                  <FloatingInput
-                    id="sc-inverter-no"
-                    label="Inverter No"
-                    placeholder="Enter Inverter Number"
-                    value={form.inverterNo}
-                    onChange={(val) => handleChange('inverterNo', val)}
-                    onBlur={() => handleBlur('inverterNo')}
-                    status={getFieldStatus('inverterNo')}
-                  />
-                </div>
-
-                {/* Inverter Image */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-inverter-img"
-                    label="Inverter Image"
-                    file={form.inverterImage}
-                    onChange={(file) => handleChange('inverterImage', file)}
-                    onBlur={() => handleBlur('inverterImage')}
-                    status={getFieldStatus('inverterImage')}
-                  />
-                </div>
-
-                {/* Net Meter/Smart Meter Install */}
-                <div>
-                  <FloatingSelect
-                    id="sc-net-meter-inst"
-                    label="Net Meter/Smart Meter Install"
-                    placeholder="-- Select --"
-                    value={form.netMeterInstall}
-                    options={['Installed', 'Not Installed', 'Application Submitted', 'Meter Issued', 'Testing in Progress']}
-                    onChange={(val) => handleChange('netMeterInstall', val)}
-                    onBlur={() => handleBlur('netMeterInstall')}
-                    status={getFieldStatus('netMeterInstall')}
-                  />
-                </div>
-
-                {/* Solar Meter Number */}
-                <div>
-                  <FloatingInput
-                    id="sc-solar-meter-no"
-                    label="Solar Meter Number"
-                    placeholder="Enter Solar Meter Number"
-                    value={form.solarMeterNo}
-                    onChange={(val) => handleChange('solarMeterNo', val)}
-                    onBlur={() => handleBlur('solarMeterNo')}
-                    status={getFieldStatus('solarMeterNo')}
-                  />
-                </div>
-
-                {/* Net Meter/Smart Meter Number */}
-                <div>
-                  <FloatingInput
-                    id="sc-net-meter-no"
-                    label="Net Meter/Smart Meter Number"
-                    placeholder="Enter Net/Smart Meter Number"
-                    value={form.netSmartMeterNo}
-                    onChange={(val) => handleChange('netSmartMeterNo', val)}
-                    onBlur={() => handleBlur('netSmartMeterNo')}
-                    status={getFieldStatus('netSmartMeterNo')}
-                  />
-                </div>
-
-                {/* Net Meter/Smart Meter Image */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-net-meter-img"
-                    label="Net Meter/Smart Meter Image"
-                    file={form.netSmartMeterImage}
-                    onChange={(file) => handleChange('netSmartMeterImage', file)}
-                    onBlur={() => handleBlur('netSmartMeterImage')}
-                    status={getFieldStatus('netSmartMeterImage')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 6 of 7: RMS Telemetry & GPS Coordinates
-             * ======================================================== */}
-            <div id="sec-6" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 6 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Remote Monitoring System (RMS) &amp; Coordinates
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Data logger connectivity, SIM binding and site GPS coordinates.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* RMS Status */}
-                <div>
-                  <FloatingSelect
-                    id="sc-rms-status"
-                    label="RMS Status"
-                    placeholder="-- Select --"
-                    value={form.rmsStatus}
-                    options={['Active / Online', 'Inactive / Offline', 'Installed - Configuration Pending', 'Not Installed', 'Faulty']}
-                    onChange={(val) => handleChange('rmsStatus', val)}
-                    onBlur={() => handleBlur('rmsStatus')}
-                    status={getFieldStatus('rmsStatus')}
-                  />
-                </div>
-
-                {/* RMS Loger Number */}
-                <div>
-                  <FloatingInput
-                    id="sc-rms-loger-no"
-                    label="RMS Loger Number"
-                    placeholder="Enter RMS Loger Number"
-                    value={form.rmsLogerNo}
-                    onChange={(val) => handleChange('rmsLogerNo', val)}
-                    onBlur={() => handleBlur('rmsLogerNo')}
-                    status={getFieldStatus('rmsLogerNo')}
-                  />
-                </div>
-
-                {/* Loger Image */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-loger-img"
-                    label="Loger Image"
-                    file={form.logerImage}
-                    onChange={(file) => handleChange('logerImage', file)}
-                    onBlur={() => handleBlur('logerImage')}
-                    status={getFieldStatus('logerImage')}
-                  />
-                </div>
-
-                {/* Sim Number */}
-                <div>
-                  <FloatingInput
-                    id="sc-sim-no"
-                    label="Sim Number"
-                    placeholder="Enter Sim Number"
-                    value={form.simNo}
-                    onChange={(val) => handleChange('simNo', val)}
-                    onBlur={() => handleBlur('simNo')}
-                    status={getFieldStatus('simNo')}
-                  />
-                </div>
-
-                {/* Sim File */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-sim-file"
-                    label="Sim File"
-                    file={form.simFile}
-                    onChange={(file) => handleChange('simFile', file)}
-                    onBlur={() => handleBlur('simFile')}
-                    status={getFieldStatus('simFile')}
-                  />
-                </div>
-
-                {/* Latitude */}
-                <div>
-                  <FloatingInput
-                    id="sc-latitude"
-                    label="Latitude"
-                    placeholder="Enter Latitude"
-                    value={form.latitude}
-                    onChange={(val) => handleChange('latitude', val)}
-                    onBlur={() => handleBlur('latitude')}
-                    status={getFieldStatus('latitude')}
-                    error={errors.latitude}
-                  />
-                </div>
-
-                {/* Longitude */}
-                <div>
-                  <FloatingInput
-                    id="sc-longitude"
-                    label="Longitude"
-                    placeholder="Enter Longitude"
-                    value={form.longitude}
-                    onChange={(val) => handleChange('longitude', val)}
-                    onBlur={() => handleBlur('longitude')}
-                    status={getFieldStatus('longitude')}
-                    error={errors.longitude}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <hr className="jammu-section-divider" />
-
-            {/* ========================================================
-             * Section 7 of 7: Verification, Claim Invoicing & Vendor Payouts
-             * ======================================================== */}
-            <div id="sec-7" className="jammu-section-block">
-              <div className="jammu-section-header">
-                <div className="jammu-section-title-wrap">
-                  <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-                    <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Section 7 of 7
-                    </span>
-                    <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Verification, Claim Invoicing &amp; Installer Payouts
-                    </h3>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Field audit verification, MNRE subsidy claim, 80% and 20% vendor disbursements.
-                  </p>
-                </div>
-              </div>
-
-              <div className="jammu-form-grid jammu-form-grid--3col">
-                {/* Installation Verify */}
-                <div>
-                  <FloatingSelect
-                    id="sc-inst-verify"
-                    label="Installation Verify"
-                    placeholder="-- Select --"
-                    value={form.installationVerify}
-                    options={['Verified', 'Verification Pending', 'Rejected / Re-work Required']}
-                    onChange={(val) => handleChange('installationVerify', val)}
-                    onBlur={() => handleBlur('installationVerify')}
-                    status={getFieldStatus('installationVerify')}
-                  />
-                </div>
-
-                {/* Claim Raised */}
-                <div>
-                  <FloatingSelect
-                    id="sc-claim-raised"
-                    label="Claim Raised"
-                    placeholder="-- Select --"
-                    value={form.claimRaised}
-                    options={['Yes', 'No', 'Under Review', 'Disbursed']}
-                    onChange={(val) => handleChange('claimRaised', val)}
-                    onBlur={() => handleBlur('claimRaised')}
-                    status={getFieldStatus('claimRaised')}
-                  />
-                </div>
-
-                {/* Claim Invoice */}
-                <div>
-                  <FloatingFileInput
-                    id="sc-claim-invoice"
-                    label="Claim Invoice"
-                    file={form.claimInvoice}
-                    onChange={(file) => handleChange('claimInvoice', file)}
-                    onBlur={() => handleBlur('claimInvoice')}
-                    status={getFieldStatus('claimInvoice')}
-                  />
-                </div>
-
-                {/* Claim Amount */}
-                <div>
-                  <FloatingInput
-                    id="sc-claim-amt"
-                    label="Claim Amount"
-                    type="number"
-                    placeholder="Enter Claim Amount"
-                    value={form.claimAmount}
-                    onChange={(val) => handleChange('claimAmount', val)}
-                    onBlur={() => handleBlur('claimAmount')}
-                    status={getFieldStatus('claimAmount')}
-                  />
-                </div>
-
-                {/* Installer Pay 80% Status */}
-                <div>
-                  <FloatingSelect
-                    id="sc-pay-80-status"
-                    label="Installer Pay 80% Status"
-                    placeholder="-- Select --"
-                    value={form.installerPay80Status}
-                    options={['Pending', 'Approved', 'Disbursed', 'Hold']}
-                    onChange={(val) => handleChange('installerPay80Status', val)}
-                    onBlur={() => handleBlur('installerPay80Status')}
-                    status={getFieldStatus('installerPay80Status')}
-                  />
-                </div>
-
-                {/* Installer Pay 80% Amount */}
-                <div>
-                  <FloatingInput
-                    id="sc-pay-80-amt"
-                    label="Installer Pay 80% Amount"
-                    type="number"
-                    placeholder="Enter Amount"
-                    value={form.installerPay80Amount}
-                    onChange={(val) => handleChange('installerPay80Amount', val)}
-                    onBlur={() => handleBlur('installerPay80Amount')}
-                    status={getFieldStatus('installerPay80Amount')}
-                  />
-                </div>
-
-                {/* Installer Pay 80% Date */}
-                <div>
-                  <FloatingDateInput
-                    id="sc-pay-80-date"
-                    label="Installer Pay 80% Date"
-                    value={form.installerPay80Date}
-                    onChange={(val) => handleChange('installerPay80Date', val)}
-                    onBlur={() => handleBlur('installerPay80Date')}
-                    status={getFieldStatus('installerPay80Date')}
-                  />
-                </div>
-
-                {/* Installation Document Submit */}
-                <div>
-                  <FloatingSelect
-                    id="sc-doc-submit"
-                    label="Installation Document Submit"
-                    placeholder="-- Select --"
-                    value={form.installationDocSubmit}
-                    options={['Submitted', 'Not Submitted', 'Resubmitted', 'Under Verification']}
-                    onChange={(val) => handleChange('installationDocSubmit', val)}
-                    onBlur={() => handleBlur('installationDocSubmit')}
-                    status={getFieldStatus('installationDocSubmit')}
-                  />
-                </div>
-
-                {/* Installer Pay 20% */}
-                <div>
-                  <FloatingSelect
-                    id="sc-pay-20-status"
-                    label="Installer Pay 20%"
-                    placeholder="-- Select --"
-                    value={form.installerPay20Status}
-                    options={['Pending', 'Approved', 'Disbursed', 'Hold']}
-                    onChange={(val) => handleChange('installerPay20Status', val)}
-                    onBlur={() => handleBlur('installerPay20Status')}
-                    status={getFieldStatus('installerPay20Status')}
-                  />
-                </div>
-
-                {/* Installer Pay 20% Amount */}
-                <div>
-                  <FloatingInput
-                    id="sc-pay-20-amt"
-                    label="Installer Pay 20% Amount"
-                    type="number"
-                    placeholder="Enter Amount"
-                    value={form.installerPay20Amount}
-                    onChange={(val) => handleChange('installerPay20Amount', val)}
-                    onBlur={() => handleBlur('installerPay20Amount')}
-                    status={getFieldStatus('installerPay20Amount')}
-                  />
-                </div>
-
-                {/* Installer Pay 20% Date */}
-                <div>
-                  <FloatingDateInput
-                    id="sc-pay-20-date"
-                    label="Installer Pay 20% Date"
-                    value={form.installerPay20Date}
-                    onChange={(val) => handleChange('installerPay20Date', val)}
-                    onBlur={() => handleBlur('installerPay20Date')}
-                    status={getFieldStatus('installerPay20Date')}
-                  />
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Sticky Action Footer */}
-        <div className="jammu-form-sticky-bar">
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', alignItems: 'center' }}>
-            <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
-              Required: {completedRequired} / {totalRequired} ({progressPercent}%)
-            </span>
-            {submitted && Object.keys(errors).filter((k) => errors[k]).length > 0 && (
-              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-danger-500)', fontWeight: 500 }}>
-                ⚠️ Missing mandatory fields
-              </span>
-            )}
-          </div>
-
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-            <button type="button" onClick={handleReset} className="ax-btn ax-btn--ghost">
-              <span className="ax-btn__label">Clear</span>
-            </button>
-            <Link to="/jammu/dashboard" className="ax-btn ax-btn--secondary">
-              <span className="ax-btn__label">Cancel</span>
-            </Link>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="ax-btn ax-btn--primary"
-              style={{ minWidth: 200 }}
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
-                  <span className="ax-btn__label">Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Jammu SRT 70MW</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-      </form>
-    </div>
-  );
-}
-
-/* =========================================================================
- * Helper Reusable Floating Components
- * ========================================================================= */
-
-interface FieldStatusProps {
-  className: string;
-  isValid: boolean;
-  isInvalid: boolean;
-}
-
 interface FloatingInputProps {
-  id: string;
   label: string;
-  type?: string;
-  min?: number;
-  step?: string;
-  required?: boolean;
-  placeholder: string;
+  name: string;
   value: string;
-  onChange: (val: string) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
-  error?: string;
+  onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
+  required?: boolean;
+  disabled?: boolean;
+  type?: string;
+  placeholder?: string;
+  as?: 'input' | 'select' | 'textarea';
+  children?: React.ReactNode;
 }
 
 function FloatingInput({
-  id,
   label,
+  name,
+  value,
+  onChange,
+  required,
+  disabled,
   type = 'text',
-  min,
-  step,
-  required,
   placeholder,
-  value,
-  onChange,
-  onBlur,
-  status,
-  error,
+  as = 'input',
+  children,
 }: FloatingInputProps) {
-  return (
-    <div>
-      <div className="ax-float">
-        <input
-          id={id}
-          type={type}
-          min={min}
-          step={step}
-          className={`ax-input ax-float__input ${status.className}`}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          aria-invalid={status.isInvalid}
-        />
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
-        </label>
-      </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
-    </div>
-  );
-}
+  const [focused, setFocused] = useState(false);
+  const hasVal = Boolean(value && String(value).length > 0);
 
-interface FloatingInputWithDatalistProps {
-  id: string;
-  label: string;
-  required?: boolean;
-  placeholder: string;
-  value: string;
-  suggestions: string[];
-  onChange: (val: string) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
-  error?: string;
-}
-
-function FloatingInputWithDatalist({
-  id,
-  label,
-  required,
-  placeholder,
-  value,
-  suggestions,
-  onChange,
-  onBlur,
-  status,
-  error,
-}: FloatingInputWithDatalistProps) {
-  const listId = `${id}-list`;
-  return (
-    <div>
-      <div className="ax-float">
-        <input
-          id={id}
-          type="text"
-          list={listId}
-          className={`ax-input ax-float__input ${status.className}`}
-          placeholder={placeholder}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          aria-invalid={status.isInvalid}
-        />
-        <datalist id={listId}>
-          {suggestions.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
-        </label>
-      </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
-    </div>
-  );
-}
-
-interface FloatingSelectProps {
-  id: string;
-  label: string;
-  required?: boolean;
-  placeholder?: string;
-  value: string;
-  options: string[];
-  onChange: (val: string) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
-  error?: string;
-}
-
-function FloatingSelect({
-  id,
-  label,
-  required,
-  placeholder = '-- Select --',
-  value,
-  options,
-  onChange,
-  onBlur,
-  status,
-  error,
-}: FloatingSelectProps) {
-  return (
-    <div>
-      <div className="ax-float ax-float--select">
+  if (as === 'select') {
+    return (
+      <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
         <select
-          id={id}
-          className={`ax-select ax-float__input ${status.className}`}
+          id={name}
+          name={name}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          aria-invalid={status.isInvalid}
+          onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          required={required}
+          disabled={disabled}
+          className="ax-float__input"
         >
-          <option value="">{placeholder}</option>
-          {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
+          {children}
         </select>
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
+        <label htmlFor={name} className="ax-float__label floating">
+          {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
         </label>
       </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
-    </div>
-  );
-}
+    );
+  }
 
-interface FloatingDateInputProps {
-  id: string;
-  label: string;
-  required?: boolean;
-  value: string;
-  onChange: (val: string) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
-  error?: string;
-}
-
-function FloatingDateInput({
-  id,
-  label,
-  required,
-  value,
-  onChange,
-  onBlur,
-  status,
-  error,
-}: FloatingDateInputProps) {
-  return (
-    <div>
-      <div className="ax-float ax-float--date">
-        <input
-          id={id}
-          type="date"
-          className={`ax-input ax-float__input ${status.className}`}
-          placeholder=" "
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          aria-invalid={status.isInvalid}
-        />
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
-        </label>
-      </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
-    </div>
-  );
-}
-
-interface FloatingTextareaProps {
-  id: string;
-  label: string;
-  required?: boolean;
-  placeholder?: string;
-  value: string;
-  rows?: number;
-  onChange: (val: string) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
-  error?: string;
-}
-
-function FloatingTextarea({
-  id,
-  label,
-  required,
-  placeholder = 'Enter Remarks...',
-  value,
-  rows = 3,
-  onChange,
-  onBlur,
-  status,
-  error,
-}: FloatingTextareaProps) {
-  return (
-    <div>
-      <div className="ax-float ax-float--area">
+  if (as === 'textarea') {
+    return (
+      <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
         <textarea
-          id={id}
-          rows={rows}
-          className={`ax-textarea ax-float__input ${status.className}`}
-          placeholder={placeholder}
+          id={name}
+          name={name}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
-          aria-invalid={status.isInvalid}
+          onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          required={required}
+          disabled={disabled}
+          placeholder={placeholder || label}
+          className="ax-float__input"
+          style={{ height: 80, resize: 'vertical' }}
         />
-        <label className="ax-float__label" htmlFor={id}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
+        <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
+          {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
         </label>
       </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
+    );
+  }
+
+  return (
+    <div className="ax-float" style={{ flex: 1, minWidth: 0 }}>
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder || label}
+        className="ax-float__input"
+      />
+      <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
+        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
+      </label>
     </div>
   );
 }
 
-interface FloatingFileInputProps {
+/* ───────── Upload Dropzone ───────── */
+interface UploadDropzoneProps {
   id: string;
   label: string;
   required?: boolean;
+  accept?: string;
   file: File | null;
-  onChange: (file: File | null) => void;
-  onBlur: () => void;
-  status: FieldStatusProps;
+  preview?: string;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
   error?: string;
 }
 
-function FloatingFileInput({
+function UploadDropzone({
   id,
   label,
   required,
+  accept = 'image/*,application/pdf',
   file,
-  onChange,
-  onBlur,
-  status,
+  preview,
+  onSelect,
+  onRemove,
   error,
-}: FloatingFileInputProps) {
+}: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const inputId = useId();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const chosen = e.target.files?.[0] || null;
-    onChange(chosen);
-    onBlur();
-  };
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onChange(null);
+    onRemove();
     if (inputRef.current) inputRef.current.value = '';
-    onBlur();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onSelect(chosen);
   };
 
   return (
-    <div>
-      <div className={`ax-float ax-float--file ${status.className}`}>
-        <input
-          ref={inputRef}
-          id={`${id}-${inputId}`}
-          type="file"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-        <div
-          className="ax-file-box"
-          onClick={() => inputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              inputRef.current?.click();
-            }
-          }}
-          aria-label={label}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-            <svg
-              style={{ width: 18, height: 18, flexShrink: 0, color: 'var(--ax-text-muted)' }}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : '#ffffff',
+          padding: file || preview ? '12px 14px' : '20px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file || preview ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {preview ? (
+                <img
+                  src={preview}
+                  alt={label}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file ? file.name : label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'Existing file attached'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove photo"
             >
-              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
-              <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
-            </svg>
-            <span
+              Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
               style={{
-                fontSize: 'var(--ax-text-xs)',
-                color: file ? 'var(--ax-text-strong)' : 'var(--ax-text-subtle)',
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
               }}
             >
-              {file ? `${file.name} (${(file.size / 1024).toFixed(0)} KB)` : 'No file chosen'}
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            {file ? (
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--xs"
-                onClick={handleClear}
-                title="Remove file"
-                aria-label="Remove file"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                  <path d="M18 6l-12 12" />
-                  <path d="M6 6l12 12" />
-                </svg>
-              </button>
-            ) : (
-              <span
-                className="ax-btn ax-btn--secondary ax-btn--xs"
-                style={{ pointerEvents: 'none' }}
-              >
-                Choose File
-              </span>
-            )}
-          </div>
-        </div>
-
-        <label className="ax-float__label" htmlFor={`${id}-${inputId}`}>
-          {label}
-          {required && <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>}
-        </label>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Choose File <span style={{ fontWeight: 400, color: 'var(--ax-text-muted, #64748b)', fontSize: 11.5 }}>No file chosen</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+              JPG, PNG, WEBP or PDF (max 5 MB)
+            </div>
+          </>
+        )}
       </div>
-      <FieldFeedback error={error} isValid={status.isValid} />
+
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
 
-function FieldFeedback({ error, isValid }: { error?: string; isValid?: boolean }) {
-  if (error) {
-    return (
-      <span className="ax-field-feedback ax-field-feedback--error" role="alert">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
-          <circle cx="12" cy="12" r="9" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        {error}
-      </span>
-    );
-  }
+export function AddJammuSRT70MWSingleCard() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryId = searchParams.get('id');
+  const isUpdateMode = Boolean(queryId);
 
-  if (isValid) {
-    return (
-      <span className="ax-field-feedback ax-field-feedback--success">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        Valid
-      </span>
-    );
-  }
+  // Section 1: Basic & Site Details
+  const [district, setDistrict] = useState('Jammu');
+  const [department, setDepartment] = useState('Education');
+  const [deptName, setDeptName] = useState('');
+  const [siteName, setSiteName] = useState('');
+  const [surveySiteAddress, setSurveySiteAddress] = useState('');
+  const [nearLandmark, setNearLandmark] = useState('');
+  const [proposedCapacity, setProposedCapacity] = useState('');
 
-  return <span className="ax-field-feedback" />;
+  // Section 2: Contact & Geolocation
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactNo, setContactNo] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+
+  // Section 3: Electrical & Grid Parameters
+  const [loadType, setLoadType] = useState('Commercial');
+  const [connectionType, setConnectionType] = useState('LT');
+  const [meterConnectionType, setMeterConnectionType] = useState('Three Phase');
+  const [caNo, setCaNo] = useState('');
+  const [meterNo, setMeterNo] = useState('');
+  const [sanctionLoad, setSanctionLoad] = useState('');
+  const [instantaneousLoad, setInstantaneousLoad] = useState('');
+  const [gridAvailability, setGridAvailability] = useState('Yes');
+  const [threePhaseAvailable, setThreePhaseAvailable] = useState('Yes');
+  const [missingPhase, setMissingPhase] = useState('No');
+  const [ltdbStatus, setLtdbStatus] = useState('Available');
+
+  // DG Set
+  const [dgSetAvailable, setDgSetAvailable] = useState('0'); // '1' = Yes, '0' = No
+  const [dgSetCapacity, setDgSetCapacity] = useState('');
+  const [dgSetMake, setDgSetMake] = useState('');
+
+  // Section 4: Rooftop, Space & Routing
+  const [roofCondition, setRoofCondition] = useState('Good');
+  const [roofArea, setRoofArea] = useState('');
+  const [roofType, setRoofType] = useState('RCC (Flat)');
+  const [structureType, setStructureType] = useState('Elevated');
+  const [solarFreeSpace, setSolarFreeSpace] = useState('');
+  const [controlRoomFreeSpace, setControlRoomFreeSpace] = useState('');
+  const [earthPitPosition, setEarthPitPosition] = useState('Near Building Boundary');
+  const [acCableRouting, setAcCableRouting] = useState('Surface Concealed Conduit');
+  const [buildingAge, setBuildingAge] = useState('5');
+  const [roofAccess, setRoofAccess] = useState('Permanent Staircase');
+  const [rooftopHeight, setRooftopHeight] = useState('12');
+  const [parapetHeight, setParapetHeight] = useState('3.5');
+  const [numberOfFloors, setNumberOfFloors] = useState('2');
+  const [siteAccess, setSiteAccess] = useState('Direct Road Access');
+  const [siteDistance, setSiteDistance] = useState('0.2');
+
+  // Section 5: Photographs & Reports
+  const [buildingImage, setBuildingImage] = useState<File | null>(null);
+  const [buildingImagePreview, setBuildingImagePreview] = useState('');
+  const [roofImage, setRoofImage] = useState<File | null>(null);
+  const [roofImagePreview, setRoofImagePreview] = useState('');
+  const [controlRoomImage, setControlRoomImage] = useState<File | null>(null);
+  const [controlRoomImagePreview, setControlRoomImagePreview] = useState('');
+  const [image4, setImage4] = useState<File | null>(null);
+  const [image4Preview, setImage4Preview] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+
+  // Status & Feedback
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Section references for scroll
+  const sec1 = useRef<HTMLDivElement>(null);
+  const sec2 = useRef<HTMLDivElement>(null);
+  const sec3 = useRef<HTMLDivElement>(null);
+  const sec4 = useRef<HTMLDivElement>(null);
+  const sec5 = useRef<HTMLDivElement>(null);
+
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // If queryId is present, load survey for edit (API 3: GET /jammu/srt70mw/edit-survey?id=1)
+  useEffect(() => {
+    if (!queryId) return;
+
+    const loadEditData = async () => {
+      setLoadingInitial(true);
+      try {
+        const item: JammuSrtSurveyItem = await jammuSrtSurveyService.getSurveyForEdit(queryId);
+        if (item) {
+          if (item.district) setDistrict(item.district);
+          const dp = item.dept_name || item.department;
+          if (dp) {
+            setDepartment(dp);
+            setDeptName(dp);
+          }
+          setSiteName(item.site_name || '');
+          setSurveySiteAddress(item.survey_site_address || item.address || '');
+          setNearLandmark(item.near_landmark || '');
+          setProposedCapacity(item.proposed_capacity ? String(item.proposed_capacity) : '');
+
+          setContactPerson(item.contact_person || '');
+          setContactNo(item.contact_no ? String(item.contact_no) : '');
+          setLatitude(item.latitude ? String(item.latitude) : '');
+          setLongitude(item.longitude ? String(item.longitude) : '');
+
+          if (item.load_type) setLoadType(item.load_type);
+          if (item.connection_type) setConnectionType(item.connection_type);
+          if (item.meter_connection_type) setMeterConnectionType(item.meter_connection_type);
+          setCaNo(item.ca_no || '');
+          setMeterNo(item.meter_no || '');
+          setSanctionLoad(item.sanction_load ? String(item.sanction_load) : '');
+          setInstantaneousLoad(item.instantaneous_load ? String(item.instantaneous_load) : '');
+          if (item.grid_availability) setGridPower(item.grid_availability);
+          if (item.three_phase_available) setThreePhaseAvailable(item.three_phase_available);
+          if (item.missing_phase) setMissingPhase(item.missing_phase);
+          if (item.ltdb_status) setLtdbStatus(item.ltdb_status);
+
+          const dgAvail = String(item.existing_dg_set ?? item.dg_set_available ?? '0');
+          setDgSetAvailable(dgAvail === '1' || dgAvail.toLowerCase() === 'yes' ? '1' : '0');
+          setDgSetCapacity(item.dg_set_capacity || '');
+          setDgSetMake(item.dg_set_make || '');
+
+          if (item.roof_condition) setRoofCondition(item.roof_condition);
+          setRoofArea(item.roof_area ? String(item.roof_area) : '');
+          if (item.roof_type) setRoofType(item.roof_type);
+          if (item.structure_type) setStructureType(item.structure_type);
+          setSolarFreeSpace(item.solar_free_space ? String(item.solar_free_space) : '');
+          setControlRoomFreeSpace(item.control_room_free_space ? String(item.control_room_free_space) : '');
+          const ep = item.earth_pit || item.earth_pit_position;
+          if (ep) setEarthPitPosition(ep);
+          if (item.ac_cable_routing) setAcCableRouting(item.ac_cable_routing);
+          setBuildingAge(item.building_age ? String(item.building_age) : '5');
+          if (item.roof_access) setRoofAccess(item.roof_access);
+          setRooftopHeight(item.rooftop_height ? String(item.rooftop_height) : '12');
+          setParapetHeight(item.parapet_height ? String(item.parapet_height) : '3.5');
+          setNumberOfFloors(item.number_of_floors ? String(item.number_of_floors) : '2');
+          if (item.site_access) setSiteAccess(item.site_access);
+          setSiteDistance(item.site_distance ? String(item.site_distance) : '0.2');
+
+          const bImg = item.image1 || item.building_image;
+          if (bImg) setBuildingImagePreview(resolveJammuSurveyMediaUrl(bImg, 'srt_image'));
+          const rImg = item.image2 || item.roof_image;
+          if (rImg) setRoofImagePreview(resolveJammuSurveyMediaUrl(rImg, 'srt_image'));
+          const crImg = item.image3 || item.control_room_image;
+          if (crImg) setControlRoomImagePreview(resolveJammuSurveyMediaUrl(crImg, 'srt_image'));
+          if (item.image4) setImage4Preview(resolveJammuSurveyMediaUrl(item.image4, 'srt_image'));
+        }
+      } catch (err: any) {
+        console.error('[AddJammuSRT70MW] loadEditData error:', err);
+        setFeedback({ type: 'danger', text: err?.message || 'Failed to load SRT survey for editing.' });
+      } finally {
+        setLoadingInitial(false);
+      }
+    };
+
+    loadEditData();
+  }, [queryId]);
+
+  // GPS Auto-detect
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGettingLocation(true);
+    setFeedback(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setGettingLocation(false);
+      },
+      (err) => {
+        console.warn('Geolocation high accuracy failed, retrying standard...', err);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLatitude(pos.coords.latitude.toFixed(6));
+            setLongitude(pos.coords.longitude.toFixed(6));
+            setGettingLocation(false);
+          },
+          (err2) => {
+            setGettingLocation(false);
+            alert(`Unable to retrieve GPS coordinates (${err2.message}). Please enter manually.`);
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  // Form Submit Handler
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+
+    if (!district.trim()) {
+      setFeedback({ type: 'danger', text: 'District is required.' });
+      scrollTo(sec1);
+      return;
+    }
+    if (!department.trim()) {
+      setFeedback({ type: 'danger', text: 'Department is required.' });
+      scrollTo(sec1);
+      return;
+    }
+    if (!siteName.trim()) {
+      setFeedback({ type: 'danger', text: 'Site Name is required.' });
+      scrollTo(sec1);
+      return;
+    }
+    if (!surveySiteAddress.trim() || !nearLandmark.trim()) {
+      setFeedback({ type: 'danger', text: 'Survey Site Address and Landmark are required.' });
+      scrollTo(sec1);
+      return;
+    }
+    if (!proposedCapacity.trim()) {
+      setFeedback({ type: 'danger', text: 'Proposed Capacity (kW) is required.' });
+      scrollTo(sec1);
+      return;
+    }
+
+    const cleanContact = contactNo.replace(/\D/g, '').trim();
+    if (cleanContact.length < 10 || cleanContact.length > 12) {
+      setFeedback({ type: 'danger', text: 'Contact Number must be between 10 and 12 digits.' });
+      scrollTo(sec2);
+      return;
+    }
+    if (!contactPerson.trim()) {
+      setFeedback({ type: 'danger', text: 'Contact Person is required.' });
+      scrollTo(sec2);
+      return;
+    }
+    if (!latitude.trim() || !longitude.trim()) {
+      setFeedback({ type: 'danger', text: 'Latitude and Longitude are required. Click "Auto-detect GPS".' });
+      scrollTo(sec2);
+      return;
+    }
+
+    if (!caNo.trim() || !meterNo.trim()) {
+      setFeedback({ type: 'danger', text: 'CA Number and Meter Number are required.' });
+      scrollTo(sec3);
+      return;
+    }
+    if (!sanctionLoad.trim() || !instantaneousLoad.trim()) {
+      setFeedback({ type: 'danger', text: 'Sanction Load and Instantaneous Load are required.' });
+      scrollTo(sec3);
+      return;
+    }
+
+    if (!roofArea.trim() || !solarFreeSpace.trim()) {
+      setFeedback({ type: 'danger', text: 'Roof Area and Solar Free Space are required.' });
+      scrollTo(sec4);
+      return;
+    }
+
+    // On create mode, the three photos are strictly required
+    if (!isUpdateMode) {
+      if (!buildingImage) {
+        setFeedback({ type: 'danger', text: 'Building Image is required.' });
+        scrollTo(sec5);
+        return;
+      }
+      if (!roofImage) {
+        setFeedback({ type: 'danger', text: 'Roof Image is required.' });
+        scrollTo(sec5);
+        return;
+      }
+      if (!controlRoomImage) {
+        setFeedback({ type: 'danger', text: 'Control Room Image is required.' });
+        scrollTo(sec5);
+        return;
+      }
+    }
+
+    try {
+      setSubmitting(true);
+      setFeedback(null);
+
+      const fd = new FormData();
+      if (isUpdateMode && queryId) {
+        fd.append('id', queryId);
+        fd.append('dept_name', deptName || department);
+      }
+
+      fd.append('district', district.trim());
+      fd.append('department', department.trim());
+      fd.append('site_name', siteName.trim());
+      fd.append('survey_site_address', surveySiteAddress.trim());
+      fd.append('near_landmark', nearLandmark.trim());
+      fd.append('proposed_capacity', proposedCapacity.trim());
+      fd.append('contact_person', contactPerson.trim());
+      fd.append('contact_no', cleanContact);
+      fd.append('latitude', latitude.trim());
+      fd.append('longitude', longitude.trim());
+      fd.append('load_type', loadType);
+      fd.append('connection_type', connectionType);
+      fd.append('meter_connection_type', meterConnectionType);
+      fd.append('ca_no', caNo.trim());
+      fd.append('meter_no', meterNo.trim());
+      fd.append('sanction_load', sanctionLoad.trim());
+      fd.append('instantaneous_load', instantaneousLoad.trim());
+      fd.append('grid_availability', gridAvailability);
+      fd.append('three_phase_available', threePhaseAvailable);
+      fd.append('missing_phase', missingPhase);
+      fd.append('ltdb_status', ltdbStatus);
+      fd.append('dg_set_available', dgSetAvailable);
+      if (dgSetAvailable === '1') {
+        fd.append('dg_set_capacity', dgSetCapacity.trim());
+        fd.append('dg_set_make', dgSetMake.trim());
+      }
+      fd.append('roof_condition', roofCondition);
+      fd.append('roof_area', roofArea.trim());
+      fd.append('roof_type', roofType);
+      fd.append('structure_type', structureType);
+      fd.append('solar_free_space', solarFreeSpace.trim());
+      fd.append('control_room_free_space', controlRoomFreeSpace.trim());
+      fd.append('earth_pit_position', earthPitPosition);
+      fd.append('ac_cable_routing', acCableRouting);
+      fd.append('building_age', buildingAge.trim() || '5');
+      fd.append('roof_access', roofAccess);
+      fd.append('rooftop_height', rooftopHeight.trim() || '12');
+      fd.append('parapet_height', parapetHeight.trim() || '3.5');
+      fd.append('number_of_floors', numberOfFloors.trim() || '2');
+      fd.append('site_access', siteAccess);
+      fd.append('site_distance', siteDistance.trim() || '0.2');
+
+      // Photos
+      if (buildingImage) fd.append('building_image', buildingImage);
+      if (roofImage) fd.append('roof_image', roofImage);
+      if (controlRoomImage) fd.append('control_room_image', controlRoomImage);
+      if (image4) fd.append('image4', image4);
+      if (pdfFile) fd.append('pdf', pdfFile);
+
+      if (isUpdateMode) {
+        const res = await jammuSrtSurveyService.updateSurvey(fd);
+        setFeedback({ type: 'success', text: res.message || 'Jammu SRT Survey Update Successfully!!!' });
+      } else {
+        const res = await jammuSrtSurveyService.addSurvey(fd);
+        setFeedback({ type: 'success', text: res.message || 'Jammu SRT Survey Completed Successfully!!!' });
+      }
+
+      setTimeout(() => {
+        navigate('/v/jammu/survey/srt-70mw/view-data');
+      }, 1500);
+    } catch (err: any) {
+      console.error('[AddJammuSRT70MW] submit error:', err);
+      setFeedback({ type: 'danger', text: err?.message || 'Failed to submit SRT survey.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="solar-erp-page jammu-srt-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
+
+      {/* ── Page Head ── */}
+      <PageHead
+        title={isUpdateMode ? `Update 70MW SRT Survey #${queryId}` : 'Add Jammu SRT 70MW Survey'}
+        subtitle="Record technical rooftop solar feasibility, DG set integration, electrical infrastructure, and high-resolution site photography"
+        breadcrumbs={[
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Jammu & Kashmir' },
+          { label: 'Survey' },
+          { label: 'SRT 70MW' },
+          { label: isUpdateMode ? 'Update Survey' : 'Add 70MW SRT' },
+        ]}
+        actions={
+          <Link to="/v/jammu/survey/srt-70mw/view-data" className="ax-btn ax-btn--secondary ax-btn--sm">
+            View 70MW SRT Surveys
+          </Link>
+        }
+      />
+
+      {feedback && (
+        <div className={`ax-alert ax-alert--${feedback.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__title">{feedback.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{feedback.text}</div>
+        </div>
+      )}
+
+      {/* ── Main Form Card ── */}
+      <form onSubmit={handleSubmit} className="ax-card">
+        {/* ── Header with Section Pills ── */}
+        <div className="ax-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                {isUpdateMode ? `Edit Jammu SRT 70MW Survey #${queryId}` : 'Add Jammu SRT 70MW Survey'}
+              </h2>
+              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted, #64748b)', margin: '2px 0 0' }}>
+                All required measurements marked with asterisk must be verified by certified field personnel.
+              </p>
+            </div>
+            {isUpdateMode && (
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
+                Editing Survey #{queryId}
+              </span>
+            )}
+          </div>
+
+          {/* Quick Nav Pills */}
+          <div className="swp-section-pills" role="navigation" aria-label="Quick section navigation">
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+              <span className="pill-num">1</span> General Info
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+              <span className="pill-num">2</span> Location & Contact
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> Technical Info
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec4)}>
+              <span className="pill-num">4</span> Civil / Structural
+            </button>
+            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec5)}>
+              <span className="pill-num">5</span> Other Info
+            </button>
+          </div>
+        </div>
+
+        <div className="ax-card__body">
+          {loadingInitial && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#2563eb' }}>
+              <span className="ax-spinner" /> Loading existing survey specifications for editing…
+            </div>
+          )}
+
+          {/* ════════ Section 1: Basic & Site Details ════════ */}
+          <div ref={sec1} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Basic & Site Details</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Administrative district, institutional department, site address, and proposed capacity
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                as="select"
+                label="District"
+                name="district"
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                required
+              >
+                {['Jammu', 'Samba', 'Kathua', 'Udhampur', 'Reasi', 'Rajouri', 'Poonch', 'Doda', 'Ramban', 'Kishtwar'].map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Department"
+                name="department"
+                value={department}
+                onChange={(e) => {
+                  setDepartment(e.target.value);
+                  setDeptName(e.target.value);
+                }}
+                required
+              >
+                {['Education', 'Health', 'Revenue', 'Police', 'Agriculture', 'PHE / Jal Shakti', 'PWD', 'Forest', 'Other'].map((dp) => (
+                  <option key={dp} value={dp}>{dp}</option>
+                ))}
+              </FloatingInput>
+
+              <FloatingInput
+                label="Site Name (Free Text)"
+                name="site_name"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                placeholder="e.g. Govt Higher Secondary School"
+                required
+              />
+
+              <FloatingInput
+                label="Proposed Capacity (kW)"
+                name="proposed_capacity"
+                type="number"
+                value={proposedCapacity}
+                onChange={(e) => setProposedCapacity(e.target.value)}
+                placeholder="e.g. 20"
+                required
+              />
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <FloatingInput
+                  label="Survey Site Full Address"
+                  name="survey_site_address"
+                  value={surveySiteAddress}
+                  onChange={(e) => setSurveySiteAddress(e.target.value)}
+                  placeholder="Enter complete building & village / ward address"
+                  required
+                />
+              </div>
+
+              <FloatingInput
+                label="Nearest Landmark"
+                name="near_landmark"
+                value={nearLandmark}
+                onChange={(e) => setNearLandmark(e.target.value)}
+                placeholder="e.g. Main Bus Stand"
+                required
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 2: Location & Personnel ════════ */}
+          <div ref={sec2} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Location Coordinates & Contact Personnel</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Institutional representative contact details and satellite GPS coordinates
+                </span>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={detectLocation}
+                disabled={gettingLocation}
+              >
+                {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
+              </button>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                label="Contact Person Name"
+                name="contact_person"
+                value={contactPerson}
+                onChange={(e) => setContactPerson(e.target.value)}
+                placeholder="Principal / In-Charge / Officer"
+                required
+              />
+
+              <FloatingInput
+                label="Contact Number (10-12 digits)"
+                name="contact_no"
+                type="tel"
+                value={contactNo}
+                onChange={(e) => setContactNo(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                placeholder="e.g. 9876543210"
+                required
+              />
+
+              <FloatingInput
+                label="Latitude"
+                name="latitude"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                placeholder="e.g. 32.7266"
+                required
+              />
+
+              <FloatingInput
+                label="Longitude"
+                name="longitude"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                placeholder="e.g. 74.8570"
+                required
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 3: Electrical & Grid Audit ════════ */}
+          <div ref={sec3} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Electrical & Grid Audit Parameters</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Consumer account, meter specs, loads, grid reliability, and backup DG set availability
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                as="select"
+                label="Load Type"
+                name="load_type"
+                value={loadType}
+                onChange={(e) => setLoadType(e.target.value)}
+                required
+              >
+                <option value="Commercial">Commercial</option>
+                <option value="Institutional">Institutional</option>
+                <option value="Domestic">Domestic</option>
+                <option value="Industrial">Industrial</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Connection Type"
+                name="connection_type"
+                value={connectionType}
+                onChange={(e) => setConnectionType(e.target.value)}
+                required
+              >
+                <option value="LT">LT (Low Tension)</option>
+                <option value="HT">HT (High Tension)</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Meter Connection Type"
+                name="meter_connection_type"
+                value={meterConnectionType}
+                onChange={(e) => setMeterConnectionType(e.target.value)}
+                required
+              >
+                <option value="Three Phase">Three Phase</option>
+                <option value="Single Phase">Single Phase</option>
+                <option value="CT Operated">CT Operated</option>
+              </FloatingInput>
+
+              <FloatingInput
+                label="CA Number (Consumer No.)"
+                name="ca_no"
+                value={caNo}
+                onChange={(e) => setCaNo(e.target.value)}
+                placeholder="Enter Consumer CA Number"
+                required
+              />
+
+              <FloatingInput
+                label="Meter Number"
+                name="meter_no"
+                value={meterNo}
+                onChange={(e) => setMeterNo(e.target.value)}
+                placeholder="Enter Meter Serial No"
+                required
+              />
+
+              <FloatingInput
+                label="Sanction Load (kW)"
+                name="sanction_load"
+                type="number"
+                value={sanctionLoad}
+                onChange={(e) => setSanctionLoad(e.target.value)}
+                placeholder="e.g. 25"
+                required
+              />
+
+              <FloatingInput
+                label="Instantaneous Load (kW)"
+                name="instantaneous_load"
+                type="number"
+                value={instantaneousLoad}
+                onChange={(e) => setInstantaneousLoad(e.target.value)}
+                placeholder="e.g. 18"
+                required
+              />
+
+              <FloatingInput
+                as="select"
+                label="Grid Availability"
+                name="grid_availability"
+                value={gridAvailability}
+                onChange={(e) => setGridAvailability(e.target.value)}
+                required
+              >
+                <option value="Yes">Yes (Reliable 18+ hrs)</option>
+                <option value="Intermittent">Intermittent</option>
+                <option value="No">No</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Three Phase Available"
+                name="three_phase_available"
+                value={threePhaseAvailable}
+                onChange={(e) => setThreePhaseAvailable(e.target.value)}
+                required
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Missing Phase"
+                name="missing_phase"
+                value={missingPhase}
+                onChange={(e) => setMissingPhase(e.target.value)}
+                required
+              >
+                <option value="No">No (All 3 phases OK)</option>
+                <option value="Yes">Yes</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="LTDB Status"
+                name="ltdb_status"
+                value={ltdbStatus}
+                onChange={(e) => setLtdbStatus(e.target.value)}
+                required
+              >
+                <option value="Available">Available & Functional</option>
+                <option value="Upgrade Needed">Upgrade Needed</option>
+                <option value="Not Available">Not Available</option>
+              </FloatingInput>
+
+              {/* DG Set */}
+              <FloatingInput
+                as="select"
+                label="DG Set Available"
+                name="dg_set_available"
+                value={dgSetAvailable}
+                onChange={(e) => setDgSetAvailable(e.target.value)}
+                required
+              >
+                <option value="0">No</option>
+                <option value="1">Yes</option>
+              </FloatingInput>
+
+              {dgSetAvailable === '1' && (
+                <>
+                  <FloatingInput
+                    label="DG Set Capacity (kVA)"
+                    name="dg_set_capacity"
+                    value={dgSetCapacity}
+                    onChange={(e) => setDgSetCapacity(e.target.value)}
+                    placeholder="e.g. 50 kVA"
+                    required
+                  />
+
+                  <FloatingInput
+                    label="DG Set Make / Manufacturer"
+                    name="dg_set_make"
+                    value={dgSetMake}
+                    onChange={(e) => setDgSetMake(e.target.value)}
+                    placeholder="e.g. Kirloskar / Cummins"
+                    required
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 4: Rooftop & Structural Details ════════ */}
+          <div ref={sec4} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Rooftop & Structural Details</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Rooftop dimensions, structure mounting orientation, inverter room, and cable routing
+                </span>
+              </div>
+            </div>
+
+            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+              <FloatingInput
+                as="select"
+                label="Roof Condition"
+                name="roof_condition"
+                value={roofCondition}
+                onChange={(e) => setRoofCondition(e.target.value)}
+                required
+              >
+                <option value="Good">Good (Concrete RCC)</option>
+                <option value="Average">Average</option>
+                <option value="Tin Shed">Tin / Metal Shed</option>
+                <option value="Poor">Poor</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Roof Type"
+                name="roof_type"
+                value={roofType}
+                onChange={(e) => setRoofType(e.target.value)}
+                required
+              >
+                <option value="RCC (Flat)">RCC (Flat)</option>
+                <option value="Sloped Metal Sheet">Sloped Metal Sheet</option>
+                <option value="Asbestos Sheet">Asbestos Sheet</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="Proposed Structure Type"
+                name="structure_type"
+                value={structureType}
+                onChange={(e) => setStructureType(e.target.value)}
+                required
+              >
+                <option value="Elevated">Elevated HDG Structure</option>
+                <option value="Standard MMS">Standard MMS (Ballast)</option>
+                <option value="Super Elevated">Super Elevated (Gazebo type)</option>
+              </FloatingInput>
+
+              <FloatingInput
+                label="Total Roof Area (Sq. Ft.)"
+                name="roof_area"
+                type="number"
+                value={roofArea}
+                onChange={(e) => setRoofArea(e.target.value)}
+                placeholder="e.g. 4000"
+                required
+              />
+
+              <FloatingInput
+                label="Solar Free Space (Sq. Ft.)"
+                name="solar_free_space"
+                type="number"
+                value={solarFreeSpace}
+                onChange={(e) => setSolarFreeSpace(e.target.value)}
+                placeholder="e.g. 3000"
+                required
+              />
+
+              <FloatingInput
+                label="Control Room Free Space (Sq. Ft.)"
+                name="control_room_free_space"
+                type="number"
+                value={controlRoomFreeSpace}
+                onChange={(e) => setControlRoomFreeSpace(e.target.value)}
+                placeholder="e.g. 120"
+                required
+              />
+
+              <FloatingInput
+                as="select"
+                label="Earth Pit Position"
+                name="earth_pit_position"
+                value={earthPitPosition}
+                onChange={(e) => setEarthPitPosition(e.target.value)}
+                required
+              >
+                <option value="Near Building Boundary">Near Building Boundary</option>
+                <option value="Ground Yard">Ground Yard</option>
+                <option value="New Ground Required">New Ground Required</option>
+              </FloatingInput>
+
+              <FloatingInput
+                as="select"
+                label="AC Cable Routing"
+                name="ac_cable_routing"
+                value={acCableRouting}
+                onChange={(e) => setAcCableRouting(e.target.value)}
+                required
+              >
+                <option value="Surface Concealed Conduit">Surface Concealed Conduit</option>
+                <option value="External Cable Tray">External Cable Tray</option>
+                <option value="Underground Trench">Underground Trench</option>
+              </FloatingInput>
+
+              <FloatingInput
+                label="Building Age (Years)"
+                name="building_age"
+                type="number"
+                value={buildingAge}
+                onChange={(e) => setBuildingAge(e.target.value)}
+                placeholder="e.g. 5"
+                required
+              />
+
+              <FloatingInput
+                as="select"
+                label="Roof Access"
+                name="roof_access"
+                value={roofAccess}
+                onChange={(e) => setRoofAccess(e.target.value)}
+                required
+              >
+                <option value="Permanent Staircase">Permanent Staircase</option>
+                <option value="External Metal Ladder">External Metal Ladder</option>
+                <option value="Manhole Access">Manhole Access</option>
+              </FloatingInput>
+
+              <FloatingInput
+                label="Rooftop Height (Ft.)"
+                name="rooftop_height"
+                type="number"
+                value={rooftopHeight}
+                onChange={(e) => setRooftopHeight(e.target.value)}
+                placeholder="e.g. 12"
+                required
+              />
+
+              <FloatingInput
+                label="Parapet Height (Ft.)"
+                name="parapet_height"
+                type="number"
+                value={parapetHeight}
+                onChange={(e) => setParapetHeight(e.target.value)}
+                placeholder="e.g. 3.5"
+                required
+              />
+
+              <FloatingInput
+                label="Number of Floors"
+                name="number_of_floors"
+                type="number"
+                value={numberOfFloors}
+                onChange={(e) => setNumberOfFloors(e.target.value)}
+                placeholder="e.g. 2"
+                required
+              />
+
+              <FloatingInput
+                as="select"
+                label="Site Access"
+                name="site_access"
+                value={siteAccess}
+                onChange={(e) => setSiteAccess(e.target.value)}
+                required
+              >
+                <option value="Direct Road Access">Direct Road Access</option>
+                <option value="Narrow Lane">Narrow Lane</option>
+                <option value="Hilly Terrain">Hilly Terrain</option>
+              </FloatingInput>
+
+              <FloatingInput
+                label="Distance from Main Road (km)"
+                name="site_distance"
+                type="number"
+                value={siteDistance}
+                onChange={(e) => setSiteDistance(e.target.value)}
+                placeholder="e.g. 0.2"
+                required
+              />
+            </div>
+          </div>
+
+          <hr className="swp-section-divider" />
+
+          {/* ════════ Section 5: Photographs & Reports ════════ */}
+          <div ref={sec5} className="swp-section-block">
+            <div className="swp-section-header">
+              <div className="swp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Photographic Evidence & Survey Reports</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Clear field photographs of building front, rooftop area, control room / LTDB, and optional PDF drawing
+                </span>
+              </div>
+            </div>
+
+            <div className="jammu-upload-grid">
+              <UploadDropzone
+                id="srt_building_image"
+                label="Building Overview Photograph"
+                required={!isUpdateMode}
+                file={buildingImage}
+                preview={buildingImagePreview}
+                onSelect={(f) => {
+                  setBuildingImage(f);
+                  setBuildingImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setBuildingImage(null);
+                  setBuildingImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="srt_roof_image"
+                label="Rooftop Area Photograph"
+                required={!isUpdateMode}
+                file={roofImage}
+                preview={roofImagePreview}
+                onSelect={(f) => {
+                  setRoofImage(f);
+                  setRoofImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setRoofImage(null);
+                  setRoofImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="srt_control_room_image"
+                label="Control Room / LTDB Photograph"
+                required={!isUpdateMode}
+                file={controlRoomImage}
+                preview={controlRoomImagePreview}
+                onSelect={(f) => {
+                  setControlRoomImage(f);
+                  setControlRoomImagePreview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setControlRoomImage(null);
+                  setControlRoomImagePreview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="srt_image4"
+                label="Meter / Additional Photograph"
+                file={image4}
+                preview={image4Preview}
+                onSelect={(f) => {
+                  setImage4(f);
+                  setImage4Preview(URL.createObjectURL(f));
+                }}
+                onRemove={() => {
+                  setImage4(null);
+                  setImage4Preview('');
+                }}
+              />
+
+              <UploadDropzone
+                id="srt_pdf_file"
+                label="Survey Engineering Report / Drawing (PDF)"
+                accept="application/pdf"
+                file={pdfFile}
+                onSelect={(f) => setPdfFile(f)}
+                onRemove={() => setPdfFile(null)}
+              />
+            </div>
+          </div>
+
+          {/* ════════ Submit Footer ════════ */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <Link to="/v/jammu/survey/srt-70mw/view-data" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submitting}
+              style={{ minWidth: 200 }}
+            >
+              {submitting ? 'Submitting Survey…' : isUpdateMode ? 'Update 70MW SRT Survey' : 'Submit 70MW SRT Survey'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default AddJammuSRT70MWSingleCard;
