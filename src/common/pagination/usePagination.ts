@@ -50,6 +50,7 @@ export function usePagination<T>(
   const pageList = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
   const handlePageChange = useCallback((newPage: number) => {
+<<<<<<< HEAD
     if (typeof newPage !== 'number' || isNaN(newPage)) return;
     setPage(Math.max(1, newPage));
   }, []);
@@ -67,6 +68,18 @@ export function usePagination<T>(
   const handlePrevPage = useCallback(() => {
     setPage((p) => Math.max(1, p - 1));
   }, []);
+=======
+    setPage((prev) => {
+      if (typeof newPage !== 'number' || isNaN(newPage)) return prev;
+      return newPage;
+    });
+  }, []);
+
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  }, []);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
   return {
     // Exact Grid.js names

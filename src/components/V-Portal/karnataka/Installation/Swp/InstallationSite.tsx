@@ -426,7 +426,11 @@ function UploadDropzone({
 export function KarnatakaInstallationSite() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+<<<<<<< HEAD
   const { user, rawResponse } = useAuth();
+=======
+  const { user } = useAuth();
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
   // Mode: Check if edit query parameter exists (API 6 & API 7)
   const editSiteIdParam = searchParams.get('id') || searchParams.get('edit_id') || searchParams.get('site_id');
@@ -434,6 +438,7 @@ export function KarnatakaInstallationSite() {
 
   // Logged-in Vendor name resolution from active login session & useAuth context
   const loginVendorName = useMemo(() => {
+<<<<<<< HEAD
     const getCleanString = (val: any): string => {
       if (typeof val === 'string' && val.trim()) {
         const trimmed = val.trim();
@@ -594,6 +599,47 @@ export function KarnatakaInstallationSite() {
 
     return '';
   }, [user, rawResponse]);
+=======
+    try {
+      const session = authService.getSession() as any;
+      const raw = authService.getRawResponse() as any;
+      const directUser = authService.getUser() as any;
+
+      const candidates = [
+        user?.name,
+        user?.vendor_name,
+        user?.username,
+        session?.name,
+        session?.username,
+        session?.vendor_name,
+        session?.vendors?.name,
+        session?.vendor?.name,
+        directUser?.name,
+        directUser?.vendor_name,
+        directUser?.username,
+        raw?.data?.username,
+        raw?.username,
+        raw?.vendor?.name,
+        raw?.data?.vendor?.name,
+        raw?.data?.vendors?.name,
+        raw?.user?.name,
+        raw?.data?.name,
+        session?.company,
+        session?.firm,
+        session?.vendor_id ? `Vendor (${session.vendor_id})` : '',
+      ];
+
+      for (const c of candidates) {
+        if (c && typeof c === 'string' && c.trim() && c.trim() !== 'Active Vendor' && c.trim() !== 'NA') {
+          return c.trim();
+        }
+      }
+      return session?.vendor_id ? `Vendor (${session.vendor_id})` : 'App Testing';
+    } catch {
+      return 'App Testing';
+    }
+  }, [user]);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
   // Section Refs for Quick Navigation Pills
   const sec1 = useRef<HTMLDivElement>(null);
@@ -615,11 +661,14 @@ export function KarnatakaInstallationSite() {
   const [siteDetail, setSiteDetail] = useState<KarnatakaSiteDetailItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+<<<<<<< HEAD
   // Combined resolved vendor name: prefers active logged-in vendor name, fallbacks to site details if available
   const resolvedVendorName = useMemo(() => {
     return loginVendorName || siteDetail?.vendor_name || siteDetail?.vendor || siteDetail?.assigned_vendor || '';
   }, [loginVendorName, siteDetail]);
 
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
   // Equipment Form Inputs (API 4 & API 7)
   const [controllerNo, setControllerNo] = useState('');
   const [pumpNo, setPumpNo] = useState('');
@@ -888,9 +937,15 @@ export function KarnatakaInstallationSite() {
       if (pincode.trim()) formData.append('pincode', pincode.trim());
       if (instRemarks.trim()) formData.append('inst_remarks', instRemarks.trim());
 
+<<<<<<< HEAD
       // Pass vendor name retrieved from session / site
       formData.append('vendor', resolvedVendorName);
       formData.append('vendor_name', resolvedVendorName);
+=======
+      // Pass vendor name retrieved from session
+      formData.append('vendor', loginVendorName);
+      formData.append('vendor_name', loginVendorName);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
       // Photos
       if (moduleImage) formData.append('module_image', moduleImage);
@@ -989,7 +1044,11 @@ export function KarnatakaInstallationSite() {
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
                 {siteDetail.f_farmer_name || siteDetail.farmer_name
                   ? `${siteDetail.f_farmer_name || siteDetail.farmer_name} (${siteDetail.district || siteDetail.f_district || 'Karnataka'})`
+<<<<<<< HEAD
                   : `Site ${siteDetail.id}`}
+=======
+                  : `Site #${siteDetail.id}`}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
               </span>
             )}
           </div>
@@ -1056,7 +1115,11 @@ export function KarnatakaInstallationSite() {
                       <option value="">-- Choose Assigned Site / Farmer Name --</option>
                       {sitesList.map((s) => (
                         <option key={s.id} value={String(s.id)}>
+<<<<<<< HEAD
                           Site {s.id} - {s.f_farmer_name || s.farmer_name || `Site ${s.id}`} ({s.district || s.f_district || 'Karnataka'})
+=======
+                          #{s.id} - {s.f_farmer_name || s.farmer_name || `Site ${s.id}`} ({s.district || s.f_district || 'Karnataka'})
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                         </option>
                       ))}
                     </select>
@@ -1102,7 +1165,11 @@ export function KarnatakaInstallationSite() {
               <FloatingInput
                 label="Vendor Name"
                 name="vendor"
+<<<<<<< HEAD
                 value={resolvedVendorName}
+=======
+                value={loginVendorName || siteDetail?.vendor_name || siteDetail?.vendor || ''}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                 onChange={() => {}}
                 disabled
               />
@@ -1199,11 +1266,19 @@ export function KarnatakaInstallationSite() {
                   <div key={idx} style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <FloatingInput
+<<<<<<< HEAD
                         label={`Module ${idx + 1} Serial`}
                         name={`module_serial_${idx}`}
                         value={serial}
                         onChange={(e) => handleModuleSerialChange(idx, e.target.value)}
                         placeholder={`Enter Module ${idx + 1}`}
+=======
+                        label={`Module #${idx + 1} Serial`}
+                        name={`module_serial_${idx}`}
+                        value={serial}
+                        onChange={(e) => handleModuleSerialChange(idx, e.target.value)}
+                        placeholder={`Enter Module #${idx + 1}`}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                         required
                         onCameraClick={() => setScannerTarget(`module_${idx}`)}
                       />
@@ -1431,7 +1506,11 @@ export function KarnatakaInstallationSite() {
             : scannerTarget === 'imei'
             ? 'IMEI / RMS Number'
             : scannerTarget?.startsWith('module_')
+<<<<<<< HEAD
             ? `Module ${parseInt(scannerTarget.replace('module_', ''), 10) + 1} Serial`
+=======
+            ? `Module #${parseInt(scannerTarget.replace('module_', ''), 10) + 1} Serial`
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
             : 'Barcode'
         }
         onScan={(code: string) => handleBarcodeScanned(scannerTarget || '', code)}

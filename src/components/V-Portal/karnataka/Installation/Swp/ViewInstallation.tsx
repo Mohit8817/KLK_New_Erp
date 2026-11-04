@@ -90,6 +90,7 @@ const fmtSerials = (val?: any): string => {
   return String(val);
 };
 
+<<<<<<< HEAD
 const parseModuleSerials = (val?: any): string[] => {
   if (!val) return [];
   const rawItems: string[] = [];
@@ -143,6 +144,8 @@ const parseModuleSerials = (val?: any): string[] => {
     .filter((s) => s && s !== 'null' && s !== 'undefined' && s !== '[]' && s !== '—' && s !== '-');
 };
 
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 /* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -434,6 +437,7 @@ function RowActionDropdown({
   );
 }
 
+<<<<<<< HEAD
 /* ───────── Solar PV Module Serials View More Modal ───────── */
 function ModuleSerialsModal({
   data,
@@ -626,6 +630,8 @@ function ModuleSerialsModal({
   );
 }
 
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 /* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
@@ -1034,6 +1040,7 @@ export function KarnatakaViewInstallation() {
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
+<<<<<<< HEAD
   // Module serials modal state (view all serial numbers in popup)
   const [serialModalData, setSerialModalData] = useState<{
     farmer: string;
@@ -1043,6 +1050,8 @@ export function KarnatakaViewInstallation() {
     serials: string[];
   } | null>(null);
 
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
   // Document modal (API 9: multipart upload)
   const [docModalSite, setDocModalSite] = useState<InstalledSiteItem | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -1191,7 +1200,11 @@ export function KarnatakaViewInstallation() {
       fd.append('doc_remarks', docRemarks.trim());
 
       await karnatakaSwpService.uploadInstDoc(fd);
+<<<<<<< HEAD
       setToastMsg({ type: 'success', text: `Document submitted successfully for Site ${siteId}!` });
+=======
+      setToastMsg({ type: 'success', text: `Document submitted successfully for Site #${siteId}!` });
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
       // Save to localStorage so status persists across reload & API refresh
       saveUploadedDocToStorage({
@@ -1650,7 +1663,11 @@ export function KarnatakaViewInstallation() {
                   const lat = txt(row, 'latitude') || txt(row, 'inst_latitude');
                   const lng = txt(row, 'longitude') || txt(row, 'inst_longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
+<<<<<<< HEAD
                   const farmerLabel = row.f_farmer_name || row.farmer_name || `Site ${row.id}`;
+=======
+                  const farmerLabel = row.f_farmer_name || row.farmer_name || `Site #${row.id}`;
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                   const docUrl = resolveKarnatakaMediaUrl(row.inst_doc || row.document || row.doc_file);
                   const moduleImg = row.module_image || row.module_photo;
                   const controllerImg = row.controller_image || row.controller_photo;
@@ -1658,7 +1675,10 @@ export function KarnatakaViewInstallation() {
                   const waterImg = row.running_water_image || row.running_water_photo;
                   const foundationImg = row.foundation_image || row.foundation_photo;
                   const ser = fmtSerials(row.module_serial_no || row.module_serials);
+<<<<<<< HEAD
                   const parsedSerials = parseModuleSerials(row.module_serial_no || row.module_serials);
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                   const blockText = txt(row, 'block') || txt(row, 'tehsil') || txt(row, 'f_tehsil');
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
@@ -1691,6 +1711,7 @@ export function KarnatakaViewInstallation() {
                       <td className="ax-table__td" style={monoCell}>{row.pump_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.motor_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.imei_no || DASH}</td>
+<<<<<<< HEAD
                       <td
                         className="ax-table__td"
                         style={{
@@ -1802,6 +1823,10 @@ export function KarnatakaViewInstallation() {
                             </div>
                           )}
                         </div>
+=======
+                      <td className="ax-table__td" style={{ ...monoCell, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {ser}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                       </td>
 
                       {/* Photo Thumbnails: NO BORDER RADIUS, Real Candidates, Click-to-Zoom */}
@@ -1950,6 +1975,7 @@ export function KarnatakaViewInstallation() {
       {/* ── Photo Preview Modal (Zoom, Fullscreen, Open in Tab) ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
+<<<<<<< HEAD
       {/* ── Solar PV Module Serials View More Modal ── */}
       {serialModalData && (
         <ModuleSerialsModal
@@ -1959,6 +1985,8 @@ export function KarnatakaViewInstallation() {
         />
       )}
 
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
       {/* ── Document Submit Modal (API 9: real multipart upload) ── */}
       <Modal open={!!docModalSite} onClose={closeDocModal} labelledBy="swp-doc-title" dialogClass="ax-modal__dialog--md">
         {docModalSite && (

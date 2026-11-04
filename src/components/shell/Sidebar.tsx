@@ -45,7 +45,10 @@ export function Sidebar({
     pathname === '/v' ||
     pathname.startsWith('/assam') ||
     pathname.startsWith('/jammu') ||
-    pathname.startsWith('/up');
+    pathname.startsWith('/up') ||
+    pathname.startsWith('/bihar') ||
+    pathname.startsWith('/ssl') ||
+    pathname.startsWith('/srt');
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>

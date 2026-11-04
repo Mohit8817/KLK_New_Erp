@@ -409,8 +409,13 @@ export function KarnatakaDashboard() {
     navigate(`/v/karnataka/installation/swp/status-view?${params.toString()}`);
   };
 
+<<<<<<< HEAD
   // Base API SWP totals
   const rawSwp = useMemo(() => data?.swp || {
+=======
+  // Safe destructuring of real API data
+  const swp = useMemo(() => data?.swp || {
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
     site_count: 0,
     complete: 0,
     pending: 0,
@@ -449,15 +454,20 @@ export function KarnatakaDashboard() {
       else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
+<<<<<<< HEAD
       else if (selectedStatus === 'VerifyRejected') matchStatus = (d.verify_reject || 0) > 0;
       else if (selectedStatus === 'DocApproved') matchStatus = (d.doc_approved || 0) > 0;
       else if (selectedStatus === 'PaymentSettled') matchStatus = (d.inst_pay_complete || 0) > 0;
+=======
+      else if (selectedStatus === 'DocApproved') matchStatus = (d.doc_approved || 0) > 0;
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
   const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
+<<<<<<< HEAD
   // Dynamic SWP statistics reflecting active filters (district or status)
   const swp = useMemo(() => {
     if (!filtersActive) return rawSwp;
@@ -497,6 +507,9 @@ export function KarnatakaDashboard() {
   }, [filtersActive, rawSwp, filteredDistricts]);
 
   // Table search & pagination matching reference - default 100 items per user requirement
+=======
+  // Table search & pagination matching reference
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
   const deferredQuery = useDeferredValue(tableQuery);
   const tableDistricts = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -512,7 +525,11 @@ export function KarnatakaDashboard() {
     totalItems,
     setPage,
     setPageSize,
+<<<<<<< HEAD
   } = usePagination({ data: tableDistricts, initialPageSize: 100 });
+=======
+  } = usePagination({ data: tableDistricts, initialPageSize: 15 });
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
   useEffect(() => {
     setPage(1);
@@ -525,6 +542,7 @@ export function KarnatakaDashboard() {
   const pctDocApproved = pctOf(swp.doc_approved, swp.complete || 1);
   const pctPaid = pctOf(swp.inst_pay_complete, swp.complete || 1);
 
+<<<<<<< HEAD
   // Milestones list matching reference with status keys for drilldown
   const milestones = [
     { label: '1. Allocated Solar Pump Sites', v: swp.site_count, of: swp.site_count || 1, color: LIGHT_BLUE, key: 'total' },
@@ -539,6 +557,22 @@ export function KarnatakaDashboard() {
     if (selectedDistrict !== 'All') return filteredDistricts;
     return [...districtwise].sort((a, b) => (b.complete || 0) - (a.complete || 0)).slice(0, 15);
   }, [districtwise, filteredDistricts, selectedDistrict]);
+=======
+  // Milestones list matching reference
+  const milestones = [
+    { label: '1. Allocated Solar Pump Sites', v: swp.site_count, of: swp.site_count || 1, color: LIGHT_BLUE },
+    { label: '2. Equipment Installed & Photos', v: swp.complete, of: swp.site_count || 1, color: LIGHT_GREEN },
+    { label: '3. Field Verification Approved', v: swp.verify_approved, of: swp.complete || swp.site_count || 1, color: LIGHT_CYAN },
+    { label: '4. Compliance Documents Approved', v: swp.doc_approved, of: swp.complete || swp.site_count || 1, color: LIGHT_VIOLET },
+    { label: '5. Payment Disbursement Settled', v: swp.inst_pay_complete, of: swp.complete || swp.site_count || 1, color: LIGHT_AMBER },
+  ];
+
+  // Top 15 districts for bar chart
+  const chartDistricts = useMemo(
+    () => [...districtwise].sort((a, b) => (b.complete || 0) - (a.complete || 0)).slice(0, 15),
+    [districtwise]
+  );
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
   // Sparklines strictly from real API data
   const siteSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.site_count) : undefined;
@@ -649,9 +683,15 @@ export function KarnatakaDashboard() {
         }
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
+<<<<<<< HEAD
           { label: 'Karnataka', href: '/v/karnataka/installation/swp/dashboard' },
           { label: 'Installation', href: '/karnataka/installation' },
           { label: 'SWP', href: '/v/karnataka/installation/swp/dashboard' },
+=======
+          { label: 'Karnataka' },
+          { label: 'Installation' },
+          { label: 'SWP' },
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
           { label: 'Dashboard' },
         ]}
         actions={
@@ -731,9 +771,13 @@ export function KarnatakaDashboard() {
                   <option value="Pending">Pending Installation</option>
                   <option value="VerifyApproved">Verify Approved</option>
                   <option value="VerifyPending">Verify Pending</option>
+<<<<<<< HEAD
                   <option value="VerifyRejected">Verify Rejected</option>
                   <option value="DocApproved">Document Approved</option>
                   <option value="PaymentSettled">Payment Settled</option>
+=======
+                  <option value="DocApproved">Document Approved</option>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                 </select>
               </div>
 
@@ -751,7 +795,11 @@ export function KarnatakaDashboard() {
 
             <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
+<<<<<<< HEAD
                 Showing <b style={{ color: 'var(--ax-text-strong)' }}>{num(swp.site_count)}</b> Sites across <b style={{ color: 'var(--ax-text-strong)' }}>{filteredDistricts.length}</b> {filteredDistricts.length === 1 ? 'District' : 'Districts'}
+=======
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{num(swp.site_count)}</b> Total Sites across <b style={{ color: 'var(--ax-text-strong)' }}>{districtOptions.length}</b> Districts
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
               </span>
             </div>
           </div>
@@ -953,6 +1001,7 @@ export function KarnatakaDashboard() {
           </div>
           <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
             <div className="ax-grid ax-grid--2" style={{ gap: 'var(--ax-space-2)' }}>
+<<<<<<< HEAD
               <div
                 role="button"
                 tabIndex={0}
@@ -963,10 +1012,15 @@ export function KarnatakaDashboard() {
                 title="View completed installed sites in status register"
               >
                 <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Installed &amp; Operational</small>
+=======
+              <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 'var(--ax-radius-md, 8px)' }}>
+                <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Installed & Operational</small>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                 <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-emerald, #10b981)' }}>
                   {num(swp.complete)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctComplete}%)</span>
                 </div>
               </div>
+<<<<<<< HEAD
               <div
                 role="button"
                 tabIndex={0}
@@ -976,6 +1030,9 @@ export function KarnatakaDashboard() {
                 className="asw-interactive-kpi"
                 title="View pending installation sites in status register"
               >
+=======
+              <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 'var(--ax-radius-md, 8px)' }}>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                 <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Pending Execution</small>
                 <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-amber, #f59e0b)' }}>
                   {num(swp.pending)} <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 500 }}>({pctPending}%)</span>
@@ -1198,6 +1255,7 @@ export function KarnatakaDashboard() {
             {milestones.map((m) => {
               const p = pctOf(m.v, m.of);
               return (
+<<<<<<< HEAD
                 <div
                   key={m.label}
                   role="button"
@@ -1208,6 +1266,9 @@ export function KarnatakaDashboard() {
                   className="asw-interactive-kpi"
                   title={`Drill down to ${m.label}`}
                 >
+=======
+                <div key={m.label}>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
                   <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
                     <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
                     <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
@@ -1358,7 +1419,11 @@ export function KarnatakaDashboard() {
                 onPageChange={setPage}
                 setPage={setPage}
                 onPageSizeChange={setPageSize}
+<<<<<<< HEAD
                 pageSizeOptions={[25, 50, 100, 200]}
+=======
+                pageSizeOptions={[10, 15, 25, 50]}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
               />
             </div>
           </div>
@@ -1415,18 +1480,24 @@ export function KarnatakaDashboard() {
                 <span>Record New Installation</span>
                 <span>+</span>
               </Link>
+<<<<<<< HEAD
               <Link to="/v/karnataka/installation/swp/material-details" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Material &amp; Equipment Details</span>
                 <span>⚙</span>
               </Link>
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
               <Link to="/v/karnataka/installation/swp/add-payment" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Submit Payment Claim</span>
                 <span>₹</span>
               </Link>
+<<<<<<< HEAD
               <Link to="/v/karnataka/installation/swp/payment" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>View Disbursals &amp; Payments</span>
                 <span>→</span>
               </Link>
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
             </div>
           </div>
         </section>

@@ -1,4 +1,4 @@
-import { authService } from './authService';
+﻿import { authService } from './authService';
 
 /** "Uttar Pradesh" / "UP" → "up", baaki lowercase */
 export const normState = (s: any): string => {
@@ -66,7 +66,11 @@ export const canAccessState = (state: string): boolean => {
   return false;
 };
 
+<<<<<<< HEAD
 const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'arunachal', 'goa'];
+=======
+const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'karnataka', 'arunachal'];
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
 
 /** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam'; 'goa/...' → 'goa' */
 export const stateOfSlug = (slug: string): string | null => {
@@ -80,18 +84,38 @@ export const stateOfSlug = (slug: string): string | null => {
     if (KNOWN_STATES.includes(candidate)) return candidate;
     return null;
   }
+<<<<<<< HEAD
   const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab|arunachal|goa)\//);
+=======
+  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab|karnataka|arunachal)\//);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
   if (mV) return normState(mV[1]);
   if (clean.startsWith('up-') || clean.includes('/up/')) return 'up';
   if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
   if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
+<<<<<<< HEAD
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
+<<<<<<< HEAD
   if (clean.startsWith('goa-') || clean.includes('goa')) return 'goa';
+=======
+<<<<<<< HEAD
+  if (clean.startsWith('karnataka-') || clean.includes('karnataka')) return 'karnataka';
+  if (clean.startsWith('arunachal-') || clean.includes('arunachal')) return 'arunachal';
+=======
+=======
+  if (clean.startsWith('ssl/') || clean.startsWith('ssl-')) return 'bihar';
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
   return null;
 };
 
 export const canAccessSlug = (slug: string): boolean => {
+  const clean = slug.replace(/^\/+/, '');
+  if (clean.startsWith('v/') || clean.startsWith('ssl/') || clean.startsWith('vendor/') || clean.startsWith('v-')) {
+    return true;
+  }
   const st = stateOfSlug(slug);
   return !st || canAccessState(st);
 };
