@@ -328,6 +328,21 @@ const KashmirExpensesView = lazy(() => import('./components/V-Portal/kashmir/Ins
 const KashmirExpensesPayment = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewPayments'));
 
 
+// ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
+const VendorDailyReport = lazy(() => import('./components/V-Portal/reports/DailyReport'));
+const VendorAddReport = lazy(() => import('./components/V-Portal/reports/AddReport'));
+const VendorViewReport = lazy(() => import('./components/V-Portal/reports/ViewReport'));
+
+const VendorComplaintDashboard = lazy(() => import('./components/V-Portal/complaints/VendorComplaintDashboard'));
+const VendorAddComplaint = lazy(() => import('./components/V-Portal/complaints/AddComplaint'));
+const VendorViewComplaint = lazy(() => import('./components/V-Portal/complaints/ViewComplaint'));
+
+const VendorUsersDashboard = lazy(() => import('./components/V-Portal/users/UsersDashboard'));
+const VendorAddUser = lazy(() => import('./components/V-Portal/users/AddUser'));
+const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers'));
+
+
+
 
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 // const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
@@ -554,6 +569,33 @@ const shell: Record<string, PageComponent> = {
   'v-dashboard': VPortalDashboard,
   'v-portal': VPortalDashboard,
   'vendor/dashboard': VPortalDashboard,
+
+
+  // ══════════════ V-PORTAL: COMMON MODULES ══════════════
+  // Reports
+  'v/reports': VendorDailyReport,
+  'v/reports/daily-report': VendorDailyReport,
+  'v/reports/add-report': VendorAddReport,
+  'v/reports/view-report': VendorViewReport,
+  'v/vendor-daily-view-progress': VendorDailyReport,
+  'v/vendor-add-progress': VendorAddReport,
+  'v/vendor-view-progress': VendorViewReport,
+
+  // Complaints
+  'v/complaints': VendorComplaintDashboard,
+  'v/complaints/vendor-complaint': VendorComplaintDashboard,
+  'v/complaints/add-complaint': VendorAddComplaint,
+  'v/complaints/view-complaint': VendorViewComplaint,
+  'v/vendor-add-complaint': VendorAddComplaint,
+  'v/vendor-view-complaint': VendorViewComplaint,
+
+  // Users
+  'v/users': VendorUsersDashboard,
+  'v/users/overview': VendorUsersDashboard,
+  'v/users/add-user': VendorAddUser,
+  'v/users/view-users': VendorViewUsers,
+  'v/vendor-add-user': VendorAddUser,
+  'v/vendor-view-user': VendorViewUsers,
 
   // ══════════════ V-PORTAL: ASSAM ══════════════
   'v/assam/installation/swp/dashboard': AssamDashboard,
@@ -1061,28 +1103,74 @@ const shell: Record<string, PageComponent> = {
 
   // AMC - SSL
   'v/edit-biharssl': BiharAMCSSLAdd,
+  'v/edit-bihar-ssl': BiharAMCSSLAdd,
+  'edit-bihar-ssl': BiharAMCSSLAdd,
+  'v/bihar-edit-ssl': BiharAMCSSLAdd,
+  'bihar-edit-ssl': BiharAMCSSLAdd,
+  'v/bihar-add-ssl-amc': BiharAMCSSLAdd,
+  'bihar-add-ssl-amc': BiharAMCSSLAdd,
+  'v/bihar/add-ssl-amc': BiharAMCSSLAdd,
+  'bihar/add-ssl-amc': BiharAMCSSLAdd,
+  'v/bihar/amc/ssl/add': BiharAMCSSLAdd,
+  'bihar/amc/ssl/add': BiharAMCSSLAdd,
+  'v/bihar/ssl/amc/add': BiharAMCSSLAdd,
+  'bihar/ssl/amc/add': BiharAMCSSLAdd,
   'edit-biharssl': BiharAMCSSLAdd,
   'v/bihar/edit-ssl': BiharAMCSSLAdd,
   'bihar/edit-ssl': BiharAMCSSLAdd,
   'v/view-biharssl': BiharAMCSSLView,
+  'v/view-bihar-ssl': BiharAMCSSLView,
+  'view-bihar-ssl': BiharAMCSSLView,
+  'v/bihar-view-ssl': BiharAMCSSLView,
+  'bihar-view-ssl': BiharAMCSSLView,
+  'v/bihar-view-ssl-amc': BiharAMCSSLView,
+  'bihar-view-ssl-amc': BiharAMCSSLView,
+  'v/bihar/view-ssl-amc': BiharAMCSSLView,
+  'bihar/view-ssl-amc': BiharAMCSSLView,
+  'v/bihar/amc/ssl/view': BiharAMCSSLView,
+  'bihar/amc/ssl/view': BiharAMCSSLView,
+  'v/bihar/ssl/amc/view': BiharAMCSSLView,
+  'bihar/ssl/amc/view': BiharAMCSSLView,
   'view-biharssl': BiharAMCSSLView,
   'v/bihar/view-ssl': BiharAMCSSLView,
   'bihar/view-ssl': BiharAMCSSLView,
   'v/ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar-view-ssl-complaint': BiharAMCSSLComplaint,
+  'bihar-view-ssl-complaint': BiharAMCSSLComplaint,
+  'v/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar-view-ssl-amc-complaint': BiharAMCSSLComplaint,
+  'bihar-view-ssl-amc-complaint': BiharAMCSSLComplaint,
+  'v/bihar/amc/ssl/complaint': BiharAMCSSLComplaint,
+  'bihar/amc/ssl/complaint': BiharAMCSSLComplaint,
+  'v/bihar/ssl/amc/complaint': BiharAMCSSLComplaint,
+  'bihar/ssl/amc/complaint': BiharAMCSSLComplaint,
   'ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
   'v/bihar/ssl/view-complaint': BiharAMCSSLComplaint,
   'bihar/ssl/view-complaint': BiharAMCSSLComplaint,
 
   // AMC - SRT
   'v/bihar-add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar/amc/srt/add': BiharAMCSRTAdd,
+  'bihar/amc/srt/add': BiharAMCSRTAdd,
+  'v/bihar/srt/amc/add': BiharAMCSRTAdd,
+  'bihar/srt/amc/add': BiharAMCSRTAdd,
   'bihar-add-srt-amc': BiharAMCSRTAdd,
   'v/bihar/add-srt-amc': BiharAMCSRTAdd,
   'bihar/add-srt-amc': BiharAMCSRTAdd,
   'v/bihar-view-srt-amc': BiharAMCSRTView,
+  'v/bihar/amc/srt/view': BiharAMCSRTView,
+  'bihar/amc/srt/view': BiharAMCSRTView,
+  'v/bihar/srt/amc/view': BiharAMCSRTView,
+  'bihar/srt/amc/view': BiharAMCSRTView,
   'bihar-view-srt-amc': BiharAMCSRTView,
   'v/bihar/view-srt-amc': BiharAMCSRTView,
   'bihar/view-srt-amc': BiharAMCSRTView,
   'v/bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'v/bihar/amc/srt/complaint': BiharAMCSRTComplaint,
+  'bihar/amc/srt/complaint': BiharAMCSRTComplaint,
+  'v/bihar/srt/amc/complaint': BiharAMCSRTComplaint,
+  'bihar/srt/amc/complaint': BiharAMCSRTComplaint,
   'bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
   'v/bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
   'bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
@@ -1278,6 +1366,10 @@ const shell: Record<string, PageComponent> = {
   'kashmir/srt/70mw/installation/assign-site': KashmirInstSRT70MWAssign,
   'v/kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
   'kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/installation/install-site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/installation/install-site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/install-site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/install-site': KashmirInstSRT70MWInstall,
   'v/kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
   'kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
   'v/kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,

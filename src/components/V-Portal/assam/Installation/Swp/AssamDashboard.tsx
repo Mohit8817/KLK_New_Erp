@@ -300,8 +300,6 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
 function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
-  const allZeros = hasSpark && spark.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
 
   return (
     <div
@@ -342,13 +340,13 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
               <Suspense fallback={<div style={{ width: 68, height: 26 }} />}>
                 <ApexChart
-                  key={`${label}-${safeSpark!.join(',')}-${sparkType}`}
+                  key={`${label}-${spark!.join(',')}-${sparkType}`}
                   type={sparkType}
                   sparkline
                   tooltip={false}
                   height={26}
                   color={t.apex}
-                  series={[{ name: label, data: safeSpark! }]}
+                  series={[{ name: label, data: spark! }]}
                   style={{ minHeight: 26, width: 68 }}
                   apex={{
                     yaxis: { min: 0, forceNiceScale: true },
@@ -418,8 +416,40 @@ export function AssamDashboard() {
     navigate(`/v/assam/installation/swp/status-view?${params.toString()}`);
   };
 
-  // Safe destructuring of API 14 data
-  const swp = useMemo(() => data?.swp || {
+  const districtwise: DistrictWiseDetail[] = useMemo(() => data?.districtwise || [], [data]);
+  const monthlyInstallations: DistrictMonthItem[] = useMemo(
+    () => data?.district_installation_month || data?.monthly_installations || [],
+    [data]
+  );
+
+  // District options for filter
+  const districtOptions = useMemo(
+    () => [...new Set(districtwise.map((d) => d.district).filter(Boolean))].sort(),
+    [districtwise]
+  );
+
+  // Filtered district rows based on selectedDistrict and selectedStatus
+  const filteredDistricts = useMemo(() => {
+    return districtwise.filter((d) => {
+      const matchDistrict = selectedDistrict === 'All' || d.district.toLowerCase() === selectedDistrict.toLowerCase();
+      let matchStatus = true;
+      if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
+      else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
+      else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
+      else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
+      else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
+      else if (selectedStatus === 'DocApproved') matchStatus = (d.doc_approved || 0) > 0;
+      else if (selectedStatus === 'DocPending') matchStatus = (d.doc_pending || 0) > 0;
+      else if (selectedStatus === 'DocReject') matchStatus = (d.doc_reject || 0) > 0;
+      else if (selectedStatus === 'ClaimRaised') matchStatus = (d.inst_claim_raised || 0) > 0;
+      else if (selectedStatus === 'ClaimApproved') matchStatus = (d.inst_claim_approved || 0) > 0;
+      else if (selectedStatus === 'PayComplete') matchStatus = (d.inst_pay_complete || 0) > 0;
+      else if (selectedStatus === 'PayPending') matchStatus = (d.inst_pay_pending || 0) > 0;
+      return matchDistrict && matchStatus;
+    });
+  }, [districtwise, selectedDistrict, selectedStatus]);
+
+  const rawSwp = useMemo(() => data?.swp || {
     site_count: 0,
     complete: 0,
     pending: 0,
@@ -437,31 +467,67 @@ export function AssamDashboard() {
     inst_pay_pending: 0,
   }, [data]);
 
-  const districtwise: DistrictWiseDetail[] = useMemo(() => data?.districtwise || [], [data]);
-  const monthlyInstallations: DistrictMonthItem[] = useMemo(
-    () => data?.district_installation_month || data?.monthly_installations || [],
-    [data]
-  );
-
-  // District options for filter
-  const districtOptions = useMemo(
-    () => [...new Set(districtwise.map((d) => d.district))].sort(),
-    [districtwise]
-  );
-
-  // Filtered district rows
-  const filteredDistricts = useMemo(() => {
-    return districtwise.filter((d) => {
-      const matchDistrict = selectedDistrict === 'All' || d.district.toLowerCase() === selectedDistrict.toLowerCase();
-      let matchStatus = true;
-      if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
-      else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
-      else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
-      else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
-      else if (selectedStatus === 'DocApproved') matchStatus = (d.doc_approved || 0) > 0;
-      return matchDistrict && matchStatus;
-    });
-  }, [districtwise, selectedDistrict, selectedStatus]);
+  // Dynamic swp metrics: aggregates from filteredDistricts when any filter is selected
+  const swp = useMemo(() => {
+    if (selectedDistrict === 'All' && selectedStatus === 'All') {
+      return rawSwp;
+    }
+    if (filteredDistricts.length === 0) {
+      return {
+        site_count: 0,
+        complete: 0,
+        pending: 0,
+        verify_pending: 0,
+        verify_approved: 0,
+        verify_reject: 0,
+        doc_approved: 0,
+        doc_pending: 0,
+        doc_reject: 0,
+        inst_claim_raised: 0,
+        inst_claim_approved: 0,
+        inst_claim_reject: 0,
+        inst_pay_complete: 0,
+        inst_pay_partially: 0,
+        inst_pay_pending: 0,
+      };
+    }
+    return filteredDistricts.reduce(
+      (acc, d) => ({
+        site_count: acc.site_count + (Number(d.site_count) || 0),
+        complete: acc.complete + (Number(d.complete) || 0),
+        pending: acc.pending + (Number(d.pending) || 0),
+        verify_pending: acc.verify_pending + (Number(d.verify_pending) || 0),
+        verify_approved: acc.verify_approved + (Number(d.verify_approved) || 0),
+        verify_reject: acc.verify_reject + (Number(d.verify_reject) || 0),
+        doc_approved: acc.doc_approved + (Number(d.doc_approved) || 0),
+        doc_pending: acc.doc_pending + (Number(d.doc_pending) || 0),
+        doc_reject: acc.doc_reject + (Number(d.doc_reject) || 0),
+        inst_claim_raised: acc.inst_claim_raised + (Number(d.inst_claim_raised) || 0),
+        inst_claim_approved: acc.inst_claim_approved + (Number(d.inst_claim_approved) || 0),
+        inst_claim_reject: acc.inst_claim_reject + (Number(d.inst_claim_reject) || 0),
+        inst_pay_complete: acc.inst_pay_complete + (Number(d.inst_pay_complete) || 0),
+        inst_pay_partially: acc.inst_pay_partially + (Number(d.inst_pay_partially) || 0),
+        inst_pay_pending: acc.inst_pay_pending + (Number(d.inst_pay_pending) || 0),
+      }),
+      {
+        site_count: 0,
+        complete: 0,
+        pending: 0,
+        verify_pending: 0,
+        verify_approved: 0,
+        verify_reject: 0,
+        doc_approved: 0,
+        doc_pending: 0,
+        doc_reject: 0,
+        inst_claim_raised: 0,
+        inst_claim_approved: 0,
+        inst_claim_reject: 0,
+        inst_pay_complete: 0,
+        inst_pay_partially: 0,
+        inst_pay_pending: 0,
+      }
+    );
+  }, [rawSwp, filteredDistricts, selectedDistrict, selectedStatus]);
 
   const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
@@ -481,7 +547,7 @@ export function AssamDashboard() {
     totalItems,
     setPage,
     setPageSize,
-  } = usePagination({ data: tableDistricts, initialPageSize: 15 });
+  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -503,17 +569,22 @@ export function AssamDashboard() {
     { label: '5. Payment Disbursement Settled', v: swp.inst_pay_complete, of: swp.complete || swp.site_count || 1, color: LIGHT_AMBER },
   ];
 
-  // Top 15 districts for bar chart
+  // Top districts for bar chart matching filters
   const chartDistricts = useMemo(
-    () => [...districtwise].sort((a, b) => (b.complete || 0) - (a.complete || 0)).slice(0, 15),
-    [districtwise]
+    () => [...filteredDistricts].sort((a, b) => (b.complete || 0) - (a.complete || 0)).slice(0, 15),
+    [filteredDistricts]
   );
 
-  // Sparklines datasets
-  const siteSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.site_count) : [5, 12, 18, 24, 30];
-  const completeSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.complete) : [2, 6, 12, 18, 22];
-  const pendingSpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.pending) : [3, 6, 6, 6, 8];
-  const verifySpark = districtwise.length > 1 ? districtwise.slice(0, 10).map((d) => d.verify_approved) : [1, 4, 8, 14, 18];
+  // Sparklines datasets derived ONLY from real filtered data (no fake numbers)
+  const siteSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.site_count || 0) : undefined;
+  const completeSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.complete || 0) : undefined;
+  const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.pending || 0) : undefined;
+  const verifySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.verify_approved || 0) : undefined;
+
+  const execRateSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.complete, d.site_count)) : undefined;
+  const auditPassSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.verify_approved, (d.verify_approved + d.verify_reject) || 1)) : undefined;
+  const docClearedSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.doc_approved, d.complete || 1)) : undefined;
+  const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_pay_complete, d.complete || 1)) : undefined;
 
   // Export Columns definition for District Table
   const districtCols: ExportColumn<DistrictWiseDetail>[] = useMemo(() => [
@@ -699,8 +770,15 @@ export function AssamDashboard() {
                   <option value="Complete">Installed Sites</option>
                   <option value="Pending">Pending Installation</option>
                   <option value="VerifyApproved">Verify Approved</option>
-                  <option value="VerifyPending">Verify Pending</option>
+                  <option value="VerifyPending">Verification Pending</option>
+                  <option value="VerifyReject">Verification Rejected</option>
                   <option value="DocApproved">Document Approved</option>
+                  <option value="DocPending">Document Pending</option>
+                  <option value="DocReject">Document Rejected</option>
+                  <option value="ClaimRaised">Claim Raised</option>
+                  <option value="ClaimApproved">Claim Approved</option>
+                  <option value="PayComplete">Payment Settled</option>
+                  <option value="PayPending">Payment Pending</option>
                 </select>
               </div>
 
@@ -709,7 +787,7 @@ export function AssamDashboard() {
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
                   style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); }}
+                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); setTableQuery(''); }}
                 >
                   Reset Filters
                 </button>
@@ -718,9 +796,42 @@ export function AssamDashboard() {
 
             <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{num(swp.site_count)}</b> Total Sites across <b style={{ color: 'var(--ax-text-strong)' }}>{districtOptions.length}</b> Districts
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{num(swp.site_count)}</b> Total Sites across <b style={{ color: 'var(--ax-text-strong)' }}>{filteredDistricts.length}</b> {filteredDistricts.length === 1 ? 'District' : 'Districts'}
               </span>
             </div>
+          </div>
+
+          {/* Quick Filter Status Tabs */}
+          <div className="ax-cluster" style={{ gap: 6, flexWrap: 'wrap', width: '100%', marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--ax-border, #e2e8f0)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quick Filter:</span>
+            {[
+              { key: 'All', label: 'All Operations' },
+              { key: 'Complete', label: 'Installed' },
+              { key: 'Pending', label: 'Pending' },
+              { key: 'VerifyApproved', label: 'Verify Approved' },
+              { key: 'VerifyPending', label: 'In Audit' },
+              { key: 'DocApproved', label: 'Doc Approved' },
+              { key: 'PayComplete', label: 'Payment Settled' },
+            ].map((p) => {
+              const isActive = selectedStatus === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setSelectedStatus(p.key)}
+                  className={`ax-btn ax-btn--xs ${isActive ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  style={{
+                    height: 24,
+                    fontSize: '11px',
+                    padding: '0 8px',
+                    borderRadius: 12,
+                    fontWeight: isActive ? 700 : 500,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -731,16 +842,29 @@ export function AssamDashboard() {
               <p className="ax-welcome__eyebrow">Assam Solar Water Pump System</p>
               <h2 className="ax-card__title">Welcome to Assam SWP Operations Dashboard</h2>
               <p className="ax-welcome__lede">
-                Assam SWP execution overview: <b>{num(swp.site_count)} solar pump sites</b> allocated across <b>{districtOptions.length} districts</b>.
-                <b> {num(swp.complete)} ({pctComplete}%)</b> installed, with <b>{num(swp.verify_approved)}</b> verified approved, <b>{num(swp.doc_approved)}</b> documentation cleared, and <b>{num(swp.inst_pay_complete)}</b> payment settlements.
+                {selectedDistrict !== 'All' ? (
+                  <>
+                    Assam SWP execution overview for <b>{selectedDistrict}</b>: <b>{num(swp.site_count)} solar pump sites</b> allocated.
+                    <b> {num(swp.complete)} ({pctComplete}%)</b> installed, with <b>{num(swp.verify_approved)}</b> verified approved, <b>{num(swp.doc_approved)}</b> documentation cleared, and <b>{num(swp.inst_pay_complete)}</b> payment settlements.
+                  </>
+                ) : (
+                  <>
+                    Assam SWP execution overview: <b>{num(swp.site_count)} solar pump sites</b> allocated across <b>{districtOptions.length} districts</b>.
+                    <b> {num(swp.complete)} ({pctComplete}%)</b> installed, with <b>{num(swp.verify_approved)}</b> verified approved, <b>{num(swp.doc_approved)}</b> documentation cleared, and <b>{num(swp.inst_pay_complete)}</b> payment settlements.
+                  </>
+                )}
               </p>
             </div>
 
             <dl className="ax-welcome__stats">
               <div className="ax-welcome__stat">
-                <dt>Total Districts</dt>
-                <dd className="ax-num">{num(districtOptions.length)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>Assam Operational Scope</small>
+                <dt>{selectedDistrict !== 'All' ? 'District' : 'Total Districts'}</dt>
+                <dd className="ax-num" style={{ fontSize: selectedDistrict !== 'All' ? '1.1rem' : undefined }}>
+                  {selectedDistrict !== 'All' ? selectedDistrict : num(districtOptions.length)}
+                </dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>
+                  {selectedDistrict !== 'All' ? 'Active Filter Scope' : 'Assam Operational Scope'}
+                </small>
               </div>
               <div className="ax-welcome__stat">
                 <dt>Allocated Sites</dt>
@@ -876,7 +1000,7 @@ export function AssamDashboard() {
           value={`${pctComplete}%`}
           sub={`${num(swp.complete)} of ${num(swp.site_count)} sites installed`}
           badge="Installed"
-          spark={[10, 25, 40, 60, pctComplete]}
+          spark={execRateSpark}
           onClick={() => openDrillDown('complete', 'Completed Sites')}
         />
 
@@ -886,7 +1010,7 @@ export function AssamDashboard() {
           label="Audit Pass Rate"
           value={`${pctOf(swp.verify_approved, (swp.verify_approved + swp.verify_reject) || 1)}%`}
           sub={`${num(swp.verify_approved)} Passed · ${num(swp.verify_reject)} Rejected`}
-          spark={[20, 45, 65, 80, pctVerified]}
+          spark={auditPassSpark}
           onClick={() => openDrillDown('verify-approved', 'Approved Audits')}
         />
 
@@ -896,7 +1020,7 @@ export function AssamDashboard() {
           label="Document Cleared"
           value={`${pctDocApproved}%`}
           sub={`${num(swp.doc_approved)} compliance docs accepted`}
-          spark={[15, 30, 50, 75, pctDocApproved]}
+          spark={docClearedSpark}
           onClick={() => openDrillDown('doc-approved', 'Document Cleared Sites')}
         />
 
@@ -906,7 +1030,7 @@ export function AssamDashboard() {
           label="Claim Settlement"
           value={`${pctPaid}%`}
           sub={`${num(swp.inst_pay_complete)} sites disbursed`}
-          spark={[5, 15, 30, 45, pctPaid]}
+          spark={claimSpark}
           onClick={() => openDrillDown('pay-complete', 'Settled Claims')}
         />
 
@@ -981,33 +1105,39 @@ export function AssamDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`dist-chart-${chartH}-${chartDistricts.map((d) => `${d.district}-${d.complete}-${d.site_count}`).join('-')}`}
-                type="bar"
-                height={chartH}
-                legend="none"
-                ariaLabel="District-wise installation comparison"
-                series={[
-                  { name: 'Installed Sites', data: chartDistricts.map((d) => d.complete || 0) },
-                  { name: 'Allocated Sites', data: chartDistricts.map((d) => d.site_count || 0) },
-                ]}
-                apex={{
-                  colors: [LIGHT_GREEN, LIGHT_BLUE],
-                  plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '35%' } },
-                  xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
-                  yaxis: { title: { text: 'Solar Pumps (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                  chart: {
-                    events: {
-                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                        const dist = chartDistricts[opts?.dataPointIndex]?.district;
-                        if (dist) openDrillDown('complete', 'Completed Installations', dist);
+            {chartDistricts.length > 0 ? (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`dist-chart-${chartH}-${chartDistricts.map((d) => `${d.district}-${d.complete}-${d.site_count}`).join('-')}`}
+                  type="bar"
+                  height={chartH}
+                  legend="none"
+                  ariaLabel="District-wise installation comparison"
+                  series={[
+                    { name: 'Installed Sites', data: chartDistricts.map((d) => d.complete || 0) },
+                    { name: 'Allocated Sites', data: chartDistricts.map((d) => d.site_count || 0) },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_GREEN, LIGHT_BLUE],
+                    plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '35%' } },
+                    xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' }, rotate: -35 } },
+                    yaxis: { title: { text: 'Solar Pumps (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                    chart: {
+                      events: {
+                        dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                          const dist = chartDistricts[opts?.dataPointIndex]?.district;
+                          if (dist) openDrillDown('complete', 'Completed Installations', dist);
+                        },
                       },
                     },
-                  },
-                }}
-              />
-            </Suspense>
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div style={{ height: chartH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', gap: 8 }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>No district data returned by server.</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1097,38 +1227,44 @@ export function AssamDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`monthly-${chartH}-${monthlyInstallations.map((m) => `${m.month_year}-${m.monthly_installations}`).join('-')}`}
-                type="area"
-                height={chartH}
-                legend="top"
-                ariaLabel="Monthly installations area chart"
-                series={[
-                  {
-                    name: 'Monthly Installed Sites',
-                    data: monthlyInstallations.length > 0
-                      ? monthlyInstallations.map((m) => m.monthly_installations)
-                      : [12, 28, 45, 70, 95, swp.complete],
-                  },
-                ]}
-                apex={{
-                  colors: [LIGHT_BLUE],
-                  stroke: { curve: 'smooth', width: 2 },
-                  fill: {
-                    type: 'gradient',
-                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
-                  },
-                  markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
-                  xaxis: {
-                    categories: monthlyInstallations.length > 0
-                      ? monthlyInstallations.map((m) => m.month_year)
-                      : ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
-                  },
-                  yaxis: { title: { text: 'Installed (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                }}
-              />
-            </Suspense>
+            {monthlyInstallations.length > 0 ? (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`monthly-${chartH}-${monthlyInstallations.map((m) => `${m.month_year}-${m.monthly_installations}`).join('-')}`}
+                  type="area"
+                  height={chartH}
+                  legend="top"
+                  ariaLabel="Monthly installations area chart"
+                  series={[
+                    {
+                      name: 'Monthly Installed Sites',
+                      data: monthlyInstallations.map((m) => m.monthly_installations || 0),
+                    },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_BLUE],
+                    stroke: { curve: 'smooth', width: 2 },
+                    fill: {
+                      type: 'gradient',
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
+                    },
+                    markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+                    xaxis: {
+                      categories: monthlyInstallations.map((m) => m.month_year),
+                    },
+                    yaxis: { title: { text: 'Installed (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div style={{ height: chartH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', gap: 8 }}>
+                <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+                  <path d="M3 3v18h18" />
+                  <path d="m19 9-5 5-4-4-3 3" />
+                </svg>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>No monthly installation timeline data returned by server.</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1296,7 +1432,7 @@ export function AssamDashboard() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 15, 25, 50]}
+                pageSizeOptions={[10, 25, 50, 100, 200]}
               />
             </div>
           </div>
@@ -1320,7 +1456,7 @@ export function AssamDashboard() {
                 <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(swp.complete)} Installed</span>
               </div>
               <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                {districtwise.slice(0, 8).map((d) => (
+                {(filteredDistricts.length > 0 ? filteredDistricts : districtwise).slice(0, 8).map((d) => (
                   <button
                     key={d.district}
                     type="button"
@@ -1353,7 +1489,7 @@ export function AssamDashboard() {
                 <span>Record New Installation</span>
                 <span>+</span>
               </Link>
-              <Link to="/v/assam/installation/swp/claim" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to="/v/assam/installation/swp/payment" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Submit Payment Claim</span>
                 <span>₹</span>
               </Link>

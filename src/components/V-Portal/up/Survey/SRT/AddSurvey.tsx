@@ -1,732 +1,842 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { upSurveyService } from '../../up-services';
 
-const CSS = `
-  .solar-erp-page .ax-card { min-width: 0; }
-  .solar-erp-page img,
-  .solar-erp-page .ax-card img {
-    border-radius: 0 !important;
-  }
+// CSS: Unified Single-Card Layout with Floating Labels & Section Dividers (same as Bihar SRT design)
+const SINGLE_CARD_FORM_CSS = `
+.up-single-card-form .ax-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); overflow: hidden; }
+.up-single-card-form .ax-card__header { padding: var(--ax-space-5) var(--ax-space-6); border-bottom: 1px solid var(--ax-border-subtle); background: var(--ax-surface-subtle); display: flex; flex-direction: column; gap: var(--ax-space-4); }
+.up-single-card-form .ax-card__body { padding: var(--ax-space-6); }
 
-  .survey-section-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ax-text, #0f172a);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin: 0 0 14px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--ax-border, #e2e8f0);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+.up-section-pills { display: flex; gap: var(--ax-space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.up-section-pill-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--ax-radius-pill); font-size: var(--ax-text-xs); font-weight: 500; white-space: nowrap; background: var(--ax-surface-solid); border: 1px solid var(--ax-border); color: var(--ax-text); cursor: pointer; transition: all var(--ax-motion-fast) var(--ax-ease-standard); text-decoration: none; }
+.up-section-pill-btn:hover { border-color: var(--ax-accent); color: var(--ax-accent); background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid)); }
+.up-section-pill-btn .pill-num { width: 18px; height: 18px; border-radius: 50%; background: var(--ax-surface-subtle); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
 
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-  }
-  @media (min-width: 1024px) {
-    .form-grid-3 {
-      grid-template-columns: repeat(3, 1fr);
-    }
-    .form-grid-4 {
-      grid-template-columns: repeat(4, 1fr);
-    }
-  }
+.up-section-block { padding-top: var(--ax-space-2); scroll-margin-top: 80px; }
+.up-section-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--ax-space-2); margin-bottom: var(--ax-space-5); padding-bottom: var(--ax-space-3); border-bottom: 1px solid var(--ax-border-subtle); }
+.up-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.up-section-divider { border: 0; border-top: 1px dashed var(--ax-border); margin: var(--ax-space-8) 0 var(--ax-space-6); }
 
-  .form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .form-field label {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--ax-text, #1e293b);
-  }
-  .form-field label span.req {
-    color: #dc2626;
-    margin-left: 2px;
-  }
-  .form-field input,
-  .form-field select,
-  .form-field textarea {
-    padding: 9px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--ax-border, #cbd5e1);
-    background: var(--ax-surface-solid, #ffffff);
-    color: var(--ax-text, #0f172a);
-    font-size: 13px;
-    outline: none;
-    transition: all 0.15s ease;
-  }
-  .form-field input:focus,
-  .form-field select:focus,
-  .form-field textarea:focus {
-    border-color: var(--ax-accent, #2563eb);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  }
+.ax-float { position: relative; width: 100%; }
+.ax-float__input { width: 100%; height: 46px; padding: 12px 14px 4px 14px; font-size: var(--ax-text-sm); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-md); color: var(--ax-text); outline: none; transition: border-color var(--ax-motion-fast) var(--ax-ease-standard), box-shadow var(--ax-motion-fast) var(--ax-ease-standard); }
+.ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
+.ax-float__input[readonly] { background: var(--ax-surface-subtle); }
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
+
+.ax-float__label { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top var(--ax-motion-fast) var(--ax-ease-standard), font-size var(--ax-motion-fast) var(--ax-ease-standard), color var(--ax-motion-fast) var(--ax-ease-standard); z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
+
+.ax-float__input:focus + .ax-float__label,
+.ax-float__input:not(:placeholder-shown) + .ax-float__label,
+.ax-float--select .ax-float__label,
+.ax-float--file .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs); font-weight: 500; color: var(--ax-text-muted); }
+.ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
+
+.ax-float__input.is-invalid { border-color: var(--ax-danger-500) !important; }
+.ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger-500) 24%, transparent) !important; }
+.ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500) !important; }
+
+.ax-float--area .ax-float__input { height: auto; min-height: 84px; padding-top: 18px; resize: vertical; }
+.ax-float--area .ax-float__label { top: 18px; transform: none; }
+.ax-float--area .ax-float__input:focus + .ax-float__label,
+.ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label { top: 0; transform: translateY(-50%); }
+
+.ax-field-feedback { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--ax-text-2xs); min-height: 16px; }
+.ax-field-feedback--error { color: var(--ax-danger-500); }
+
+.up-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
+@media (min-width: 1024px) { .up-form-grid--3col { grid-template-columns: repeat(3, 1fr); } }
+.up-form-col-span-full { grid-column: 1 / -1; }
+.up-gps-cell { height: 46px; }
+
+.up-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
+
+@keyframes up-spin { to { transform: rotate(360deg); } }
 `;
+
+type Option = { value: string; label: string };
+const opts = (arr: string[]): Option[] => arr.map((v) => ({ value: v, label: v }));
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const INITIAL_FORM = {
+  // Location
+  district: '',
+  block: '',
+  panchayat: '',
+  village: '',
+  ward_no: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+  // Beneficiary
+  beneficiary: '',
+  phone: '',
+  email: '',
+  aadhaar_no: '',
+  pan_no: '',
+  ca_no: '',
+  // Electricity & Rooftop
+  sanctioned_load: '',
+  load_demand: '',
+  consumption: '',
+  quotation: '',
+  rooftop_area: '',
+  // Bank
+  bank_name: '',
+  account_holder: '',
+  account_no: '',
+  ifsc: '',
+  // Remark
+  remark: '',
+};
+
+type FormKey = keyof typeof INITIAL_FORM;
+type FileKey = 'aadhaar_photo' | 'pan_photo' | 'electricity_bill' | 'bank_passbook' | 'rooftop_photo';
+
+const REQUIRED_FIELDS: Partial<Record<FormKey, string>> = {
+  district: 'District is required.',
+  block: 'Block is required.',
+  panchayat: 'Panchayat is required.',
+  village: 'Village is required.',
+  address: 'Address is required.',
+  beneficiary: 'Beneficiary name is required.',
+  phone: 'Phone number is required.',
+  email: 'Email is required.',
+  aadhaar_no: 'Aadhaar number is required.',
+  pan_no: 'PAN number is required.',
+  ca_no: 'CA number is required.',
+  sanctioned_load: 'Sanctioned load is required.',
+  load_demand: 'Load demand is required.',
+  consumption: 'Consumption is required.',
+  rooftop_area: 'Rooftop area is required.',
+  bank_name: 'Bank name is required.',
+  account_holder: 'Account holder name is required.',
+  account_no: 'Account number is required.',
+  ifsc: 'IFSC code is required.',
+};
+
+const FILE_FIELDS: { key: FileKey; id: string; label: string }[] = [
+  { key: 'aadhaar_photo', id: 'up-doc-aadhaar', label: 'Aadhaar Card (Photo)' },
+  { key: 'pan_photo', id: 'up-doc-pan', label: 'PAN Card (Photo)' },
+  { key: 'electricity_bill', id: 'up-doc-bill', label: 'Electricity Bill (Photo)' },
+  { key: 'bank_passbook', id: 'up-doc-bank', label: 'Bank Passbook (Photo)' },
+  { key: 'rooftop_photo', id: 'up-doc-rooftop', label: 'Rooftop (Photo)' },
+];
+
+const SECTIONS = [
+  { id: 'sec-1', num: '1', title: 'Location' },
+  { id: 'sec-2', num: '2', title: 'Beneficiary' },
+  { id: 'sec-3', num: '3', title: 'Electricity & Rooftop' },
+  { id: 'sec-4', num: '4', title: 'Bank Details' },
+  { id: 'sec-5', num: '5', title: 'Documents & Remark' },
+];
+
+
 
 export function UP_Survey_SRT_AddSurvey() {
   const navigate = useNavigate();
 
-  // Location Details
+  // Cascading location lists
   const [districts, setDistricts] = useState<string[]>([]);
-  const [district, setDistrict] = useState('');
   const [blocks, setBlocks] = useState<string[]>([]);
-  const [block, setBlock] = useState('');
   const [panchayats, setPanchayats] = useState<string[]>([]);
-  const [panchayat, setPanchayat] = useState('');
   const [villages, setVillages] = useState<string[]>([]);
-  const [village, setVillage] = useState('');
-  const [wardNo, setWardNo] = useState('');
-  const [address, setAddress] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [locating, setLocating] = useState(false);
-  const [geoError, setGeoError] = useState('');
 
-  // Beneficiary Details
-  const [beneficiary, setBeneficiary] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [aadhaarNo, setAadhaarNo] = useState('');
-  const [panNo, setPanNo] = useState('');
-  const [caNo, setCaNo] = useState('');
+  const [formData, setFormData] = useState({ ...INITIAL_FORM });
+  const [files, setFiles] = useState<Record<FileKey, File | null>>({
+    aadhaar_photo: null,
+    pan_photo: null,
+    electricity_bill: null,
+    bank_passbook: null,
+    rooftop_photo: null,
+  });
 
-  // Electricity & Rooftop Details
-  const [sanctionedLoad, setSanctionedLoad] = useState('');
-  const [loadDemand, setLoadDemand] = useState('');
-  const [consumption, setConsumption] = useState('');
-  const [quotation, setQuotation] = useState('');
-  const [rooftopArea, setRooftopArea] = useState('');
-
-  // Bank Details
-  const [bankName, setBankName] = useState('');
-  const [accountHolder, setAccountHolder] = useState('');
-  const [accountNo, setAccountNo] = useState('');
-  const [ifsc, setIfsc] = useState('');
-
-  // Documents
-  const [aadhaarPhoto, setAadhaarPhoto] = useState<File | null>(null);
-  const [panPhoto, setPanPhoto] = useState<File | null>(null);
-  const [electricityBill, setElectricityBill] = useState<File | null>(null);
-  const [bankPassbook, setBankPassbook] = useState<File | null>(null);
-  const [rooftopPhoto, setRooftopPhoto] = useState<File | null>(null);
-
-  // Remark
-  const [remark, setRemark] = useState('');
-
-  // Form Submission
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
 
-  // Load Districts on mount
+  const { district, block, panchayat } = formData;
+
+  const clearError = (name: string) => {
+    setValidationErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const setField = (name: FormKey, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (validationErrors[name]) clearError(name);
+  };
+
+  const f = (name: FormKey) => ({
+    value: formData[name],
+    onChange: (v: string) => setField(name, v),
+    error: validationErrors[name]?.[0],
+  });
+
+  const handleFileChange = (key: FileKey, file: File | null) => {
+    if (file && file.size > MAX_FILE_SIZE) {
+      alert('File size exceeds 5MB limit.');
+      return;
+    }
+    setFiles((prev) => ({ ...prev, [key]: file }));
+    if (validationErrors[key]) clearError(key);
+  };
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Districts on mount
   useEffect(() => {
     upSurveyService.getSrtDistricts().then((dists) => setDistricts(dists));
   }, []);
 
-  // Cascading Blocks
+  // Cascading blocks
   useEffect(() => {
     if (district) {
       upSurveyService.getSrtBlocks(district).then((b) => setBlocks(b));
     } else {
       setBlocks([]);
-      setBlock('');
     }
+    setFormData((prev) => ({ ...prev, block: '', panchayat: '', village: '' }));
   }, [district]);
 
-  // Cascading Panchayats
+  // Cascading panchayats
   useEffect(() => {
     if (district && block) {
       upSurveyService.getSrtPanchayats(district, block).then((p) => setPanchayats(p));
     } else {
       setPanchayats([]);
-      setPanchayat('');
     }
+    setFormData((prev) => ({ ...prev, panchayat: '', village: '' }));
   }, [district, block]);
 
-  // Cascading Villages
+  // Cascading villages
   useEffect(() => {
     if (district && block && panchayat) {
       upSurveyService.getSrtVillages(district, block, panchayat).then((v) => setVillages(v));
     } else {
       setVillages([]);
-      setVillage('');
     }
+    setFormData((prev) => ({ ...prev, village: '' }));
   }, [district, block, panchayat]);
 
-  // Browser Geolocation
+  // GPS detection
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setGeoError('Location permission denied. Allow location access in your browser/site settings, then retry.');
+      setErrorMsg('Location permission denied. Allow location access in your browser/site settings, then retry.');
       return;
     }
     setLocating(true);
-    setGeoError('');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(7));
-        setLongitude(pos.coords.longitude.toFixed(7));
+        setFormData((prev) => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(7),
+          longitude: pos.coords.longitude.toFixed(7),
+        }));
         setLocating(false);
       },
       (err) => {
         setLocating(false);
-        setGeoError(`Location permission denied (${err.message}). Allow location access in your browser/site settings, then retry.`);
+        setErrorMsg(`Location permission denied (${err.message}). Allow location access in your browser/site settings, then retry.`);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
+  // Validation
+  const validate = () => {
+    const errs: Record<string, string[]> = {};
+    (Object.keys(REQUIRED_FIELDS) as FormKey[]).forEach((key) => {
+      if (!formData[key].trim()) errs[key] = [REQUIRED_FIELDS[key] as string];
+    });
+    FILE_FIELDS.forEach(({ key, label }) => {
+      if (!files[key]) errs[key] = [`${label} is required.`];
+    });
+    setValidationErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setSuccessMsg(null);
+    setErrorMsg(null);
+
+    if (!validate()) {
+      setErrorMsg('Please correct the highlighted fields before submitting.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        document.querySelector('.is-invalid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      return;
+    }
+
     setSubmitting(true);
-    setToast(null);
-
-    const fd = new FormData();
-    fd.append('district', district);
-    fd.append('block', block);
-    fd.append('panchayat', panchayat);
-    fd.append('village', village);
-    fd.append('ward_no', wardNo);
-    fd.append('address', address);
-    fd.append('latitude', latitude);
-    fd.append('longitude', longitude);
-
-    fd.append('beneficiary', beneficiary);
-    fd.append('phone', phone);
-    fd.append('email', email);
-    fd.append('aadhaar_no', aadhaarNo);
-    fd.append('pan_no', panNo);
-    fd.append('ca_no', caNo);
-
-    fd.append('sanctioned_load', sanctionedLoad);
-    fd.append('load_demand', loadDemand);
-    fd.append('consumption', consumption);
-    fd.append('quotation', quotation);
-    fd.append('rooftop_area', rooftopArea);
-
-    fd.append('bank_name', bankName);
-    fd.append('account_holder', accountHolder);
-    fd.append('account_no', accountNo);
-    fd.append('ifsc', ifsc);
-
-    if (aadhaarPhoto) fd.append('aadhaar_photo', aadhaarPhoto);
-    if (panPhoto) fd.append('pan_photo', panPhoto);
-    if (electricityBill) fd.append('electricity_bill', electricityBill);
-    if (bankPassbook) fd.append('bank_passbook', bankPassbook);
-    if (rooftopPhoto) fd.append('rooftop_photo', rooftopPhoto);
-
-    fd.append('remark', remark);
-
     try {
+      const fd = new FormData();
+      Object.entries(formData).forEach(([key, val]) => fd.append(key, val ?? ''));
+      FILE_FIELDS.forEach(({ key }) => {
+        const file = files[key];
+        if (file) fd.append(key, file);
+      });
+
       const res = await upSurveyService.storeSrtSurvey(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'UP SRT Survey Details submitted successfully!' });
+        setSuccessMsg(res.message || 'UP SRT Survey Details submitted successfully!');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           navigate('/v/up/srt-surveys/view');
         }, 1200);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit survey.' });
+        setErrorMsg(res.message || 'Failed to submit survey.');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: any) {
-      setToast({ type: 'error', message: err?.message || 'Error occurred while saving survey.' });
+      setErrorMsg(err?.message || 'Error occurred while saving survey.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="ax-page solar-erp-page">
-      <style>{CSS}</style>
+    <div className="up-single-card-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
 
-      {/* Header */}
       <PageHead
-        title="Welcome to, UP SRT Survey"
-        subtitle="UP SRT Survey Details — Fields marked with * are required."
+        title="Create UP SRT Survey"
+        subtitle={
+          <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+            UP SRT Survey Details — Fields marked with * are required.
+          </span>
+        }
         breadcrumbs={[
           { label: 'Home', href: '/v' },
           { label: 'UP SRT Survey', href: '/v/up/srt-surveys/view' },
           { label: 'Add Survey' },
         ]}
+        actions={
+          <Link to="/v/up/srt-surveys/view" className="ax-btn ax-btn--secondary ax-btn--pill">
+            <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>
+            <span className="ax-btn__label">Survey List</span>
+          </Link>
+        }
       />
 
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          style={{
-            padding: '12px 18px',
-            borderRadius: 8,
-            marginBottom: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: toast.type === 'success' ? '#ecfdf5' : '#fef2f2',
-            border: `1px solid ${toast.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-            color: toast.type === 'success' ? '#065f46' : '#991b1b',
-            fontSize: 13.5,
-            fontWeight: 500,
-          }}
-        >
-          <span>{toast.message}</span>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit' }}
-          >
-            ✕
-          </button>
+      {/* Success Banner */}
+      {successMsg && (
+        <div className="ax-alert ax-alert--success" role="status" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <span className="ax-alert__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
+          </span>
+          <div className="ax-alert__content">
+            <h3 className="ax-alert__title" style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600 }}>{successMsg}</h3>
+          </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="ax-card" style={{ padding: 24, borderRadius: 12 }}>
-          {/* Section: Location Details */}
-          <div className="survey-section-title">Location Details</div>
-          <div className="form-grid form-grid-3" style={{ marginBottom: 24 }}>
-            <div className="form-field">
-              <label>
-                District <span className="req">*</span>
-              </label>
-              <select value={district} onChange={(e) => setDistrict(e.target.value)} required>
-                <option value="">Select District</option>
-                {districts.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+      {/* Error Banner */}
+      {errorMsg && (
+        <div className="ax-alert ax-alert--danger" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <span className="ax-alert__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /><path d="M12 16h.01" /></svg>
+          </span>
+          <div className="ax-alert__content">
+            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>{errorMsg}</h4>
+          </div>
+        </div>
+      )}
+
+      {/* Main Single Card Form */}
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="ax-card">
+          {/* Card Header with Title and Section Pills */}
+          <div className="ax-card__header">
+            <div>
+              <span className="ax-card__eyebrow">Site Survey</span>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>UP SRT Survey Details</h2>
+              <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
+                All survey fields organized inside one main card across 5 dedicated sections.
+              </p>
             </div>
 
-            <div className="form-field">
-              <label>
-                Block <span className="req">*</span>
-              </label>
-              <select value={block} onChange={(e) => setBlock(e.target.value)} required>
-                <option value="">Select Block</option>
-                {blocks.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label>
-                Panchayat <span className="req">*</span>
-              </label>
-              <select value={panchayat} onChange={(e) => setPanchayat(e.target.value)} required>
-                <option value="">Select Panchayat</option>
-                {panchayats.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label>
-                Village <span className="req">*</span>
-              </label>
-              <select value={village} onChange={(e) => setVillage(e.target.value)} required>
-                <option value="">Select Village</option>
-                {villages.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label>Ward No.</label>
-              <input
-                type="text"
-                placeholder="Enter ward number"
-                value={wardNo}
-                onChange={(e) => setWardNo(e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Address <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter full address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Latitude</label>
-              <input
-                type="text"
-                placeholder="e.g. 28.6031650"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Longitude</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="e.g. 77.3573570"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  onClick={handleGetLocation}
-                  disabled={locating}
-                  className="ax-btn ax-btn--subtle"
-                  style={{ padding: '0 12px', fontSize: 12, whiteSpace: 'nowrap' }}
-                >
-                  {locating ? 'Detecting...' : '📍 GPS'}
+            <div className="up-section-pills" role="navigation" aria-label="Jump to section">
+              {SECTIONS.map((s) => (
+                <button key={s.id} type="button" onClick={() => scrollToSection(s.id)} className="up-section-pill-btn">
+                  <span className="pill-num">{s.num}</span>
+                  <span>{s.title}</span>
                 </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ax-card__body">
+            {/* Section 1: Location Details */}
+            <div id="sec-1" className="up-section-block">
+              <SectionHeader num="1" total={5} title="Location Details" desc="District, block, panchayat, village and GPS coordinates." />
+              <div className="up-form-grid up-form-grid--3col">
+                <FloatingSelect id="up-district" label="District" required placeholder="Select District" options={opts(districts)} {...f('district')} />
+                <FloatingSelect id="up-block" label="Block" required placeholder="Select Block" options={opts(blocks)} disabled={!district} {...f('block')} />
+                <FloatingSelect id="up-panchayat" label="Panchayat" required placeholder="Select Panchayat" options={opts(panchayats)} disabled={!block} {...f('panchayat')} />
+                <FloatingSelect id="up-village" label="Village" required placeholder="Select Village" options={opts(villages)} disabled={!panchayat} {...f('village')} />
+                <FloatingInput id="up-ward" label="Ward No." placeholder="Enter ward number" {...f('ward_no')} />
+                <FloatingInput id="up-address" label="Address" required placeholder="Enter full address" {...f('address')} />
+                <FloatingInput id="up-lat" label="Latitude" placeholder="e.g. 28.6031650" {...f('latitude')} />
+                <FloatingInput id="up-lng" label="Longitude" placeholder="e.g. 77.3573570" {...f('longitude')} />
+                <div>
+                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={handleGetLocation} disabled={locating}>
+                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Get GPS'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <hr className="up-section-divider" />
+
+            {/* Section 2: Beneficiary Details */}
+            <div id="sec-2" className="up-section-block">
+              <SectionHeader
+                num="2"
+                total={5}
+                title="Beneficiary Details"
+                desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
+              />
+              <div className="up-form-grid up-form-grid--3col">
+                <FloatingInput id="up-beneficiary" label="Beneficiary Name" required placeholder="Enter beneficiary name" {...f('beneficiary')} />
+                <FloatingInput id="up-phone" label="Phone No." type="tel" required placeholder="Enter 10-digit mobile number" {...f('phone')} />
+                <FloatingInput id="up-email" label="Email" type="email" required placeholder="Enter email address" {...f('email')} />
+                <FloatingInput id="up-aadhaar" label="Aadhaar No." required placeholder="Enter 12-digit Aadhaar number" {...f('aadhaar_no')} />
+                <FloatingInput
+                  id="up-pan"
+                  label="PAN No."
+                  required
+                  placeholder="e.g. ABCDE1234F"
+                  {...f('pan_no')}
+                  onChange={(v) => setField('pan_no', v.toUpperCase())}
+                />
+                <FloatingInput id="up-ca" label="CA No." required placeholder="Enter CA number" {...f('ca_no')} />
+              </div>
+            </div>
+
+            <hr className="up-section-divider" />
+
+            {/* Section 3: Electricity & Rooftop */}
+            <div id="sec-3" className="up-section-block">
+              <SectionHeader num="3" total={5} title="Electricity & Rooftop Details" desc="Load, consumption and rooftop data." />
+              <div className="up-form-grid up-form-grid--3col">
+                <FloatingInput id="up-sanctioned" label="Sanctioned Load (kW)" required placeholder="e.g. 5" {...f('sanctioned_load')} />
+                <FloatingInput id="up-demand" label="Load Demand (kW)" required placeholder="e.g. 5" {...f('load_demand')} />
+                <FloatingInput id="up-consumption" label="Consumption (Units/Month)" required placeholder="e.g. 2000" {...f('consumption')} />
+                <FloatingInput id="up-quotation" label="Quotation (₹)" placeholder="e.g. 1200000" {...f('quotation')} />
+                <FloatingInput id="up-rooftop-area" label="Rooftop Area (Sq. Ft.)" required placeholder="e.g. 123.4" {...f('rooftop_area')} />
+              </div>
+            </div>
+
+            <hr className="up-section-divider" />
+
+            {/* Section 4: Bank Details */}
+            <div id="sec-4" className="up-section-block">
+              <SectionHeader num="4" total={5} title="Bank Details" desc="Beneficiary bank account information." />
+              <div className="up-form-grid up-form-grid--3col">
+                <FloatingInput id="up-bank" label="Bank Name" required placeholder="e.g. State Bank of India" {...f('bank_name')} />
+                <FloatingInput id="up-holder" label="Account Holder Name" required placeholder="Enter account holder name" {...f('account_holder')} />
+                <FloatingInput id="up-account" label="Account No." required placeholder="Enter account number" {...f('account_no')} />
+                <FloatingInput
+                  id="up-ifsc"
+                  label="IFSC Code"
+                  required
+                  placeholder="e.g. SBIN0001234"
+                  {...f('ifsc')}
+                  onChange={(v) => setField('ifsc', v.toUpperCase())}
+                />
+              </div>
+            </div>
+
+            <hr className="up-section-divider" />
+
+            {/* Section 5: Documents & Remark */}
+            <div id="sec-5" className="up-section-block">
+              <SectionHeader num="5" total={5} title="Documents & Remark" desc="Upload document photos (up to 5MB each)." />
+              <div className="up-form-grid up-form-grid--3col">
+                {FILE_FIELDS.map(({ key, id, label }) => (
+                  <FloatingFileInput
+                    key={key}
+                    id={id}
+                    label={label}
+                    required
+                    accept="image/*"
+                    file={files[key]}
+                    onChange={(file) => handleFileChange(key, file)}
+                    error={validationErrors[key]?.[0]}
+                  />
+                ))}
+                <div className="up-form-col-span-full">
+                  <FloatingTextarea id="up-remark" label="Remark (if any)" placeholder="Enter remark (if any)..." {...f('remark')} />
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {geoError && (
-            <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 20, padding: '8px 12px', background: '#fef2f2', borderRadius: 6 }}>
-              {geoError}
-            </div>
-          )}
-
-          {/* Section: Beneficiary Details */}
-          <div className="survey-section-title">Beneficiary Details</div>
-          <div className="form-grid form-grid-3" style={{ marginBottom: 24 }}>
-            <div className="form-field">
-              <label>
-                Beneficiary Name <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter beneficiary name"
-                value={beneficiary}
-                onChange={(e) => setBeneficiary(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Phone No. <span className="req">*</span>
-              </label>
-              <input
-                type="tel"
-                placeholder="Enter 10-digit mobile number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Email <span className="req">*</span>
-              </label>
-              <input
-                type="email"
-                placeholder="Enter email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Aadhaar No. <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter 12-digit Aadhaar number"
-                value={aadhaarNo}
-                onChange={(e) => setAadhaarNo(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                PAN No. <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. ABCDE1234F"
-                value={panNo}
-                onChange={(e) => setPanNo(e.target.value.toUpperCase())}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                CA No. <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter CA number"
-                value={caNo}
-                onChange={(e) => setCaNo(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Section: Electricity & Rooftop Details */}
-          <div className="survey-section-title">Electricity & Rooftop Details</div>
-          <div className="form-grid form-grid-3" style={{ marginBottom: 24 }}>
-            <div className="form-field">
-              <label>
-                Sanctioned Load (kW) <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 5"
-                value={sanctionedLoad}
-                onChange={(e) => setSanctionedLoad(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Load Demand (kW) <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 5"
-                value={loadDemand}
-                onChange={(e) => setLoadDemand(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Consumption (Units/Month) <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 2000"
-                value={consumption}
-                onChange={(e) => setConsumption(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Quotation (₹)</label>
-              <input
-                type="text"
-                placeholder="e.g. 1200000"
-                value={quotation}
-                onChange={(e) => setQuotation(e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Rooftop Area (Sq. Ft.) <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 123.4"
-                value={rooftopArea}
-                onChange={(e) => setRooftopArea(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Section: Bank Details */}
-          <div className="survey-section-title">Bank Details</div>
-          <div className="form-grid form-grid-4" style={{ marginBottom: 24 }}>
-            <div className="form-field">
-              <label>
-                Bank Name <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. State Bank of India"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Account Holder Name <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter account holder name"
-                value={accountHolder}
-                onChange={(e) => setAccountHolder(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Account No. <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Enter account number"
-                value={accountNo}
-                onChange={(e) => setAccountNo(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                IFSC Code <span className="req">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. SBIN0001234"
-                value={ifsc}
-                onChange={(e) => setIfsc(e.target.value.toUpperCase())}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Section: Documents */}
-          <div className="survey-section-title">Documents (Photos)</div>
-          <div className="form-grid form-grid-3" style={{ marginBottom: 24 }}>
-            <div className="form-field">
-              <label>
-                Aadhaar Card (Photo) <span className="req">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files && setAadhaarPhoto(e.target.files[0])}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                PAN Card (Photo) <span className="req">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files && setPanPhoto(e.target.files[0])}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Electricity Bill (Photo) <span className="req">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files && setElectricityBill(e.target.files[0])}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Bank Passbook (Photo) <span className="req">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files && setBankPassbook(e.target.files[0])}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>
-                Rooftop (Photo) <span className="req">*</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files && setRooftopPhoto(e.target.files[0])}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Section: Remark */}
-          <div className="survey-section-title">Remark</div>
-          <div className="form-field" style={{ marginBottom: 24 }}>
-            <label>Remark (if any)</label>
-            <textarea
-              rows={3}
-              placeholder="Enter remark (if any)..."
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-            />
-          </div>
-
-          {/* Form Actions */}
-          <div
-            style={{
-              paddingTop: 16,
-              borderTop: '1px solid var(--ax-border, #e2e8f0)',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 12,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => navigate('/v/up/srt-surveys/view')}
-              className="ax-btn ax-btn--subtle"
-              disabled={submitting}
-              style={{ padding: '10px 20px', borderRadius: 8 }}
-            >
-              Cancel
+        {/* Sticky Action Footer */}
+        <div className="up-form-sticky-bar">
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">New Survey</span>
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate('/v/up/srt-surveys/view')} disabled={submitting}>
+              <span className="ax-btn__label">Cancel</span>
             </button>
-            <button
-              type="submit"
-              className="ax-btn ax-btn--primary"
-              disabled={submitting}
-              style={{
-                padding: '10px 28px',
-                borderRadius: 8,
-                background: '#2563eb',
-                color: '#ffffff',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              {submitting ? 'Submitting...' : 'Submit SRT Survey'}
+            <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+              {submitting ? (
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'up-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
+                  <span className="ax-btn__label">Submitting...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
+                  <span className="ax-btn__label">Submit SRT Survey</span>
+                </>
+              )}
             </button>
           </div>
         </div>
       </form>
+
+      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
+      </footer>
     </div>
   );
 }
 
 export const UPSurveySRTAdd = UP_Survey_SRT_AddSurvey;
 export default UP_Survey_SRT_AddSurvey;
+
+/* =========================================================================
+ * Reusable Floating Components (same as Bihar SRT)
+ * ========================================================================= */
+
+function SectionHeader({ num, total, title, desc }: { num: string; total: number; title: string; desc?: ReactNode }) {
+  return (
+    <div className="up-section-header">
+      <div className="up-section-title-wrap">
+        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
+            Section {num} of {total}
+          </span>
+          <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>{title}</h3>
+        </div>
+        {desc && <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
+const Asterisk = () => <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>;
+
+function FieldFeedback({ error }: { error?: string }) {
+  if (error) {
+    return (
+      <span className="ax-field-feedback ax-field-feedback--error" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        {error}
+      </span>
+    );
+  }
+  return <span className="ax-field-feedback" />;
+}
+
+interface FloatingInputProps {
+  id: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+  readOnly?: boolean;
+  maxLength?: number;
+  placeholder?: string;
+  value: string;
+  onChange?: (val: string) => void;
+  error?: string;
+}
+
+function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+  return (
+    <div>
+      <div className="ax-float">
+        <input
+          id={id}
+          type={type}
+          className={`ax-input ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          readOnly={readOnly}
+          maxLength={maxLength}
+          onChange={(e) => onChange?.(e.target.value)}
+          aria-invalid={Boolean(error)}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+interface FloatingSelectProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  value: string;
+  options: Option[];
+  onChange: (val: string) => void;
+  error?: string;
+}
+
+function FloatingSelect({ id, label, required, disabled, placeholder = '-- Select --', value, options, onChange, error }: FloatingSelectProps) {
+  return (
+    <div>
+      <div className="ax-float ax-float--select">
+        <select
+          id={id}
+          className={`ax-select ax-float__input ${error ? 'is-invalid' : ''}`}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+interface FloatingTextareaProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  value: string;
+  rows?: number;
+  onChange: (val: string) => void;
+  error?: string;
+}
+
+function FloatingTextarea({ id, label, required, placeholder = 'Enter Remarks...', value, rows = 3, onChange, error }: FloatingTextareaProps) {
+  return (
+    <div>
+      <div className="ax-float ax-float--area">
+        <textarea
+          id={id}
+          rows={rows}
+          className={`ax-textarea ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+interface FloatingFileInputProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  accept?: string;
+  capture?: 'user' | 'environment';
+  file: File | null;
+  existingUrl?: string | null;
+  onChange: (file: File | null) => void;
+  error?: string;
+}
+
+function FloatingFileInput({ id, label, required, accept, capture, file, existingUrl, onChange, error }: FloatingFileInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(null);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onChange(chosen);
+  };
+
+  const existingClean = existingUrl ? existingUrl.split('?')[0] : '';
+  const existingName = existingClean ? existingClean.split('/').pop() : null;
+
+  return (
+    <div className={error ? 'is-invalid' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <Asterisk />}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        capture={capture}
+        style={{ display: 'none' }}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered ? '#fbfcfd' : '#ffffff',
+          padding: file || existingName ? '12px 16px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {(file.size / 1024).toFixed(0)} KB · Ready to upload
+                </div>
+              </div>
+            </div>
+            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={handleClear} style={{ color: '#ef4444', flexShrink: 0 }} title="Remove file">
+              Remove
+            </button>
+          </div>
+        ) : existingName ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {existingName}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  Existing file · Click to replace
+                </div>
+              </div>
+            </div>
+            <span className="ax-btn ax-btn--secondary ax-btn--sm" style={{ flexShrink: 0, pointerEvents: 'none' }}>
+              Replace
+            </span>
+          </div>
+        ) : (
+          <>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              {accept === 'application/pdf' || accept === '.pdf' ? 'PDF file up to 5MB' : 'JPG, PNG or WEBP up to 5MB'}
+            </div>
+          </>
+        )}
+      </div>
+
+      <FieldFeedback error={error} />
+    </div>
+  );
+}

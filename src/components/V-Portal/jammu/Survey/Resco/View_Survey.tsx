@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import {
+  jammuRescoSurveyService,
+  resolveJammuSurveyMediaUrl,
+  getJammuSurveyMediaCandidates,
+  type JammuRescoSurveyItem,
+  type JammuRescoSurveyStats,
+  type JammuRescoBosProductItem,
+} from '../../jammu-services';
 import {
   Pagination,
   usePagination,
@@ -9,13 +18,275 @@ import {
   TableExportToolbar,
   TableEmptyState,
 } from '../../../../../common';
-import {
-  getStoredRescoSurveys,
-  saveRescoSurveys,
-  type RescoSurveyRecord,
-} from './rescoSurveyData';
 
-/* ───────── Responsive Page CSS (Matching Karnataka & Jammu SRT Reference) ───────── */
+const DASH = '—';
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone} ax-badge--pill`}>
+    <span className="ax-badge__dot" />
+    {children}
+  </span>
+);
+
+const formatDate = (d?: string | null): string => {
+  if (!d) return '—';
+  const trimmed = String(d).trim();
+  if (!trimmed || trimmed === '—' || trimmed === 'null' || trimmed === 'undefined') return '—';
+
+  try {
+    const normalized = trimmed.includes(' ') && !trimmed.includes('T') ? trimmed.replace(' ', 'T') : trimmed;
+    const dt = new Date(normalized);
+    if (!isNaN(dt.getTime())) {
+      return dt.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+  } catch {}
+
+  const datePart = trimmed.split(/[ T]/)[0];
+  return datePart || trimmed;
+};
+
+const cleanText = (v: unknown): string => {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' || s === '—') return '';
+  return s;
+};
+
+/* ───────── Modal Shell Component ───────── */
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+function Modal({
+  open,
+  onClose,
+  labelledBy,
+  children,
+  dialogClass = '',
+  dialogStyle,
+}: {
+  open: boolean;
+  onClose: () => void;
+  labelledBy: string;
+  children: ReactNode;
+  dialogClass?: string;
+  dialogStyle?: CSSProperties;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`} style={dialogStyle}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ───────── Image Lightbox Zoom Modal ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <Modal open onClose={onClose} labelledBy="img-preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="img-preview-title">{title || 'Survey Photograph'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+      </div>
+
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div style={{ position: 'relative', display: 'flex', overflow: 'auto', height: 'min(66vh, 600px)', background: '#f1f5f9' }}>
+          {status === 'loading' && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+              <span className="ax-spinner" /> Loading photograph…
+            </div>
+          )}
+          {status === 'error' && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
+              Photograph could not be displayed directly. Click "Open in new tab" below.
+            </div>
+          )}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Survey photo'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0}>−</button>
+          <span style={{ fontSize: 12, color: '#64748b', minWidth: 44, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1}>+</button>
+        </div>
+        <div style={{ display: 'inline-flex', gap: 8 }}>
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ───────── Photo Thumbnail with Candidates Fallback ───────── */
+function SurveyThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 32,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getJammuSurveyMediaCandidates(src, 'resco_image'), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'block',
+        flexShrink: 0,
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
+      title="Click to preview photograph"
+    />
+  );
+}
+
+/* ───────── Top KPI Card ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+    </div>
+  );
+}
+
+/* ───────── Styles ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -107,76 +378,7 @@ const PAGE_CSS = `
     width: 100%;
   }
 
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-
-  @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
-    .solar-erp-page .ax-card__actions {
-      flex: 0 0 auto;
-      width: 100%;
-      margin-left: 0;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      flex-wrap: wrap !important;
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  /* Modal Details Styles */
+  /* Modals */
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(15, 23, 42, 0.65);
@@ -193,6 +395,8 @@ const PAGE_CSS = `
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden; width: 100%;
   }
+  .ax-modal__dialog--md { max-width: 600px; }
+  .ax-modal__dialog--lg { max-width: 900px; }
   .ax-modal__header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--ax-border, #e2e8f0);
@@ -238,93 +442,9 @@ const footerStyle = {
   boxSizing: 'border-box',
 } as const;
 
-type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
-const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone} ax-badge--pill`}>
-    <span className="ax-badge__dot" />
-    {children}
-  </span>
-);
+const centerCell = { textAlign: 'center', padding: 24 } as const;
 
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
-}: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
-}) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            color: 'var(--ax-text-muted)',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {label}
-        </span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
-    </div>
-  );
-}
-
-const X_ICON = (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.75}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    style={{ width: 16, height: 16 }}
-  >
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
-
-/* ───────── All 52 Column Headers for Export & Display ───────── */
-const RESCO_SURVEY_HEADERS = [
+export const RESCO_SURVEY_HEADERS = [
   'Sr. No.',
   'Unique ID',
   'State',
@@ -379,26 +499,26 @@ const RESCO_SURVEY_HEADERS = [
   'Action',
 ];
 
+interface BosProductRow {
+  product_id: number | '';
+  quantity: number | '';
+  unit: string;
+  remarks: string;
+}
+
 export function View_Survey() {
-  const [data, setData] = useState<RescoSurveyRecord[]>([]);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [surveys, setSurveys] = useState<JammuRescoSurveyItem[]>([]);
+  const [stats, setStats] = useState<JammuRescoSurveyStats>({ total: 0, complete: 0, pending: 0 });
+
+  // Filters
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState('all');
-  const [feasibilityFilter, setFeasibilityFilter] = useState('all');
-  const [bosFilter, setBosFilter] = useState('all');
+  const [feasibleFilter, setFeasibleFilter] = useState('all');
 
+  // Feedback notifications
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
-
-  // Modals state
-  const [activeRecord, setActiveRecord] = useState<RescoSurveyRecord | null>(null);
-  const [previewImage, setPreviewImage] = useState<{ title: string; src: string } | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
-  const detailDialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(detailDialogRef, !!activeRecord);
-
-  useEffect(() => {
-    setData(getStoredRescoSurveys());
-  }, []);
 
   useEffect(() => {
     if (!toastMsg) return;
@@ -406,186 +526,271 @@ export function View_Survey() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
-  // Distinct filter options
+  // Modals state
+  const [detailModalItem, setDetailModalItem] = useState<JammuRescoSurveyItem | null>(null);
+  const [lightboxPreview, setLightboxPreview] = useState<{ url: string; title: string } | null>(null);
+
+  // BOS File Upload Modal state (API 9: POST /jk/resco-bos-submit)
+  const [bosModalItem, setBosModalItem] = useState<JammuRescoSurveyItem | null>(null);
+  const [bosFile, setBosFile] = useState<File | null>(null);
+  const [bosRemarks, setBosRemarks] = useState<string>('');
+  const [submittingBos, setSubmittingBos] = useState(false);
+  const bosFileInputRef = useRef<HTMLInputElement>(null);
+
+  // BOS Products Modal state (API 10 & 11: GET & POST /jk/view-resco-survey-bos-product...)
+  const [bosProductModalItem, setBosProductModalItem] = useState<JammuRescoSurveyItem | null>(null);
+  const [availableProducts, setAvailableProducts] = useState<JammuRescoBosProductItem[]>([]);
+  const [productRows, setProductRows] = useState<BosProductRow[]>([]);
+  const [bosRequiredDate, setBosRequiredDate] = useState<string>('');
+  const [bosSiteName, setBosSiteName] = useState<string>('');
+  const [bosSiteLoad, setBosSiteLoad] = useState<string>('');
+  const [bosVendorName, setBosVendorName] = useState<string>('');
+  const [bosHeaderRemarks, setBosHeaderRemarks] = useState<string>('');
+  const [loadingBosProducts, setLoadingBosProducts] = useState(false);
+  const [savingBosProducts, setSavingBosProducts] = useState(false);
+
+  // Download BOS PDF tracking
+  const [downloadingPdfId, setDownloadingPdfId] = useState<number | null>(null);
+
+  // Load Survey Records from API 5: GET /jk/view-resco-survey
+  const loadSurveys = useCallback(async () => {
+    setLoading(true);
+    try {
+      const resp = await jammuRescoSurveyService.viewSurveys();
+      setSurveys(Array.isArray(resp.resco) ? resp.resco : []);
+      if (resp.$survey_detail || resp.survey_detail) {
+        setStats(resp.$survey_detail || resp.survey_detail || { total: 0, complete: 0, pending: 0 });
+      }
+    } catch (err: any) {
+      console.error('[Jammu Resco ViewSurveys] load error:', err);
+      setSurveys([]);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load completed survey records.' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSurveys();
+  }, [loadSurveys]);
+
+  // Unique Districts
   const districts = useMemo(() => {
     const set = new Set<string>();
-    data.forEach((r) => {
+    surveys.forEach((r) => {
       if (r.district) set.add(r.district.trim());
     });
     return Array.from(set).sort();
-  }, [data]);
+  }, [surveys]);
 
   // Filtered dataset
   const filtered = useMemo(() => {
-    let list = data;
+    let list = surveys;
 
     if (districtFilter !== 'all') {
-      list = list.filter((r) => r.district.toLowerCase() === districtFilter.toLowerCase());
+      list = list.filter((r) => (r.district || '').toLowerCase() === districtFilter.toLowerCase());
     }
 
-    if (feasibilityFilter !== 'all') {
-      list = list.filter((r) => r.siteFeasible.toLowerCase().includes(feasibilityFilter.toLowerCase()));
-    }
-
-    if (bosFilter !== 'all') {
-      list = list.filter((r) => r.bosStatus.toLowerCase() === bosFilter.toLowerCase());
+    if (feasibleFilter !== 'all') {
+      list = list.filter((r) => {
+        const feas = (r.site_feasible || '').toLowerCase();
+        if (feasibleFilter === 'feasible') return feas.includes('feasible') && !feas.includes('not');
+        if (feasibleFilter === 'not_feasible') return feas.includes('not');
+        return true;
+      });
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((r) => {
+        const idStr = String(r.id);
+        const uidStr = String(r.uid || '');
+        const site = (r.site_name || '').toLowerCase();
+        const dist = (r.district || '').toLowerCase();
+        const dept = (r.dept_name || r.department || '').toLowerCase();
+        const ca = (r.ca_no || '').toLowerCase();
+        const remarks = (r.survey_remarks || r.remarks || '').toLowerCase();
         return (
-          r.uniqueId.toLowerCase().includes(q) ||
-          r.siteName.toLowerCase().includes(q) ||
-          r.siteAddress.toLowerCase().includes(q) ||
-          r.district.toLowerCase().includes(q) ||
-          r.department.toLowerCase().includes(q) ||
-          r.caNo.toLowerCase().includes(q) ||
-          r.nodalPerson.toLowerCase().includes(q) ||
-          r.agencyContactPerson.toLowerCase().includes(q) ||
-          r.meterNumber.toLowerCase().includes(q) ||
-          r.nearestLandmark.toLowerCase().includes(q)
+          idStr.includes(q) ||
+          uidStr.toLowerCase().includes(q) ||
+          site.includes(q) ||
+          dist.includes(q) ||
+          dept.includes(q) ||
+          ca.includes(q) ||
+          remarks.includes(q)
         );
       });
     }
 
     return list;
-  }, [data, search, districtFilter, feasibilityFilter, bosFilter]);
+  }, [surveys, search, districtFilter, feasibleFilter]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 8 });
+    usePagination({ data: filtered, initialPageSize: 25 });
 
   useEffect(() => {
     setPage(1);
-  }, [search, districtFilter, feasibilityFilter, bosFilter, setPage]);
+  }, [search, districtFilter, feasibleFilter, setPage]);
 
-  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || feasibilityFilter !== 'all' || bosFilter !== 'all';
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || feasibleFilter !== 'all';
   const resetFilters = () => {
     setSearch('');
     setDistrictFilter('all');
-    setFeasibilityFilter('all');
-    setBosFilter('all');
+    setFeasibleFilter('all');
     setPage(1);
   };
 
-  // Top metric stats
-  const totalSurveys = data.length;
-  const totalSolarArea = useMemo(() => data.reduce((s, r) => s + (r.freeSpaceSolarSqFt || 0), 0), [data]);
-  const approvedBosCount = useMemo(() => data.filter((r) => r.bosStatus === 'Approved').length, [data]);
+  // Top metric counts
+  const bosSubmittedCount = surveys.filter((r) => Number(r.bos_status) === 1).length;
 
-  const handleDelete = (uniqueId: string) => {
-    const updated = data.filter((item) => item.uniqueId !== uniqueId);
-    setData(updated);
-    saveRescoSurveys(updated);
-    setDeleteConfirmId(null);
-    setToastMsg({ type: 'success', text: `Survey dossier ${uniqueId} removed successfully.` });
+  // BOS File Submission (API 9: POST /jk/resco-bos-submit)
+  const handleBosSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!bosModalItem?.id) return;
+    if (!bosFile) {
+      setToastMsg({ type: 'danger', text: 'Please select a BOS file to upload.' });
+      return;
+    }
+
+    try {
+      setSubmittingBos(true);
+      const fd = new FormData();
+      fd.append('site_id', String(bosModalItem.id));
+      fd.append('bos_file', bosFile);
+      if (bosRemarks.trim()) {
+        fd.append('bos_remarks', bosRemarks.trim());
+      }
+
+      const res = await jammuRescoSurveyService.submitBos(fd);
+      setToastMsg({ type: 'success', text: res.message || 'BOS Submit Successfully!!!' });
+
+      // Update locally
+      setSurveys((prev) =>
+        prev.map((item) => (item.id === bosModalItem.id ? { ...item, bos_status: 1, bos_remarks: bosRemarks } : item))
+      );
+      setBosModalItem(null);
+      setBosFile(null);
+      setBosRemarks('');
+    } catch (err: any) {
+      console.error('[View_Survey] submitBos error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to submit BOS file.' });
+    } finally {
+      setSubmittingBos(false);
+    }
   };
 
-  /* ───────── Export Helpers (All 52 Fields) ───────── */
-  const getRowValues = (r: RescoSurveyRecord, index: number) => [
-    index + 1,
-    r.uniqueId,
-    r.state,
-    r.district,
-    r.division,
-    r.subDivision,
-    r.department,
-    r.siteName,
-    r.siteAddress,
-    r.caNo,
-    r.surveyAddress,
-    r.nearestLandmark,
-    r.agencyContactPerson,
-    r.agencyContactNo,
-    r.nodalPerson,
-    r.nodalPersonContact,
-    r.latitude,
-    r.longitude,
-    r.loadType,
-    r.connectionPhase,
-    r.meterConnectionType,
-    r.meterNumber,
-    r.meterType,
-    r.sanctionLoadKw,
-    r.connectedLoadKw,
-    r.gridPowerAvailability,
-    r.threePhaseAvailability,
-    r.missingPhase,
-    r.ltdbPresent,
-    r.roofCondition,
-    r.totalRoofAreaSqFt,
-    r.freeSpaceSolarSqFt,
-    r.freeSpaceControlRoomSqFt,
-    r.earthPitPosition,
-    r.ageOfBuilding,
-    r.accessToRoof,
-    r.rooftopHeightFt,
-    r.parapetHeightFt,
-    r.noOfFloors,
-    r.waterSourceForCleaning,
-    r.accessToSite,
-    r.distanceFromMainRoadKm,
-    r.buildingImage,
-    r.roofImage,
-    r.controlRoomImage,
-    r.meterImage,
-    r.otherImage,
-    r.pdfUrl,
-    r.bosStatus,
-    r.bosFile,
-    r.bosRemarks,
-  ];
+  // Open BOS Products Modal (API 10: GET /jk/view-resco-survey-bos-product/{id})
+  const handleOpenBosProducts = async (item: JammuRescoSurveyItem) => {
+    setBosProductModalItem(item);
+    setLoadingBosProducts(true);
+    setProductRows([]);
+    setBosRequiredDate('');
+    setBosHeaderRemarks('');
+    setBosSiteName(item.site_name || '');
+    setBosSiteLoad(String(item.sanction_load || item.connected_load || ''));
+    setBosVendorName(String(item.vendor_name || 'utkarsh'));
 
-  const handleCopy = () => {
-    if (!filtered.length) return;
-    const lines = [
-      RESCO_SURVEY_HEADERS.slice(0, 51).join('\t'),
-      ...filtered.map((r, i) => getRowValues(r, i).join('\t')),
-    ].join('\n');
-    navigator.clipboard.writeText(lines);
-    setToastMsg({ type: 'success', text: `Copied ${filtered.length} RESCO survey records to clipboard!` });
+    try {
+      const data = await jammuRescoSurveyService.getBosProductData(item.id);
+      setAvailableProducts(Array.isArray(data.products) ? data.products : []);
+
+      if (data.resco) {
+        if (data.resco.site_name) setBosSiteName(data.resco.site_name);
+        if (data.resco.sanction_load) setBosSiteLoad(String(data.resco.sanction_load));
+      }
+
+      // If existing materials in resco_bos
+      if (data.resco_bos && Array.isArray(data.resco_bos.materials) && data.resco_bos.materials.length > 0) {
+        setProductRows(
+          data.resco_bos.materials.map((m: any) => ({
+            product_id: m.product_id || (m.product?.id ?? ''),
+            quantity: m.quantity || '',
+            unit: m.unit || '',
+            remarks: m.remarks || '',
+          }))
+        );
+        if (data.resco_bos.req_date || data.resco_bos.required_date) {
+          setBosRequiredDate(String(data.resco_bos.req_date || data.resco_bos.required_date).split('T')[0]);
+        }
+        if (data.resco_bos.remarks) {
+          setBosHeaderRemarks(data.resco_bos.remarks);
+        }
+        if (data.resco_bos.vendor_name) {
+          setBosVendorName(data.resco_bos.vendor_name);
+        }
+        if (data.resco_bos.site_name) {
+          setBosSiteName(data.resco_bos.site_name);
+        }
+      } else {
+        // Start with one empty row
+        setProductRows([{ product_id: '', quantity: '', unit: '', remarks: '' }]);
+      }
+    } catch (err: any) {
+      console.error('[View_Survey] getBosProductData error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load BOS product details.' });
+      setProductRows([{ product_id: '', quantity: '', unit: '', remarks: '' }]);
+    } finally {
+      setLoadingBosProducts(false);
+    }
   };
 
-  const handleExportCSV = () => {
-    if (!filtered.length) return;
-    const csvRows = [
-      RESCO_SURVEY_HEADERS.slice(0, 51).map((h) => `"${h}"`).join(','),
-      ...filtered.map((r, i) =>
-        getRowValues(r, i)
-          .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
-          .join(',')
-      ),
-    ].join('\n');
-    const blob = new Blob([csvRows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Jammu_RESCO_Surveys_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setToastMsg({ type: 'success', text: 'CSV RESCO survey file exported!' });
+  // Save BOS Products (API 11: POST /jk/view-resco-survey-bos-product-store)
+  const handleSaveBosProducts = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!bosProductModalItem?.id) return;
+
+    // Filter valid rows
+    const validRows = productRows.filter((r) => r.product_id !== '' && Number(r.quantity) > 0);
+    if (validRows.length === 0) {
+      setToastMsg({ type: 'danger', text: 'Please add at least one product with quantity.' });
+      return;
+    }
+
+    // Check duplicate products
+    const pIds = validRows.map((r) => Number(r.product_id));
+    if (new Set(pIds).size !== pIds.length) {
+      setToastMsg({ type: 'danger', text: 'Duplicate products selected. Each product must be selected only once.' });
+      return;
+    }
+
+    try {
+      setSavingBosProducts(true);
+      const payload = {
+        site_id: bosProductModalItem.id,
+        site_name: bosSiteName || bosProductModalItem.site_name,
+        vendor_name: bosVendorName || undefined,
+        required_date: bosRequiredDate || undefined,
+        remarks: bosHeaderRemarks || undefined,
+        products: validRows.map((r) => Number(r.product_id)),
+        quantities: validRows.map((r) => Number(r.quantity)),
+        units: validRows.map((r) => r.unit || 'Nos'),
+        product_remarks: validRows.map((r) => r.remarks || ''),
+      };
+
+      const res = await jammuRescoSurveyService.storeBosProducts(payload);
+      setToastMsg({ type: 'success', text: res.message || 'BOS Products Saved Successfully!' });
+      setBosProductModalItem(null);
+    } catch (err: any) {
+      console.error('[View_Survey] storeBosProducts error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to save BOS products.' });
+    } finally {
+      setSavingBosProducts(false);
+    }
   };
 
-  const handleExportExcel = () => {
-    if (!filtered.length) return;
-    const headerRow = `<tr>${RESCO_SURVEY_HEADERS.slice(0, 51).map((h) => `<th style="background:#2563eb;color:#fff;border:1px solid #ccc;padding:6px;">${h}</th>`).join('')}</tr>`;
-    const dataRows = filtered
-      .map(
-        (r, i) =>
-          `<tr>${getRowValues(r, i)
-            .map((v) => `<td style="border:1px solid #ccc;padding:4px 8px;">${v ?? ''}</td>`)
-            .join('')}</tr>`
-      )
-      .join('');
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"/></head><body><table border="1">${headerRow}${dataRows}</table></body></html>`;
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Jammu_RESCO_Surveys_${new Date().toISOString().slice(0, 10)}.xls`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setToastMsg({ type: 'success', text: 'Excel RESCO survey file exported!' });
+  // Download BOS PDF (API 12: GET /jk/view-resco-survey-bos-product-download/{id})
+  const handleDownloadPdf = async (item: JammuRescoSurveyItem) => {
+    if (downloadingPdfId === item.id) return;
+    setDownloadingPdfId(item.id);
+    try {
+      await jammuRescoSurveyService.downloadBosPdf(item.id, item.site_name || `Site_${item.id}`);
+      setToastMsg({ type: 'success', text: `Downloaded BOS PDF for ${item.site_name || item.id}` });
+    } catch (err: any) {
+      console.error('[View_Survey] downloadBosPdf error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to download BOS PDF. Ensure BOS is submitted.' });
+    } finally {
+      setDownloadingPdfId(null);
+    }
   };
 
   return (
@@ -594,22 +799,31 @@ export function View_Survey() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="View Resco Survey Information"
-        subtitle="Comprehensive 52-field engineering survey records, rooftop feasibility assessments, and BOS approvals under Jammu RESCO model"
+        title="Jammu RESCO: View Completed Surveys"
+        subtitle="Review certified rooftop solar surveys, manage Bill of Quantities (BOS), and download engineering PDF dossiers"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu & Kashmir' },
           { label: 'Survey' },
           { label: 'RESCO' },
-          { label: 'View Resco Survey Information' },
+          { label: 'View Survey' },
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
-            <Link to="/v/jammu/survey/resco/assign-survey" className="ax-btn ax-btn--secondary ax-btn--sm">
-              Assigned Sites
-            </Link>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadSurveys}
+              disabled={loading}
+            >
+              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+              </svg>
+              <span className="ax-btn__label">Refresh</span>
+            </button>
             <Link to="/v/jammu/survey/resco/pending-survey" className="ax-btn ax-btn--primary ax-btn--sm">
-              + New Feasibility Survey
+              <span className="ax-btn__label">+ Conduct Survey</span>
             </Link>
           </div>
         }
@@ -617,7 +831,7 @@ export function View_Survey() {
 
       {toastMsg && (
         <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
-          <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Notice'}</div>
+          <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
           <div className="ax-alert__text">{toastMsg.text}</div>
         </div>
       )}
@@ -626,9 +840,9 @@ export function View_Survey() {
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
-          label="Feasibility Surveys"
-          value={totalSurveys.toLocaleString('en-IN')}
-          sub="Verified RESCO sites"
+          label="Total Survey Sites"
+          value={(stats.total || surveys.length).toLocaleString('en-IN')}
+          sub="Scope of RESCO projects"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -639,9 +853,9 @@ export function View_Survey() {
 
         <KpiCard
           tone="emerald"
-          label="BOS Approved Sites"
-          value={approvedBosCount.toLocaleString('en-IN')}
-          sub={`${totalSurveys > 0 ? Math.round((approvedBosCount / totalSurveys) * 100) : 0}% BOS approval rate`}
+          label="Surveys Completed"
+          value={(stats.complete || surveys.length).toLocaleString('en-IN')}
+          sub="Verified feasibility reports"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
@@ -651,52 +865,53 @@ export function View_Survey() {
         />
 
         <KpiCard
-          tone="cyan"
-          label="Solar Usable Space"
-          value={`${totalSolarArea.toLocaleString('en-IN')} sq ft`}
-          sub="Available for solar panel layout"
+          tone="amber"
+          label="Surveys Pending"
+          value={(stats.pending ?? 0).toLocaleString('en-IN')}
+          sub="Awaiting field inspection"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 15 15" />
             </svg>
           }
         />
 
         <KpiCard
-          tone="violet"
-          label="Districts Covered"
-          value={`${districts.length} Districts`}
-          sub="Jammu Division RESCO reach"
+          tone="cyan"
+          label="BOS Submitted"
+          value={bosSubmittedCount.toLocaleString('en-IN')}
+          sub="Bill of materials enabled"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="11" r="3" />
-              <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           }
         />
       </div>
 
-      {/* ── Main Master Table Card ── */}
-      <section className="ax-card ax-col--12" role="region" aria-label="RESCO survey master ledger">
+      {/* ── Main Table Card ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Completed RESCO Surveys Table">
         <div className="ax-card__header">
           <div className="ax-card__titles">
             <h2 className="ax-card__title">View Resco Survey Information</h2>
             <p className="ax-card__subtitle">
-              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{data.length}</span> surveyed sites
-              {' '}· Total Usable Solar Space: <b className="ax-num">{filtered.reduce((s, r) => s + (r.freeSpaceSolarSqFt || 0), 0).toLocaleString('en-IN')} sq ft</b>
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{surveys.length}</span> records
+              {' '}· Completed surveys across Jammu districts
             </p>
           </div>
 
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {/* District Filter */}
               {districts.length > 0 && (
                 <select
                   className="ax-input ax-input--sm"
                   style={{ width: 140, height: 32 }}
                   value={districtFilter}
                   onChange={(e) => setDistrictFilter(e.target.value)}
-                  aria-label="Filter by District"
                 >
                   <option value="all">All Districts ({districts.length})</option>
                   {districts.map((d) => (
@@ -705,31 +920,15 @@ export function View_Survey() {
                 </select>
               )}
 
-              {/* Feasibility Filter */}
               <select
                 className="ax-input ax-input--sm"
-                style={{ width: 130, height: 32 }}
-                value={feasibilityFilter}
-                onChange={(e) => setFeasibilityFilter(e.target.value)}
-                aria-label="Filter by Feasibility"
+                style={{ width: 140, height: 32 }}
+                value={feasibleFilter}
+                onChange={(e) => setFeasibleFilter(e.target.value)}
               >
                 <option value="all">All Feasibility</option>
-                <option value="Yes">Feasible (Yes)</option>
-                <option value="Modifications">With Modifications</option>
-                <option value="No">Not Feasible</option>
-              </select>
-
-              {/* BOS Status Filter */}
-              <select
-                className="ax-input ax-input--sm"
-                style={{ width: 130, height: 32 }}
-                value={bosFilter}
-                onChange={(e) => setBosFilter(e.target.value)}
-                aria-label="Filter by BOS Status"
-              >
-                <option value="all">All BOS Status</option>
-                <option value="Approved">BOS Approved</option>
-                <option value="Pending">BOS Pending</option>
+                <option value="feasible">Feasible</option>
+                <option value="not_feasible">Not Feasible</option>
               </select>
 
               {hasFilters && (
@@ -746,464 +945,482 @@ export function View_Survey() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search site, ID, CA, person…"
+                placeholder="Search site, UID, dept…"
                 size="sm"
-                ariaLabel="Search RESCO surveys"
+                ariaLabel="Search surveys"
               />
 
               <TableExportToolbar
-                onCopy={handleCopy}
-                onExportCSV={handleExportCSV}
-                onExportExcel={handleExportExcel}
+                onCopy={() => {
+                  const t = filtered
+                    .map((r, i) =>
+                      [
+                        i + 1,
+                        r.uid || r.srt_id || (r.id ? `RESCO-${r.id}` : '—'),
+                        r.state || 'Jammu',
+                        cleanText(r.district) || '—',
+                        cleanText(r.division) || '—',
+                        cleanText(r.sub_division) || '—',
+                        cleanText(r.dept_name || r.department) || '—',
+                        cleanText(r.site_name) || '—',
+                        cleanText(r.site_address || r.address) || '—',
+                        cleanText(r.ca_no) || '—',
+                        cleanText(r.survey_site_address || r.site_address || r.address) || '—',
+                        cleanText(r.near_landmark || r.landmark) || '—',
+                        cleanText(r.agency_person_name || r.agency_contact_person) || '—',
+                        cleanText(r.agency_person_contact || r.agency_contact_no) || '—',
+                        cleanText(r.nodal_person) || '—',
+                        cleanText(r.contact_nodal || r.nodal_person_contact) || '—',
+                        cleanText(r.latitude) || '—',
+                        cleanText(r.longitude) || '—',
+                        cleanText(r.load_type) || '—',
+                        cleanText(r.connection_phase) || '—',
+                        cleanText(r.meter_connection || r.meter_connection_type) || '—',
+                        cleanText(r.meter_number || r.meter_no) || '—',
+                        cleanText(r.meter_type) || '—',
+                        cleanText(r.sanction_load) || '—',
+                        cleanText(r.connected_load || r.instantaneous_load) || '—',
+                        cleanText(r.grid_power || r.grid_availability) || '—',
+                        cleanText(r.all_3_phase_ltdb || r.three_phase_available) || '—',
+                        cleanText(r.missing_phase) || '—',
+                        cleanText(r.ltdb_present || r.ltdb_status) || '—',
+                        cleanText(r.roof_condition) || '—',
+                        cleanText(r.area_roof || r.roof_area) || '—',
+                        cleanText(r.free_space_solar || r.solar_free_space) || '—',
+                        cleanText(r.free_space_inverter || r.control_room_free_space) || '—',
+                        cleanText(r.earth_pit || r.earth_pit_position) || '—',
+                        cleanText(r.building_age) || '—',
+                        cleanText(r.roof_access) || '—',
+                        cleanText(r.rooftop_height) || '—',
+                        cleanText(r.parapet_height) || '—',
+                        cleanText(r.floors_number || r.number_of_floors) || '—',
+                        cleanText(r.water_source) || '—',
+                        cleanText(r.site_access) || '—',
+                        cleanText(r.site_distance) || '—',
+                        r.building_image ? resolveJammuSurveyMediaUrl(r.building_image, 'resco_image') : '—',
+                        r.roof_image ? resolveJammuSurveyMediaUrl(r.roof_image, 'resco_image') : '—',
+                        r.control_room_image ? resolveJammuSurveyMediaUrl(r.control_room_image, 'resco_image') : '—',
+                        (r.image4 || r.meter_image) ? resolveJammuSurveyMediaUrl(r.image4 || r.meter_image, 'resco_image') : '—',
+                        (r.image5 || r.other_image) ? resolveJammuSurveyMediaUrl(r.image5 || r.other_image, 'resco_image') : '—',
+                        r.pdf ? resolveJammuSurveyMediaUrl(r.pdf, 'resco_pdf') : '—',
+                        Number(r.bos_status) === 1 ? 'BOS Done' : 'BOS Pending',
+                        r.bos_file ? resolveJammuSurveyMediaUrl(r.bos_file, 'resco_bos') : '—',
+                        cleanText(r.bos_remarks) || '—',
+                      ].join('\t')
+                    )
+                    .join('\n');
+                  navigator.clipboard.writeText(t);
+                  setToastMsg({ type: 'success', text: 'Copied to clipboard!' });
+                }}
+                onExportCSV={() => {
+                  const out = [
+                    RESCO_SURVEY_HEADERS.filter((h) => h !== 'Action').join(','),
+                    ...filtered.map((r, i) =>
+                      [
+                        `"${i + 1}"`,
+                        `"${r.uid || r.srt_id || (r.id ? `RESCO-${r.id}` : '')}"`,
+                        `"${r.state || 'Jammu'}"`,
+                        `"${cleanText(r.district)}"`,
+                        `"${cleanText(r.division)}"`,
+                        `"${cleanText(r.sub_division)}"`,
+                        `"${cleanText(r.dept_name || r.department)}"`,
+                        `"${cleanText(r.site_name)}"`,
+                        `"${cleanText(r.site_address || r.address)}"`,
+                        `"${cleanText(r.ca_no)}"`,
+                        `"${cleanText(r.survey_site_address || r.site_address || r.address)}"`,
+                        `"${cleanText(r.near_landmark || r.landmark)}"`,
+                        `"${cleanText(r.agency_person_name || r.agency_contact_person)}"`,
+                        `"${cleanText(r.agency_person_contact || r.agency_contact_no)}"`,
+                        `"${cleanText(r.nodal_person)}"`,
+                        `"${cleanText(r.contact_nodal || r.nodal_person_contact)}"`,
+                        `"${cleanText(r.latitude)}"`,
+                        `"${cleanText(r.longitude)}"`,
+                        `"${cleanText(r.load_type)}"`,
+                        `"${cleanText(r.connection_phase)}"`,
+                        `"${cleanText(r.meter_connection || r.meter_connection_type)}"`,
+                        `"${cleanText(r.meter_number || r.meter_no)}"`,
+                        `"${cleanText(r.meter_type)}"`,
+                        `"${cleanText(r.sanction_load)}"`,
+                        `"${cleanText(r.connected_load || r.instantaneous_load)}"`,
+                        `"${cleanText(r.grid_power || r.grid_availability)}"`,
+                        `"${cleanText(r.all_3_phase_ltdb || r.three_phase_available)}"`,
+                        `"${cleanText(r.missing_phase)}"`,
+                        `"${cleanText(r.ltdb_present || r.ltdb_status)}"`,
+                        `"${cleanText(r.roof_condition)}"`,
+                        `"${cleanText(r.area_roof || r.roof_area)}"`,
+                        `"${cleanText(r.free_space_solar || r.solar_free_space)}"`,
+                        `"${cleanText(r.free_space_inverter || r.control_room_free_space)}"`,
+                        `"${cleanText(r.earth_pit || r.earth_pit_position)}"`,
+                        `"${cleanText(r.building_age)}"`,
+                        `"${cleanText(r.roof_access)}"`,
+                        `"${cleanText(r.rooftop_height)}"`,
+                        `"${cleanText(r.parapet_height)}"`,
+                        `"${cleanText(r.floors_number || r.number_of_floors)}"`,
+                        `"${cleanText(r.water_source)}"`,
+                        `"${cleanText(r.site_access)}"`,
+                        `"${cleanText(r.site_distance)}"`,
+                        `"${r.building_image || ''}"`,
+                        `"${r.roof_image || ''}"`,
+                        `"${r.control_room_image || ''}"`,
+                        `"${r.image4 || r.meter_image || ''}"`,
+                        `"${r.image5 || r.other_image || ''}"`,
+                        `"${r.pdf || ''}"`,
+                        `"${Number(r.bos_status) === 1 ? 'BOS Done' : 'BOS Pending'}"`,
+                        `"${r.bos_file || ''}"`,
+                        `"${cleanText(r.bos_remarks)}"`,
+                      ].join(',')
+                    ),
+                  ].join('\n');
+                  const blob = new Blob([out], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'View_Resco_Survey_Information.csv';
+                  a.click();
+                }}
+                onExportExcel={() => {
+                  const out = [
+                    RESCO_SURVEY_HEADERS.filter((h) => h !== 'Action').join('\t'),
+                    ...filtered.map((r, i) =>
+                      [
+                        i + 1,
+                        r.uid || r.srt_id || (r.id ? `RESCO-${r.id}` : '—'),
+                        r.state || 'Jammu',
+                        cleanText(r.district) || '—',
+                        cleanText(r.division) || '—',
+                        cleanText(r.sub_division) || '—',
+                        cleanText(r.dept_name || r.department) || '—',
+                        cleanText(r.site_name) || '—',
+                        cleanText(r.site_address || r.address) || '—',
+                        cleanText(r.ca_no) || '—',
+                        cleanText(r.survey_site_address || r.site_address || r.address) || '—',
+                        cleanText(r.near_landmark || r.landmark) || '—',
+                        cleanText(r.agency_person_name || r.agency_contact_person) || '—',
+                        cleanText(r.agency_person_contact || r.agency_contact_no) || '—',
+                        cleanText(r.nodal_person) || '—',
+                        cleanText(r.contact_nodal || r.nodal_person_contact) || '—',
+                        cleanText(r.latitude) || '—',
+                        cleanText(r.longitude) || '—',
+                        cleanText(r.load_type) || '—',
+                        cleanText(r.connection_phase) || '—',
+                        cleanText(r.meter_connection || r.meter_connection_type) || '—',
+                        cleanText(r.meter_number || r.meter_no) || '—',
+                        cleanText(r.meter_type) || '—',
+                        cleanText(r.sanction_load) || '—',
+                        cleanText(r.connected_load || r.instantaneous_load) || '—',
+                        cleanText(r.grid_power || r.grid_availability) || '—',
+                        cleanText(r.all_3_phase_ltdb || r.three_phase_available) || '—',
+                        cleanText(r.missing_phase) || '—',
+                        cleanText(r.ltdb_present || r.ltdb_status) || '—',
+                        cleanText(r.roof_condition) || '—',
+                        cleanText(r.area_roof || r.roof_area) || '—',
+                        cleanText(r.free_space_solar || r.solar_free_space) || '—',
+                        cleanText(r.free_space_inverter || r.control_room_free_space) || '—',
+                        cleanText(r.earth_pit || r.earth_pit_position) || '—',
+                        cleanText(r.building_age) || '—',
+                        cleanText(r.roof_access) || '—',
+                        cleanText(r.rooftop_height) || '—',
+                        cleanText(r.parapet_height) || '—',
+                        cleanText(r.floors_number || r.number_of_floors) || '—',
+                        cleanText(r.water_source) || '—',
+                        cleanText(r.site_access) || '—',
+                        cleanText(r.site_distance) || '—',
+                        r.building_image || '—',
+                        r.roof_image || '—',
+                        r.control_room_image || '—',
+                        r.image4 || r.meter_image || '—',
+                        r.image5 || r.other_image || '—',
+                        r.pdf || '—',
+                        Number(r.bos_status) === 1 ? 'BOS Done' : 'BOS Pending',
+                        r.bos_file || '—',
+                        cleanText(r.bos_remarks) || '—',
+                      ].join('\t')
+                    ),
+                  ].join('\n');
+                  const blob = new Blob([out], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'View_Resco_Survey_Information.xls';
+                  a.click();
+                }}
                 onExportPDF={() => window.print()}
               />
             </div>
           </div>
         </div>
 
-        {/* ── Table with exact all 52 columns ── */}
+        {/* ── Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ax-table--striped" style={{ minWidth: 4600, fontSize: '12px', whiteSpace: 'nowrap' }}>
-            <thead className="ax-table__head" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap' }}>
+            <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" scope="col" style={{ width: 60, textAlign: 'center', position: 'sticky', left: 0, background: 'var(--ax-surface-subtle, #f8fafc)', zIndex: 12, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)' }}>
-                  Sr. No.
-                </th>
-                <th className="ax-table__th" scope="col" style={{ width: 140, position: 'sticky', left: 60, background: 'var(--ax-surface-subtle, #f8fafc)', zIndex: 12, boxShadow: '2px 0 4px -2px rgba(0,0,0,0.1)' }}>
-                  Unique ID
-                </th>
-                <th className="ax-table__th" scope="col" style={{ width: 120 }}>State</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110 }}>District</th>
-                <th className="ax-table__th" scope="col" style={{ width: 130 }}>Division</th>
-                <th className="ax-table__th" scope="col" style={{ width: 130 }}>Sub Division</th>
-                <th className="ax-table__th" scope="col" style={{ width: 220 }}>Department</th>
-                <th className="ax-table__th" scope="col" style={{ width: 240 }}>Site Name</th>
-                <th className="ax-table__th" scope="col" style={{ width: 240 }}>Site Address</th>
-                <th className="ax-table__th" scope="col" style={{ width: 130 }}>CA No.</th>
-                <th className="ax-table__th" scope="col" style={{ width: 220 }}>Survey Address</th>
-                <th className="ax-table__th" scope="col" style={{ width: 190 }}>Nearest Landmark</th>
-                <th className="ax-table__th" scope="col" style={{ width: 190 }}>Agency Contact Person Name</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140 }}>Agency Contact Number</th>
-                <th className="ax-table__th" scope="col" style={{ width: 180 }}>Nodal Person</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140 }}>Nodal Person Contact</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110 }}>Latitude</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110 }}>Longitude</th>
-                <th className="ax-table__th" scope="col" style={{ width: 160 }}>Load Type</th>
-                <th className="ax-table__th" scope="col" style={{ width: 120 }}>Connection Phase</th>
-                <th className="ax-table__th" scope="col" style={{ width: 160 }}>Meter Connection Type</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140 }}>Meter Number</th>
-                <th className="ax-table__th" scope="col" style={{ width: 160 }}>Meter Type</th>
-                <th className="ax-table__th" scope="col" style={{ width: 150 }}>Sanction Load (KW/KVA)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 150 }}>Connected Load (KW)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140 }}>Grid Power Availability</th>
-                <th className="ax-table__th" scope="col" style={{ width: 160 }}>Three-Phase Availability</th>
-                <th className="ax-table__th" scope="col" style={{ width: 120 }}>Missing Phase</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110 }}>LTDB Present</th>
-                <th className="ax-table__th" scope="col" style={{ width: 160 }}>Roof Condition</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 150 }}>Total Roof Area (Sq.Feet)</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 180 }}>Free Space for Solar Installation (in Sq.Feet)</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 190 }}>Free Space for Control Room/Inverter (in Sq.Feet)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 190 }}>Earth Pit Position</th>
-                <th className="ax-table__th" scope="col" style={{ width: 120 }}>Age of Building</th>
-                <th className="ax-table__th" scope="col" style={{ width: 180 }}>Access to the Roof (Availability of Staircase)</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 140 }}>Rooftop Height (Feet)</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 140 }}>Parapet Height (Feet)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140 }}>No. of Floors (G+...)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 170 }}>Water Source for Cleaning</th>
-                <th className="ax-table__th" scope="col" style={{ width: 170 }}>Access to Site</th>
-                <th className="ax-table__th ax-table__th--num" scope="col" style={{ width: 180 }}>Distance of Site from Main Road (km)</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>Building Image</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>Roof Image</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>Control Room</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>Meter</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>Other Image</th>
-                <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>PDF</th>
-                <th className="ax-table__th" scope="col" style={{ width: 120 }}>BOS Status</th>
-                <th className="ax-table__th" scope="col" style={{ width: 110, textAlign: 'center' }}>BOS File</th>
-                <th className="ax-table__th" scope="col" style={{ width: 220 }}>BOS Remarks</th>
-                <th className="ax-table__th" scope="col" style={{ width: 140, textAlign: 'center', position: 'sticky', right: 0, background: 'var(--ax-surface-subtle, #f8fafc)', zIndex: 12, boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.1)' }}>
-                  Action
-                </th>
+                {RESCO_SURVEY_HEADERS.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={h === 'Action' ? { textAlign: 'center' } : undefined}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-
-            <tbody>
-              {filtered.length === 0 ? (
-                // EXACT USER SPECIFICATION: No data available in table
+            <tbody aria-busy={loading}>
+              {loading && (
                 <tr>
-                  <td colSpan={52} style={{ padding: 0 }}>
+                  <td colSpan={RESCO_SURVEY_HEADERS.length} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading survey records from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={RESCO_SURVEY_HEADERS.length} style={{ padding: 0 }}>
                     <TableEmptyState
                       title="No data available in table"
-                      message={hasFilters ? 'No matching RESCO surveys match your search query or active filters.' : 'No RESCO survey records currently registered.'}
+                      message={hasFilters ? 'No records match your filters. Try clearing your query.' : 'No completed survey records found.'}
                       onClear={hasFilters ? resetFilters : undefined}
                     />
                   </td>
                 </tr>
-              ) : (
+              )}
+              {!loading &&
                 paginatedData.map((row, idx) => {
-                  const serialNumber = (currentPage - 1) * pageSize + idx + 1;
+                  const uidDisplay = row.uid || row.srt_id || (row.id ? `RESCO-${row.id}` : '—');
+                  const hasBos = Number(row.bos_status) === 1;
+
                   return (
-                    <tr key={row.uniqueId} className="ax-table__row">
-                      {/* 1. Sr. No. (Sticky) */}
-                      <td
-                        className="ax-table__td ax-num"
-                        style={{
-                          textAlign: 'center',
-                          position: 'sticky',
-                          left: 0,
-                          background: 'var(--ax-surface-solid)',
-                          zIndex: 6,
-                          boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)',
-                        }}
-                      >
-                        {serialNumber}
+                    <tr key={row.id || idx} className="ax-table__row">
+                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
+                        {uidDisplay}
                       </td>
-
-                      {/* 2. Unique ID (Sticky) */}
-                      <td
-                        className="ax-table__td"
-                        style={{
-                          position: 'sticky',
-                          left: 60,
-                          background: 'var(--ax-surface-solid)',
-                          zIndex: 6,
-                          boxShadow: '2px 0 4px -2px rgba(0,0,0,0.06)',
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setActiveRecord(row)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            color: '#2563eb',
-                            fontWeight: 700,
-                            fontFamily: 'monospace',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                          }}
-                        >
-                          {row.uniqueId}
-                        </button>
-                      </td>
-
-                      {/* 3. State */}
-                      <td className="ax-table__td">{row.state}</td>
-
-                      {/* 4. District */}
-                      <td className="ax-table__td"><b>{row.district}</b></td>
-
-                      {/* 5. Division */}
-                      <td className="ax-table__td">{row.division}</td>
-
-                      {/* 6. Sub Division */}
-                      <td className="ax-table__td">{row.subDivision}</td>
-
-                      {/* 7. Department */}
-                      <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                        {row.department}
-                      </td>
-
-                      {/* 8. Site Name */}
+                      <td className="ax-table__td">{row.state || 'Jammu'}</td>
+                      <td className="ax-table__td"><b>{cleanText(row.district) || '—'}</b></td>
+                      <td className="ax-table__td">{cleanText(row.division) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.sub_division) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.dept_name || row.department) || '—'}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                        {row.siteName}
+                        {cleanText(row.site_name) || `Site #${row.id}`}
                       </td>
+                      <td className="ax-table__td">{cleanText(row.site_address || row.address) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.ca_no) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.survey_site_address || row.site_address || row.address) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.near_landmark || row.landmark) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.agency_person_name || row.agency_contact_person) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.agency_person_contact || row.agency_contact_no) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.nodal_person) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.contact_nodal || row.nodal_person_contact) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.latitude) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.longitude) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.load_type) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.connection_phase) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.meter_connection || row.meter_connection_type) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.meter_number || row.meter_no) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.meter_type) || '—'}</td>
+                      <td className="ax-table__td">{row.sanction_load ? `${row.sanction_load} kW` : '—'}</td>
+                      <td className="ax-table__td">{row.connected_load ? `${row.connected_load} kW` : (row.instantaneous_load ? `${row.instantaneous_load} kW` : '—')}</td>
+                      <td className="ax-table__td">{cleanText(row.grid_power || row.grid_availability) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.all_3_phase_ltdb || row.three_phase_available) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.missing_phase) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.ltdb_present || row.ltdb_status) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.roof_condition) || '—'}</td>
+                      <td className="ax-table__td">{row.area_roof ? `${row.area_roof} sq.ft` : (row.roof_area ? `${row.roof_area} sq.ft` : '—')}</td>
+                      <td className="ax-table__td">{row.free_space_solar ? `${row.free_space_solar} sq.ft` : (row.solar_free_space ? `${row.solar_free_space} sq.ft` : '—')}</td>
+                      <td className="ax-table__td">{row.free_space_inverter ? `${row.free_space_inverter} sq.ft` : (row.control_room_free_space ? `${row.control_room_free_space} sq.ft` : '—')}</td>
+                      <td className="ax-table__td">{cleanText(row.earth_pit || row.earth_pit_position) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.building_age) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.roof_access) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.rooftop_height) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.parapet_height) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.floors_number || row.number_of_floors) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.water_source) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.site_access) || '—'}</td>
+                      <td className="ax-table__td">{cleanText(row.site_distance) || '—'}</td>
 
-                      {/* 9. Site Address */}
-                      <td className="ax-table__td" style={{ maxWidth: 240, whiteSpace: 'normal', fontSize: 12 }}>
-                        {row.siteAddress}
-                      </td>
-
-                      {/* 10. CA No. */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {row.caNo}
-                      </td>
-
-                      {/* 11. Survey Address */}
-                      <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                        {row.surveyAddress}
-                      </td>
-
-                      {/* 12. Nearest Landmark */}
-                      <td className="ax-table__td">{row.nearestLandmark}</td>
-
-                      {/* 13. Agency Contact Person Name */}
-                      <td className="ax-table__td" style={{ fontWeight: 500 }}>
-                        {row.agencyContactPerson}
-                      </td>
-
-                      {/* 14. Agency Contact Number */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
-                        {row.agencyContactNo}
-                      </td>
-
-                      {/* 15. Nodal Person */}
-                      <td className="ax-table__td" style={{ fontWeight: 500 }}>
-                        {row.nodalPerson}
-                      </td>
-
-                      {/* 16. Nodal Person Contact */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
-                        {row.nodalPersonContact}
-                      </td>
-
-                      {/* 17. Latitude */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                        {row.latitude}
-                      </td>
-
-                      {/* 18. Longitude */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                        {row.longitude}
-                      </td>
-
-                      {/* 19. Load Type */}
-                      <td className="ax-table__td">{row.loadType}</td>
-
-                      {/* 20. Connection Phase */}
+                      {/* Building Image */}
                       <td className="ax-table__td">
-                        <Badge tone="neutral">{row.connectionPhase}</Badge>
-                      </td>
-
-                      {/* 21. Meter Connection Type */}
-                      <td className="ax-table__td">{row.meterConnectionType}</td>
-
-                      {/* 22. Meter Number */}
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
-                        {row.meterNumber}
-                      </td>
-
-                      {/* 23. Meter Type */}
-                      <td className="ax-table__td">{row.meterType}</td>
-
-                      {/* 24. Sanction Load */}
-                      <td className="ax-table__td ax-num">{row.sanctionLoadKw}</td>
-
-                      {/* 25. Connected Load */}
-                      <td className="ax-table__td ax-num">{row.connectedLoadKw}</td>
-
-                      {/* 26. Grid Power Availability */}
-                      <td className="ax-table__td">
-                        <Badge tone="success">{row.gridPowerAvailability}</Badge>
-                      </td>
-
-                      {/* 27. Three-Phase Availability */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.threePhaseAvailability === 'Yes' ? (
-                          <span style={{ color: '#16a34a', fontWeight: 700 }}>Yes</span>
-                        ) : (
-                          <span style={{ color: '#dc2626' }}>No</span>
-                        )}
-                      </td>
-
-                      {/* 28. Missing Phase */}
-                      <td className="ax-table__td">{row.missingPhase}</td>
-
-                      {/* 29. LTDB Present */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>{row.ltdbPresent}</td>
-
-                      {/* 30. Roof Condition */}
-                      <td className="ax-table__td">{row.roofCondition}</td>
-
-                      {/* 31. Total Roof Area */}
-                      <td className="ax-table__td ax-table__td--num ax-num">
-                        {row.totalRoofAreaSqFt.toLocaleString()} sq ft
-                      </td>
-
-                      {/* 32. Free Space for Solar */}
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 700, color: '#16a34a' }}>
-                        {row.freeSpaceSolarSqFt.toLocaleString()} sq ft
-                      </td>
-
-                      {/* 33. Free Space for Control Room */}
-                      <td className="ax-table__td ax-table__td--num ax-num">
-                        {row.freeSpaceControlRoomSqFt.toLocaleString()} sq ft
-                      </td>
-
-                      {/* 34. Earth Pit Position */}
-                      <td className="ax-table__td" style={{ maxWidth: 190, whiteSpace: 'normal', fontSize: 11 }}>
-                        {row.earthPitPosition}
-                      </td>
-
-                      {/* 35. Age of Building */}
-                      <td className="ax-table__td">{row.ageOfBuilding}</td>
-
-                      {/* 36. Access to the Roof */}
-                      <td className="ax-table__td">{row.accessToRoof}</td>
-
-                      {/* 37. Rooftop Height (Feet) */}
-                      <td className="ax-table__td ax-table__td--num ax-num">{row.rooftopHeightFt} ft</td>
-
-                      {/* 38. Parapet Height (Feet) */}
-                      <td className="ax-table__td ax-table__td--num ax-num">{row.parapetHeightFt} ft</td>
-
-                      {/* 39. No. of Floors */}
-                      <td className="ax-table__td">{row.noOfFloors}</td>
-
-                      {/* 40. Water Source for Cleaning */}
-                      <td className="ax-table__td" style={{ maxWidth: 170, whiteSpace: 'normal', fontSize: 11 }}>
-                        {row.waterSourceForCleaning}
-                      </td>
-
-                      {/* 41. Access to Site */}
-                      <td className="ax-table__td">{row.accessToSite}</td>
-
-                      {/* 42. Distance from Main Road */}
-                      <td className="ax-table__td ax-table__td--num ax-num">{row.distanceFromMainRoadKm} km</td>
-
-                      {/* 43. Building Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setPreviewImage({ title: `${row.siteName} — Building Image`, src: row.buildingImage })}
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          📷 View
-                        </button>
-                      </td>
-
-                      {/* 44. Roof Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setPreviewImage({ title: `${row.siteName} — Roof Image`, src: row.roofImage })}
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          📷 View
-                        </button>
-                      </td>
-
-                      {/* 45. Control Room */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setPreviewImage({ title: `${row.siteName} — Control Room`, src: row.controlRoomImage })}
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          📷 View
-                        </button>
-                      </td>
-
-                      {/* 46. Meter */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setPreviewImage({ title: `${row.siteName} — Meter Image`, src: row.meterImage })}
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          📷 View
-                        </button>
-                      </td>
-
-                      {/* 47. Other Image */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
-                          onClick={() => setPreviewImage({ title: `${row.siteName} — Additional Image`, src: row.otherImage })}
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                        >
-                          📷 View
-                        </button>
-                      </td>
-
-                      {/* 48. PDF */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-badge ax-badge--soft ax-badge--danger ax-badge--pill"
-                          onClick={() => setToastMsg({ type: 'success', text: `Survey dossier PDF downloaded for ${row.uniqueId}` })}
-                          style={{ cursor: 'pointer', border: 'none', padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
-                        >
-                          📄 PDF
-                        </button>
-                      </td>
-
-                      {/* 49. BOS Status */}
-                      <td className="ax-table__td">
-                        {row.bosStatus === 'Approved' ? (
-                          <Badge tone="success">BOS Approved</Badge>
-                        ) : (
-                          <Badge tone="warning">Pending BOS</Badge>
-                        )}
-                      </td>
-
-                      {/* 50. BOS File */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.bosFile ? (
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            onClick={() => setToastMsg({ type: 'success', text: `BOS file downloaded for ${row.uniqueId}` })}
-                            style={{ padding: '3px 6px', fontSize: 11, color: '#2563eb' }}
-                          >
-                            📄 BOS Doc
-                          </button>
+                        {row.building_image ? (
+                          <SurveyThumbnail
+                            src={row.building_image}
+                            alt={`Building ${row.site_name}`}
+                            onPreview={(u, t) => setLightboxPreview({ url: u, title: t })}
+                          />
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
                         )}
                       </td>
 
-                      {/* 51. BOS Remarks */}
-                      <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 11 }}>
-                        {row.bosRemarks || '—'}
+                      {/* Roof Image */}
+                      <td className="ax-table__td">
+                        {row.roof_image ? (
+                          <SurveyThumbnail
+                            src={row.roof_image}
+                            alt={`Roof ${row.site_name}`}
+                            onPreview={(u, t) => setLightboxPreview({ url: u, title: t })}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
                       </td>
 
-                      {/* 52. Action (Sticky Right) */}
-                      <td
-                        className="ax-table__td"
-                        style={{
-                          textAlign: 'center',
-                          position: 'sticky',
-                          right: 0,
-                          background: 'var(--ax-surface-solid)',
-                          zIndex: 6,
-                          boxShadow: '-2px 0 4px -2px rgba(0,0,0,0.06)',
-                        }}
-                      >
-                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      {/* Control Room */}
+                      <td className="ax-table__td">
+                        {row.control_room_image ? (
+                          <SurveyThumbnail
+                            src={row.control_room_image}
+                            alt={`Control Room ${row.site_name}`}
+                            onPreview={(u, t) => setLightboxPreview({ url: u, title: t })}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Meter */}
+                      <td className="ax-table__td">
+                        {(row.image4 || row.meter_image) ? (
+                          <SurveyThumbnail
+                            src={row.image4 || row.meter_image}
+                            alt={`Meter ${row.site_name}`}
+                            onPreview={(u, t) => setLightboxPreview({ url: u, title: t })}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Other Image */}
+                      <td className="ax-table__td">
+                        {(row.image5 || row.other_image) ? (
+                          <SurveyThumbnail
+                            src={row.image5 || row.other_image}
+                            alt={`Other ${row.site_name}`}
+                            onPreview={(u, t) => setLightboxPreview({ url: u, title: t })}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* PDF Report */}
+                      <td className="ax-table__td">
+                        {row.pdf ? (
+                          <a
+                            href={resolveJammuSurveyMediaUrl(row.pdf, 'resco_pdf')}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11 }}
+                            title="View Survey PDF"
+                          >
+                            📄 PDF
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* BOS Status */}
+                      <td className="ax-table__td">
+                        {hasBos ? (
+                          <Badge tone="success">BOS Done</Badge>
+                        ) : (
+                          <Badge tone="warning">BOS Pending</Badge>
+                        )}
+                      </td>
+
+                      {/* BOS File */}
+                      <td className="ax-table__td">
+                        {row.bos_file ? (
+                          <a
+                            href={resolveJammuSurveyMediaUrl(row.bos_file, 'resco_bos')}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11 }}
+                            title="View BOS File"
+                          >
+                            📁 File
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* BOS Remarks */}
+                      <td className="ax-table__td">{cleanText(row.bos_remarks) || '—'}</td>
+
+                      {/* Actions */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                           <button
                             type="button"
                             className="ax-btn ax-btn--ghost ax-btn--xs"
-                            onClick={() => setActiveRecord(row)}
-                            title="View full survey dossier"
-                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            onClick={() => setDetailModalItem(row)}
+                            title="View full survey details"
+                            style={{ padding: '3px 7px', fontSize: 11 }}
                           >
                             View
                           </button>
-                          <Link
-                            to={`/v/jammu/survey/resco/pending-survey?siteId=${row.uniqueId}`}
-                            className="ax-btn ax-btn--secondary ax-btn--xs"
-                            style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                            title="Edit survey record"
-                          >
-                            Edit
-                          </Link>
+
                           <button
                             type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '3px 8px', fontSize: 11, color: 'var(--ax-viz-red, #dc2626)' }}
-                            onClick={() => setDeleteConfirmId(row.uniqueId)}
-                            title="Delete survey record"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            onClick={() => navigate(`/v/jammu/survey/resco/pending-survey?editId=${row.id}`)}
+                            title="Edit survey record"
+                            style={{ padding: '3px 7px', fontSize: 11 }}
                           >
-                            Delete
+                            Edit
                           </button>
+
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            onClick={() => {
+                              setBosModalItem(row);
+                              setBosFile(null);
+                              setBosRemarks(row.bos_remarks || '');
+                            }}
+                            title="Upload BOS document"
+                            style={{ padding: '3px 7px', fontSize: 11 }}
+                          >
+                            BOS File
+                          </button>
+
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--primary ax-btn--xs"
+                            onClick={() => handleOpenBosProducts(row)}
+                            title="Configure BOS products"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                          >
+                            BOS Items
+                          </button>
+
+                          {hasBos && (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              disabled={downloadingPdfId === row.id}
+                              onClick={() => handleDownloadPdf(row)}
+                              title="Download official BOS PDF dossier"
+                              style={{ padding: '3px 7px', fontSize: 11, color: '#16a34a' }}
+                            >
+                              {downloadingPdfId === row.id ? '...' : 'PDF ⬇'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   );
-                })
-              )}
+                })}
             </tbody>
           </table>
         </div>
 
-        {/* ── Footer Pagination matching reference ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -1212,300 +1429,477 @@ export function View_Survey() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[5, 8, 15, 25, 50]}
+              pageSizeOptions={[10, 25, 50, 100]}
             />
           </div>
         </div>
       </section>
 
-      {/* ── Modal 1: Full 52-Field RESCO Survey Dossier ── */}
-      {activeRecord && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="resco-survey-detail-title">
-          <div className="ax-modal__backdrop" onClick={() => setActiveRecord(null)} />
-          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 880 }}>
-            <div className="ax-modal__header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontFamily: 'monospace' }}>
-                  {activeRecord.uniqueId}
-                </span>
-                <h2 className="ax-modal__title" id="resco-survey-detail-title" style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
-                  {activeRecord.siteName}
-                </h2>
+      {/* ── Lightbox Zoom Modal ── */}
+      {lightboxPreview && (
+        <ImagePreviewModal
+          url={lightboxPreview.url}
+          title={lightboxPreview.title}
+          onClose={() => setLightboxPreview(null)}
+        />
+      )}
+
+      {/* ── View Survey Detail Modal ── */}
+      {detailModalItem && (
+        <Modal open onClose={() => setDetailModalItem(null)} labelledBy="survey-details-title" dialogClass="ax-modal__dialog--lg">
+          <div className="ax-modal__header">
+            <h2 className="ax-modal__title" id="survey-details-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>RESCO Survey Dossier: {detailModalItem.site_name}</span>
+              <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11 }}>
+                #{detailModalItem.id}
+              </span>
+            </h2>
+            <button type="button" className="ax-modal__close" onClick={() => setDetailModalItem(null)} aria-label="Close dialog">
+              {X_ICON}
+            </button>
+          </div>
+
+          <div className="ax-modal__body">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 16px', fontSize: 13, marginBottom: 16 }}>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site UID</span>
+                <b>{detailModalItem.uid || `RESCO-${detailModalItem.id}`}</b>
               </div>
-              <button
-                type="button"
-                className="ax-modal__close"
-                onClick={() => setActiveRecord(null)}
-                aria-label="Close dialog"
-              >
-                {X_ICON}
-              </button>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State / District</span>
+                <b>{detailModalItem.state || 'Jammu'} · {detailModalItem.district || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Department</span>
+                <b>{cleanText(detailModalItem.dept_name || detailModalItem.department) || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Division / Sub-division</span>
+                <b>{cleanText(detailModalItem.division)} / {cleanText(detailModalItem.sub_division)}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>CA Number</span>
+                <b>{cleanText(detailModalItem.ca_no) || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Survey Date</span>
+                <b>{formatDate(detailModalItem.survey_date || detailModalItem.created_at)}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Agency Engineer</span>
+                <b>{cleanText(detailModalItem.agency_person_name)} ({cleanText(detailModalItem.agency_person_contact)})</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Nodal Officer</span>
+                <b>{cleanText(detailModalItem.nodal_person)} ({cleanText(detailModalItem.contact_nodal)})</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>GPS Coordinates</span>
+                <b>{detailModalItem.latitude || '—'}, {detailModalItem.longitude || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Load Type / Phase</span>
+                <b>{detailModalItem.load_type || '—'} / {detailModalItem.connection_phase || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Sanction / Connected</span>
+                <b>{detailModalItem.sanction_load || '—'} kW / {detailModalItem.connected_load || '—'} kW</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Meter No. & Type</span>
+                <b>{cleanText(detailModalItem.meter_number)} ({cleanText(detailModalItem.meter_type)})</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Roof Area / Space</span>
+                <b>{detailModalItem.area_roof || '—'} sq.ft (Solar: {detailModalItem.free_space_solar || '—'})</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Roof Condition & Access</span>
+                <b>{detailModalItem.roof_condition || '—'} · {detailModalItem.roof_access || '—'}</b>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Feasibility Verdict</span>
+                <Badge tone={!detailModalItem.site_feasible || !detailModalItem.site_feasible.toLowerCase().includes('not') ? 'success' : 'danger'}>
+                  {detailModalItem.site_feasible || 'Feasible'}
+                </Badge>
+              </div>
+              <div style={{ gridColumn: 'span 3' }}>
+                <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Remarks & Observations</span>
+                <p style={{ margin: '4px 0 0 0', background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 13 }}>
+                  {cleanText(detailModalItem.survey_remarks || detailModalItem.remarks) || 'No remarks recorded.'}
+                </p>
+              </div>
             </div>
 
-            <div className="ax-modal__body">
-              {/* Category 1: General & Location */}
-              <div style={{ marginBottom: 18 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-                  1. Location &amp; Administrative Details
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13 }}>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State / District</span>
-                    <b>{activeRecord.state} · {activeRecord.district}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Division &amp; Sub-Division</span>
-                    <b>{activeRecord.division} ({activeRecord.subDivision})</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Department</span>
-                    <b>{activeRecord.department}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>CA Number</span>
-                    <b style={{ fontFamily: 'monospace', color: '#2563eb' }}>{activeRecord.caNo}</b>
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site &amp; Survey Address</span>
-                    <b>{activeRecord.siteAddress}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Nearest Landmark</span>
-                    <b>{activeRecord.nearestLandmark}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>GPS Coordinates</span>
-                    <b style={{ fontFamily: 'monospace' }}>{activeRecord.latitude}, {activeRecord.longitude}</b>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category 2: Contacts & Authority */}
-              <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginBottom: 18 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-                  2. Contact Persons &amp; Building Authority
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13 }}>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Agency Contact Person</span>
-                    <b>{activeRecord.agencyContactPerson} ({activeRecord.agencyContactNo})</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Nodal Building Officer</span>
-                    <b>{activeRecord.nodalPerson} ({activeRecord.nodalPersonContact})</b>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category 3: Electrical, Metering & Grid */}
-              <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginBottom: 18 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-                  3. Technical, Electrical &amp; Metering Information
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13 }}>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Load Type &amp; Phase</span>
-                    <b>{activeRecord.loadType} · {activeRecord.connectionPhase}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Meter No. &amp; Type</span>
-                    <b>{activeRecord.meterNumber} ({activeRecord.meterType})</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Sanction &amp; Connected Load</span>
-                    <b style={{ color: '#2563eb' }}>{activeRecord.sanctionLoadKw} / {activeRecord.connectedLoadKw}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Grid Availability</span>
-                    <b style={{ color: '#16a34a' }}>{activeRecord.gridPowerAvailability}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>3-Phase in LTDB / Missing</span>
-                    <b>{activeRecord.threePhaseAvailability} (Missing: {activeRecord.missingPhase})</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>LTDB Present</span>
-                    <b>{activeRecord.ltdbPresent}</b>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category 4: Rooftop Dimensions & Civil Structure */}
-              <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginBottom: 18 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 8 }}>
-                  4. Rooftop Civil &amp; Structural Feasibility
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13 }}>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Total Roof Area</span>
-                    <b>{activeRecord.totalRoofAreaSqFt.toLocaleString()} sq ft ({activeRecord.roofCondition})</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Free Solar Space</span>
-                    <b style={{ color: '#16a34a' }}>{activeRecord.freeSpaceSolarSqFt.toLocaleString()} sq ft</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Control Room Space</span>
-                    <b>{activeRecord.freeSpaceControlRoomSqFt.toLocaleString()} sq ft</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Earth Pit Position</span>
-                    <b>{activeRecord.earthPitPosition}</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Building Floors &amp; Heights</span>
-                    <b>{activeRecord.noOfFloors} · Roof: {activeRecord.rooftopHeightFt} ft · Parapet: {activeRecord.parapetHeightFt} ft</b>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Water Source &amp; Access</span>
-                    <b>{activeRecord.waterSourceForCleaning} · Access: {activeRecord.accessToRoof}</b>
-                  </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Survey Remarks &amp; Feasibility</span>
-                    <p style={{ margin: '4px 0 0', background: 'var(--ax-surface-subtle, #f8fafc)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                      <b>Feasible: {activeRecord.siteFeasible}</b> — {activeRecord.surveyRemarks}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category 5: Photo Attachments & BOS Documents */}
-              <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
-                  5. Site Photographs &amp; BOS Approvals
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 14 }}>
-                  {[
-                    { label: 'Building Image', src: activeRecord.buildingImage },
-                    { label: 'Roof Image', src: activeRecord.roofImage },
-                    { label: 'Control Room', src: activeRecord.controlRoomImage },
-                    { label: 'Meter Image', src: activeRecord.meterImage },
-                    { label: 'Other Image', src: activeRecord.otherImage },
-                  ].map((img) => (
-                    <div
-                      key={img.label}
-                      style={{
-                        border: '1px solid var(--ax-border, #e2e8f0)',
-                        borderRadius: 6,
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        background: 'var(--ax-surface-subtle, #f8fafc)',
-                      }}
-                      onClick={() => setPreviewImage({ title: `${activeRecord.siteName} — ${img.label}`, src: img.src })}
-                    >
-                      <img src={img.src} alt={img.label} style={{ width: '100%', height: 70, objectFit: 'cover' }} />
-                      <div style={{ padding: '3px 4px', fontSize: 10, fontWeight: 600, textAlign: 'center' }}>
-                        {img.label}
+            {/* Photos Preview Section */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 10 }}>
+                Survey Photographic Documentation
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+                {[
+                  { label: 'Building Front', src: detailModalItem.building_image },
+                  { label: 'Rooftop Area', src: detailModalItem.roof_image },
+                  { label: 'Control Room / LTDB', src: detailModalItem.control_room_image },
+                  { label: 'Meter Photo', src: detailModalItem.image4 },
+                  { label: 'Cable Routing', src: detailModalItem.image5 },
+                ]
+                  .filter((item) => item.src)
+                  .map((item) => {
+                    const u = resolveJammuSurveyMediaUrl(item.src, 'resco_image');
+                    return (
+                      <div key={item.label} style={{ textAlign: 'center' }}>
+                        <img
+                          src={u}
+                          alt={item.label}
+                          style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
+                          onClick={() => setLightboxPreview({ url: u, title: item.label })}
+                        />
+                        <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginTop: 4 }}>{item.label}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
 
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--ax-surface-subtle, #f8fafc)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#2563eb' }}>BOS Status:</span>
-                  <Badge tone={activeRecord.bosStatus === 'Approved' ? 'success' : 'warning'}>
-                    {activeRecord.bosStatus}
-                  </Badge>
-                  <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                    {activeRecord.bosRemarks || 'No additional remarks.'}
-                  </span>
+          <div className="ax-modal__footer">
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => {
+                const id = detailModalItem.id;
+                setDetailModalItem(null);
+                navigate(`/v/jammu/survey/resco/pending-survey?editId=${id}`);
+              }}
+            >
+              Edit Survey ✎
+            </button>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => setDetailModalItem(null)}>
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── BOS File Upload Modal (API 9: POST /jk/resco-bos-submit) ── */}
+      {bosModalItem && (
+        <Modal open onClose={() => setBosModalItem(null)} labelledBy="bos-modal-title" dialogClass="ax-modal__dialog--md">
+          <form onSubmit={handleBosSubmit}>
+            <div className="ax-modal__header">
+              <h2 className="ax-modal__title" id="bos-modal-title" style={{ fontSize: 15, fontWeight: 700 }}>
+                Upload BOS Document for {bosModalItem.site_name}
+              </h2>
+              <button type="button" className="ax-modal__close" onClick={() => setBosModalItem(null)} aria-label="Close dialog">
+                {X_ICON}
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                Upload the certified Bill of Quantities (BOS) spreadsheet, PDF drawing, or signed schedule for Site #{bosModalItem.id}.
+              </p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                  BOS File Attachment (PDF, XLS, XLSX, JPG, PNG - Max 10MB) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  ref={bosFileInputRef}
+                  type="file"
+                  accept=".pdf,.xls,.xlsx,image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setBosFile(e.target.files?.[0] || null)}
+                />
+                <div
+                  onClick={() => bosFileInputRef.current?.click()}
+                  style={{
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 8,
+                    padding: '20px 16px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: '#f8fafc',
+                  }}
+                >
+                  {bosFile ? (
+                    <div style={{ color: '#16a34a', fontWeight: 600, fontSize: 13 }}>
+                      📄 {bosFile.name} ({(bosFile.size / 1024).toFixed(0)} KB)
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>Click to select BOS file</div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Accepted: PDF, Excel (.xls/.xlsx), Images</div>
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                  BOS Remarks
+                </label>
+                <textarea
+                  className="ax-input"
+                  style={{ width: '100%', height: 70, resize: 'vertical' }}
+                  placeholder="Enter remarks or component notes…"
+                  value={bosRemarks}
+                  onChange={(e) => setBosRemarks(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="ax-modal__footer">
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setToastMsg({ type: 'success', text: `Survey PDF downloaded for ${activeRecord.uniqueId}` })}
-              >
-                Download Feasibility PDF
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setBosModalItem(null)}>
+                Cancel
               </button>
-              <button
-                type="button"
-                className="ax-btn ax-btn--primary ax-btn--sm"
-                onClick={() => setActiveRecord(null)}
-              >
-                Close
+              <button type="submit" className="ax-btn ax-btn--primary ax-btn--sm" disabled={submittingBos || !bosFile}>
+                {submittingBos ? 'Submitting BOS…' : 'Submit BOS File'}
               </button>
             </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
 
-      {/* ── Modal 2: Image Preview Lightbox ── */}
-      {previewImage && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-label={previewImage.title}>
-          <div className="ax-modal__backdrop" onClick={() => setPreviewImage(null)} />
-          <div className="ax-modal__dialog" style={{ maxWidth: 760, background: '#0f172a', border: '1px solid #334155' }}>
-            <div className="ax-modal__header" style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#fff' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{previewImage.title}</span>
-              <button
-                type="button"
-                className="ax-modal__close"
-                onClick={() => setPreviewImage(null)}
-                style={{ color: '#fff' }}
-              >
-                {X_ICON}
-              </button>
-            </div>
-            <div className="ax-modal__body" style={{ textAlign: 'center', padding: 12 }}>
-              <img
-                src={previewImage.src}
-                alt={previewImage.title}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  objectFit: 'contain',
-                  borderRadius: 8,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal 3: Delete Confirmation ── */}
-      {deleteConfirmId && (
-        <div className="ax-modal" role="dialog" aria-modal="true" aria-label="Confirm Deletion">
-          <div className="ax-modal__backdrop" onClick={() => setDeleteConfirmId(null)} />
-          <div className="ax-modal__dialog" style={{ maxWidth: 420 }}>
+      {/* ── BOS Products Modal (API 10 & 11) ── */}
+      {bosProductModalItem && (
+        <Modal open onClose={() => setBosProductModalItem(null)} labelledBy="bos-product-modal-title" dialogClass="ax-modal__dialog--lg">
+          <form onSubmit={handleSaveBosProducts}>
             <div className="ax-modal__header">
-              <h2 className="ax-modal__title" style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
-                Confirm Deletion
+              <h2 className="ax-modal__title" id="bos-product-modal-title" style={{ fontSize: 15, fontWeight: 700 }}>
+                Configure BOS Products: {bosProductModalItem.site_name}
               </h2>
-              <button
-                type="button"
-                className="ax-modal__close"
-                onClick={() => setDeleteConfirmId(null)}
-              >
+              <button type="button" className="ax-modal__close" onClick={() => setBosProductModalItem(null)} aria-label="Close dialog">
                 {X_ICON}
               </button>
             </div>
-            <div className="ax-modal__body">
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-                Are you sure you want to remove survey dossier <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{deleteConfirmId}</b>? This action will remove the feasibility inspection from the active ledger.
-              </p>
+
+            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {loadingBosProducts ? (
+                <div style={{ textAlign: 'center', padding: 30, color: '#2563eb' }}>
+                  <span className="ax-spinner" /> Fetching available BOS product catalog & site materials…
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13, color: '#ef4444', fontWeight: 600, margin: 0 }}>
+                    * marked fields must be filled.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Product Required Date <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className="ax-input"
+                        style={{ width: '100%', height: 36 }}
+                        value={bosRequiredDate}
+                        onChange={(e) => setBosRequiredDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Site Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="ax-input"
+                        style={{ width: '100%', height: 36 }}
+                        placeholder="Site Name"
+                        value={bosSiteName}
+                        onChange={(e) => setBosSiteName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Site Load <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="ax-input"
+                        style={{ width: '100%', height: 36 }}
+                        placeholder="Site Load"
+                        value={bosSiteLoad}
+                        onChange={(e) => setBosSiteLoad(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Vendor Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="ax-input"
+                        style={{ width: '100%', height: 36 }}
+                        placeholder="Vendor Name"
+                        value={bosVendorName}
+                        onChange={(e) => setBosVendorName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 4 }}>
+                        Remarks
+                      </label>
+                      <input
+                        type="text"
+                        className="ax-input"
+                        style={{ width: '100%', height: 36 }}
+                        placeholder="Remarks"
+                        value={bosHeaderRemarks}
+                        onChange={(e) => setBosHeaderRemarks(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                        Products List ({productRows.length})
+                      </span>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--secondary ax-btn--xs"
+                        onClick={() =>
+                          setProductRows((prev) => [...prev, { product_id: '', quantity: '', unit: '', remarks: '' }])
+                        }
+                      >
+                        + Add Row
+                      </button>
+                    </div>
+
+                    <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                      <table className="ax-table" style={{ fontSize: 12, margin: 0 }}>
+                        <thead style={{ background: '#f8fafc' }}>
+                          <tr>
+                            <th style={{ minWidth: 220, padding: '8px 10px' }}>Product *</th>
+                            <th style={{ width: 120, padding: '8px 10px' }}>Quantity *</th>
+                            <th style={{ width: 140, padding: '8px 10px' }}>Unit *</th>
+                            <th style={{ minWidth: 160, padding: '8px 10px' }}>Remarks</th>
+                            <th style={{ width: 60, textAlign: 'center', padding: '8px 10px' }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {productRows.map((row, rIdx) => (
+                            <tr key={rIdx}>
+                              <td style={{ padding: '6px 10px' }}>
+                                <select
+                                  className="ax-input ax-input--sm"
+                                  style={{ width: '100%', height: 32 }}
+                                  value={row.product_id}
+                                  onChange={(e) => {
+                                    const val = e.target.value ? Number(e.target.value) : '';
+                                    setProductRows((prev) =>
+                                      prev.map((r, i) => (i === rIdx ? { ...r, product_id: val } : r))
+                                    );
+                                  }}
+                                  required
+                                >
+                                  <option value="">Select...</option>
+                                  {availableProducts.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="any"
+                                  className="ax-input ax-input--sm"
+                                  style={{ width: '100%', height: 32 }}
+                                  placeholder="Quantity"
+                                  value={row.quantity}
+                                  onChange={(e) => {
+                                    const val = e.target.value ? Number(e.target.value) : '';
+                                    setProductRows((prev) =>
+                                      prev.map((r, i) => (i === rIdx ? { ...r, quantity: val } : r))
+                                    );
+                                  }}
+                                  required
+                                />
+                              </td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <select
+                                  className="ax-input ax-input--sm"
+                                  style={{ width: '100%', height: 32 }}
+                                  value={row.unit}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProductRows((prev) =>
+                                      prev.map((r, i) => (i === rIdx ? { ...r, unit: val } : r))
+                                    );
+                                  }}
+                                  required
+                                >
+                                  <option value="">Select Unit</option>
+                                  <option value="Nos">Nos</option>
+                                  <option value="Mtr">Mtr</option>
+                                  <option value="Kg">Kg</option>
+                                  <option value="Set">Set</option>
+                                  <option value="Ltr">Ltr</option>
+                                  <option value="Box">Box</option>
+                                  <option value="Roll">Roll</option>
+                                  <option value="Pkt">Pkt</option>
+                                </select>
+                              </td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <input
+                                  type="text"
+                                  className="ax-input ax-input--sm"
+                                  style={{ width: '100%', height: 32 }}
+                                  placeholder="Remarks"
+                                  value={row.remarks}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProductRows((prev) =>
+                                      prev.map((r, i) => (i === rIdx ? { ...r, remarks: val } : r))
+                                    );
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--ghost ax-btn--xs"
+                                  style={{ color: '#ef4444', padding: '2px 6px' }}
+                                  onClick={() => setProductRows((prev) => prev.filter((_, i) => i !== rIdx))}
+                                  disabled={productRows.length <= 1}
+                                  title="Delete row"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+
             <div className="ax-modal__footer">
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--sm"
-                onClick={() => setDeleteConfirmId(null)}
-              >
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setBosProductModalItem(null)}>
                 Cancel
               </button>
               <button
-                type="button"
+                type="submit"
                 className="ax-btn ax-btn--primary ax-btn--sm"
-                style={{ background: 'var(--ax-viz-red, #dc2626)', borderColor: 'var(--ax-viz-red, #dc2626)' }}
-                onClick={() => handleDelete(deleteConfirmId)}
+                disabled={savingBosProducts || loadingBosProducts}
               >
-                Delete Dossier
+                {savingBosProducts ? 'Saving BOS Products…' : 'Save BOS Products'}
               </button>
             </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

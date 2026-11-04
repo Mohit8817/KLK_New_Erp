@@ -165,6 +165,55 @@ export interface JammuSslClaimRequestResponseData {
   [key: string]: any;
 }
 
+// 14. View SSL Complaints / AMC: GET jammu/ssl/complaint/view-data
+export interface JammuSslComplaintItem {
+  id: number;
+  complaint_id?: string | number;
+  complaint_date?: string;
+  complaint?: string;
+  complaint_issue?: string;
+  state?: string;
+  district?: string;
+  block?: string;
+  panchyat?: string;
+  panchayat?: string;
+  ward_no?: string;
+  pole_no?: string;
+  beneficiary_name?: string;
+  site_name?: string;
+  contact_no?: string;
+  phone?: string;
+  mobile?: string;
+  latitude?: string | number;
+  longitude?: string | number;
+  along_with_pole?: string;
+  luminary_no?: string;
+  sim_no?: string;
+  sim?: string;
+  battery_serial_no?: string;
+  battery_no?: string;
+  module_no?: string;
+  panel_no?: string;
+  date_of_installation?: string;
+  installation_date?: string;
+  document?: string;
+  file?: string;
+  complaint_status?: string | number;
+  status?: string | number;
+  resolved_by?: string;
+  resolver_name?: string;
+  closed_date?: string;
+  resolve_date?: string;
+  resolver_email?: string;
+  resolver_phone?: string;
+  resolver_contact?: string;
+  resolved_document?: string;
+  resolved_remark?: string;
+  closer_remark?: string;
+  closer_approved?: string | number;
+  [key: string]: any;
+}
+
 // 11. Installation Dashboard: GET jammu/ssl/installation/installation-dashboard
 export interface JammuSslDashboardTotals {
   site_count: number;
@@ -629,6 +678,36 @@ export const jammuSslService = {
 
     const json = await res.json();
     return json?.data || { status: norm, count: 0, swp: [] };
+  },
+
+  /**
+   * 14. View SSL Complaints (AMC)
+   * GET jammu/ssl/complaint/view-data or fallback to up/ssl/complaint/view-data
+   */
+  async getViewSslComplaints(): Promise<JammuSslComplaintItem[]> {
+    const endpoints = [
+      `${JAMMU_API.BASE_URL}/jammu/ssl/complaint/view-data`,
+      `${JAMMU_API.BASE_URL}/up/ssl/complaint/view-data`,
+      `${JAMMU_API.BASE_URL}/v/vendor/view-ssl-complaint`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) return json;
+          if (Array.isArray(json?.data)) return json.data;
+          if (Array.isArray(json?.complaints)) return json.complaints;
+        }
+      } catch {
+        // try next endpoint
+      }
+    }
+    return [];
   },
 };
 

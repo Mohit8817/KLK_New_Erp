@@ -483,8 +483,8 @@ export function Goa_Installation_SRT_Dashboard() {
 
   const stamp = new Date().toISOString().slice(0, 10);
 
-  const getExportValue = <T,>(row: T, column: ExportColumn<T>) => {
-    if (typeof column.accessor === 'function') return column.accessor(row);
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number = 0) => {
+    if (typeof column.accessor === 'function') return column.accessor(row, index);
     return (row as unknown as Record<string, unknown>)[column.accessor as string];
   };
   const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
@@ -505,9 +505,9 @@ export function Goa_Installation_SRT_Dashboard() {
     if (!dataToExport.length || !columns.length) return;
     const rows = [
       columns.map((c) => c.header),
-      ...dataToExport.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
+      ...dataToExport.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = rows.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -515,7 +515,7 @@ export function Goa_Installation_SRT_Dashboard() {
     if (!dataToCopy.length || !columns.length) return;
     const text = [
       columns.map((c) => c.header).join('\t'),
-      ...dataToCopy.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
+      ...dataToCopy.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
     ].join('\n');
     try {
       await navigator.clipboard.writeText(text);
@@ -553,9 +553,9 @@ export function Goa_Installation_SRT_Dashboard() {
   };
 
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
+    columns.map((c, i) => ({ key: `${c.header || ''}-${i}`, label: c.header || '', visible: !hidden.includes(`${c.header || ''}-${i}`) }));
   const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));
+    columns.filter((c, i) => !hidden.includes(`${c.header || ''}-${i}`));
 
   const districtToolbarColumns = makeToolbarColumns(districtCols, hiddenDistrictColumns);
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>

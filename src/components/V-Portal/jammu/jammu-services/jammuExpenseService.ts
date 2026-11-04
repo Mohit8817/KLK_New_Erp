@@ -7,28 +7,34 @@ import { getAuthHeaders } from './jammuSrt70mwService';
 
 export interface JammuExpenseClaimItem {
   id: number;
-  company_id: number;
-  vendor_id: number;
-  state: string;
-  project: string;
-  type: string;
+  company_id?: number;
+  vendor_id?: number;
+  state?: string;
+  project?: string;
+  type?: string;
   purpose: string;
   date: string;
   amount: string | number;
   claim_status: number; // 1 = Raised, 2 = Approved
-  remarks: string;
+  remarks?: string;
+  approved_remarks?: string;
+  approved_date?: string;
+  approved_by?: string | number;
+  claim_status_remarks?: string;
   pay_status: number; // 0 = Pending, 1 = Complete, 2 = Partially
-  file: string;
+  file?: string;
   site_name: string;
-  site_code: string;
+  site_code?: string;
   [key: string]: any;
 }
 
 export interface JammuExpenseSiteItem {
   id: number;
   site_name: string;
-  site_code: string;
+  site_code?: string;
   district?: string;
+  ca_no?: string;
+  sanction_load?: string | number;
   [key: string]: any;
 }
 
@@ -47,7 +53,23 @@ export interface JammuExpenseEditData {
     id: number;
     site_name: string;
     site_code?: string;
+    district?: string;
+    [key: string]: any;
   }>;
+}
+
+export interface JammuAllPaymentItem {
+  id?: number;
+  claim_id?: number | string;
+  amount?: number | string;
+  balance?: number | string;
+  date?: string;
+  status?: number;
+  payment_by?: string | number;
+  pay_remarks?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
 }
 
 export interface JammuExpensePaymentItem {
@@ -57,9 +79,25 @@ export interface JammuExpensePaymentItem {
   claim_status: number;
   pay_status: number; // 0 = Pending, 1 = Complete, 2 = Partially
   site_name: string;
-  site_code: string;
+  site_code?: string;
+  district?: string;
+  date?: string;
+  approved_date?: string;
+  approved_by?: string | number;
+  approved_remarks?: string;
+  remarks?: string;
+  file?: string;
   utr_no?: string;
   paid_date?: string;
+  pay_amount?: string | number;
+  payment_amount?: string | number;
+  balance_amount?: string | number;
+  payment_balance?: string | number;
+  pay_date?: string;
+  payment_date?: string;
+  pay_remarks?: string;
+  payment_remarks?: string;
+  allpayment?: JammuAllPaymentItem[];
   [key: string]: any;
 }
 
@@ -71,7 +109,7 @@ export interface JammuExpensePaymentDetailSummary {
 }
 
 export interface JammuExpensePaymentData {
-  vendor?: { id: number; name: string };
+  vendor?: { id: number; name: string; [key: string]: any };
   company_id?: number;
   loginId?: number;
   payments: JammuExpensePaymentItem[];
@@ -84,7 +122,9 @@ export interface JammuExpensePaymentData {
 
 class JammuExpenseService {
   /**
-   * 15. Installation Expenses: List: GET /jammu/installation-expenses
+   * 15. Installation Expenses: List
+   * GET /jammu/installation-expenses
+   * Vendor's installation expense claims (state jammu, project srt70mw, type installation), newest first.
    */
   async getExpenseClaims(): Promise<JammuExpenseClaimItem[]> {
     const res = await fetch(JAMMU_API.EXPENSES.LIST, {
@@ -101,7 +141,10 @@ class JammuExpenseService {
   }
 
   /**
-   * 16. Installation Expenses: Create (Site List): GET /jammu/installation-expenses-create
+   * 16. Installation Expenses: Create (Site List)
+   * GET /jammu/installation-expenses-create
+   * Sites allocated to vendor for creating new claims.
+   * Note: The key in backend response is named 'claims', but contains full records of jammu_srt70mws.
    */
   async getExpenseSites(): Promise<JammuExpenseSiteItem[]> {
     const res = await fetch(JAMMU_API.EXPENSES.CREATE_SITE_LIST, {
@@ -114,13 +157,14 @@ class JammuExpenseService {
     }
 
     const json = await res.json();
-    // Key on backend is named 'claims', but contains full records of jammu_srt70mws
     return Array.isArray(json?.claims) ? json.claims : [];
   }
 
   /**
-   * 17. Installation Expenses: Store: POST /jammu/installation-expenses-store
+   * 17. Installation Expenses: Store
+   * POST /jammu/installation-expenses-store
    * Content-Type: multipart/form-data
+   * Fields: site_id, project, date, claim_amount, claim_invoice, purpose, remarks
    */
   async storeExpenseClaim(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
     const res = await fetch(JAMMU_API.EXPENSES.STORE, {
@@ -131,7 +175,7 @@ class JammuExpenseService {
 
     const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
+    if (!res.ok || json?.status === false || json?.success === false) {
       let errMsg = json?.message || `Failed to submit expense claim (${res.status})`;
       if (json?.errors) {
         const firstKey = Object.keys(json.errors)[0];
@@ -150,7 +194,8 @@ class JammuExpenseService {
   }
 
   /**
-   * 18. Installation Expenses: Edit (Load): GET /jammu/installation-expenses-edit?claim_id={claim_id}
+   * 18. Installation Expenses: Edit (Load)
+   * GET /jammu/installation-expenses-edit?claim_id={claim_id}
    */
   async editExpenseClaimLoad(claimId: number | string): Promise<JammuExpenseEditData> {
     const res = await fetch(JAMMU_API.EXPENSES.EDIT_LOAD(claimId), {
@@ -158,11 +203,19 @@ class JammuExpenseService {
       headers: getAuthHeaders(),
     });
 
-    if (!res.ok) {
-      throw new Error(`Failed to load claim for editing (${res.status})`);
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok || json?.status === false) {
+      let errMsg = json?.message || `Failed to load claim for editing (${res.status})`;
+      if (json?.errors) {
+        const firstKey = Object.keys(json.errors)[0];
+        if (firstKey && json.errors[firstKey]?.[0]) {
+          errMsg = json.errors[firstKey][0];
+        }
+      }
+      throw new Error(errMsg);
     }
 
-    const json = await res.json();
     if (!json?.data?.claim) {
       throw new Error('Expense claim record not found.');
     }
@@ -171,8 +224,10 @@ class JammuExpenseService {
   }
 
   /**
-   * 19. Installation Expenses: Update: POST /jammu/installation-expenses-update
+   * 19. Installation Expenses: Update
+   * POST /jammu/installation-expenses-update
    * Content-Type: multipart/form-data
+   * Fields: claim_id, site_id, project, date, claim_amount, purpose, remarks, claim_invoice (optional)
    */
   async updateExpenseClaim(formData: FormData): Promise<{ status: boolean; message: string; data?: any }> {
     const res = await fetch(JAMMU_API.EXPENSES.UPDATE, {
@@ -183,7 +238,7 @@ class JammuExpenseService {
 
     const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
+    if (!res.ok || json?.status === false || json?.success === false) {
       let errMsg = json?.message || `Failed to update expense claim (${res.status})`;
       if (json?.errors) {
         const firstKey = Object.keys(json.errors)[0];
@@ -202,7 +257,11 @@ class JammuExpenseService {
   }
 
   /**
-   * 20. Installation Expenses: View Payment: GET /jammu/installation-expenses-view-payment
+   * 20. Installation Expenses: View Payment
+   * GET /jammu/installation-expenses-view-payment
+   * Approved (claim_status = 2) expense claims and their payment summary.
+   * Note: Backend may return HTTP 200 with message "Something went wrong while fetching payments."
+   * while successfully returning data.
    */
   async getExpensePayments(): Promise<JammuExpensePaymentData> {
     const res = await fetch(JAMMU_API.EXPENSES.VIEW_PAYMENT, {
@@ -214,13 +273,21 @@ class JammuExpenseService {
       throw new Error(`Failed to fetch expense payments (${res.status})`);
     }
 
-    const json = await res.json();
-    return (
-      json?.data || {
-        payments: [],
-        payment_detail: { total: 0, complete: 0, partially: 0, pending: 0 },
-      }
-    );
+    const json = await res.json().catch(() => null);
+    const d = json?.data || json;
+
+    return {
+      vendor: d?.vendor,
+      company_id: d?.company_id,
+      loginId: d?.loginId,
+      payments: Array.isArray(d?.payments) ? d.payments : [],
+      payment_detail: d?.payment_detail || {
+        total: Array.isArray(d?.payments) ? d.payments.length : 0,
+        complete: 0,
+        partially: 0,
+        pending: 0,
+      },
+    };
   }
 }
 

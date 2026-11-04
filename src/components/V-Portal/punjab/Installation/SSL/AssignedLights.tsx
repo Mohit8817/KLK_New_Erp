@@ -352,7 +352,7 @@ export function Punjab_Installation_SSL_AssignedLights() {
   }, [records, search, statusFilter, districtFilter]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 50 });
+    usePagination({ data: filtered, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -392,7 +392,7 @@ export function Punjab_Installation_SSL_AssignedLights() {
 
   // Export Columns
   const exportCols: ExportColumn<PunjabAssignedLightItem>[] = [
-    { header: 'Batch ID', accessor: (r) => `#${r.id}` },
+    { header: 'Batch ID', accessor: (r) => `${r.id}` },
     { header: 'Vendor', accessor: 'vendor' },
     { header: 'State', accessor: (r) => r.state || 'Punjab' },
     { header: 'District', accessor: 'district' },
@@ -643,14 +643,12 @@ export function Punjab_Installation_SSL_AssignedLights() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to="/v/punjab/ssl/installation/install-light"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to installation form"
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--success"
+                              style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600 }}
                             >
-                              Install Light ➔
-                            </Link>
+                              Done
+                            </span>
                           )}
                         </div>
                       </td>
@@ -669,7 +667,7 @@ export function Punjab_Installation_SSL_AssignedLights() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>

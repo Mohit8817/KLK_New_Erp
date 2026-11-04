@@ -211,14 +211,14 @@ export interface KashmirClaimItem {
   inst_claim_amount: string | number;
   inst_claim_date?: string;
   inst_claim_invoice?: string;
-  claim_updated_at?: string;
-  claim_updated_by?: string;
+  inst_claim_update_date?: string;   // was claim_updated_at
+  inst_claim_update_by?: string;     // was claim_updated_by
   inst_pay80_date?: string;
-  inst_pay80_amount?: string | number;
+  inst_pay80?: string | number;      // was inst_pay80_amount
   inst_pay80_status?: number;
-  inst_doc_submit?: number;
+  inst_doc_submit?: number | string;
   inst_pay20_date?: string;
-  inst_pay20_amount?: string | number;
+  inst_pay20?: string | number;      // was inst_pay20_amount
   inst_pay20_status?: number;
   [key: string]: any;
 }
@@ -459,9 +459,39 @@ class KashmirSrtService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    let json: any = {};
+    try {
+      json = await res.json();
+    } catch {
+      // response wasn't JSON
+    }
+
     if (!res.ok || json.status === false || json.status === 'failed' || json.success === false) {
-      throw new Error(json.message || 'Failed to submit site details');
+      let errMsg = json.message || '';
+      if (!errMsg && json.panel_no && typeof json.panel_no === 'string') {
+        errMsg = json.panel_no;
+      }
+      if (json.errors && typeof json.errors === 'object') {
+        const errorList: string[] = [];
+        for (const [field, messages] of Object.entries(json.errors)) {
+          if (Array.isArray(messages)) {
+            errorList.push(`${field}: ${messages.join(', ')}`);
+          } else if (typeof messages === 'string') {
+            errorList.push(`${field}: ${messages}`);
+          }
+        }
+        if (errorList.length > 0) {
+          errMsg = errMsg ? `${errMsg} (${errorList.join('; ')})` : errorList.join('; ');
+        }
+      }
+      if (!errMsg) {
+        errMsg = `Submission failed with status ${res.status} (${res.statusText || 'Validation Error'})`;
+      }
+      const err: any = new Error(errMsg);
+      err.status = res.status;
+      err.data = json;
+      err.errors = json.errors;
+      throw err;
     }
     return json;
   }
@@ -484,9 +514,39 @@ class KashmirSrtService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
-    if (!res.ok || json.success === false || json.status === false) {
-      throw new Error(json.message || 'Failed to update site details');
+    let json: any = {};
+    try {
+      json = await res.json();
+    } catch {
+      // response wasn't JSON
+    }
+
+    if (!res.ok || json.success === false || json.status === false || json.status === 'failed') {
+      let errMsg = json.message || '';
+      if (!errMsg && json.panel_no && typeof json.panel_no === 'string') {
+        errMsg = json.panel_no;
+      }
+      if (json.errors && typeof json.errors === 'object') {
+        const errorList: string[] = [];
+        for (const [field, messages] of Object.entries(json.errors)) {
+          if (Array.isArray(messages)) {
+            errorList.push(`${field}: ${messages.join(', ')}`);
+          } else if (typeof messages === 'string') {
+            errorList.push(`${field}: ${messages}`);
+          }
+        }
+        if (errorList.length > 0) {
+          errMsg = errMsg ? `${errMsg} (${errorList.join('; ')})` : errorList.join('; ');
+        }
+      }
+      if (!errMsg) {
+        errMsg = `Update failed with status ${res.status} (${res.statusText || 'Validation Error'})`;
+      }
+      const err: any = new Error(errMsg);
+      err.status = res.status;
+      err.data = json;
+      err.errors = json.errors;
+      throw err;
     }
     return json;
   }

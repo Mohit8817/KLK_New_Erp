@@ -793,36 +793,135 @@ class ArunachalShlInstallationService {
     status: string,
     district?: string
   ): Promise<{ meta?: any; count?: number; data: ArunachalStatusDrillRow[] }> {
+    const normalizedStatus = normalizeArunachalDashboardStatus(status);
+    const targetDistrict = district && district !== 'All' ? district.trim() : undefined;
+
+    // Helper to extract light rows from varying API response shapes
+    const extractRows = (json: any): ArunachalStatusDrillRow[] | null => {
+      if (!json) return null;
+      if (Array.isArray(json?.data?.shl)) return json.data.shl;
+      if (Array.isArray(json?.data?.shldatas)) return json.data.shldatas;
+      if (Array.isArray(json?.data?.lights)) return json.data.lights;
+      if (Array.isArray(json?.shl)) return json.shl;
+      if (Array.isArray(json?.data)) return json.data;
+      if (Array.isArray(json)) return json;
+      if (json?.data && typeof json.data === 'object' && json.data.id) return [json.data];
+      return null;
+    };
+
+    // 1. Try Primary Endpoint(s)
     try {
-      const normalizedStatus = normalizeArunachalDashboardStatus(status);
-      const url =
-        district && district !== 'All'
-          ? ARUNACHAL_API.INSTALLATION.SHL.DISTRICTWISE_BY_STATUS(normalizedStatus, district)
-          : ARUNACHAL_API.INSTALLATION.SHL.DASHBOARD_BY_STATUS(normalizedStatus);
+      const urlsToTry: string[] = [];
+      if (targetDistrict) {
+        urlsToTry.push(ARUNACHAL_API.INSTALLATION.SHL.DISTRICTWISE_BY_STATUS(normalizedStatus, targetDistrict));
+        const base = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
+        urlsToTry.push(`${base}/arunachal/shl/installation/view-dashboard/districtwise/${encodeURIComponent(normalizedStatus)}/${encodeURIComponent(targetDistrict)}`);
+        urlsToTry.push(`${base}/arunachal/shl/installation/view-dashboard/${encodeURIComponent(normalizedStatus)}?district=${encodeURIComponent(targetDistrict)}`);
+      }
+      urlsToTry.push(ARUNACHAL_API.INSTALLATION.SHL.DASHBOARD_BY_STATUS(normalizedStatus));
 
-      const res = await this.fetchWithFallback(url, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-
-      if (res.ok) {
-        const json = await res.json().catch(() => null);
-        if (json?.data && Array.isArray(json.data.shl)) {
-          return { meta: json.meta, count: json.data.count, data: json.data.shl };
-        }
-        if (json && Array.isArray(json.data)) {
-          return { meta: json.meta, data: json.data };
-        }
-        if (Array.isArray(json)) {
-          return { data: json };
-        }
-        if (json?.data && typeof json.data === 'object') {
-          return { meta: json.meta, data: [json.data] };
+      for (const url of urlsToTry) {
+        try {
+          const res = await this.fetchWithFallback(url, {
+            method: 'GET',
+            headers: this.getHeaders(),
+          });
+          if (res.ok) {
+            const json = await res.json().catch(() => null);
+            const extracted = extractRows(json);
+            if (Array.isArray(extracted) && extracted.length > 0) {
+              const filtered = targetDistrict
+                ? extracted.filter(
+                    (r) => (r.district || '').trim().toLowerCase() === targetDistrict.toLowerCase()
+                  )
+                : extracted;
+              return { meta: json?.meta, count: json?.data?.count ?? filtered.length, data: filtered };
+            }
+          }
+        } catch {
+          // continue to next candidate url
         }
       }
     } catch (err) {
-      console.error('[Arunachal SHL] getDashboardStatusResponse error:', err);
+      console.warn('[Arunachal SHL] getDashboardStatusResponse direct fetch warn:', err);
     }
+
+    // 2. Resilient Fallback: If view-dashboard is empty or 404, extract from view-installation
+    try {
+      const viewData = await this.getViewInstallation();
+      if (viewData) {
+        const complete = Array.isArray(viewData.completelight)
+          ? viewData.completelight
+          : Array.isArray(viewData.completelights)
+          ? viewData.completelights
+          : [];
+        const payment = Array.isArray(viewData.paymentlight)
+          ? viewData.paymentlight
+          : Array.isArray(viewData.paymentlights)
+          ? viewData.paymentlights
+          : [];
+
+        const map = new Map<number, ArunachalInstalledLightItem>();
+        complete.forEach((item) => map.set(item.id, item));
+        payment.forEach((item) => {
+          if (!map.has(item.id)) map.set(item.id, item);
+        });
+        const combined = Array.from(map.values());
+
+        let matched = combined;
+        switch (normalizedStatus) {
+          case 'inst-complete':
+            matched = complete.length > 0 ? complete : combined;
+            break;
+          case 'pay-done':
+            matched = payment.length > 0
+              ? payment
+              : combined.filter((r) => Number(r.inst_pay_status ?? r.pay_status) === 1);
+            break;
+          case 'pay-pending':
+            matched = combined.filter((r) => Number(r.inst_pay_status ?? r.pay_status) !== 1);
+            break;
+          case 'verify-approve':
+            matched = combined.filter((r) => Number(r.inst_verify_status ?? r.verify_status) === 1);
+            break;
+          case 'verify-pending':
+            matched = combined.filter(
+              (r) => !r.inst_verify_status || Number(r.inst_verify_status ?? r.verify_status) === 0
+            );
+            break;
+          case 'verify-reject':
+            matched = combined.filter((r) => Number(r.inst_verify_status ?? r.verify_status) === 2);
+            break;
+          case 'claim-applicable':
+            matched = combined.filter((r) => Number(r.inst_claim_status) >= 1);
+            break;
+          case 'claim-approved':
+            matched = combined.filter((r) => Number(r.inst_claim_status) === 2);
+            break;
+          case 'claim-pending':
+            matched = combined.filter((r) => Number(r.inst_claim_status) === 1);
+            break;
+          case 'claim-reject':
+            matched = combined.filter((r) => Number(r.inst_claim_status) === 3);
+            break;
+          case 'total':
+          default:
+            matched = combined;
+            break;
+        }
+
+        if (targetDistrict) {
+          matched = matched.filter(
+            (r) => (r.district || '').trim().toLowerCase() === targetDistrict.toLowerCase()
+          );
+        }
+
+        return { count: matched.length, data: matched as ArunachalStatusDrillRow[] };
+      }
+    } catch (fallbackErr) {
+      console.error('[Arunachal SHL] getDashboardStatusResponse fallback error:', fallbackErr);
+    }
+
     return { data: [] };
   }
 }

@@ -8,3 +8,5 @@ export * from './biharSslInstallationService';
 export { default as biharSslInstallationService } from './biharSslInstallationService';
 export * from './biharComplaintService';
 export { default as biharComplaintService } from './biharComplaintService';
+export * from './biharAmcService';
+export { default as biharAmcService } from './biharAmcService';

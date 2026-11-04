@@ -390,8 +390,38 @@ export function Arunachal_Installation_SHL_Dashboard() {
     navigate(`/v/arunachal/shl/installation/status-view?${params.toString()}`);
   };
 
-  // Safe destructuring of API 9 data
+  const districtwise: ArunachalDistrictwise[] = useMemo(() => data?.districtwise || [], [data]);
+  const monthlyInstallations: ArunachalMonthlyInstallation[] = useMemo(
+    () => data?.district_installation_month || [],
+    [data]
+  );
+
+  // Safe destructuring of API 9 data (reactive to selectedDistrict)
   const shl: ArunachalDashboardShlSummary = useMemo(() => {
+    if (selectedDistrict !== 'All') {
+      const match = districtwise.find(
+        (d) => (d.district || '').trim().toLowerCase() === selectedDistrict.trim().toLowerCase()
+      );
+      if (match) {
+        return {
+          site_count: Number(match.site_count || 0),
+          site_assigned: Number(match.site_assigned || 0),
+          site_not_assigned: Number(match.site_not_assigned || 0),
+          complete: Number(match.complete || 0),
+          pending: Number(match.pending || 0),
+          verify_pending: Number(match.verify_pending || 0),
+          verify_approved: Number(match.verify_approved || 0),
+          verify_reject: Number(match.verify_reject || 0),
+          claim_applicable: Number(match.claim_applicable || 0),
+          claim_raised: Number(match.claim_raised || 0),
+          claim_approved: Number(match.claim_approved || match.claim_verify_approved || 0),
+          claim_pending: Number(match.claim_pending || match.claim_verify_pending || 0),
+          claim_reject: Number(match.claim_reject || match.claim_verify_reject || 0),
+          inst_pay_done: Number(match.inst_pay_done || 0),
+          inst_pay_pending: Number(match.inst_pay_pending || 0),
+        };
+      }
+    }
     const src = data?.shldatas || data?.ssl;
     return {
       site_count: Number(src?.site_count || 0),
@@ -410,13 +440,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
       inst_pay_done: Number(src?.inst_pay_done || 0),
       inst_pay_pending: Number(src?.inst_pay_pending || 0),
     };
-  }, [data]);
-
-  const districtwise: ArunachalDistrictwise[] = useMemo(() => data?.districtwise || [], [data]);
-  const monthlyInstallations: ArunachalMonthlyInstallation[] = useMemo(
-    () => data?.district_installation_month || [],
-    [data]
-  );
+  }, [data, selectedDistrict, districtwise]);
 
   // District options for filter
   const districtOptions = useMemo(
@@ -433,13 +457,14 @@ export function Arunachal_Installation_SHL_Dashboard() {
       else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
+      else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
       else if (selectedStatus === 'ClaimApplicable') matchStatus = (d.claim_applicable || 0) > 0;
       else if (selectedStatus === 'PayDone') matchStatus = (d.inst_pay_done || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
-  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
+  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All' || Boolean(tableQuery);
 
   // Table search & pagination matching Assam & DLE Dashboard
   const deferredQuery = useDeferredValue(tableQuery);
@@ -457,7 +482,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
     totalItems,
     setPage,
     setPageSize,
-  } = usePagination({ data: tableDistricts, initialPageSize: 15 });
+  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -676,6 +701,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
                   <option value="Pending">Pending Installation</option>
                   <option value="VerifyApproved">Verify Approved</option>
                   <option value="VerifyPending">Verify Pending</option>
+                  <option value="VerifyReject">Verify Rejected</option>
                   <option value="ClaimApplicable">Claim Applicable</option>
                   <option value="PayDone">Payment Settled</option>
                 </select>
@@ -686,7 +712,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
                   style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); }}
+                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); setTableQuery(''); }}
                 >
                   Reset Filters
                 </button>
@@ -1291,7 +1317,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 15, 25, 50]}
+                pageSizeOptions={[10, 25, 50, 100]}
               />
             </div>
           </div>

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -14,8 +15,11 @@ import {
 import {
   jammuSrt70mwService,
   resolveJammuMediaUrl,
+  getJammuMediaCandidates,
   type JammuAssignedSiteItem,
 } from '../../jammu-services';
+
+const DASH = '—';
 
 /* ───────── Responsive page CSS (Matching Reference Code) ───────── */
 const PAGE_CSS = `
@@ -195,6 +199,8 @@ const PAGE_CSS = `
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     overflow: hidden; width: 100%;
   }
+  .ax-modal__dialog--md { max-width: 600px; }
+  .ax-modal__dialog--lg { max-width: 900px; }
   .ax-modal__header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--ax-border, #e2e8f0);
@@ -222,7 +228,14 @@ const PAGE_CSS = `
   }
 `;
 
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
+
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -232,6 +245,7 @@ const footerStyle = {
   width: '100%',
   boxSizing: 'border-box',
 } as const;
+
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
@@ -316,9 +330,15 @@ const formatDate = (d?: string | null): string => {
     }
   } catch {}
 
-  // Fallback: strip time portion if present (e.g. "15-02-2025 10:30:00" -> "15-02-2025")
   const datePart = trimmed.split(/[ T]/)[0];
   return datePart || trimmed;
+};
+
+const cleanText = (v: unknown): string => {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' || s === '—') return '';
+  return s;
 };
 
 const X_ICON = (
@@ -327,6 +347,156 @@ const X_ICON = (
     <path d="M6 6l12 12" />
   </svg>
 );
+
+/* ───────── Image Lightbox Zoom Modal ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
+
+  return (
+    <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="batch-img-preview-title">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div className="ax-modal__dialog ax-modal__dialog--lg" style={{ maxWidth: 900 }}>
+        <div className="ax-modal__header">
+          <h2 className="ax-modal__title" id="batch-img-preview-title">{title || 'Work Order File'}</h2>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+        </div>
+
+        <div className="ax-modal__body" style={{ padding: 0 }}>
+          <div style={{ position: 'relative', display: 'flex', overflow: 'auto', height: 'min(66vh, 600px)', background: '#f1f5f9' }}>
+            {status === 'loading' && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+                <span className="ax-spinner" /> Loading file…
+              </div>
+            )}
+            {status === 'error' && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
+                File could not be displayed directly. Click "Open in new tab" below.
+              </div>
+            )}
+            <img
+              key={url}
+              src={url}
+              alt={title || 'Work Order'}
+              onLoad={() => setStatus('ready')}
+              onError={() => setStatus('error')}
+              style={{
+                display: status === 'ready' ? 'block' : 'none',
+                margin: 'auto',
+                ...(zoom === 1
+                  ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                  : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0}>−</button>
+            <span style={{ fontSize: 12, color: '#64748b', minWidth: 44, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1}>+</button>
+          </div>
+          <div style={{ display: 'inline-flex', gap: 8 }}>
+            <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">Open in new tab ↗</a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Interactive File Thumbnail ── */
+function FileThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 32,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getJammuMediaCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+  const isImage = /\.(png|jpe?g|webp|gif)$/i.test(src.split('?')[0]);
+
+  if (!isImage) {
+    return (
+      <a
+        href={currentUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="ax-btn ax-btn--ghost ax-btn--xs"
+        style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11 }}
+        title="View / Download Work Order File"
+      >
+        View File ↗
+      </a>
+    );
+  }
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 4,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #e2e8f0)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+        }}
+        onError={() => {
+          if (candidateIdx + 1 < candidates.length) {
+            setCandidateIdx((prev) => prev + 1);
+          } else {
+            setFailed(true);
+          }
+        }}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview file"
+      />
+      <a
+        href={currentUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="ax-btn ax-btn--ghost ax-btn--xs"
+        style={{ color: '#2563eb', padding: '1px 5px', fontSize: 10 }}
+        title="Open in new tab"
+      >
+        ↗
+      </a>
+    </div>
+  );
+}
 
 export function AssignSite() {
   const navigate = useNavigate();
@@ -393,41 +563,15 @@ export function AssignSite() {
       }
     } catch {}
 
-    try {
-      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
-      if (sessionStr) {
-        const parsed = JSON.parse(sessionStr);
-        const fromParsed =
-          getCleanString(parsed?.vendor_name) ||
-          getCleanString(parsed?.name) ||
-          getCleanString(parsed?.company_name) ||
-          getCleanString(parsed?.vendor) ||
-          getCleanString(parsed?.vendor_id);
-        if (fromParsed) return fromParsed;
-      }
-    } catch {}
-
-    try {
-      const rawStr = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
-      if (rawStr) {
-        const parsed = JSON.parse(rawStr);
-        const fromParsed =
-          getCleanString(parsed?.vendor?.name) ||
-          getCleanString(parsed?.vendor?.vendor_name) ||
-          getCleanString(parsed?.vendor_name) ||
-          getCleanString(parsed?.name) ||
-          getCleanString(parsed?.data?.vendor?.name) ||
-          getCleanString(parsed?.data?.name);
-        if (fromParsed) return fromParsed;
-      }
-    } catch {}
-
     return '';
   }, [user, rawResponse]);
 
   const getVendorDisplay = useCallback((rowVendor?: string | number | null) => {
+    if (rowVendor && String(rowVendor).trim() && isNaN(Number(rowVendor))) {
+      return String(rowVendor).trim();
+    }
     if (loginVendorName) return loginVendorName;
-    if (rowVendor) return `Vendor #${rowVendor}`;
+    if (rowVendor) return `Vendor ${rowVendor}`;
     return '—';
   }, [loginVendorName]);
 
@@ -437,6 +581,9 @@ export function AssignSite() {
 
   // Selected item for full details view modal
   const [detailModalItem, setDetailModalItem] = useState<JammuAssignedSiteItem | null>(null);
+
+  // Lightbox preview for file attachment
+  const [lightboxPreview, setLightboxPreview] = useState<{ url: string; title: string } | null>(null);
 
   const detailDialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(detailDialogRef, !!detailModalItem);
@@ -490,18 +637,21 @@ export function AssignSite() {
     if (q) {
       list = list.filter((r) => {
         const idMatch = String(r.assign_srt?.id).includes(q);
-        const compMatch = String(r.assign_srt?.company_id ?? '').toLowerCase().includes(q);
+        const compMatch = String(r.assign_srt?.company_id || '').toLowerCase().includes(q);
         const vendorDisplay = getVendorDisplay(r.assign_srt?.vendor);
         const vendorMatch = String(vendorDisplay).toLowerCase().includes(q) || String(r.assign_srt?.vendor ?? '').toLowerCase().includes(q);
         const distMatch = r.assign_srt?.district?.toLowerCase().includes(q);
         const stateMatch = r.assign_srt?.state?.toLowerCase().includes(q);
-        const sitesMatch = r.jammu_srt70mws?.some((s) => s.site_name?.toLowerCase().includes(q) || s.ca_no?.toLowerCase().includes(q));
-        const remarksMatch = (r.assign_srt as any)?.remarks?.toLowerCase().includes(q) || (r.assign_srt as any)?.remark?.toLowerCase().includes(q);
-        return idMatch || compMatch || vendorMatch || distMatch || stateMatch || sitesMatch || remarksMatch;
+        const remarksMatch = ((r.assign_srt as any)?.remarks || (r.assign_srt as any)?.remark || '').toLowerCase().includes(q);
+        const createdByMatch = String(r.assign_srt?.created_by || '').toLowerCase().includes(q);
+        const purposeMatch = String(r.assign_srt?.purpose || '').toLowerCase().includes(q);
+        const typeMatch = String(r.assign_srt?.type || '').toLowerCase().includes(q);
+        const siteNamesMatch = r.jammu_srt70mws?.some((s) => s.site_name.toLowerCase().includes(q));
+        return idMatch || compMatch || vendorMatch || distMatch || stateMatch || remarksMatch || createdByMatch || purposeMatch || typeMatch || siteNamesMatch;
       });
     }
     return list;
-  }, [records, search, statusFilter, districtFilter]);
+  }, [records, search, statusFilter, districtFilter, getVendorDisplay]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filtered, initialPageSize: 100 });
@@ -522,38 +672,34 @@ export function AssignSite() {
   const totalBatches = records.length;
   const acceptedBatches = records.filter((r) => Number(r.assign_srt?.status) === 2).length;
   const pendingBatches = records.filter((r) => Number(r.assign_srt?.status) !== 2).length;
-  const totalSites = records.reduce((sum, r) => sum + (Number(r.assign_srt?.sitecount) || 0), 0);
+  const totalSites = records.reduce((sum, r) => sum + (Number(r.assign_srt?.sitecount) || r.jammu_srt70mws?.length || 1), 0);
   const acceptRate = totalBatches > 0 ? Math.round((acceptedBatches / totalBatches) * 100) : 0;
 
-  // Direct Accept handler (API 2)
+  // Direct Accept handler (API 2: POST /jammu/srt70mw/installation-assign-site-status)
   const handleDirectAccept = async (id: number | string) => {
     const numId = Number(id);
     if (!numId) return;
     setAcceptingId(numId);
     try {
       const res = await jammuSrt70mwService.acceptAssignment(numId);
-      setToastMsg({ type: 'success', text: res.message || 'Status Updated Successfully!!!' });
+      setToastMsg({ type: 'success', text: res.message || 'Status Changed Successfully!!!' });
       
-      // Update local state immediately so UI flips to "Accepted"
+      // Update local state immediately
       setRecords((prev) =>
         prev.map((r) =>
-          Number(r.assign_srt?.id) === numId
+          Number(r.assign_srt.id) === numId
             ? { ...r, assign_srt: { ...r.assign_srt, status: 2 } }
             : r
         )
       );
-      if (detailModalItem && Number(detailModalItem.assign_srt?.id) === numId) {
-        setDetailModalItem((prev) =>
-          prev ? { ...prev, assign_srt: { ...prev.assign_srt, status: 2 } } : null
-        );
+      if (detailModalItem && Number(detailModalItem.assign_srt.id) === numId) {
+        setDetailModalItem((prev) => (prev ? { ...prev, assign_srt: { ...prev.assign_srt, status: 2 } } : null));
       }
       
-      // Refresh list from server
       await loadData();
     } catch (err: any) {
       console.error('[Jammu SRT] accept error:', err);
       const errMsg = err?.message || 'Failed to accept assignment.';
-      // If error message indicates already accepted or invalid status, reload to show real status
       if (errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('invalid')) {
         await loadData();
       }
@@ -569,8 +715,8 @@ export function AssignSite() {
 
       {/* ── Page Head ── */}
       <PageHead
-        title="Jammu SRT 70MW - Assigned Sites"
-        subtitle="Review allocated Jammu SRT 70MW rooftop solar batches, vendor site assignments, and accept ready site tasks"
+        title="Jammu SRT 70MW: Assigned Sites"
+        subtitle="Review allocated rooftop solar batches, work order file attachments, site deadlines, and accept ready site tasks"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu & Kashmir' },
@@ -665,7 +811,7 @@ export function AssignSite() {
       <section className="ax-card ax-col--12" role="region" aria-label="Assigned Jammu SRT 70MW sites table">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">Assigned Jammu SRT 70MW Installation Batches</h2>
+            <h2 className="ax-card__title">Assigned Sites Allocation List</h2>
             <p className="ax-card__subtitle">
               <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{records.length}</span> batches
               {' '}· Accepted <b className="ax-num">{acceptedBatches}</b> · Pending <b className="ax-num">{pendingBatches}</b>
@@ -724,20 +870,18 @@ export function AssignSite() {
                     .map((r, i) =>
                       [
                         i + 1,
+                        r.assign_srt.id,
                         r.assign_srt.company_id || '',
                         getVendorDisplay(r.assign_srt.vendor),
                         r.assign_srt.state || 'Jammu & Kashmir',
                         r.assign_srt.district || '',
-                        r.assign_srt.sitecount,
-                        r.jammu_srt70mws
-                          .map((s) => {
-                            const d = s.inst_deadline || (s as any).date || (s as any).created_at;
-                            const fd = d ? formatDate(d) : '';
-                            return fd && fd !== '—' ? `${s.site_name} (${fd})` : s.site_name;
-                          })
-                          .join('; '),
-                        r.jammu_srt70mws[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—',
-                        formatDate(r.assign_srt.created_at),
+                        r.assign_srt.sitecount ?? r.jammu_srt70mws?.length ?? 1,
+                        r.jammu_srt70mws?.map((s) => s.site_name).join('; ') || '—',
+                        r.assign_srt.file || '',
+                        r.assign_srt.type || r.assign_srt.purpose || 'SRT 70MW',
+                        r.jammu_srt70mws?.[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—',
+                        formatDate(r.assign_srt.assign_date || r.assign_srt.created_at),
+                        cleanText(r.assign_srt.created_by) || '—',
                         (r.assign_srt as any).remarks || (r.assign_srt as any).remark || '',
                         Number(r.assign_srt?.status) === 2 ? 'Accepted' : 'Assigned',
                       ].join('\t')
@@ -748,14 +892,10 @@ export function AssignSite() {
                 }}
                 onExportCSV={() => {
                   const out = [
-                    'Sr. No.,Company ID,Vendor,State,District,Site Count,Assigned Sites,Deadline,Assigned On,Remarks,Status',
+                    'Sr. No.,Batch ID,Company ID,Vendor,State,District,Site Count,Assigned Sites,File Attachment,Type/Purpose,Deadline,Assigned On,Assigned By,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${r.assign_srt.company_id || ''}","${getVendorDisplay(r.assign_srt.vendor)}","${r.assign_srt.state || 'Jammu'}","${r.assign_srt.district || ''}","${r.assign_srt.sitecount}","${r.jammu_srt70mws.map((s) => {
-                          const d = s.inst_deadline || (s as any).date || (s as any).created_at;
-                          const fd = d ? formatDate(d) : '';
-                          return fd && fd !== '—' ? `${s.site_name} (${fd})` : s.site_name;
-                        }).join('; ')}","${r.jammu_srt70mws[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—'}","${formatDate(r.assign_srt.created_at)}","${(r.assign_srt as any).remarks || (r.assign_srt as any).remark || ''}","${Number(r.assign_srt?.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${r.assign_srt.id}","${r.assign_srt.company_id || ''}","${getVendorDisplay(r.assign_srt.vendor)}","${r.assign_srt.state || 'Jammu'}","${r.assign_srt.district || ''}","${r.assign_srt.sitecount ?? r.jammu_srt70mws?.length ?? 1}","${(r.jammu_srt70mws?.map((s) => s.site_name).join('; ') || '').replace(/"/g, '""')}","${r.assign_srt.file || ''}","${r.assign_srt.type || r.assign_srt.purpose || 'SRT 70MW'}","${r.jammu_srt70mws?.[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—'}","${formatDate(r.assign_srt.assign_date || r.assign_srt.created_at)}","${cleanText(r.assign_srt.created_by)}","${cleanText((r.assign_srt as any).remarks || (r.assign_srt as any).remark)}","${Number(r.assign_srt?.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -767,14 +907,10 @@ export function AssignSite() {
                 }}
                 onExportExcel={() => {
                   const out = [
-                    'Sr. No.,Company ID,Vendor,State,District,Site Count,Assigned Sites,Deadline,Assigned On,Remarks,Status',
+                    'Sr. No.,Batch ID,Company ID,Vendor,State,District,Site Count,Assigned Sites,File Attachment,Type/Purpose,Deadline,Assigned On,Assigned By,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${r.assign_srt.company_id || ''}","${getVendorDisplay(r.assign_srt.vendor)}","${r.assign_srt.state || 'Jammu'}","${r.assign_srt.district || ''}","${r.assign_srt.sitecount}","${r.jammu_srt70mws.map((s) => {
-                          const d = s.inst_deadline || (s as any).date || (s as any).created_at;
-                          const fd = d ? formatDate(d) : '';
-                          return fd && fd !== '—' ? `${s.site_name} (${fd})` : s.site_name;
-                        }).join('; ')}","${r.jammu_srt70mws[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—'}","${formatDate(r.assign_srt.created_at)}","${(r.assign_srt as any).remarks || (r.assign_srt as any).remark || ''}","${Number(r.assign_srt?.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${r.assign_srt.id}","${r.assign_srt.company_id || ''}","${getVendorDisplay(r.assign_srt.vendor)}","${r.assign_srt.state || 'Jammu'}","${r.assign_srt.district || ''}","${r.assign_srt.sitecount ?? r.jammu_srt70mws?.length ?? 1}","${(r.jammu_srt70mws?.map((s) => s.site_name).join('; ') || '').replace(/"/g, '""')}","${r.assign_srt.file || ''}","${r.assign_srt.type || r.assign_srt.purpose || 'SRT 70MW'}","${r.jammu_srt70mws?.[0]?.inst_deadline ? formatDate(r.jammu_srt70mws[0].inst_deadline) : '—'}","${formatDate(r.assign_srt.assign_date || r.assign_srt.created_at)}","${cleanText(r.assign_srt.created_by)}","${cleanText((r.assign_srt as any).remarks || (r.assign_srt as any).remark)}","${Number(r.assign_srt?.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -790,19 +926,23 @@ export function AssignSite() {
           </div>
         </div>
 
-        {/* ── Table with all actual response fields ── */}
+        {/* ── Table with File and all actual response fields ── */}
         <div className="ax-table-wrap">
           <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap' }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th" scope="col">Sr. No.</th>
+                <th className="ax-table__th" scope="col">Batch ID</th>
                 <th className="ax-table__th" scope="col">Vendor</th>
                 <th className="ax-table__th" scope="col">State</th>
                 <th className="ax-table__th" scope="col">District</th>
                 <th className="ax-table__th" scope="col">Site Count</th>
-                <th className="ax-table__th" scope="col">Assigned Sites</th>
+                <th className="ax-table__th" scope="col" style={{ minWidth: 420, width: 460 }}>Assigned Sites</th>
+                <th className="ax-table__th" scope="col">Work Order File</th>
+                <th className="ax-table__th" scope="col">Type / Purpose</th>
                 <th className="ax-table__th" scope="col">Deadline</th>
                 <th className="ax-table__th" scope="col">Assigned On</th>
+                <th className="ax-table__th" scope="col">Assigned By</th>
                 <th className="ax-table__th" scope="col">Remarks</th>
                 <th className="ax-table__th" scope="col">Status</th>
                 <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
@@ -811,14 +951,14 @@ export function AssignSite() {
             <tbody aria-busy={loading}>
               {loading && (
                 <tr>
-                  <td colSpan={11} style={centerCell}>
+                  <td colSpan={15} style={centerCell}>
                     <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned sites from server…
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ padding: 0 }}>
+                  <td colSpan={15} style={{ padding: 0 }}>
                     <TableEmptyState
                       title="No assigned SRT 70MW batches found"
                       message={hasFilters ? 'No records match your filters. Try clearing your query.' : 'No site allocations currently assigned.'}
@@ -830,15 +970,21 @@ export function AssignSite() {
               {!loading &&
                 paginatedData.map((row, idx) => {
                   const isAccepted = Number(row.assign_srt?.status) === 2;
-                  const assignedDate = row.assign_srt.created_at ? formatDate(row.assign_srt.created_at) : '—';
+                  const assignedDate = formatDate(row.assign_srt.assign_date || row.assign_srt.created_at);
                   const rawDeadline = row.jammu_srt70mws?.find((s) => s.inst_deadline)?.inst_deadline;
                   const deadline = rawDeadline ? formatDate(rawDeadline) : '—';
                   const remarksText = (row.assign_srt as any).remarks || (row.assign_srt as any).remark || '—';
                   const rowId = Number(row.assign_srt?.id ?? (row as any)?.id);
+                  const fileUrl = row.assign_srt.file || (row as any).file;
+                  const purposeType = [row.assign_srt.purpose, row.assign_srt.type].filter(Boolean).join(' / ') || 'SRT 70MW';
+                  const createdBy = cleanText(row.assign_srt.created_by) || '—';
 
                   return (
                     <tr key={row.assign_srt.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
+                        #{row.assign_srt.id}
+                      </td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                         {getVendorDisplay(row.assign_srt.vendor)}
                       </td>
@@ -847,11 +993,11 @@ export function AssignSite() {
                       <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
                         {row.assign_srt.sitecount ?? row.jammu_srt70mws?.length ?? 1}
                       </td>
-                      <td className="ax-table__td" style={{ maxWidth: 360, whiteSpace: 'normal', fontSize: '12px' }}>
+                      <td className="ax-table__td" style={{ minWidth: 420, width: 460, whiteSpace: 'normal', fontSize: '12px' }}>
                         {(!row.jammu_srt70mws || row.jammu_srt70mws.length === 0) && (
                           <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
                         )}
-                        {row.jammu_srt70mws?.slice(0, 2).map((s, sIdx) => {
+                        {row.jammu_srt70mws?.slice(0, 4).map((s, sIdx) => {
                           const rawDate = s.inst_deadline || (s as any).date || (s as any).created_at;
                           const formattedDate = rawDate ? formatDate(rawDate) : '';
                           const hasValidDate = formattedDate && formattedDate !== '—';
@@ -877,7 +1023,7 @@ export function AssignSite() {
                             </div>
                           );
                         })}
-                        {row.jammu_srt70mws && row.jammu_srt70mws.length > 2 && (
+                        {row.jammu_srt70mws && row.jammu_srt70mws.length > 4 && (
                           <button
                             type="button"
                             onClick={() => setDetailModalItem(row)}
@@ -900,15 +1046,40 @@ export function AssignSite() {
                             }}
                             title="Click to view Batch Assignment Details"
                           >
-                            +{row.jammu_srt70mws.length - 2} more · View more
+                            +{row.jammu_srt70mws.length - 4} more · View more
                           </button>
                         )}
                       </td>
+
+                      {/* ── File Attachment Column ── */}
+                      <td className="ax-table__td">
+                        {fileUrl ? (
+                          <FileThumbnail
+                            src={fileUrl}
+                            alt={`Batch ${row.assign_srt.id} Work Order`}
+                            onPreview={(url, title) => setLightboxPreview({ url, title })}
+                            size={28}
+                          />
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                        )}
+                      </td>
+
+                      {/* Type / Purpose */}
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontSize: 11, textTransform: 'capitalize' }}>
+                          {purposeType}
+                        </span>
+                      </td>
+
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
                         {deadline}
                       </td>
                       <td className="ax-table__td" style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
                         {assignedDate}
+                      </td>
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>
+                        {createdBy}
                       </td>
                       <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: '12px' }}>
                         {remarksText}
@@ -950,14 +1121,7 @@ export function AssignSite() {
                               )}
                             </button>
                           ) : (
-                            <Link
-                              to="/v/jammu/installation/srt-70mw/install-sites"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
-                              title="Go to installation form"
-                            >
-                              Install Site ➔
-                            </Link>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -976,17 +1140,26 @@ export function AssignSite() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>
       </section>
 
+      {/* ── Image Lightbox Modal ── */}
+      {lightboxPreview && (
+        <ImagePreviewModal
+          url={lightboxPreview.url}
+          title={lightboxPreview.title}
+          onClose={() => setLightboxPreview(null)}
+        />
+      )}
+
       {/* ── View Batch Detail Modal ── */}
       {detailModalItem && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="assigned-batch-detail-title">
           <div className="ax-modal__backdrop" onClick={() => setDetailModalItem(null)} />
-          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 650 }}>
+          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 680 }}>
             <div className="ax-modal__header">
               <h2 className="ax-modal__title" id="assigned-batch-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>Batch Assignment Details</span>
@@ -1032,12 +1205,20 @@ export function AssignSite() {
                   <b style={{ color: '#16a34a' }}>{detailModalItem.assign_srt.sitecount ?? detailModalItem.jammu_srt70mws?.length ?? '1'}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Created On</span>
-                  <b>{formatDate(detailModalItem.assign_srt.created_at)}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Type / Purpose</span>
+                  <b>{detailModalItem.assign_srt.type || '—'} / {detailModalItem.assign_srt.purpose || 'Installation'}</b>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assigned Date</span>
+                  <b>{formatDate(detailModalItem.assign_srt.assign_date || detailModalItem.assign_srt.created_at)}</b>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assigned By</span>
+                  <b>{cleanText(detailModalItem.assign_srt.created_by) || '—'}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Status</span>
-                  {detailModalItem.assign_srt.status === 2 ? (
+                  {Number(detailModalItem.assign_srt.status) === 2 ? (
                     <Badge tone="success">Accepted</Badge>
                   ) : (
                     <Badge tone="warning">Assigned (Pending Accept)</Badge>
@@ -1086,20 +1267,28 @@ export function AssignSite() {
                 </div>
               </div>
 
-              {/* Document attachments if present */}
-              {(detailModalItem.assign_srt as any).file && (
+              {/* Document attachment if present */}
+              {(detailModalItem.assign_srt.file || (detailModalItem as any).file) && (
                 <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginTop: 14 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
                     Batch Work Order / File Attachment
                   </span>
-                  <a
-                    href={resolveJammuMediaUrl((detailModalItem.assign_srt as any).file)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ax-btn ax-btn--secondary ax-btn--xs"
-                  >
-                    📄 View Work Order File
-                  </a>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <FileThumbnail
+                      src={detailModalItem.assign_srt.file || (detailModalItem as any).file}
+                      alt={`Batch ${detailModalItem.assign_srt.id} Work Order`}
+                      onPreview={(url, title) => setLightboxPreview({ url, title })}
+                      size={44}
+                    />
+                    <a
+                      href={resolveJammuMediaUrl(detailModalItem.assign_srt.file || (detailModalItem as any).file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ax-btn ax-btn--secondary ax-btn--xs"
+                    >
+                      Open Work Order File in New Tab ↗
+                    </a>
+                  </div>
                 </div>
               )}
             </div>
@@ -1123,7 +1312,7 @@ export function AssignSite() {
                     navigate('/v/jammu/installation/srt-70mw/install-sites');
                   }}
                 >
-                  Install Site ➔
+                  Install Site
                 </button>
               )}
               <button

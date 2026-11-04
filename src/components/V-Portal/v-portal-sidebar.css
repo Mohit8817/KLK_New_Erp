@@ -364,6 +364,17 @@
   color: #dc2626;
 }
 
+
+.vp-sb__icon-box--reports {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.vp-sb__icon-box--users {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+}
+
 .vp-sb__item-btn:hover .vp-sb__icon-box,
 .vp-sb__item-link:hover .vp-sb__icon-box {
   transform: scale(1.08);

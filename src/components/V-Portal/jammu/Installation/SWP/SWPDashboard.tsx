@@ -445,7 +445,7 @@ export function SWPDashboard() {
     return filteredDistrictRows.filter((d) => !q || d.district.toLowerCase().includes(q));
   }, [filteredDistrictRows, deferredQuery]);
 
-  const pD = usePagination({ data: tableDistricts, initialPageSize: 15 });
+  const pD = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
     pD.setPage(1);
@@ -480,20 +480,20 @@ export function SWPDashboard() {
 
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
-      { header: 'District', accessor: (r) => r.district || '' },
-      { header: 'Total Sites', accessor: (r) => n(r.site_count) },
-      { header: 'Install Done', accessor: (r) => n(r.complete) },
-      { header: 'Install Pending', accessor: (r) => n(r.pending) },
-      { header: 'HOC Submitted', accessor: (r) => n(r.doc_submitted) },
-      { header: 'HOC Pending', accessor: (r) => n(r.doc_pending) },
-      { header: 'Approved', accessor: (r) => n(r.verify_approved) },
-      { header: 'Verify Pending', accessor: (r) => n(r.verify_pending) },
-      { header: 'Verify Rejected', accessor: (r) => n(r.verify_reject) },
-      { header: 'Claim Applicable', accessor: (r) => n(r.claim_applicable) },
-      { header: 'Claim Raised', accessor: (r) => n(r.claim_raised) },
-      { header: 'Payment Done', accessor: (r) => n(r.pay_done) },
-      { header: 'Payment Pending', accessor: (r) => n(r.pay_pending) },
-      { header: 'Completion %', accessor: (r) => `${pctOf(n(r.complete), n(r.site_count))}%` },
+      { header: 'District', accessor: (r: DistrictRow) => r.district || '' },
+      { header: 'Total Sites', accessor: (r: DistrictRow) => n(r.site_count) },
+      { header: 'Install Done', accessor: (r: DistrictRow) => n(r.complete) },
+      { header: 'Install Pending', accessor: (r: DistrictRow) => n(r.pending) },
+      { header: 'HOC Submitted', accessor: (r: DistrictRow) => n(r.doc_submitted) },
+      { header: 'HOC Pending', accessor: (r: DistrictRow) => n(r.doc_pending) },
+      { header: 'Approved', accessor: (r: DistrictRow) => n(r.verify_approved) },
+      { header: 'Verify Pending', accessor: (r: DistrictRow) => n(r.verify_pending) },
+      { header: 'Verify Rejected', accessor: (r: DistrictRow) => n(r.verify_reject) },
+      { header: 'Claim Applicable', accessor: (r: DistrictRow) => n(r.claim_applicable) },
+      { header: 'Claim Raised', accessor: (r: DistrictRow) => n(r.claim_raised) },
+      { header: 'Payment Done', accessor: (r: DistrictRow) => n(r.pay_done) },
+      { header: 'Payment Pending', accessor: (r: DistrictRow) => n(r.pay_pending) },
+      { header: 'Completion %', accessor: (r: DistrictRow) => `${pctOf(n(r.complete), n(r.site_count))}%` },
     ],
     []
   );
@@ -524,7 +524,7 @@ export function SWPDashboard() {
       columns.map((c) => c.header),
       ...dataToExport.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
-    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -570,7 +570,7 @@ export function SWPDashboard() {
   };
 
   const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
+    columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header || '', visible: !hidden.includes(`${c.header}-${i}`) }));
   const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));
 
@@ -1157,8 +1157,9 @@ export function SWPDashboard() {
                 totalItems={pD.totalItems}
                 pageSize={pD.pageSize}
                 onPageChange={pD.setPage}
+                setPage={pD.setPage}
                 onPageSizeChange={pD.setPageSize}
-                pageSizeOptions={[10, 15, 25, 50, 100]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>

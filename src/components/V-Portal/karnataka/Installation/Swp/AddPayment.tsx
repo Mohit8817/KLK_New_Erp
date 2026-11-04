@@ -684,7 +684,7 @@ export function KarnatakaAddPayment() {
     totalItems,
     setPage,
     setPageSize,
-  } = usePagination({ data: filteredSites, initialPageSize: 25 });
+  } = usePagination({ data: filteredSites, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
@@ -1118,7 +1118,7 @@ export function KarnatakaAddPayment() {
                   onPageChange={setPage}
                   setPage={setPage}
                   onPageSizeChange={setPageSize}
-                  pageSizeOptions={[10, 25, 50, 100]}
+                  pageSizeOptions={[25, 50, 100, 200]}
                 />
               </div>
             </div>

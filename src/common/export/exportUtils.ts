@@ -2,7 +2,7 @@ export interface ExportColumn<T = any> {
   label?: string;
   key?: string;
   header?: string;
-  accessor?: any;
+  accessor?: keyof T | ((item: T, index?: number) => any) | (string & {});
   [key: string]: any;
 }
 

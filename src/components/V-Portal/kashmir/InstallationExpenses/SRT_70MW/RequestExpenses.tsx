@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
-import { kashmirSrtService } from '../../kashmir-services';
+import { kashmirSrtService, getKashmirMediaUrl } from '../../kashmir-services';
 
 // CSS: Unified Single-Card Layout with Floating Labels (same as Bihar SRT design)
 const SINGLE_CARD_FORM_CSS = `
@@ -74,11 +74,17 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function Kashmir_Expenses_RequestExpenses() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const claimId = searchParams.get('claim_id') || searchParams.get('id') || '';
+  const isEditMode = Boolean(claimId);
 
   const [sites, setSites] = useState<Option[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
+  const [loadingClaim, setLoadingClaim] = useState(false);
   const [formData, setFormData] = useState({ ...INITIAL_FORM });
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [existingFileUrl, setExistingFileUrl] = useState<string | null>(null);
+  const [existingFileName, setExistingFileName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -114,18 +120,17 @@ export function Kashmir_Expenses_RequestExpenses() {
   };
 
   // Load site names for dropdown
-  // NOTE: replace `getExpenseSites` with the real service method name if it differs.
   useEffect(() => {
     let active = true;
     (async () => {
       setLoadingSites(true);
       try {
-        const list: any[] = await (kashmirSrtService as any).getExpenseSites();
+        const list: any[] = await (kashmirSrtService as any).getExpenseCreateSites();
         if (active && Array.isArray(list)) {
           setSites(
             list.map((s) => ({
               value: String(s.id),
-              label: `${s.site_name || s.name || 'Site'}${s.uid || s.code ? ` (${s.uid || s.code})` : ''}`,
+              label: `${s.site_name || s.name || 'Site'}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
             }))
           );
         }
@@ -138,6 +143,50 @@ export function Kashmir_Expenses_RequestExpenses() {
     return () => { active = false; };
   }, []);
 
+  // If in edit mode, fetch existing claim data
+  useEffect(() => {
+    if (!claimId) return;
+    let active = true;
+    (async () => {
+      setLoadingClaim(true);
+      setErrorMsg(null);
+      try {
+        const res = await kashmirSrtService.getExpenseEdit(claimId);
+        if (!active) return;
+        const claim = (res as any)?.claim || (res as any)?.data?.claim || res;
+        if (claim) {
+          setFormData({
+            site_id: String(claim.site_id ?? claim.site ?? ''),
+            date: claim.date ? String(claim.date).split('T')[0] : '',
+            purpose: claim.purpose || '',
+            amount: String(claim.amount ?? claim.claim_amount ?? ''),
+            remarks: claim.remarks ?? claim.remark ?? '',
+          });
+          const rawFile = claim.file || claim.claim_invoice || claim.invoice_file;
+          if (rawFile) {
+            setExistingFileName(typeof rawFile === 'string' ? rawFile : 'Current Invoice');
+            setExistingFileUrl(getKashmirMediaUrl(rawFile));
+          }
+        }
+        const siteList = (res as any)?.srt70mw || (res as any)?.sites;
+        if (Array.isArray(siteList) && siteList.length > 0) {
+          setSites(
+            siteList.map((s: any) => ({
+              value: String(s.id),
+              label: `${s.site_name || s.name || 'Site'}${s.uid || s.site_code ? ` (${s.site_code})` : ''}`,
+            }))
+          );
+        }
+      } catch (err: any) {
+        console.error('Failed to load claim for editing:', err);
+        setErrorMsg(err?.message || 'Failed to load expense claim details for editing.');
+      } finally {
+        if (active) setLoadingClaim(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [claimId]);
+
   const validate = () => {
     const errs: Record<string, string[]> = {};
     if (!formData.site_id) errs.site_id = ['Please select a site name.'];
@@ -148,12 +197,13 @@ export function Kashmir_Expenses_RequestExpenses() {
     } else if (Number(formData.amount) <= 0) {
       errs.amount = ['Amount must be greater than 0.'];
     }
-    if (!invoiceFile) errs.invoice_file = ['Invoice file is required.'];
+    if (!invoiceFile && (!isEditMode || !existingFileUrl)) {
+      errs.invoice_file = ['Invoice file is required.'];
+    }
     setValidationErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  // NOTE: replace `storeInstallationExpense` / field names with the real API contract if they differ.
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSuccessMsg(null);
@@ -169,28 +219,43 @@ export function Kashmir_Expenses_RequestExpenses() {
     }
 
     const payload = new FormData();
-    payload.append('project_name', PROJECT_NAME);
+    if (isEditMode) {
+      payload.append('claim_id', String(claimId));
+      payload.append('id', String(claimId));
+    }
+    payload.append('project', PROJECT_NAME);
     payload.append('site_id', formData.site_id);
     payload.append('date', formData.date);
     payload.append('purpose', formData.purpose);
-    payload.append('amount', formData.amount.trim());
+    payload.append('claim_amount', formData.amount.trim());
     payload.append('remarks', formData.remarks.trim());
-    if (invoiceFile) payload.append('invoice_file', invoiceFile);
+    if (invoiceFile) payload.append('claim_invoice', invoiceFile);
 
     setSubmitting(true);
     try {
-      const resp: any = await (kashmirSrtService as any).storeInstallationExpense(payload);
-      setSuccessMsg(resp?.message || 'Installation Expense Submitted Successfully!!!');
-      setFormData({ ...INITIAL_FORM });
-      setInvoiceFile(null);
-      setValidationErrors({});
+      if (isEditMode) {
+        const resp: any = await kashmirSrtService.updateExpense(payload);
+        setSuccessMsg(resp?.message || 'Installation Expense Updated Successfully!!!');
+      } else {
+        const resp: any = await kashmirSrtService.storeExpense(payload);
+        setSuccessMsg(resp?.message || 'Installation Expense Submitted Successfully!!!');
+        setFormData({ ...INITIAL_FORM });
+        setInvoiceFile(null);
+        setValidationErrors({});
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Error occurred while submitting expense.');
+      setErrorMsg(err?.message || `Error occurred while ${isEditMode ? 'updating' : 'submitting'} expense.`);
       if (err?.errors && typeof err.errors === 'object') {
+        const fieldMap: Record<string, string> = {
+          claim_amount: 'amount',
+          claim_invoice: 'invoice_file',
+          project: 'project_name',
+        };
         const apiErrors: Record<string, string[]> = {};
         Object.entries(err.errors).forEach(([k, v]) => {
-          apiErrors[k] = Array.isArray(v) ? v.map(String) : [String(v)];
+          const mappedKey = fieldMap[k] || k;
+          apiErrors[mappedKey] = Array.isArray(v) ? v.map(String) : [String(v)];
         });
         setValidationErrors(apiErrors);
       }
@@ -199,16 +264,17 @@ export function Kashmir_Expenses_RequestExpenses() {
       setSubmitting(false);
     }
   };
-
   return (
     <div className="kashmir-expense-form">
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
-        title="Installation Expenses"
+        title={isEditMode ? 'Edit Installation Expense' : 'Installation Expenses'}
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Submit expense reimbursement request for Kashmir SRT 70MW installation
+            {isEditMode
+              ? `Update expense reimbursement request for Claim #${claimId} (Kashmir SRT 70MW)`
+              : 'Submit expense reimbursement request for Kashmir SRT 70MW installation'}
           </span>
         }
         breadcrumbs={[
@@ -216,9 +282,17 @@ export function Kashmir_Expenses_RequestExpenses() {
           { label: 'Kashmir' },
           { label: 'Installation Expenses' },
           { label: 'SRT 70MW' },
-          { label: 'Request Expenses' },
+          { label: isEditMode ? 'Edit Expense' : 'Request Expenses' },
         ]}
       />
+
+      {/* Loading Claim indicator */}
+      {loadingClaim && (
+        <div className="ax-alert ax-alert--info" role="status" style={{ marginBottom: 'var(--ax-space-4)' }}>
+          <span className="ax-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
+          Loading expense claim #{claimId} details…
+        </div>
+      )}
 
       {/* Success Banner */}
       {successMsg && (
@@ -248,10 +322,12 @@ export function Kashmir_Expenses_RequestExpenses() {
         <div className="ax-card">
           <div className="ax-card__header">
             <div>
-              <span className="ax-card__eyebrow">Expense Request</span>
-              <h2 className="ax-card__title" style={{ margin: 0 }}>Installation Expenses</h2>
+              <span className="ax-card__eyebrow">{isEditMode ? 'Edit Mode' : 'Expense Request'}</span>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>
+                {isEditMode ? `Edit Expense Claim #${claimId}` : 'Installation Expenses'}
+              </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
-                The field labels marked with <span style={{ color: 'var(--ax-danger-500)', fontWeight: 700 }}>*</span> are input fields.
+                The field labels marked with <span style={{ color: 'var(--ax-danger-500)', fontWeight: 700 }}>*</span> are required fields.
               </p>
             </div>
           </div>
@@ -262,10 +338,10 @@ export function Kashmir_Expenses_RequestExpenses() {
                 <div className="kashmir-section-title-wrap">
                   <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
                     <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                      Expense Details
+                      {isEditMode ? 'Update Expense Details' : 'Expense Details'}
                     </span>
                     <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                      Fill this Form
+                      {isEditMode ? 'Modify this Form' : 'Fill this Form'}
                     </h3>
                   </div>
                   <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
@@ -298,12 +374,14 @@ export function Kashmir_Expenses_RequestExpenses() {
                 <FloatingInput id="kx-amount" label="Amount" type="number" step="0.01" required placeholder="Enter Amount" {...f('amount')} />
                 <FloatingFileInput
                   id="kx-invoice"
-                  label="Invoice File"
-                  required
+                  label={isEditMode && existingFileUrl ? 'Invoice File (Upload to replace)' : 'Invoice File'}
+                  required={!isEditMode || !existingFileUrl}
                   accept="image/*,application/pdf"
                   file={invoiceFile}
                   onChange={handleFileChange}
                   error={validationErrors.invoice_file?.[0]}
+                  existingUrl={existingFileUrl}
+                  existingName={existingFileName}
                 />
 
                 <div className="kashmir-form-col-span-full">
@@ -316,7 +394,9 @@ export function Kashmir_Expenses_RequestExpenses() {
 
         {/* Sticky Action Footer (outside the card, same as Bihar) */}
         <div className="kashmir-form-sticky-bar">
-          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">New Expense</span>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
+            {isEditMode ? 'Edit Mode' : 'New Expense'}
+          </span>
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate(-1)} disabled={submitting}>
               <span className="ax-btn__label">Cancel</span>
@@ -325,12 +405,12 @@ export function Kashmir_Expenses_RequestExpenses() {
               {submitting ? (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'kashmir-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
-                  <span className="ax-btn__label">Submitting...</span>
+                  <span className="ax-btn__label">{isEditMode ? 'Updating Expense…' : 'Submitting…'}</span>
                 </>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-                  <span className="ax-btn__label">Submit Expense</span>
+                  <span className="ax-btn__label">{isEditMode ? 'Update Expense Claim' : 'Submit Expense'}</span>
                 </>
               )}
             </button>
@@ -488,9 +568,11 @@ interface FloatingFileInputProps {
   file: File | null;
   onChange: (file: File | null) => void;
   error?: string;
+  existingUrl?: string | null;
+  existingName?: string | null;
 }
 
-function FloatingFileInput({ id, label, required, accept, file, onChange, error }: FloatingFileInputProps) {
+function FloatingFileInput({ id, label, required, accept, file, onChange, error, existingUrl, existingName }: FloatingFileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -592,7 +674,7 @@ function FloatingFileInput({ id, label, required, accept, file, onChange, error 
             : error
             ? '#fef2f2'
             : isHovered ? '#fbfcfd' : '#ffffff',
-          padding: file ? '12px 16px' : '22px 16px',
+          padding: file || existingUrl ? '12px 16px' : '22px 16px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -610,7 +692,7 @@ function FloatingFileInput({ id, label, required, accept, file, onChange, error 
                 <img
                   src={objectUrl}
                   alt={label}
-                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 0, border: '1px solid var(--ax-border)', flexShrink: 0 }}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--ax-border)', flexShrink: 0 }}
                 />
               ) : (
                 iconCircle('#fef2f2', '#ef4444',
@@ -631,10 +713,41 @@ function FloatingFileInput({ id, label, required, accept, file, onChange, error 
               className="ax-btn ax-btn--ghost ax-btn--sm"
               onClick={handleClear}
               style={{ color: '#ef4444', flexShrink: 0 }}
-              title="Remove file"
+              title="Remove new file"
             >
               Remove
             </button>
+          </div>
+        ) : existingUrl ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {iconCircle('#eff6ff', '#2563eb',
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18 }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {existingName || 'Current Invoice File'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span>Uploaded on server</span>
+                  <a
+                    href={existingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    View File ↗
+                  </a>
+                </div>
+              </div>
+            </div>
+            <span className="ax-btn ax-btn--ghost ax-btn--sm" style={{ fontSize: 11, color: 'var(--ax-primary)', flexShrink: 0 }}>
+              Replace
+            </span>
           </div>
         ) : (
           <>

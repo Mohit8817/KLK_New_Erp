@@ -3,6 +3,7 @@ export * from './jammuExpenseService';
 export * from './jammuRescoService';
 export * from './jammuSslService';
 export * from './jammuSwpService';
+export * from './jammuSurveyService';
 export {
   jammuSrt70mwService,
   default as defaultSrtService,
@@ -18,4 +19,10 @@ export {
   resolveJammuSwpMediaUrl,
   getJammuSwpMediaCandidates,
 } from './jammuSwpService';
+export {
+  jammuRescoSurveyService,
+  jammuSrtSurveyService,
+  resolveJammuSurveyMediaUrl,
+  getJammuSurveyMediaCandidates,
+} from './jammuSurveyService';
 

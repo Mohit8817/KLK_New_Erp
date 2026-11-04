@@ -463,6 +463,11 @@ class AuthService {
       : null;
   }
 
+
+    getUser(): UserSession | null {
+    return this.getSession();
+  }
+
   isAuthenticated(): boolean {
     return !!this.getSession();
   }

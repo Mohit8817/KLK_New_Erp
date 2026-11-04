@@ -526,7 +526,7 @@ export function Kashmir_Survey_AddData() {
                 <FloatingInput id="kashmir-inst-load" label="Instantaneous/Corrected Load (KW)" required placeholder="Enter Load" {...f('instantaneous_load')} />
                 <FloatingSelect id="kashmir-grid" label="Grid Availability (YES Or NO)" required placeholder="-- Select Grid Availability --" options={yesNo} {...f('grid_availability')} />
                 <FloatingSelect id="kashmir-3phase" label="Is All Three Phase Available In LTDB" required placeholder="-- Select Three Phase Availability --" options={yesNo} {...f('three_phase_available')} />
-                <FloatingInput id="kashmir-missing" label="If Phase Is Missing, Name (R,Y,B,N)" placeholder="None / R / Y / B / N" {...f('missing_phase')} />
+                <FloatingInput id="kashmir-missing" label="If Phase Is Missing, Name I.E., R,Y,B,N" placeholder="None / R / Y / B / N" {...f('missing_phase')} />
                 <FloatingSelect id="kashmir-ltdb" label="LTDB (Present/Not Present)" required placeholder="-- Select LTDB Status --" options={yesNo} {...f('ltdb_status')} />
                 <FloatingSelect id="kashmir-dg" label="Is Existing DG SET" required placeholder="-- Select --" options={yesNo} {...f('dg_set_available')} />
 
@@ -537,14 +537,14 @@ export function Kashmir_Survey_AddData() {
                   </>
                 )}
 
-                <FloatingSelect id="kashmir-roof-cond" label="Roof Condition for Solar Plant" required placeholder="-- Select Roof Condition --" options={opts(['Feasible', 'Not Feasible'])} {...f('roof_condition')} />
-                <FloatingInput id="kashmir-roof-area" label="Total Area Of Roof (In Sqmm/Sqft)" required placeholder="Enter Area" {...f('roof_area')} />
-                <FloatingInput id="kashmir-free-solar" label="Free Space For Solar (In Sqmm)" required placeholder="Enter Free Space" {...f('solar_free_space')} />
-                <FloatingInput id="kashmir-free-ctrl" label="Free Space For Control Room" required placeholder="Enter Free Space" {...f('control_room_free_space')} />
+                <FloatingSelect id="kashmir-roof-cond" label="Roof Condition for Solar Power Plant" required placeholder="-- Select Roof Contion --" options={opts(['Feasiable', 'Not Feasiable', 'Feasible', 'Not Feasible'])} {...f('roof_condition')} />
+                <FloatingInput id="kashmir-roof-area" label="Total Area Of Roof (In Sqmm)" required placeholder="Enter Area" {...f('roof_area')} />
+                <FloatingInput id="kashmir-free-solar" label="Free Space For Solar Installation (In Sqmm)" required placeholder="Enter Free Space" {...f('solar_free_space')} />
+                <FloatingInput id="kashmir-free-ctrl" label="Free Space For Control Room (In Sqmm)" required placeholder="Enter Free Space" {...f('control_room_free_space')} />
                 <FloatingSelect id="kashmir-earth" label="Earth Pit Position (Ok/Not Ok)" required placeholder="-- Select Earth Pit Position --" options={opts(['Ok', 'Not Ok'])} {...f('earth_pit_position')} />
-                <FloatingInput id="kashmir-ac-cable" label="Routing of AC Cable (mtr)" required placeholder="Enter Distance" {...f('ac_cable_routing')} />
-                <FloatingSelect id="kashmir-roof-type" label="Type of Roof (RCC/Tin Shed)" required placeholder="-- Type of Roof --" options={opts(['RCC', 'Tin Shed'])} {...f('roof_type')} />
-                <FloatingSelect id="kashmir-struct" label="Structure Required" required placeholder="-- Type of Structure --" options={opts(['Normal', 'Elevated', 'Mono Rail'])} {...f('structure_type')} />
+                <FloatingInput id="kashmir-ac-cable" label="Routing of AC Cable from System Area (mtr)" required placeholder="Enter Distance" {...f('ac_cable_routing')} />
+                <FloatingSelect id="kashmir-roof-type" label="Type of Roof (RCC/Tin Shed)" required placeholder="-- Type of Roof --" options={opts(['RCC', 'Tin Shed', 'Other'])} {...f('roof_type')} />
+                <FloatingSelect id="kashmir-struct" label="Type of Structure Required (Elevated/Normal/Mono Rail)" required placeholder="-- Type of Structure --" options={opts(['Elevated', 'Normal', 'Mono Rail'])} {...f('structure_type')} />
               </div>
             </div>
 
@@ -569,7 +569,7 @@ export function Kashmir_Survey_AddData() {
               <SectionHeader num="4" title="Other Information & Media" desc="Site road accessibility and site survey photograph uploads." />
               <div className="kashmir-form-grid kashmir-form-grid--3col">
                 <FloatingInput id="kashmir-access" label="Access To Site" required placeholder="Enter Access Details" {...f('site_access')} />
-                <FloatingInput id="kashmir-distance" label="Distance From Main Road (KM)" required placeholder="Enter Distance" {...f('site_distance')} />
+                <FloatingInput id="kashmir-distance" label="Distance Of Site From Main Road (KM)" required placeholder="Enter Distance" {...f('site_distance')} />
                 <div />
 
                 <FloatingFileInput id="kashmir-img-building" label="Building Image" required={!isEditMode} accept="image/*" file={files.building_image} existingUrl={mediaUrl(existingImages.building_image)} onChange={(file) => handleFileChange('building_image', file)} error={validationErrors.building_image?.[0]} />

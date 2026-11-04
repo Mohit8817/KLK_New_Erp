@@ -5,7 +5,6 @@ import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   jammuSwpService,
-  getJammuSwpMediaCandidates,
   type JammuSwpStatusSiteItem,
 } from '../../jammu-services';
 import {
@@ -75,65 +74,6 @@ const VerifyBadge = ({ value, raw }: { value?: number; raw?: any }) => {
   if (value === 2 || r === '2' || r === 'rejected' || r === 'reject') return <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>;
   return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
 };
-
-const ClaimBadge = ({ status, raw }: { status?: number; raw?: any }) => {
-  const r = String(raw ?? '').toLowerCase().trim();
-  if (status === 2 || r === '2' || r === 'approved') return <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>;
-  if (status === 3 || r === '3' || r === 'rejected') return <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>;
-  if (status === 1 || r === '1' || r === 'raised') return <span className="ax-badge ax-badge--soft ax-badge--info">Raised</span>;
-  return <span className="ax-badge ax-badge--soft ax-badge--neutral">Not Raised</span>;
-};
-
-/* ── Robust Table Image: Strict NO BORDER RADIUS ── */
-function RobustImage({
-  path,
-  alt,
-  onClick,
-}: {
-  path?: string | null;
-  alt: string;
-  onClick?: (url: string) => void;
-}) {
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const [hasError, setHasError] = useState(false);
-
-  const candidates = useMemo(() => getJammuSwpMediaCandidates(path), [path]);
-
-  useEffect(() => {
-    setCandidateIndex(0);
-    setHasError(false);
-  }, [path]);
-
-  if (!path || candidates.length === 0 || hasError) {
-    return <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>{DASH}</span>;
-  }
-
-  const currentSrc = candidates[candidateIndex];
-
-  return (
-    <img
-      src={currentSrc}
-      alt={alt}
-      style={{
-        width: 38,
-        height: 38,
-        objectFit: 'cover',
-        borderRadius: 0,
-        border: '1px solid var(--ax-border)',
-        cursor: onClick ? 'pointer' : 'default',
-        display: 'inline-block',
-      }}
-      onClick={() => onClick?.(currentSrc)}
-      onError={() => {
-        if (candidateIndex + 1 < candidates.length) {
-          setCandidateIndex((prev) => prev + 1);
-        } else {
-          setHasError(true);
-        }
-      }}
-    />
-  );
-}
 
 /* ───────── KPI Card ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
@@ -615,29 +555,29 @@ export function SWPStatusView() {
   // Export columns
   const exportCols: ExportColumn<JammuSwpStatusSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
-      { header: 'Site ID', accessor: (r) => r.id },
-      { header: 'Applicant Name', accessor: (r) => txt(r, 'f_farmer_name') || DASH },
-      { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
-      { header: 'Tehsil', accessor: (r) => txt(r, 'tehsil') || DASH },
-      { header: 'Village', accessor: (r) => txt(r, 'village') || DASH },
-      { header: 'VFD No.', accessor: (r) => txt(r, 'vfd_no') || DASH },
-      { header: 'Motor No.', accessor: (r) => txt(r, 'motor_no') || DASH },
-      { header: 'Pump No.', accessor: (r) => txt(r, 'pump_no') || DASH },
+      { header: 'Sr. No.', accessor: (_: any, idx?: any) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Site ID', accessor: (r: JammuSwpStatusSiteItem) => r.id },
+      { header: 'Applicant Name', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'f_farmer_name') || DASH },
+      { header: 'District', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'district') || DASH },
+      { header: 'Tehsil', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'tehsil') || DASH },
+      { header: 'Village', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'village') || DASH },
+      { header: 'VFD No.', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'vfd_no') || DASH },
+      { header: 'Motor No.', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'motor_no') || DASH },
+      { header: 'Pump No.', accessor: (r: JammuSwpStatusSiteItem) => txt(r, 'pump_no') || DASH },
       {
         header: 'Installation Status',
-        accessor: (r) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending'),
+        accessor: (r: JammuSwpStatusSiteItem) => (Number(r.inst_status) === 1 ? 'Installed' : 'Pending'),
       },
       {
         header: 'Verify Status',
-        accessor: (r) => {
+        accessor: (r: JammuSwpStatusSiteItem) => {
           const st = verifyOf(r);
           return st === 1 ? 'Approved' : st === 2 ? 'Rejected' : 'Pending';
         },
       },
       {
         header: 'Claim Status',
-        accessor: (r) => {
+        accessor: (r: JammuSwpStatusSiteItem) => {
           const st = claimOf(r);
           return st === 2 ? 'Approved' : st === 3 ? 'Rejected' : st === 1 ? 'Raised' : 'Not Raised';
         },
@@ -645,8 +585,7 @@ export function SWPStatusView() {
     ],
     []
   );
-
-  const openPreview = (url: string, title: string) => setPreviewImage({ url, title });
+  void exportCols;
 
   return (
     <div className="solar-erp-page">
@@ -910,7 +849,7 @@ export function SWPStatusView() {
                 paginatedRows.map((row, idx) => (
                   <tr key={row.id || idx} className="ax-table__row">
                     <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                    <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>#{row.id}</td>
+                    <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>{row.id}</td>
                     <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                       {txt(row, 'f_farmer_name') || DASH}
                     </td>
@@ -952,8 +891,9 @@ export function SWPStatusView() {
               totalItems={filteredRows.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
+              setPage={setCurrentPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
             />
           </div>
         </div>

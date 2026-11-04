@@ -57,11 +57,18 @@ const pickNum = (row: any, ...keys: string[]): number => {
 };
 
 const ALIASES: Record<string, string[]> = {
-  meter_no: ['meter_no', 'solar_meter_no', 'solarmeter_no'],
-  inverter_no: ['inverter_no'],
+  site_name: ['site_name', 'siteName', 'name', 'Site Name'],
+  ca_no: ['ca_no', 'caNumber', 'cano', 'consumer_no', 'account_no'],
+  department: ['department', 'dept', 'dept_name', 'division'],
+  contact_person: ['contact_person', 'agency_contact_person', 'nodal_person', 'person_name', 'contact_name'],
+  contact_number: ['contact_number', 'agency_contact_number', 'nodal_contact', 'contact_no', 'mobile', 'phone'],
+  inverter_no: ['inverter_no', 'inverter_serial_no', 'inverter_serial'],
+  meter_no: ['meter_no', 'solar_meter_no', 'solarmeter_no', 'solar_meter'],
+  nm_sm_no: ['nm_sm_no', 'net_meter_no', 'net_meter', 'netmeter_no', 'nmsm_no'],
+  loger_no: ['loger_no', 'logger_no', 'logger', 'loger'],
   latitude: ['latitude', 'inst_latitude'],
   longitude: ['longitude', 'inst_longitude'],
-  remark: ['remark', 'remarks', 'inst_remarks'],
+  remark: ['remark', 'remarks', 'inst_remarks', 'approved_remarks'],
   district: ['district', 'District'],
 };
 
@@ -71,7 +78,7 @@ const txt = (row: any, key: string): string => {
 };
 
 const verifyOf = (r: any) => pickNum(r, 'inst_verify_status', 'verify_status');
-const docOf = (r: any) => pickNum(r, 'inst_doc_status', 'document_status');
+const docOf = (r: any) => pickNum(r, 'inst_doc_status', 'document_status', 'doc_status');
 
 /* ───────── Status Badges ───────── */
 const VerifyBadge = ({ value, raw }: { value?: number; raw?: any }) => {
@@ -444,6 +451,8 @@ const RESCO_STATUS_CATALOG: StatusOption[] = [
   { key: 'total', label: 'Total Sites', sub: 'All allocated RESCO sites', tone: 'accent' },
   { key: 'complete', label: 'Installed', sub: 'Completed installations', tone: 'emerald' },
   { key: 'pending', label: 'Pending', sub: 'Pending field installations', tone: 'amber' },
+  { key: 'material_dispatch', label: 'Material Dispatched', sub: 'Dispatched to installation site', tone: 'cyan' },
+  { key: 'material_pending', label: 'Material Pending', sub: 'Pending material dispatch', tone: 'amber' },
   { key: 'verify_approved', label: 'Verify Approved', sub: 'Approved by departmental audit', tone: 'emerald' },
   { key: 'verify_pending', label: 'Verify Pending', sub: 'Awaiting inspection audit', tone: 'amber' },
   { key: 'verify_reject', label: 'Verify Rejected', sub: 'Flagged with audit rework', tone: 'pink' },
@@ -562,11 +571,16 @@ export function RescoStatusView() {
       if (!q) return true;
       const haystack = [
         txt(row, 'site_name'),
+        txt(row, 'ca_no'),
+        txt(row, 'department'),
         txt(row, 'contact_person'),
         txt(row, 'contact_number'),
         txt(row, 'inverter_no'),
         txt(row, 'meter_no'),
+        txt(row, 'nm_sm_no'),
+        txt(row, 'loger_no'),
         txt(row, 'district'),
+        txt(row, 'remark'),
       ]
         .filter(Boolean)
         .join(' ')
@@ -593,6 +607,8 @@ export function RescoStatusView() {
       { header: 'Sr. No.', accessor: (_: any, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
       { header: 'District', accessor: (r: any) => txt(r, 'district') || DASH },
       { header: 'Site Name', accessor: (r: any) => txt(r, 'site_name') || DASH },
+      { header: 'CA No.', accessor: (r: any) => txt(r, 'ca_no') || DASH },
+      { header: 'Department', accessor: (r: any) => txt(r, 'department') || DASH },
       { header: 'Contact Person', accessor: (r: any) => txt(r, 'contact_person') || DASH },
       { header: 'Contact Number', accessor: (r: any) => txt(r, 'contact_number') || DASH },
       { header: 'Inverter No.', accessor: (r: any) => txt(r, 'inverter_no') || DASH },
@@ -614,6 +630,27 @@ export function RescoStatusView() {
         accessor: (r: any) => {
           const st = docOf(r);
           return st === 2 ? 'Complete' : st === 3 ? 'Rejected' : 'Pending';
+        },
+      },
+      {
+        header: 'Claim 1 Status',
+        accessor: (r: any) => {
+          const c = Number(r.inst_claim1_status ?? 0);
+          return c === 2 ? 'Approved' : c === 1 ? 'Raised' : 'Pending';
+        },
+      },
+      {
+        header: 'Claim 2 Status',
+        accessor: (r: any) => {
+          const c = Number(r.inst_claim2_status ?? 0);
+          return c === 2 ? 'Approved' : c === 1 ? 'Raised' : 'Pending';
+        },
+      },
+      {
+        header: 'Claim 3 Status',
+        accessor: (r: any) => {
+          const c = Number(r.inst_claim3_status ?? 0);
+          return c === 2 ? 'Approved' : c === 1 ? 'Raised' : 'Pending';
         },
       },
     ],
@@ -789,7 +826,7 @@ export function RescoStatusView() {
               ) : (
                 paginatedRows.map((r, idx) => {
                   const srNo = (currentPage - 1) * pageSize + idx + 1;
-                  const siteName = txt(r, 'site_name') || `Site #${r.id}`;
+                  const siteName = txt(r, 'site_name') || `Site ${r.id}`;
                   const district = txt(r, 'district');
                   const contactPerson = txt(r, 'contact_person');
                   const contactNumber = txt(r, 'contact_number');
@@ -802,6 +839,9 @@ export function RescoStatusView() {
                   const c2 = Number(r.inst_claim2_status ?? 0);
                   const c3 = Number(r.inst_claim3_status ?? 0);
 
+                  const caNo = txt(r, 'ca_no');
+                  const dept = txt(r, 'department');
+
                   return (
                     <tr key={r.id || idx} className="ax-table__row">
                       <td className="ax-table__td">{srNo}</td>
@@ -810,6 +850,11 @@ export function RescoStatusView() {
                       </td>
                       <td className="ax-table__td">
                         <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{siteName}</div>
+                        {(caNo || dept) && (
+                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px' }}>
+                            {caNo ? `CA: ${caNo}` : ''}{caNo && dept ? ' • ' : ''}{dept}
+                          </div>
+                        )}
                       </td>
                       <td className="ax-table__td">
                         <div>{contactPerson || DASH}</div>
@@ -835,10 +880,10 @@ export function RescoStatusView() {
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
-                          <RobustImage path={r.system_image} alt={`${siteName} System`} onClick={(u) => openPreview(u, `${siteName} - System BOS`)} />
-                          <RobustImage path={r.inverter_image} alt={`${siteName} Inverter`} onClick={(u) => openPreview(u, `${siteName} - Inverter`)} />
-                          <RobustImage path={r.panel_image} alt={`${siteName} Panel`} onClick={(u) => openPreview(u, `${siteName} - Solar Panels`)} />
-                          <RobustImage path={r.nm_sm_image} alt={`${siteName} Meter`} onClick={(u) => openPreview(u, `${siteName} - Meter`)} />
+                          <RobustImage path={r.system_image || r.inst_system_image || r.file} alt={`${siteName} System`} onClick={(u) => openPreview(u, `${siteName} - System BOS`)} />
+                          <RobustImage path={r.inverter_image || r.inst_inverter_image} alt={`${siteName} Inverter`} onClick={(u) => openPreview(u, `${siteName} - Inverter`)} />
+                          <RobustImage path={r.panel_image || r.inst_panel_image} alt={`${siteName} Panel`} onClick={(u) => openPreview(u, `${siteName} - Solar Panels`)} />
+                          <RobustImage path={r.nm_sm_image || r.net_meter_image || r.meter_image} alt={`${siteName} Meter`} onClick={(u) => openPreview(u, `${siteName} - Meter`)} />
                         </div>
                       </td>
                       <td className="ax-table__td">

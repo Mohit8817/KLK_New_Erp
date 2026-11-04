@@ -531,7 +531,7 @@ export function AssamStatusView() {
     setPageSize,
     paginatedData,
     totalItems,
-  } = usePagination(filteredSites, 25);
+  } = usePagination({ data: filteredSites, initialPageSize: 100 });
 
   // Status change handler
   const handleStatusChange = (newStatus: string) => {
@@ -572,7 +572,7 @@ export function AssamStatusView() {
 
   // Export Columns definition matching ViewInstallation.tsx
   const exportCols: ExportColumn<InstalledSiteItem>[] = useMemo(() => [
-    { header: 'Site ID', accessor: (r) => `#${r.id}` },
+    { header: 'Site ID', accessor: (r) => `${r.id}` },
     { header: 'State', accessor: (r) => txt(r, 'state') || 'Assam' },
     { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
     { header: 'Block / Village', accessor: (r) => `${txt(r, 'block') ? txt(r, 'block') + ', ' : ''}${txt(r, 'village') || DASH}` },
@@ -910,7 +910,7 @@ export function AssamStatusView() {
                   const lat = txt(row, 'latitude') || txt(row, 'inst_latitude');
                   const lng = txt(row, 'longitude') || txt(row, 'inst_longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const farmerLabel = row.farmer_name || `Site #${row.id}`;
+                  const farmerLabel = row.farmer_name || `Site ${row.id}`;
                   const docUrl = resolveAssamMediaUrl(row.inst_doc || row.document || row.doc_file);
                   const moduleImg = row.module_image || row.module_photo;
                   const invImg = row.inverter_vfd_image || row.inverter_vfd_photo;
@@ -928,7 +928,7 @@ export function AssamStatusView() {
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
                       <td className="ax-table__td">
                         <span className="ax-badge" style={{ background: 'rgba(37, 99, 235, 0.12)', color: '#2563eb', fontWeight: 700 }}>
-                          #{row.id}
+                          {row.id}
                         </span>
                       </td>
                       <td className="ax-table__td">{txt(row, 'state') || 'Assam'}</td>
@@ -1092,7 +1092,7 @@ export function AssamStatusView() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>

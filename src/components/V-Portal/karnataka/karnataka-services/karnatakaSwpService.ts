@@ -602,11 +602,53 @@ class KarnatakaSwpService {
       throw new Error(json.message || `Failed to fetch assign details (${res.status})`);
     }
     const data = json.data || json;
-    const sitesList = Array.isArray(data.sites)
+    const rawSites = Array.isArray(data.sites)
       ? data.sites
-      : Array.isArray(data.Names)
-      ? data.Names
+      : Array.isArray(data.site)
+      ? data.site
       : [];
+    const rawNames = Array.isArray(data.Names)
+      ? data.Names
+      : Array.isArray(data.names)
+      ? data.names
+      : [];
+
+    // Smart merge of rawSites and rawNames preserving all farmer and father names
+    const maxLength = Math.max(rawSites.length, rawNames.length);
+    const sitesList: any[] = [];
+    for (let i = 0; i < maxLength; i++) {
+      const s = rawSites[i] || {};
+      const matchedName = (s.id ? rawNames.find((n: any) => n.id === s.id) : null) || rawNames[i] || {};
+      const merged = {
+        ...s,
+        ...matchedName,
+        farmer_name: matchedName.farmer_name || s.farmer_name || matchedName.f_farmer_name || s.f_farmer_name,
+        f_farmer_name: matchedName.f_farmer_name || s.f_farmer_name || matchedName.farmer_name || s.farmer_name,
+        father_name:
+          matchedName.father_name ||
+          s.father_name ||
+          matchedName.f_father_name ||
+          s.f_father_name ||
+          matchedName.father ||
+          s.father ||
+          matchedName.f_father ||
+          s.f_father ||
+          matchedName.f_father_or_husband_name ||
+          s.f_father_or_husband_name,
+        f_father_name:
+          matchedName.f_father_name ||
+          s.f_father_name ||
+          matchedName.father_name ||
+          s.father_name ||
+          matchedName.father ||
+          s.father,
+        block: matchedName.block || s.block || matchedName.tehsil || s.tehsil || matchedName.f_tehsil || s.f_tehsil,
+        village: matchedName.village || s.village || matchedName.f_village || s.f_village,
+        district: matchedName.district || s.district || data.district,
+        application_no: matchedName.application_no || s.application_no || matchedName.app_no || s.app_no,
+      };
+      sitesList.push(merged);
+    }
     return {
       id: data.assign?.id || data.id || numId,
       site_id: data.assign?.site_id || data.site_id,
@@ -879,8 +921,8 @@ class KarnatakaSwpService {
           seen.add(sid);
           list.push({
             id: sid,
-            farmer_name: s.f_farmer_name || s.farmer_name || `Site #${sid}`,
-            f_farmer_name: s.f_farmer_name || s.farmer_name || `Site #${sid}`,
+            farmer_name: s.f_farmer_name || s.farmer_name || `Site ${sid}`,
+            f_farmer_name: s.f_farmer_name || s.farmer_name || `Site ${sid}`,
             district: s.district || (s as any).f_district,
             state: s.state || 'karnataka',
             pump_capacity: s.pump_capacity || (s as any).hp,
@@ -923,8 +965,8 @@ class KarnatakaSwpService {
             seen.add(sid);
             list.push({
               id: sid,
-              farmer_name: merged.f_farmer_name || merged.farmer_name || `Site #${sid}`,
-              f_farmer_name: merged.f_farmer_name || merged.farmer_name || `Site #${sid}`,
+              farmer_name: merged.f_farmer_name || merged.farmer_name || `Site ${sid}`,
+              f_farmer_name: merged.f_farmer_name || merged.farmer_name || `Site ${sid}`,
               district: merged.district || (merged as any).f_district,
               state: merged.state || 'karnataka',
               pump_capacity: merged.pump_capacity || (merged as any).hp,

@@ -76,6 +76,9 @@ export function getJammuMediaCandidates(path?: string | null): string[] {
   const candidates: string[] = [];
 
   candidates.push(`${ROOT_URL}/${normalized}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/assignsite/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/resco/assign/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/payment70/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt70mw/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/Jammu/installation/srt70mw/claim/${filename}`);
@@ -105,15 +108,26 @@ export function resolveJammuMediaUrl(path?: string | null): string {
 // 1. Assigned Sites
 export interface JammuAssignSrtMeta {
   id: number;
-  company_id: number;
-  state: string;
+  company_id: number | string;
+  volume?: number | string | null;
+  purpose?: string | null;
+  type?: string | null;
   vendor: number | string;
+  state: string;
   district: string;
-  sitecount: number;
-  site_name: string | number[]; // JSON string e.g. "[11,12]"
+  sitecount: number | string;
+  site_name: string | number[]; // JSON string e.g. "[\"157\"]"
+  assign_date?: string | null;
+  file?: string | null;
+  panel_no_file?: string | null;
+  created_by?: string | null;
+  update_by?: string | null;
   status: number; // 0 = Inactive, 1 = Assigned, 2 = Accepted
+  remarks?: string | null;
+  remark?: string | null;
   created_at?: string;
   updated_at?: string;
+  [key: string]: any;
 }
 
 export interface JammuAssignedSiteSubItem {

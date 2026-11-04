@@ -202,7 +202,7 @@ const money = (v: unknown) => (v ? `₹${Number(v).toLocaleString('en-IN')}` : D
 const claimStatusLabel = (s: unknown) => (Number(s) === 2 ? 'Approved' : Number(s) === 1 ? 'Raised' : 'Not Raised');
 const payStatusLabel = (s: unknown) => (Number(s) === 1 ? 'Done' : Number(s) === 2 ? 'Partial' : 'Pending');
 
-const payStatusBadge = (status?: number) => {
+const payStatusBadge = (status?: number | string) => {
   if (Number(status) === 1) return <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Done</span>;
   if (Number(status) === 2) return <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Partial</span>;
   return <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600 }}>Pending</span>;
@@ -295,15 +295,15 @@ export function Kashmir_Installation_ClaimRequest() {
       { header: 'Claim Raised Date', accessor: (r) => r.inst_claim_date || DASH },
       { header: 'Claim Invoice', accessor: (r) => r.inst_claim_invoice || DASH },
       { header: 'Claim Amount', accessor: (r) => String(r.inst_claim_amount || '') },
-      { header: 'Claim Update Date', accessor: (r) => r.claim_updated_at || DASH },
-      { header: 'Claim Update by', accessor: (r) => r.claim_updated_by || DASH },
+      { header: 'Claim Update Date', accessor: (r) => r.inst_claim_update_date || DASH },
+      { header: 'Claim Update by', accessor: (r) => r.inst_claim_update_by || DASH },
       { header: 'Claim Status', accessor: (r) => claimStatusLabel(r.inst_claim_status) },
       { header: 'Payment 80% Date', accessor: (r) => r.inst_pay80_date || DASH },
-      { header: 'Payment 80% Amount', accessor: (r) => String(r.inst_pay80_amount || DASH) },
+      { header: 'Payment 80% Amount', accessor: (r) => String(r.inst_pay80 || DASH) },
       { header: 'Payment 80% Status', accessor: (r) => payStatusLabel(r.inst_pay80_status) },
-      { header: 'Document Submit', accessor: (r) => (r.inst_doc_submit === 1 ? 'Submitted' : 'Pending') },
+      { header: 'Document Submit', accessor: (r) => (Number(r.inst_doc_submit) >= 1 ? 'Submitted' : 'Pending') },
       { header: 'Payment 20% Date', accessor: (r) => r.inst_pay20_date || DASH },
-      { header: 'Payment 20% Amount', accessor: (r) => String(r.inst_pay20_amount || DASH) },
+      { header: 'Payment 20% Amount', accessor: (r) => String(r.inst_pay20 || DASH) },
       { header: 'Payment 20% Status', accessor: (r) => payStatusLabel(r.inst_pay20_status) },
     ],
     []
@@ -514,8 +514,8 @@ export function Kashmir_Installation_ClaimRequest() {
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
                           ₹{Number(r.inst_claim_amount || 0).toLocaleString('en-IN')}
                         </td>
-                        <td className="ax-table__td">{r.claim_updated_at || DASH}</td>
-                        <td className="ax-table__td">{r.claim_updated_by || DASH}</td>
+                        <td className="ax-table__td">{r.inst_claim_update_date || DASH}</td>
+                        <td className="ax-table__td">{r.inst_claim_update_by || DASH}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {cStatus === 2 ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Approved</span>
@@ -526,17 +526,17 @@ export function Kashmir_Installation_ClaimRequest() {
                           )}
                         </td>
                         <td className="ax-table__td">{r.inst_pay80_date || DASH}</td>
-                        <td className="ax-table__td">{money(r.inst_pay80_amount)}</td>
+                        <td className="ax-table__td">{money(r.inst_pay80)}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>{payStatusBadge(r.inst_pay80_status)}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {r.inst_doc_submit === 1 ? (
+                          {Number(r.inst_doc_submit) >= 1 ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Submitted</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>
                           )}
                         </td>
                         <td className="ax-table__td">{r.inst_pay20_date || DASH}</td>
-                        <td className="ax-table__td">{money(r.inst_pay20_amount)}</td>
+                        <td className="ax-table__td">{money(r.inst_pay20)}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>{payStatusBadge(r.inst_pay20_status)}</td>
                       </tr>
                     );

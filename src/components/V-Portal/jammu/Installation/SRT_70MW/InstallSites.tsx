@@ -717,7 +717,7 @@ export function InstallSites() {
       } else {
         setFeedback({
           type: 'danger',
-          text: `Site #${siteIdStr} details not found or not assigned to your vendor account.`,
+          text: `Site ${siteIdStr} details not found or not assigned to your vendor account.`,
         });
       }
     } catch (err: any) {
@@ -1056,7 +1056,7 @@ export function InstallSites() {
             </div>
             {siteDetail && (
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {siteDetail.site_name ? `${siteDetail.site_name} (${siteDetail.district || ''})` : `Site #${siteDetail.id}`}
+                {siteDetail.site_name ? `${siteDetail.site_name} (${siteDetail.district || ''})` : `Site ${siteDetail.id}`}
               </span>
             )}
           </div>
@@ -1109,7 +1109,7 @@ export function InstallSites() {
                   <option value="">-- Select Assigned Site --</option>
                   {sitesList.map((s) => (
                     <option key={s.id} value={String(s.id)}>
-                      #{s.id} - {s.site_name} {s.district ? `(${s.district})` : ''}
+                      {s.site_name} {s.district ? `(${s.district})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1452,7 +1452,7 @@ export function InstallSites() {
                         name={`panel_no_${idx + 1}`}
                         value={pVal}
                         onChange={(e) => handlePanelChange(idx, e.target.value)}
-                        placeholder={`Enter Panel #${idx + 1} Serial`}
+                        placeholder={`Enter Panel ${idx + 1} Serial`}
                         required={idx === 0}
                         onCameraClick={() => setScannerTarget(`panel-${idx}`)}
                       />

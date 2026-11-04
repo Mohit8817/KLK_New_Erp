@@ -560,7 +560,8 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
 
 
 
-      /* ═══════════════════ JAMMU  ═══════════════════ */
+
+        /* ═══════════════════ JAMMU  ═══════════════════ */
   {
     section: 'Jammu',
     state: 'jammu',
@@ -656,32 +657,33 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
           },
         ],
       },
-      {
-        id: 'jammu.amc',
-        title: 'AMC',
-        icon: 'amc',
-        subgroups: [
-          {
-            id: 'jammu.amc.resco',
-            title: 'Resco',
-            items: [
-              { title: 'Assign Survey', to: '/v/jammu/amc/resco/assign-survey' },
-              { title: 'Pending Survey', to: '/v/jammu/amc/resco/pending-survey' },
-              { title: 'View Survey', to: '/v/jammu/amc/resco/view-survey' },
-            ],
-          },
-          {
-            id: 'jammu.amc.ssl',
-            title: 'SSL',
-            items: [
-              { title: 'View Assign AMC', to: '/v/jammu/amc/ssl/view-assign-amc' },
-            ],
-          },
-        ],
-      },
+
+      // AMC 
+      // {
+      //   id: 'jammu.amc',
+      //   title: 'AMC',
+      //   icon: 'amc',
+      //   subgroups: [
+      //     {
+      //       id: 'jammu.amc.resco',
+      //       title: 'Resco',
+      //       items: [
+      //         { title: 'Assign Survey', to: '/v/jammu/amc/resco/assign-survey' },
+      //         { title: 'Pending Survey', to: '/v/jammu/amc/resco/pending-survey' },
+      //         { title: 'View Survey', to: '/v/jammu/amc/resco/view-survey' },
+      //       ],
+      //     },
+      //     {
+      //       id: 'jammu.amc.ssl',
+      //       title: 'SSL',
+      //       items: [
+      //         { title: 'View Assign AMC', to: '/v/jammu/amc/ssl/view-assign-amc' },
+      //       ],
+      //     },
+      //   ],
+      // },
     ],
   },
-
   /* ═══════════════════ KASHMIR ═══════════════════ */
   {
     section: 'Kashmir',
@@ -732,6 +734,64 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
               { title: 'Request Expenses', to: '/v/kashmir/srt70mw/installation-expenses-create' },
               { title: 'View Expenses', to: '/v/kashmir/srt70mw/installation-expenses' },
               { title: 'View Payments', to: '/v/kashmir/srt70mw/installation-expenses-view-payment' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+  //Common vendor services.....
+
+   {
+    section: 'Vendor Services',
+    state: '',
+    categories: [
+      {
+        id: 'common.reports',
+        title: 'Reports',
+        icon: 'reports',
+        subgroups: [
+          {
+            id: 'common.reports.group',
+            title: 'Reports',
+            items: [
+              { title: 'Daily Report', to: '/v/reports/daily-report' },
+              { title: 'Add Report', to: '/v/reports/add-report' },
+              { title: 'View Report', to: '/v/reports/view-report' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'common.complaints',
+        title: 'Complaints',
+        icon: 'complaints',
+        subgroups: [
+          {
+            id: 'common.complaints.group',
+            title: 'Vendor Complaint',
+            items: [
+              { title: 'Vendor Complaint', to: '/v/complaints/vendor-complaint' },
+              { title: 'Add Complaint', to: '/v/complaints/add-complaint' },
+              { title: 'View Complaint', to: '/v/complaints/view-complaint' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'common.users',
+        title: 'Users',
+        icon: 'users',
+        subgroups: [
+          {
+            id: 'common.users.group',
+            title: 'Users',
+            items: [
+              { title: 'Users', to: '/v/users' },
+              { title: 'Add User', to: '/v/users/add-user' },
+              { title: 'View Users', to: '/v/users/view-users' },
             ],
           },
         ],

@@ -283,6 +283,66 @@ export const JAMMU_API = {
     VIEW_PAYMENT: `${BASE_URL}/jammu/installation-expenses-view-payment`,
   },
 
+  SURVEY: {
+    RESCO: {
+      // 1. Pending Survey Sites: GET /jk/resco-survey
+      PENDING_SITES: `${BASE_URL}/jk/resco-survey`,
+
+      // 2. Fetch Sites (dropdown): GET /jk/resco-fetch-site
+      FETCH_SITES: `${BASE_URL}/jk/resco-fetch-site`,
+
+      // 3. Fetch Site Detail: GET /jk/resco-fetch-site-detail?srt_id={srt_id}
+      FETCH_SITE_DETAIL: (srtId: number | string) =>
+        `${BASE_URL}/jk/resco-fetch-site-detail?srt_id=${encodeURIComponent(srtId)}`,
+
+      // 4. Store Survey: POST /jk/resco-survey-store (multipart/form-data)
+      STORE_SURVEY: `${BASE_URL}/jk/resco-survey-store`,
+
+      // 5. View Surveys (summary + completed): GET /jk/view-resco-survey
+      VIEW_SURVEYS: `${BASE_URL}/jk/view-resco-survey`,
+
+      // 6. Get Survey for Update: GET /jk/view-resco-survey-update/{id}
+      GET_UPDATE_SURVEY: (id: number | string) =>
+        `${BASE_URL}/jk/view-resco-survey-update/${encodeURIComponent(id)}`,
+
+      // 7. Update Survey: POST /jk/view-resco-survey-update-store/{id} (multipart/form-data)
+      UPDATE_SURVEY_STORE: (id: number | string) =>
+        `${BASE_URL}/jk/view-resco-survey-update-store/${encodeURIComponent(id)}`,
+
+      // 8. Assigned Surveys: GET /jk/view-assigned-resco-survey
+      ASSIGNED_SURVEYS: `${BASE_URL}/jk/view-assigned-resco-survey`,
+
+      // 9. BOS Submit: POST /jk/resco-bos-submit (multipart/form-data)
+      BOS_SUBMIT: `${BASE_URL}/jk/resco-bos-submit`,
+
+      // 10. BOS Product Data: GET /jk/view-resco-survey-bos-product/{id}
+      BOS_PRODUCT_DATA: (id: number | string) =>
+        `${BASE_URL}/jk/view-resco-survey-bos-product/${encodeURIComponent(id)}`,
+
+      // 11. BOS Product Store: POST /jk/view-resco-survey-bos-product-store (JSON / multipart)
+      BOS_PRODUCT_STORE: `${BASE_URL}/jk/view-resco-survey-bos-product-store`,
+
+      // 12. Download BOS PDF: GET /jk/view-resco-survey-bos-product-download/{id}
+      BOS_PDF_DOWNLOAD: (id: number | string) =>
+        `${BASE_URL}/jk/view-resco-survey-bos-product-download/${encodeURIComponent(id)}`,
+    },
+
+    SRT_70MW: {
+      // 1. View Surveys: GET /jammu/srt70mw/view-survey
+      VIEW_SURVEYS: `${BASE_URL}/jammu/srt70mw/view-survey`,
+
+      // 2. Add Survey: POST /jammu/srt70mw/add-survey (multipart/form-data)
+      ADD_SURVEY: `${BASE_URL}/jammu/srt70mw/add-survey`,
+
+      // 3. Edit (get survey): GET /jammu/srt70mw/edit-survey?id={id}
+      EDIT_SURVEY: (id: number | string) =>
+        `${BASE_URL}/jammu/srt70mw/edit-survey?id=${encodeURIComponent(id)}`,
+
+      // 4. Update Survey: POST /jammu/srt70mw/update-survey (multipart/form-data)
+      UPDATE_SURVEY: `${BASE_URL}/jammu/srt70mw/update-survey`,
+    },
+  },
+
   ROOT_URL,
   BASE_URL,
 };

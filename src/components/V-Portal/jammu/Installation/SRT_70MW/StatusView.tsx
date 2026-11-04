@@ -823,7 +823,7 @@ export function StatusView() {
               ) : (
                 paginatedRows.map((r, idx) => {
                   const srNo = (currentPage - 1) * pageSize + idx + 1;
-                  const siteName = txt(r, 'site_name') || `Site #${r.id}`;
+                  const siteName = txt(r, 'site_name') || `Site ${r.id}`;
                   const caNo = txt(r, 'ca_no');
                   const district = txt(r, 'district');
                   const sLoad = txt(r, 'sanction_load') || (r.plant_sc ? `${r.plant_sc} kW` : DASH);

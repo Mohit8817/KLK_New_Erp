@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -486,6 +486,106 @@ function RaiseClaimModal({
   );
 }
 
+/* ───────── Document Submit Modal ───────── */
+function DocumentSubmitModal({
+  site,
+  onClose,
+  onSuccess,
+}: {
+  site: Row;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const isAlreadySubmitted = site.inst_doc_submit === 1;
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setErr(null);
+    try {
+      const resp = await kashmirSrtService.submitDocument(site.id);
+      onSuccess(resp.message || 'Document Submitted Successfully!!!');
+      onClose();
+    } catch (error: any) {
+      setErr(error.message || 'Failed to submit document.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="kashmir-doc-title">
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth: 520 }}>
+        <div className="ax-modal__header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: 'var(--ax-primary)' }}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <h2 className="ax-modal__title" id="kashmir-doc-title" style={{ fontSize: 15, fontWeight: 600 }}>
+              Submit Installation Document
+            </h2>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {err && (
+            <div className="ax-alert ax-alert--danger" role="alert">
+              <div className="ax-alert__text">{err}</div>
+            </div>
+          )}
+
+          <div style={{ background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{site.site_name || `Site #${site.id}`}</b></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site ID:</span> <b>#{site.id}</b></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{txt(site.district)}</b></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <span style={{ color: 'var(--ax-text-muted)' }}>Document Status:</span>
+              {isAlreadySubmitted ? (
+                <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
+                  <span className="ax-badge__dot" /> Submitted
+                </span>
+              ) : (
+                <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>
+                  <span className="ax-badge__dot" /> Pending Submission
+                </span>
+              )}
+            </div>
+          </div>
+
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)', lineHeight: 1.5 }}>
+            {isAlreadySubmitted
+              ? 'The installation document for this site has already been submitted to the department. You can re-submit if needed.'
+              : 'Submitting will mark the site documentation as complete and send it to the department for verification.'}
+          </p>
+        </div>
+        <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={onClose} disabled={submitting}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ax-btn ax-btn--primary ax-btn--sm"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting…' : isAlreadySubmitted ? 'Re-Submit Document' : 'Submit Document'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ───────── View Detail Modal (New — matching Arunachal pattern) ───────── */
 function SiteDetailModal({
   site,
@@ -591,7 +691,24 @@ export function Kashmir_Installation_Details() {
   const closePreview = useCallback(() => setPreview(null), []);
   const [claimModalSite, setClaimModalSite] = useState<Row | null>(null);
   const [detailModalSite, setDetailModalSite] = useState<Row | null>(null);
+  const [docModalSite, setDocModalSite] = useState<Row | null>(null);
+  const [openActionId, setOpenActionId] = useState<number | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (openActionId === null) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setOpenActionId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openActionId]);
 
   // Sync hash
   useEffect(() => {
@@ -675,18 +792,6 @@ export function Kashmir_Installation_Details() {
     setDistrictFilter('all');
     setVerifyFilter('all');
     setCurrentPage(1);
-  };
-
-  // Submit document handler
-  const handleSubmitDocument = async (siteId: number) => {
-    if (!window.confirm(`Submit documents for site #${siteId}?`)) return;
-    try {
-      const resp = await kashmirSrtService.submitDocument(siteId);
-      setToast({ type: 'success', text: resp.message || 'Document Submit Successfully!!!' });
-      loadData();
-    } catch (err: any) {
-      setToast({ type: 'danger', text: err.message || 'Failed to submit document.' });
-    }
   };
 
   // Export Columns
@@ -1061,19 +1166,21 @@ export function Kashmir_Installation_Details() {
                   <th className="ax-table__th" scope="col">Latitude</th>
                   <th className="ax-table__th" scope="col">Longitude</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 140 }}>Remark</th>
-                  {tab === 'Completed' && (
+                  {tab === 'Completed' ? (
                     <>
                       <th className="ax-table__th" scope="col">Verify Status</th>
                       <th className="ax-table__th" scope="col">Claim Status</th>
-                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 160 }}>Action</th>
+                      <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 120 }}>Action</th>
                     </>
+                  ) : (
+                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 120 }}>Action</th>
                   )}
                 </tr>
               </thead>
               <tbody aria-busy={loading}>
                 {loading && (
                   <tr>
-                    <td colSpan={tab === 'Completed' ? 22 : 19} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                    <td colSpan={tab === 'Completed' ? 22 : 20} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
                       <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
                       Loading installation sites from server…
                     </td>
@@ -1081,7 +1188,7 @@ export function Kashmir_Installation_Details() {
                 )}
                 {!loading && filteredSites.length === 0 && (
                   <tr>
-                    <td colSpan={tab === 'Completed' ? 22 : 19} style={{ padding: 0 }}>
+                    <td colSpan={tab === 'Completed' ? 22 : 20} style={{ padding: 0 }}>
                       <TableEmptyState
                         title="No data available in table"
                         message={search ? 'No installation sites match your search keyword.' : 'No installation records available.'}
@@ -1171,54 +1278,206 @@ export function Kashmir_Installation_Details() {
                             </span>
                           </td>
 
-                          {/* Claim Status Badge (Arunachal style with dot) */}
+                          {/* Claim Status — Raise Claim button when Not Raised */}
                           <td className="ax-table__td">
-                            <span
-                              className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                isClaimApproved ? 'ax-badge--success' : isClaimRaised ? 'ax-badge--info' : 'ax-badge--neutral'
-                              }`}
-                            >
-                              <span className="ax-badge__dot" />
-                              {isClaimApproved ? 'Approved' : isClaimRaised ? 'Raised' : 'Not Raised'}
-                            </span>
-                          </td>
-
-                          {/* Action: View + Raise Claim + Document */}
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            {isClaimApproved ? (
+                              <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">
+                                <span className="ax-badge__dot" />
+                                Approved
+                              </span>
+                            ) : isClaimRaised ? (
+                              <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--info">
+                                <span className="ax-badge__dot" />
+                                Raised
+                              </span>
+                            ) : (
                               <button
                                 type="button"
-                                className="ax-btn ax-btn--ghost ax-btn--sm"
-                                onClick={() => setDetailModalSite(item)}
-                                title="View site details"
-                                style={{ padding: '0 8px' }}
+                                className="ax-btn ax-btn--primary ax-btn--xs"
+                                style={{ padding: '2px 10px', fontSize: 11, whiteSpace: 'nowrap', borderRadius: 9999 }}
+                                onClick={() => setClaimModalSite(item)}
+                                title="Raise a new claim for this site"
                               >
-                                View
+                                Raise Claim
                               </button>
-                              {cStatus === 0 && (
-                                <button
-                                  type="button"
-                                  className="ax-btn ax-btn--primary ax-btn--xs"
-                                  style={{ padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap' }}
-                                  onClick={() => setClaimModalSite(item)}
-                                  title="Raise a new claim"
-                                >
-                                  Raise Claim
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--xs"
-                                style={{ padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap' }}
-                                onClick={() => handleSubmitDocument(item.id)}
-                                title="Submit document"
-                              >
-                                Document
-                              </button>
-                            </div>
+                            )}
                           </td>
                         </>
                       )}
+
+                      {/* Action Dropdown column (View, Edit, Document) */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', position: 'relative' }}>
+                        <div
+                          className="ax-dropdown"
+                          ref={openActionId === item.id ? actionMenuRef : undefined}
+                          style={{ position: 'relative', display: 'inline-block' }}
+                        >
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            style={{
+                              padding: '3px 10px',
+                              fontSize: 12,
+                              borderRadius: 'var(--ax-radius-pill, 9999px)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              fontWeight: 500,
+                              boxShadow: 'var(--ax-shadow-xs, 0 1px 2px rgba(0,0,0,0.05))',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionId(openActionId === item.id ? null : item.id);
+                            }}
+                            aria-haspopup="true"
+                            aria-expanded={openActionId === item.id}
+                            title="Actions menu"
+                          >
+                            <span>Action</span>
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              style={{
+                                width: 12,
+                                height: 12,
+                                transition: 'transform 0.15s ease',
+                                transform: openActionId === item.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                              }}
+                            >
+                              <path d="M6 9l6 6 6-6" />
+                            </svg>
+                          </button>
+
+                          {openActionId === item.id && (
+                            <div
+                              className="ax-menu"
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                ...(index >= pagedSites.length - 2 && pagedSites.length > 2
+                                  ? { bottom: 'calc(100% + 4px)', top: 'auto' }
+                                  : { top: 'calc(100% + 4px)' }),
+                                minWidth: 140,
+                                zIndex: 1050,
+                                padding: 4,
+                                borderRadius: 8,
+                                background: 'var(--ax-surface-solid, #ffffff)',
+                                border: '1px solid var(--ax-border, #e2e8f0)',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2,
+                                textAlign: 'left',
+                              }}
+                            >
+                              {/* 1. View */}
+                              <button
+                                type="button"
+                                className="ax-menu__item"
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px',
+                                  fontSize: 12,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  border: 0,
+                                  background: 'transparent',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  color: 'var(--ax-text, #1e293b)',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  setDetailModalSite(item);
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 14, height: 14, color: '#2563eb', flexShrink: 0 }}>
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <span style={{ fontWeight: 500 }}>View</span>
+                              </button>
+
+                              {/* 2. Edit */}
+                              <Link
+                                to={`/v/kashmir/srt/70mw/installation/site?edit=1&srt_id=${item.id}`}
+                                className="ax-menu__item"
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px',
+                                  fontSize: 12,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  borderRadius: 6,
+                                  textDecoration: 'none',
+                                  color: 'var(--ax-text, #1e293b)',
+                                }}
+                                onClick={() => setOpenActionId(null)}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 14, height: 14, color: '#f59e0b', flexShrink: 0 }}>
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span style={{ fontWeight: 500 }}>Edit</span>
+                              </Link>
+
+                              {/* 3. Document */}
+                              <button
+                                type="button"
+                                className="ax-menu__item"
+                                style={{
+                                  width: '100%',
+                                  padding: '7px 10px',
+                                  fontSize: 12,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  border: 0,
+                                  background: 'transparent',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  color: 'var(--ax-text, #1e293b)',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  setDocModalSite(item);
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 14, height: 14, color: '#10b981', flexShrink: 0 }}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="16" y1="13" x2="8" y2="13" />
+                                  <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                                <span style={{ fontWeight: 500 }}>Document</span>
+                                {item.inst_doc_submit === 1 && (
+                                  <span
+                                    style={{
+                                      marginLeft: 'auto',
+                                      fontSize: 9,
+                                      fontWeight: 700,
+                                      color: '#10b981',
+                                      background: '#ecfdf5',
+                                      padding: '1px 5px',
+                                      borderRadius: 4,
+                                      border: '1px solid #a7f3d0',
+                                    }}
+                                    title="Document submitted"
+                                  >
+                                    ✓
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1269,6 +1528,18 @@ export function Kashmir_Installation_Details() {
           site={detailModalSite}
           onClose={() => setDetailModalSite(null)}
           onPreview={openPreview}
+        />
+      )}
+
+      {/* ── Document Submit Modal ── */}
+      {docModalSite && (
+        <DocumentSubmitModal
+          site={docModalSite}
+          onClose={() => setDocModalSite(null)}
+          onSuccess={(msg) => {
+            setToast({ type: 'success', text: msg });
+            loadData();
+          }}
         />
       )}
     </div>

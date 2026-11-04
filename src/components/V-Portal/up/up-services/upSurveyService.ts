@@ -28,6 +28,15 @@ export function getUpSurveyMediaUrl(path?: string | null): string {
     return `${BACKEND_BASE}/${normalized}`;
   }
 
+  if (normalized.startsWith('upload_images/')) {
+    return `${BACKEND_BASE}/${normalized}`;
+  }
+
+  // If path is a date-prefixed SSL folder like "2026-11-02_UPSSL-0301/image1-..."
+  if (/\d{4}-\d{2}-\d{2}_/.test(normalized)) {
+    return `${BACKEND_BASE}/upload_images/ssl/${normalized}`;
+  }
+
   return `${BACKEND_BASE}/uploads/${normalized}`;
 }
 
@@ -129,7 +138,7 @@ async function apiRequest<T = any>(
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Types: UP Resco Survey
+   Types: UP Resco Survey (VendorUpRescoSurveyController)
    ───────────────────────────────────────────────────────────── */
 export interface UpRescoPendingSite {
   id: number;
@@ -145,7 +154,7 @@ export interface UpRescoPendingSite {
   [key: string]: any;
 }
 
-export interface UpRescoSiteDetail {
+export interface UpRescoSurveySiteDetail {
   id: number;
   uid: string;
   state: string;
@@ -284,6 +293,86 @@ export interface UpRescoBosProductData {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Types: UP SSL Survey (VendorUpSSlSurveyController)
+   ───────────────────────────────────────────────────────────── */
+export interface UpSslSiteDropdownItem {
+  id: number;
+  uid: string;
+  site_name?: string;
+}
+
+export interface UpSslSiteImageEntry {
+  image1?: string | null;
+  image2?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+  lognitude?: string | number | null;
+  mode?: string | null;
+  date?: string | null;
+  remarks?: string | null;
+  [key: string]: any;
+}
+
+export interface UpSslSiteRecord {
+  id: number;
+  s_no?: number | string | null;
+  fy?: string | null;
+  financial_year?: string | null;
+  state?: string | null;
+  district?: string | null;
+  block?: string | null;
+  village?: string | null;
+  scheme?: string | null;
+  vendor?: string | null;
+  uid?: string | null;
+  beneficiary_name?: string | null;
+  contact?: string | null;
+  contact_no?: string | null;
+  material_supply?: string | null;
+  supply_date?: string | null;
+  install?: string | null;
+  installed_date?: string | null;
+  payment_85?: string | null;
+  amc1?: string | null;
+  amc2?: string | null;
+  amc3?: string | null;
+  amc4?: string | null;
+  amc5?: string | null;
+  doc_submit?: string | null;
+  document_submitted?: string | null;
+  remarks?: string | null;
+  v_status?: number | string | null;
+  v_date?: string | null;
+  survey_status?: number | string | null;
+  images?: UpSslSiteImageEntry[];
+  [key: string]: any;
+}
+
+export interface UpSslViewDataResponse {
+  total: number;
+  incomplete_count: number;
+  complete_count: number;
+  incomplete_ssl: UpSslSiteRecord[];
+  complete_ssl: UpSslSiteRecord[];
+}
+
+export interface UpSslCompletedDetailsResponse {
+  ssl: UpSslSiteRecord;
+  upload: Array<{
+    id: number;
+    fid?: number;
+    type?: string;
+    image1?: string | null;
+    image2?: string | null;
+    latitude?: string | number | null;
+    lognitude?: string | number | null;
+    mode?: string | null;
+    remarks?: string | null;
+    [key: string]: any;
+  }>;
+}
+
+/* ─────────────────────────────────────────────────────────────
    Types: UP SRT Survey
    ───────────────────────────────────────────────────────────── */
 export interface UpSrtSurveyRecord {
@@ -324,41 +413,6 @@ export interface UpSrtSurveyRecord {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Types: UP SSL Survey
-   ───────────────────────────────────────────────────────────── */
-export interface UpSslSiteRecord {
-  id: number | string;
-  uid?: string;
-  state?: string;
-  district?: string;
-  block?: string;
-  village?: string;
-  contact_no?: string;
-  beneficiary_name?: string;
-  survey_status?: number | string;
-  financial_year?: string;
-  scheme?: string;
-  vendor?: string;
-  material_supply?: string;
-  supply_date?: string;
-  install?: string;
-  installed_date?: string;
-  payment_85?: string;
-  amc_1?: string;
-  amc_2?: string;
-  amc_3?: string;
-  amc_4?: string;
-  amc_5?: string;
-  document_submitted?: string;
-  mode?: string;
-  remarks?: string;
-  demo1_image?: string;
-  demo2_image?: string;
-  uploaded_images?: string[];
-  [key: string]: any;
-}
-
-/* ─────────────────────────────────────────────────────────────
    Service Implementation
    ───────────────────────────────────────────────────────────── */
 export const upSurveyService = {
@@ -376,8 +430,8 @@ export const upSurveyService = {
     return [];
   },
 
-  // 2. Fetch site detail
-  async getRescoSiteDetail(srtId: number | string): Promise<UpRescoSiteDetail | null> {
+  // 2. Fetch site detail (?srt_id=xx)
+  async getRescoSiteDetail(srtId: number | string): Promise<UpRescoSurveySiteDetail | null> {
     const res = await apiRequest(UP_SURVEY_API.RESCO.SITE_DETAIL(srtId));
     if (res.status) {
       if (res.srt) return res.srt;
@@ -416,8 +470,8 @@ export const upSurveyService = {
       const list = Array.isArray(res.resco) ? res.resco : Array.isArray(res.data) ? res.data : [];
       const counts = res.survey_detail || {
         total: list.length,
-        complete: list.filter((x: any) => x.survey_status === 1 || x.survey_status === '1').length,
-        pending: list.filter((x: any) => x.survey_status === 0 || x.survey_status === '0').length,
+        complete: list.filter((x: any) => Number(x.survey_status) === 1 || x.survey_status === '1').length,
+        pending: list.filter((x: any) => Number(x.survey_status) === 0 || x.survey_status === '0').length,
       };
       return {
         resco: list,
@@ -510,7 +564,6 @@ export const upSurveyService = {
       product_remarks?: string[];
     }
   ): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
-    // Controller accepts standard array format
     const res = await apiRequest(UP_SURVEY_API.RESCO.BOS_PRODUCT_STORE, {
       method: 'POST',
       body: payload,
@@ -573,6 +626,102 @@ export const upSurveyService = {
   },
 
   /* ============================================================
+     UP SSL Survey (VendorUpSSlSurveyController - 5 Methods)
+     ============================================================ */
+
+  // 1. Fetch site IDs and UIDs for dropdown
+  async getSslSites(): Promise<UpSslSiteDropdownItem[]> {
+    const res = await apiRequest(UP_SURVEY_API.SSL.FETCH_SITES);
+    if (res.status && res.data) {
+      if (Array.isArray(res.data)) {
+        return res.data.map((item: any) => ({
+          id: Number(item.id),
+          uid: String(item.uid || item.id),
+          site_name: item.site_name || item.uid,
+        }));
+      }
+    }
+    return [];
+  },
+
+  // Alias for backward compatibility
+  async getSslUids(): Promise<UpSslSiteDropdownItem[]> {
+    return this.getSslSites();
+  },
+
+  // 2. Fetch full record with survey images
+  async getSslRecord(siteId: number | string): Promise<UpSslSiteRecord | null> {
+    const res = await apiRequest(UP_SURVEY_API.SSL.FETCH_RECORD(siteId));
+    if (res.status && res.data) {
+      return res.data as UpSslSiteRecord;
+    }
+    return null;
+  },
+
+  // Alias for backward compatibility
+  async getSslSiteDetail(siteId: number | string): Promise<UpSslSiteRecord | null> {
+    return this.getSslRecord(siteId);
+  },
+
+  // 3. Submit survey for site (POST multipart/form-data)
+  async updateSslSurvey(
+    formData: FormData
+  ): Promise<{ status: boolean; message: string; data?: any; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_SURVEY_API.SSL.UPDATE_SSL, {
+      method: 'POST',
+      body: formData,
+      isMultipart: true,
+    });
+    return {
+      status: !!res.status,
+      message: res.message || (res.status ? 'Details updated successfully.' : 'Failed to update survey details.'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  // 4. View counts and lists of pending and completed sites
+  async getViewSslData(): Promise<UpSslViewDataResponse> {
+    const res = await apiRequest(UP_SURVEY_API.SSL.VIEW_DATA);
+    const fallback: UpSslViewDataResponse = {
+      total: 0,
+      incomplete_count: 0,
+      complete_count: 0,
+      incomplete_ssl: [],
+      complete_ssl: [],
+    };
+
+    if (res.status && res.data) {
+      const d = res.data;
+      const incomplete = Array.isArray(d.incomplete_ssl) ? d.incomplete_ssl : [];
+      const complete = Array.isArray(d.complete_ssl) ? d.complete_ssl : [];
+      return {
+        total: Number(d.total ?? (incomplete.length + complete.length)),
+        incomplete_count: Number(d.incomplete_count ?? incomplete.length),
+        complete_count: Number(d.complete_count ?? complete.length),
+        incomplete_ssl: incomplete,
+        complete_ssl: complete,
+      };
+    }
+    return fallback;
+  },
+
+  // 5. Details of a completed site
+  async getSslViewDetails(siteId: number | string): Promise<UpSslCompletedDetailsResponse | null> {
+    const res = await apiRequest(UP_SURVEY_API.SSL.VIEW_DETAILS(siteId));
+    if (res.status && res.data) {
+      return res.data as UpSslCompletedDetailsResponse;
+    }
+    return null;
+  },
+
+  // Alias for backward compatibility
+  async getViewSslSites(): Promise<UpSslSiteRecord[]> {
+    const data = await this.getViewSslData();
+    return [...data.incomplete_ssl, ...data.complete_ssl];
+  },
+
+  /* ============================================================
      UP SRT Survey
      ============================================================ */
 
@@ -631,52 +780,6 @@ export const upSurveyService = {
     if (res.status) {
       if (Array.isArray(res.data)) return res.data;
       if (Array.isArray(res.surveys)) return res.surveys;
-    }
-    return [];
-  },
-
-  /* ============================================================
-     UP SSL Survey
-     ============================================================ */
-
-  async getSslUids(): Promise<Array<{ id: number | string; uid: string; site_name?: string }>> {
-    const res = await apiRequest(UP_SURVEY_API.SSL.FETCH_UIDS);
-    if (res.status) {
-      if (Array.isArray(res.data)) return res.data;
-      if (Array.isArray(res.uids)) return res.uids;
-    }
-    return [];
-  },
-
-  async getSslSiteDetail(uid: string | number): Promise<UpSslSiteRecord | null> {
-    const res = await apiRequest(UP_SURVEY_API.SSL.FETCH_SITE_DETAIL(uid));
-    if (res.status) {
-      if (res.site) return res.site;
-      if (res.data) return res.data;
-    }
-    return null;
-  },
-
-  async updateSslSurvey(
-    formData: FormData
-  ): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
-    const res = await apiRequest(UP_SURVEY_API.SSL.UPDATE_STATUS, {
-      method: 'POST',
-      body: formData,
-      isMultipart: true,
-    });
-    return {
-      status: !!res.status,
-      message: res.message || (res.status ? 'SSL Survey status updated successfully!' : 'Failed to update SSL status.'),
-      errors: res.errors,
-    };
-  },
-
-  async getViewSslSites(): Promise<UpSslSiteRecord[]> {
-    const res = await apiRequest(UP_SURVEY_API.SSL.VIEW_DATA);
-    if (res.status) {
-      if (Array.isArray(res.data)) return res.data;
-      if (Array.isArray(res.sites)) return res.sites;
     }
     return [];
   },

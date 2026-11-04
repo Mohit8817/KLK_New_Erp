@@ -489,7 +489,7 @@ export function RescoDashboard() {
     return filteredDistrictRows.filter((d) => !q || d.district.toLowerCase().includes(q));
   }, [filteredDistrictRows, deferredQuery]);
 
-  const pD = usePagination({ data: tableDistricts, initialPageSize: 15 });
+  const pD = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
     pD.setPage(1);
@@ -1204,8 +1204,9 @@ export function RescoDashboard() {
                 totalItems={pD.totalItems}
                 pageSize={pD.pageSize}
                 onPageChange={pD.setPage}
+                setPage={pD.setPage}
                 onPageSizeChange={pD.setPageSize}
-                pageSizeOptions={[10, 15, 25, 50, 100]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>

@@ -4,8 +4,8 @@ import { API_BASE_URL } from '../../../services/authService';
  * Base URLs for UP Survey API Endpoints
  * Supports:
  * 1. Resco Survey (11 methods under VendorUpRescoSurveyController)
- * 2. SRT Survey (Add Survey, View Survey)
- * 3. SSL Survey (Update SSL Survey Status, View UP SSL Sites)
+ * 2. SSL Survey (5 methods under VendorUpSSlSurveyController)
+ * 3. SRT Survey (Add Survey, View Survey)
  */
 const BASE_URL = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
 
@@ -38,6 +38,21 @@ export const UP_SURVEY_API = {
     BOS_PRODUCT_PDF: `${BASE_URL}/up/view-resco-survey-bos-product-pdf`,
   },
 
+  SSL: {
+    // 1. Fetch site IDs and UIDs for dropdown
+    FETCH_SITES: `${BASE_URL}/up/ssl/survey/fetch-site`,
+    // 2. Fetch full record of one site with survey images
+    FETCH_RECORD: (id: number | string) =>
+      `${BASE_URL}/up/ssl/survey/fetches-record/${encodeURIComponent(id)}`,
+    // 3. Submit survey for a site (POST multipart/form-data)
+    UPDATE_SSL: `${BASE_URL}/up/ssl/survey/update-ssl`,
+    // 4. Counts and lists of pending and completed sites
+    VIEW_DATA: `${BASE_URL}/up/ssl/survey/view-data`,
+    // 5. Details of a completed site
+    VIEW_DETAILS: (id: number | string) =>
+      `${BASE_URL}/up/ssl/survey/view-details/${encodeURIComponent(id)}`,
+  },
+
   SRT: {
     STORE_SURVEY: `${BASE_URL}/up/srt-surveys/create`,
     VIEW_SURVEYS: `${BASE_URL}/up/srt-surveys/view`,
@@ -48,14 +63,6 @@ export const UP_SURVEY_API = {
       `${BASE_URL}/up/srt/panchayats?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}`,
     VILLAGES: (district: string, block: string, panchayat: string) =>
       `${BASE_URL}/up/srt/villages?district=${encodeURIComponent(district)}&block=${encodeURIComponent(block)}&panchayat=${encodeURIComponent(panchayat)}`,
-  },
-
-  SSL: {
-    FETCH_UIDS: `${BASE_URL}/up/edit-ssl`,
-    FETCH_SITE_DETAIL: (uid: string | number) =>
-      `${BASE_URL}/up/edit-ssl?uid=${encodeURIComponent(uid)}`,
-    UPDATE_STATUS: `${BASE_URL}/up/update-ssl-survey`,
-    VIEW_DATA: `${BASE_URL}/up/view-upssl`,
   },
 };
 

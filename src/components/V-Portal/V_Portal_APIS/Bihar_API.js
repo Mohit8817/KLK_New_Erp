@@ -139,7 +139,13 @@ export const BIHAR_AMC_API = {
     STORE_ASSIGN_LIGHT: `${ROOT_URL}/api/user/dle/bihar/ssl/amc/store-assign-light`,
     VIEW_ASSIGN_LIGHT: `${ROOT_URL}/api/user/dle/bihar/ssl/amc/view-assign-light`,
     ADD_DATA: `${BASE_URL}/bihar/ssl/amc-store`,
-    VIEW_DATA: `${BASE_URL}/bihar/ssl/amc-view`,
+    VIEW_DATA: `${BASE_URL}/bihar/ssl/amc/view-data`,
+    FETCH_UIDS: `${BASE_URL}/bihar/ssl/amc/fetch-uids`,
+    FETCH_DETAILS: (id) => `${BASE_URL}/bihar/ssl/amc/fetch-details/${encodeURIComponent(id)}`,
+    VIEW_COMPLAINT: `${BASE_URL}/bihar/ssl/view-complaint`,
+    UPDATE: `${BASE_URL}/bihar/ssl/update`,
+    VIEW_AMC: (id) => `${BASE_URL}/bihar/ssl/view-amc/${encodeURIComponent(id)}?id=${encodeURIComponent(id)}`,
+    UPDATE_AMC: (id) => `${BASE_URL}/bihar/ssl/update-amc/${encodeURIComponent(id)}`,
     APPROVAL_STATUS: `${BASE_URL}/bihar/ssl-amc/approval/status`,
     APPROVAL_LIST: `${BASE_URL}/bihar/amc/light/approval/list`,
     APPROVAL_PENDING: `${BASE_URL}/bihar/amc/light/approval/pending`,
@@ -147,10 +153,16 @@ export const BIHAR_AMC_API = {
 
   // ── SRT AMC ──
   SRT: {
-    ADD_DATA: `${BASE_URL}/bihar/srt/amc-store`,
-    VIEW_DATA: `${BASE_URL}/bihar/srt/amc-view`,
-    SITE_LIST: `${BASE_URL}/bihar/srt/amc-sites`,
-    COMPLAINT_RAISED: `${BASE_URL}/bihar/view-srt-amc-complaint`,
+    ADD_DATA: `${BASE_URL}/bihar/srt/amc/add-data`,
+    FETCH_SITE_NAME: (amc) => `${BASE_URL}/bihar/srt/amc/fetch-site-name${amc ? `?amc=${encodeURIComponent(amc)}` : ''}`,
+    FETCH_SITE_DETAILS: (id) => `${BASE_URL}/bihar/srt/amc/fetch-site-details?id=${encodeURIComponent(id)}`,
+    UPDATE_SITE: `${BASE_URL}/bihar/srt/amc/update-site`,
+    VIEW_DATA: `${BASE_URL}/bihar/srt/amc/view-data`,
+    VIEW_AMC_DATA: (id) => `${BASE_URL}/bihar/srt/amc/view-amc-data/${encodeURIComponent(id)}`,
+    VIEW_SRT_AMC_UPDATE: (id) => `${BASE_URL}/bihar/srt/amc/view-srt-amc-update/${encodeURIComponent(id)}`,
+    VIEW_COMPLAINT: `${BASE_URL}/bihar/srt/amc/view-srt-amc-complaint`,
+    SITE_LIST: `${BASE_URL}/bihar/srt/amc/add-data`,
+    COMPLAINT_RAISED: `${BASE_URL}/bihar/srt/amc/view-srt-amc-complaint`,
   },
 };
 

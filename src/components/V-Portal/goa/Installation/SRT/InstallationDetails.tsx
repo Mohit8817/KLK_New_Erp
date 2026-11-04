@@ -639,7 +639,7 @@ export function Goa_Installation_SRT_InstallationDetails() {
                 title="Contact & CA Identifiers"
                 desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
               />
-              <div className="goa-form-grid--4col">
+              <div className="goa-form-grid goa-form-grid--4col">
                 <FloatingInput
                   id="goa-inst-vendor"
                   label="Vendor Name"

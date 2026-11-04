@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   punjabSslInstallationService,
-  getCompanyId,
   normalizePunjabDashboardStatus,
   type PunjabDashboardData,
   type PunjabDistrictwise,
@@ -335,9 +334,8 @@ export function Punjab_Installation_SSL_Dashboard() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
-
-  const activeCompanyId = useMemo(() => getCompanyId(), []);
 
   const chartH = isMobile ? 260 : 320;
   const donutH = isMobile ? 210 : 230;
@@ -423,11 +421,11 @@ export function Punjab_Installation_SSL_Dashboard() {
     return [...arr].sort((a, b) => n(b.inst_complete) - n(a.inst_complete));
   }, [data]);
 
-  const filtersActive = selectedDistrict !== 'All';
+  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
   const ssl: SslSummary = useMemo(() => {
-    if (!filtersActive) return rawSsl;
-    const d = districtwise.find((x) => x.district?.toLowerCase() === selectedDistrict.toLowerCase());
+    if (selectedDistrict === 'All') return rawSsl;
+    const d = districtwise.find((x) => (x.district || '').trim().toLowerCase() === selectedDistrict.trim().toLowerCase());
     if (!d) return rawSsl;
     return {
       ...rawSsl,
@@ -447,12 +445,26 @@ export function Punjab_Installation_SSL_Dashboard() {
       inst_pay_done: n(d.inst_pay_done),
       inst_pay_pending: n(d.inst_pay_pending),
     };
-  }, [rawSsl, districtwise, selectedDistrict, filtersActive]);
+  }, [rawSsl, districtwise, selectedDistrict]);
 
-  const filteredDistrictRows = useMemo(
-    () => (filtersActive ? districtwise.filter((d) => d.district?.toLowerCase() === selectedDistrict.toLowerCase()) : districtwise),
-    [districtwise, selectedDistrict, filtersActive]
-  );
+  const filteredDistrictRows = useMemo(() => {
+    let rows = districtwise;
+    if (selectedDistrict !== 'All') {
+      rows = rows.filter((d) => (d.district || '').trim().toLowerCase() === selectedDistrict.trim().toLowerCase());
+    }
+    if (selectedStatus !== 'All') {
+      if (selectedStatus === 'installed') rows = rows.filter((d) => n(d.complete) > 0);
+      else if (selectedStatus === 'pending') rows = rows.filter((d) => n(d.pending) > 0);
+      else if (selectedStatus === 'approved') rows = rows.filter((d) => n(d.verify_approved) > 0);
+      else if (selectedStatus === 'verify_pending') rows = rows.filter((d) => n(d.verify_pending) > 0);
+      else if (selectedStatus === 'verify_reject') rows = rows.filter((d) => n(d.verify_reject) > 0);
+      else if (selectedStatus === 'claim_raised') rows = rows.filter((d) => n(d.claim_raised) > 0);
+      else if (selectedStatus === 'claim_approved') rows = rows.filter((d) => n(d.claim_approved) > 0);
+      else if (selectedStatus === 'pay_done') rows = rows.filter((d) => n(d.inst_pay_done) > 0);
+      else if (selectedStatus === 'pay_pending') rows = rows.filter((d) => n(d.inst_pay_pending) > 0);
+    }
+    return rows;
+  }, [districtwise, selectedDistrict, selectedStatus]);
 
   const districtTotals = useMemo(() => {
     return filteredDistrictRows.reduce(
@@ -478,11 +490,11 @@ export function Punjab_Installation_SSL_Dashboard() {
     return filteredDistrictRows.filter((d) => !q || (d.district || '').toLowerCase().includes(q));
   }, [filteredDistrictRows, deferredQuery]);
 
-  const pD = usePagination({ data: tableDistricts, initialPageSize: 15 });
+  const pD = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
     pD.setPage(1);
-  }, [qDistrict, selectedDistrict]);
+  }, [qDistrict, selectedDistrict, selectedStatus]);
 
   /* ───────── Derived Values ───────── */
   const dash = (v: number) => (loading && !data ? '…' : num(v));
@@ -710,8 +722,33 @@ export function Punjab_Installation_SSL_Dashboard() {
                 </select>
               </div>
 
+              <div className="ax-cluster ssl-filter-item" style={{ alignItems: 'center' }}>
+                <label htmlFor="status-select" style={labelStyle}>Status:</label>
+                <select id="status-select" className="ax-input ax-input--sm" style={selectStyle} value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                  <option value="All">All Status</option>
+                  <option value="installed">Installed Done</option>
+                  <option value="pending">Install Pending</option>
+                  <option value="approved">Verified & Approved</option>
+                  <option value="verify_pending">Verification Pending</option>
+                  <option value="verify_reject">Verification Rejected</option>
+                  <option value="claim_raised">Claims Raised</option>
+                  <option value="claim_approved">Claims Approved</option>
+                  <option value="pay_done">Payment Done</option>
+                  <option value="pay_pending">Payment Pending</option>
+                </select>
+              </div>
+
               {filtersActive && (
-                <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }} onClick={() => setSelectedDistrict('All')}>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  onClick={() => {
+                    setSelectedDistrict('All');
+                    setSelectedStatus('All');
+                    setQDistrict('');
+                  }}
+                >
                   Reset Filters
                 </button>
               )}
@@ -719,7 +756,7 @@ export function Punjab_Installation_SSL_Dashboard() {
 
             <div className="ax-cluster ssl-filter-scope" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
               <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights · Company <b style={{ color: 'var(--ax-accent)' }}>#{activeCompanyId}</b> · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(ssl.site_count)}</b> lights · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
               </span>
             </div>
           </div>
@@ -1183,7 +1220,7 @@ export function Punjab_Installation_SSL_Dashboard() {
                 pageSize={pD.pageSize}
                 onPageChange={pD.setPage}
                 onPageSizeChange={pD.setPageSize}
-                pageSizeOptions={[10, 15, 25, 50, 100]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>

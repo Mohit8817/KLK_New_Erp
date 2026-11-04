@@ -491,7 +491,16 @@ export function InstallationRequest() {
     if (!q) return list;
     return list.filter((s: any) => {
       const fn = (s.farmer_name || s.f_farmer_name || '').toLowerCase();
-      const fath = (s.father_name || s.f_father_name || '').toLowerCase();
+      const fath = (
+        s.father_name ||
+        s.f_father_name ||
+        s.father ||
+        s.f_father ||
+        s.f_father_or_husband_name ||
+        s.father_or_husband_name ||
+        s.guardian_name ||
+        ''
+      ).toLowerCase();
       const app = (s.application_no || s.app_no || '').toLowerCase();
       const sId = String(s.id || '').toLowerCase();
       const st = (s.state || detailData?.state || activeItem?.state || '').toLowerCase();
@@ -568,7 +577,113 @@ export function InstallationRequest() {
       const res = await karnatakaSwpService.getAssignSiteDetail(assignId || item.id);
       const detailPayload = (res as any)?.data || res;
       if (detailPayload) {
-        setDetailData(detailPayload);
+        const fetchedList = detailPayload.Names || detailPayload.sites || [];
+        const baseList = initialList && initialList.length > 0 ? initialList : [];
+        const mergedList = (fetchedList.length > 0 ? fetchedList : baseList).map((s: any, idx: number) => {
+          const initMatch = baseList.find((init: any) => init.id === s.id) || baseList[idx] || {};
+          return {
+            ...initMatch,
+            ...s,
+            farmer_name: s.farmer_name || s.f_farmer_name || initMatch.farmer_name || initMatch.f_farmer_name,
+            f_farmer_name: s.f_farmer_name || s.farmer_name || initMatch.f_farmer_name || initMatch.farmer_name,
+            father_name:
+              s.father_name ||
+              s.f_father_name ||
+              initMatch.father_name ||
+              initMatch.f_father_name ||
+              s.father ||
+              s.f_father ||
+              initMatch.father ||
+              initMatch.f_father ||
+              s.f_father_or_husband_name ||
+              initMatch.f_father_or_husband_name ||
+              s.father_or_husband_name ||
+              initMatch.father_or_husband_name ||
+              s.guardian_name ||
+              initMatch.guardian_name ||
+              s.husband_name ||
+              initMatch.husband_name,
+            f_father_name:
+              s.f_father_name ||
+              s.father_name ||
+              initMatch.f_father_name ||
+              initMatch.father_name ||
+              s.father ||
+              s.f_father ||
+              initMatch.father ||
+              initMatch.f_father,
+          };
+        });
+
+        const mergedPayload = {
+          ...detailPayload,
+          Names: mergedList,
+          sites: mergedList,
+        };
+        setDetailData(mergedPayload);
+
+        // Proactively fetch full site details for any site in this assignment missing father_name
+        const siteIdCandidates = mergedList
+          .map((s: any, idx: number) => ({
+            idx,
+            id: Number(s.id || parseSiteIds(item.site_id)[idx]),
+            hasFather: Boolean(
+              s.father_name ||
+              s.f_father_name ||
+              s.father ||
+              s.f_father ||
+              s.f_father_or_husband_name ||
+              s.father_or_husband_name ||
+              s.guardian_name ||
+              s.husband_name
+            ),
+          }))
+          .filter((c) => Number.isFinite(c.id) && c.id > 0 && !c.hasFather);
+
+        if (siteIdCandidates.length > 0) {
+          Promise.all(
+            siteIdCandidates.map(async ({ idx, id }) => {
+              try {
+                const sDetail = await karnatakaSwpService.fetchSiteDetails(id);
+                const sData = (sDetail.data?.site || sDetail.data?.sites?.[0] || sDetail.data) as any;
+                if (sData) {
+                  return {
+                    idx,
+                    id,
+                    father_name: sData.f_father_name || sData.father_name || sData.father || sData.f_father || '',
+                    f_father_name: sData.f_father_name || sData.father_name || sData.father || sData.f_father || '',
+                    farmer_name: sData.f_farmer_name || sData.farmer_name || sData.farmer_name,
+                    f_farmer_name: sData.f_farmer_name || sData.farmer_name || sData.f_farmer_name,
+                    tehsil: sData.f_tehsil || sData.tehsil,
+                    village: sData.f_village || sData.village,
+                    district: sData.f_district || sData.district,
+                    application_no: sData.application_no || sData.app_no,
+                  };
+                }
+              } catch {
+                // Ignore enrichment error
+              }
+              return null;
+            })
+          ).then((enrichResults) => {
+            const valid = enrichResults.filter(Boolean) as any[];
+            if (valid.length > 0) {
+              setDetailData((prev: any) => {
+                if (!prev) return prev;
+                const prevList = prev.Names || prev.sites || [];
+                const updatedList = prevList.map((st: any, i: number) => {
+                  const match = valid.find((v) => v.id === st.id || v.idx === i);
+                  return match ? { ...st, ...match } : st;
+                });
+                return {
+                  ...prev,
+                  Names: updatedList,
+                  sites: updatedList,
+                };
+              });
+            }
+          });
+        }
       }
     } catch (err: any) {
       if (!initialList || initialList.length === 0) {
@@ -626,8 +741,8 @@ export function InstallationRequest() {
 
     const confirmMsg =
       siteIds.length > 0
-        ? `Are you sure you want to accept Karnataka SWP Installation Assignment #${assignId || siteIds[0]} (Site #${siteIds.join(', ')})?`
-        : `Are you sure you want to accept Karnataka SWP Installation Assignment #${assignId}?`;
+        ? `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId || siteIds[0]} (Site ${siteIds.join(', ')})?`
+        : `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId}?`;
 
     if (!window.confirm(confirmMsg)) {
       return false;
@@ -1161,7 +1276,7 @@ export function InstallationRequest() {
                             item.vendors.name
                           ) : item.vendor ? (
                             <>
-                              Vendor #{item.vendor}
+                              Vendor {item.vendor}
                               {item.company_id && (
                                 <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', display: 'block', fontWeight: 500 }}>
                                   {item.company_id}
@@ -1173,7 +1288,7 @@ export function InstallationRequest() {
                           )}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 4, lineHeight: 1.4 }}>
-                          <div>Assign #{getAssignId(item) || item.id}</div>
+                          <div>Assign ID: {getAssignId(item) || item.id}</div>
                           {siteIds.length > 0 && (
                             <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                               <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>
@@ -1276,7 +1391,7 @@ export function InstallationRequest() {
                         ) : siteIds.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
-                              Site IDs: #{siteIds.slice(0, 3).join(', #')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
+                              Site IDs: {siteIds.slice(0, 3).join(', ')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
                             </div>
                             <button
                               type="button"
@@ -1364,14 +1479,7 @@ export function InstallationRequest() {
                               {acceptingId === item.id || (getAssignId(item) > 0 && acceptingId === getAssignId(item)) ? 'Accepting…' : 'Accept'}
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--ghost ax-btn--sm"
-                              style={{ color: 'var(--asw-primary)', fontWeight: 600 }}
-                              onClick={() => navigate('/v/karnataka/installation/swp/site')}
-                            >
-                              Install Site &rarr;
-                            </button>
+                            <Badge tone="success">Done</Badge>
                           )}
                         </div>
                       </td>
@@ -1503,7 +1611,7 @@ export function InstallationRequest() {
                           {idx + 1}
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          #{siteId}
+                          {siteId}
                         </td>
                         <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                           {appNo}
@@ -1511,7 +1619,23 @@ export function InstallationRequest() {
                         <td className="ax-table__td">
                           <strong style={{ color: 'var(--ax-text-strong)' }}>{site.farmer_name || site.f_farmer_name || '—'}</strong>
                         </td>
-                        <td className="ax-table__td">{site.father_name || site.f_father_name || '—'}</td>
+                        <td className="ax-table__td">
+                          {site.father_name ||
+                            site.f_father_name ||
+                            site.father ||
+                            site.f_father ||
+                            site.f_father_or_husband_name ||
+                            site.father_or_husband_name ||
+                            site.guardian_name ||
+                            site.f_guardian_name ||
+                            site.husband_name ||
+                            site.f_husband_name ||
+                            site.farmer_father_name ||
+                            site.fath_name ||
+                            (activeItem?.Names && (activeItem.Names.find((n: any) => n.id === site.id)?.father_name || activeItem.Names.find((n: any) => n.id === site.id)?.f_father_name || activeItem.Names[idx]?.father_name || activeItem.Names[idx]?.f_father_name)) ||
+                            (activeItem?.sites && (activeItem.sites.find((n: any) => n.id === site.id)?.father_name || activeItem.sites.find((n: any) => n.id === site.id)?.f_father_name || activeItem.sites[idx]?.father_name || activeItem.sites[idx]?.f_father_name)) ||
+                            '—'}
+                        </td>
                         <td className="ax-table__td">
                           <b>{districtVal}</b>
                         </td>

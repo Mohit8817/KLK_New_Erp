@@ -348,6 +348,7 @@ const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text
 const sectionHeadStyle = { margin: 'var(--ax-space-3) 0 var(--ax-space-1) 0', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' } as const;
 
 export function Kashmir_Installation_SRT_Dashboard() {
+  const navigate = useNavigate();
   const isMobile = useIsMobile(640);
   const [data, setData] = useState<KashmirSrtDashboardData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -357,6 +358,15 @@ export function Kashmir_Installation_SRT_Dashboard() {
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
+
+  const navigateToStatus = (statusKey: string, dist?: string) => {
+    const d = dist || (selectedDistrict !== 'All' ? selectedDistrict : '');
+    if (d) {
+      navigate(`/v/kashmir/srt/70mw-installation-districtwise/${statusKey}/${encodeURIComponent(d)}`);
+    } else {
+      navigate(`/v/kashmir/srt/70mw-installation-view-dashboard/${statusKey}`);
+    }
+  };
 
   const chartH = isMobile ? 260 : 320;
   const donutH = isMobile ? 210 : 230;
@@ -720,35 +730,30 @@ export function Kashmir_Installation_SRT_Dashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat" style={{ cursor: 'pointer' }} onClick={() => navigateToStatus('total')} title="Click to view all sites">
                 <dt>Total Installations</dt>
                 <dd className="ax-num">{dash(srt.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat" style={{ cursor: 'pointer' }} onClick={() => navigateToStatus('material-dispatch')} title="Click to view dispatched sites">
                 <dt>Material Dispatched</dt>
                 <dd className="ax-num">{dash(srt.material_dispatch)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{materialPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{materialPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat" style={{ cursor: 'pointer' }} onClick={() => navigateToStatus('inst-complete')} title="Click to view completed sites">
                 <dt>Installation Complete</dt>
                 <dd className="ax-num">{dash(srt.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{instPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat" style={{ cursor: 'pointer' }} onClick={() => navigateToStatus('verify-approved')} title="Click to view approved sites">
                 <dt>Approved</dt>
                 <dd className="ax-num">{dash(srt.verify_approved)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
-        <div className="ax-col--12">
-          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={sectionHeadStyle}>SRT Operational Metrics &amp; Approval Status</h4>
-          </div>
-        </div>
 
         <KpiCard
           icon={I_BOLT}
@@ -757,6 +762,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.material_dispatch} / ${srt.material_pending}`}
           sub="Dispatched / Pending"
           badge={`${materialPct}% Done`}
+          onClick={() => navigateToStatus('material-dispatch')}
         />
 
         <KpiCard
@@ -766,6 +772,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.complete} / ${srt.pending}`}
           sub="Complete / Pending"
           badge={`${instPct}% Done`}
+          onClick={() => navigateToStatus('inst-complete')}
         />
 
         <KpiCard
@@ -775,6 +782,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.verify_approved} / ${srt.verify_pending} / ${srt.verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={`${approvedPct}% Approved`}
+          onClick={() => navigateToStatus('verify-approved')}
         />
 
         <KpiCard
@@ -784,6 +792,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.claim_applicable} / ${srt.claim_raised}`}
           sub="Applicable / Raised"
           badge={srt.claim_raised > 0 ? `${srt.claim_raised} Raised` : undefined}
+          onClick={() => navigateToStatus('claim-raised')}
         />
 
         <KpiCard
@@ -793,6 +802,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.claim_approved} / ${srt.claim_raised - srt.claim_approved}`}
           sub="Approved / Pending"
           badge={srt.claim_approved > 0 ? 'Approved' : undefined}
+          onClick={() => navigateToStatus('claim-approved')}
         />
 
         <KpiCard
@@ -802,6 +812,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.inst_pay80_done} / ${srt.inst_pay80_pending}`}
           sub="Paid / Pending"
           badge={srt.inst_pay80_done > 0 ? 'Disbursed' : undefined}
+          onClick={() => navigateToStatus('inst-pay80-done')}
         />
 
         <KpiCard
@@ -811,6 +822,7 @@ export function Kashmir_Installation_SRT_Dashboard() {
           value={loading && !data ? '…' : `${srt.inst_pay20_done} / ${srt.inst_pay20_pending}`}
           sub="Paid / Pending"
           badge={srt.inst_pay20_done > 0 ? 'Disbursed' : undefined}
+          onClick={() => navigateToStatus('inst-pay20-done')}
         />
 
         <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="Monthly installation trend">
@@ -1043,50 +1055,64 @@ export function Kashmir_Installation_SRT_Dashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(total)}</td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('total', d.district); }} title={`View all sites in ${d.district}`}>{num(total)}</td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('inst-complete', d.district); }} title={`View complete installations in ${d.district}`}>{num(d.complete)}</span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('inst-pending', d.district); }} title={`View pending installations in ${d.district}`}>{num(d.pending)}</span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }}>
+                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('verify-approved', d.district); }} title={`View verified approved in ${d.district}`}>
                               <span className="ax-badge__dot" />{num(d.verify_approved)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }}>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('verify-pending', d.district); }} title={`View verify pending in ${d.district}`}>
                               {num(d.verify_pending)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }}>
+                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('verify-reject', d.district); }} title={`View rejected in ${d.district}`}>
                               {num(d.verify_reject)}
                             </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.claim_approved)}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('claim-approved', d.district); }} title="View approved claims">{num(d.claim_approved)}</span>
                           <span style={{ color: 'var(--ax-text-muted)' }}> / </span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.claim_raised)}</span>
+                          <span style={{ color: 'var(--ax-text-muted)', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('claim-raised', d.district); }} title="View raised claims">{num(d.claim_raised)}</span>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)', marginRight: '4px' }}>{num(d.inst_pay80_done)}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)', marginRight: '4px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('inst-pay80-done', d.district); }} title="View 80% paid">{num(d.inst_pay80_done)}</span>
                           <span style={{ color: 'var(--ax-text-muted)' }}>/</span>
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)', marginLeft: '4px' }}>{num(d.inst_pay20_done)}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)', marginLeft: '4px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigateToStatus('inst-pay20-done', d.district); }} title="View 20% paid">{num(d.inst_pay20_done)}</span>
                         </td>
                         <td className="ax-table__td">
                           <Bar pct={rowPct} />
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <Link
-                            to={`/v/kashmir/srt/70mw/view-install-sites?district=${encodeURIComponent(d.district)}`}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
-                            style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px', textDecoration: 'none' }}
-                            title={`Inspect sites in ${d.district}`}
-                          >
-                            {ICON_EYE}
-                            <span className="ax-btn__label">Sites</span>
-                          </Link>
+                          <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigateToStatus('total', d.district);
+                              }}
+                              title={`View status breakdown in ${d.district}`}
+                            >
+                              Status ↗
+                            </button>
+                            <Link
+                              to={`/v/kashmir/srt/70mw/view-install-sites?district=${encodeURIComponent(d.district)}`}
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ height: 26, padding: '0 6px', fontSize: '11px' }}
+                              title={`Inspect installed details in ${d.district}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Details
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

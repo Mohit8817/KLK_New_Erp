@@ -37,21 +37,6 @@ const VerifyBadge = ({ value, raw }: { value?: number; raw?: any }) => {
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const ClaimBadge = ({ status, raw }: { status?: number; raw?: any }) => {
-  const r = String(raw ?? '').toLowerCase().trim();
-  const s = Number(status ?? 0);
-  if (s === 2 || r === '2' || r === 'approved') return <Badge tone="success">Approved</Badge>;
-  if (s === 3 || r === '3' || r === 'rejected') return <Badge tone="danger">Rejected</Badge>;
-  if (s === 1 || r === '1' || r === 'raised') return <Badge tone="info">Raised</Badge>;
-  return <Badge tone="neutral">Not Raised</Badge>;
-};
-
-const PaymentBadge = ({ status, raw }: { status?: number; raw?: any }) => {
-  const r = String(raw ?? '').toLowerCase().trim();
-  const s = Number(status ?? 0);
-  if (s === 1 || r === '1' || r === 'done' || r === 'paid') return <Badge tone="success">Disbursed</Badge>;
-  return <Badge tone="warning">Pending</Badge>;
-};
 
 const txt = (row: any, key: string): string => {
   const v = row?.[key];
@@ -450,20 +435,27 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono, monospace)', fontSize: '12px' } as const;
 
-// Exactly matching user's requested columns
+// Exactly matching user's requested 20 columns
 const SSL_DETAIL_HEADERS = [
   'Sr. No.',
+  'State',
+  'Phase',
+  'District',
+  'Block',
+  'Village',
   'Beneficiary Name',
-  'Contact Number',
-  'Site ID',
-  'Ward No',
-  'Pole No',
+  'Beneficiary Contact',
+  'Latitude',
+  'Longitude',
   'IMEI No.',
-  'Battery No.',
-  'Panel No',
   'Sim No.',
-  'Light',
-  'Status',
+  'Battery No.',
+  'Panel No.',
+  'Light Image',
+  'Remark',
+  'Verify Status',
+  'Claim Status',
+  'Payment Status',
   'Action',
 ];
 
@@ -768,7 +760,7 @@ export function SSLInstallationDetails() {
       columns.map((c) => c.header),
       ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -816,7 +808,6 @@ export function SSLInstallationDetails() {
   };
 
   // Header metric counts directly from API 6 response
-  const totalAssignedLights = summaryData?.totalsite ?? 0;
   const totalLights = summaryData?.totalsite ?? 0;
   const vendorComplete = summaryData?.complete ?? 0;
   const vendorPending = summaryData?.pendingsite ?? 0;
@@ -1020,7 +1011,7 @@ export function SSLInstallationDetails() {
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 id="view-ssl-install-table-title" className="ax-card__title">
-                {tab === 'completed' ? 'Lights Completed' : 'Payment Lights'}
+                View Jammu SSL Install Site ({tab === 'completed' ? 'Lights Completed' : 'Payment Lights'})
               </h2>
               <p className="ax-card__subtitle">
                 <span className="ax-num">{filteredSites.length}</span> installations found
@@ -1139,45 +1130,59 @@ export function SSLInstallationDetails() {
                 )}
                 {!loading &&
                   paginatedData.map((row, index) => {
-                    const lat = txt(row, 'latitude');
-                    const lng = txt(row, 'longitude');
-                    const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
                     const imgUrl = row.light_file || row.light_image;
                     const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                     const rawVerify = row.inst_verify_status ?? row.verify_status;
                     const isVerifyApproved = vStatus === 1 || String(rawVerify).toLowerCase() === 'approved' || String(rawVerify).toLowerCase() === '1';
-                    const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
-                    const pStatus = Number(row.inst_pay_status ?? row.payment_status ?? 0);
 
                     return (
                       <tr key={row.id || index} className="ax-table__row">
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td className="ax-table__td">{txt(row, 'state') || 'Jammu'}</td>
+                        <td className="ax-table__td">{txt(row, 'phase') || '1'}</td>
+                        <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
+                        <td className="ax-table__td">{txt(row, 'block') || DASH}</td>
+                        <td className="ax-table__td">{txt(row, 'village') || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                           {txt(row, 'beneficiary_name') || DASH}
                         </td>
                         <td className="ax-table__td" style={monoCell}>{txt(row, 'contact_no') || DASH}</td>
-                        <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
-                          {row.id}
-                        </td>
-                        <td className="ax-table__td">{txt(row, 'ward_no') || DASH}</td>
-                        <td className="ax-table__td">{txt(row, 'pole_no') || DASH}</td>
+                        <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'latitude') || DASH}</td>
+                        <td className="ax-table__td" style={{ fontSize: '12px' }}>{txt(row, 'longitude') || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>{txt(row, 'imei_no') || DASH}</td>
+                        <td className="ax-table__td" style={monoCell}>{txt(row, 'sim_no') || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>{txt(row, 'battery_serial_no') || txt(row, 'battery_no') || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>{txt(row, 'module_no') || txt(row, 'panel_no') || DASH}</td>
-                        <td className="ax-table__td" style={monoCell}>{txt(row, 'sim_no') || DASH}</td>
 
-                        {/* Light Image Thumbnail */}
+                        {/* Light Image */}
                         <td className="ax-table__td">
                           <InstallationThumbnail
                             src={imgUrl}
-                            alt={`Light #${row.id} - ${txt(row, 'village')}`}
+                            alt={`Light ${row.id} - ${txt(row, 'village')}`}
                             onPreview={openPreview}
                           />
                         </td>
 
-                        {/* Status (Verify Status) */}
+                        {/* Remark */}
+                        <td className="ax-table__td">{txt(row, 'remark') || txt(row, 'inst_remark') || DASH}</td>
+
+                        {/* Verify Status */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <VerifyBadge value={vStatus} raw={rawVerify} />
+                        </td>
+
+                        {/* Claim Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <Badge tone={Number(row.inst_claim_status ?? row.claim_status) === 2 ? 'success' : Number(row.inst_claim_status ?? row.claim_status) === 1 ? 'info' : 'neutral'}>
+                            {Number(row.inst_claim_status ?? row.claim_status) === 2 ? 'Approved' : Number(row.inst_claim_status ?? row.claim_status) === 1 ? 'Raised' : 'Not Raised'}
+                          </Badge>
+                        </td>
+
+                        {/* Payment Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <Badge tone={Number(row.inst_pay_status ?? row.payment_status) === 1 ? 'success' : 'warning'}>
+                            {Number(row.inst_pay_status ?? row.payment_status) === 1 ? 'Disbursed' : 'Pending'}
+                          </Badge>
                         </td>
 
                         {/* Action: View and Edit */}
@@ -1269,7 +1274,7 @@ export function SSLInstallationDetails() {
                 Edit Light Installation Details
               </h4>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Light ID: <b>#{editingId}</b> · Resets verification status to pending upon update
+                Light ID: <b>{editingId}</b> · Resets verification status to pending upon update
               </p>
             </div>
             <button
@@ -1509,7 +1514,7 @@ export function SSLInstallationDetails() {
                 SSL Site Information & Installation Details
               </h3>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                Unique Site #{detailModalItem.id} {detailModalItem.village ? `· ${detailModalItem.village}` : ''}
+                Unique Site {detailModalItem.id} {detailModalItem.village ? `· ${detailModalItem.village}` : ''}
               </p>
             </div>
             <button
@@ -1536,7 +1541,7 @@ export function SSLInstallationDetails() {
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Village</span><b>{txt(detailModalItem, 'village') || DASH}</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Phase</span><b>{txt(detailModalItem, 'phase') || '1'}</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Address</span><b>{txt(detailModalItem, 'address') || txt(detailModalItem, 'village') || DASH}</b></div>
-                <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Serial No.</span><b>#{detailModalItem.id}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Serial No.</span><b>{detailModalItem.id}</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Supply</span><b>Complete</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Material Inspection</span><b>Verified</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11 }}>Installation</span><b>Completed</b></div>
@@ -1582,7 +1587,7 @@ export function SSLInstallationDetails() {
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, marginBottom: 6 }}>Light Image</span>
                   <InstallationThumbnail
                     src={detailModalItem.light_file || detailModalItem.light_image}
-                    alt={`Light #${detailModalItem.id}`}
+                    alt={`Light ${detailModalItem.id}`}
                     onPreview={openPreview}
                     size={64}
                   />

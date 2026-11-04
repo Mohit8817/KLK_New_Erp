@@ -978,7 +978,7 @@ export function Arunachal_Installation_SHL_InstallationDetail() {
                 totalItems={filteredLights.length}
                 onPageChange={setCurrentPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>

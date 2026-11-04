@@ -106,6 +106,13 @@ export interface BiharInstallationApi {
 }
 
 export interface BiharSslAmcApi {
+  VIEW_DATA: string;
+  FETCH_UIDS: string;
+  FETCH_DETAILS: (id: string | number) => string;
+  VIEW_COMPLAINT: string;
+  UPDATE: string;
+  VIEW_AMC: (id: string | number) => string;
+  UPDATE_AMC: (id: string | number) => string;
   BASE: string;
   VOLUMES: string;
   DISTRICTS: (volume?: string) => string;
@@ -121,6 +128,12 @@ export interface BiharSslAmcApi {
 }
 
 export interface BiharSrtAmcApi {
+  FETCH_SITE_NAME: (amc?: string) => string;
+  FETCH_SITE_DETAILS: (id: string | number) => string;
+  UPDATE_SITE: string;
+  VIEW_AMC_DATA: (id: string | number) => string;
+  VIEW_SRT_AMC_UPDATE: (id: string | number) => string;
+  VIEW_COMPLAINT: string;
   ADD_DATA: string;
   VIEW_DATA: string;
   SITE_LIST: string;
