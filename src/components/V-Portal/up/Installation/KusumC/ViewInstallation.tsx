@@ -43,7 +43,7 @@ const footerStyle = {
 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-/* ───────── Badges (Jammu pattern) ───────── */
+/* ───────── Badges ───────── */
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
@@ -53,19 +53,87 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
 const VerifyBadge = ({ value }: { value?: number | string }) => {
   const v = Number(value ?? 0);
   if (v === 1) return <Badge tone="success">Approved</Badge>;
-  if (v === 2) return <Badge tone="danger">Rejected</Badge>;
+  if (v === 2) return <Badge tone="danger">Reject</Badge>;
   return <Badge tone="warning">Pending</Badge>;
 };
 
 const DocBadge = ({ value }: { value?: number | string }) => {
   const v = Number(value ?? 0);
-  if (v === 2) return <Badge tone="success">HOC Approved</Badge>;
-  if (v === 3) return <Badge tone="danger">HOC Rejected</Badge>;
-  if (v === 1) return <Badge tone="info">HOC Submitted</Badge>;
-  return <Badge tone="neutral">HOC Pending</Badge>;
+  if (v === 2) return <Badge tone="success">Approved</Badge>;
+  if (v === 3) return <Badge tone="danger">Reject</Badge>;
+  if (v === 1) return <Badge tone="info">Submitted</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
 };
 
-/* ───────── KPI Card (Jammu pattern) ───────── */
+const ClaimBadge = ({ value }: { value?: number | string }) => {
+  const v = Number(value ?? 0);
+  if (v === 1) return <Badge tone="success">Approved</Badge>;
+  if (v === 2) return <Badge tone="danger">Reject</Badge>;
+  if (v === 3) return <Badge tone="info">Claimed</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
+};
+
+const PaymentBadge = ({ value }: { value?: number | string }) => {
+  const v = Number(value ?? 0);
+  if (v === 1) return <Badge tone="success">Paid</Badge>;
+  if (v === 2) return <Badge tone="warning">Partially</Badge>;
+  return <Badge tone="neutral">Pending</Badge>;
+};
+
+/* ───────── Helpers for Labels & Serialization ───────── */
+const formatModuleSerials = (val: any): string => {
+  if (!val) return DASH;
+  if (Array.isArray(val)) {
+    const joined = val.filter(Boolean).join(', ');
+    return joined || DASH;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          const joined = parsed.filter(Boolean).join(', ');
+          return joined || DASH;
+        }
+      } catch {}
+    }
+    return trimmed || DASH;
+  }
+  return String(val);
+};
+
+const getVerifyLabel = (v?: number | string): string => {
+  const n = Number(v ?? 0);
+  if (n === 1) return 'Approved';
+  if (n === 2) return 'Reject';
+  return 'Pending';
+};
+
+const getDocLabel = (v?: number | string): string => {
+  const n = Number(v ?? 0);
+  if (n === 2) return 'Approved';
+  if (n === 3) return 'Reject';
+  if (n === 1) return 'Submitted';
+  return 'Pending';
+};
+
+const getClaimLabel = (v?: number | string): string => {
+  const n = Number(v ?? 0);
+  if (n === 1) return 'Approved';
+  if (n === 2) return 'Reject';
+  if (n === 3) return 'Claimed';
+  return 'Pending';
+};
+
+const getPaymentLabel = (v?: number | string): string => {
+  const n = Number(v ?? 0);
+  if (n === 1) return 'Paid';
+  if (n === 2) return 'Partially';
+  return 'Pending';
+};
+
+/* ───────── KPI Card ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -87,7 +155,7 @@ function KpiCard({
   tone: KpiTone;
   label: string;
   value: ReactNode;
-  sub: string;
+  sub?: string;
 }) {
   const t = TONE[tone];
   return (
@@ -112,15 +180,15 @@ function KpiCard({
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)', whiteSpace: 'nowrap' }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+      {sub && <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
     </div>
   );
 }
 
-/* ───────── Reusable Modal (Jammu pattern) ───────── */
+/* ───────── Reusable Modal ───────── */
 function Modal({
   open,
   onClose,
@@ -174,7 +242,7 @@ function Modal({
   );
 }
 
-/* ───────── Image Preview Modal (Lightbox Zoom — Jammu pattern) ───────── */
+/* ───────── Image Preview Modal (Lightbox Zoom — Square corners) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
@@ -235,7 +303,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ───────── Interactive Image Thumbnail (Jammu pattern — NO border-radius) ───────── */
+/* ───────── Interactive Image Thumbnail (Strict Square Corners) ───────── */
 function InstallationThumbnail({
   src,
   alt,
@@ -270,7 +338,7 @@ function InstallationThumbnail({
         cursor: 'zoom-in',
         border: '1px solid var(--ax-border, #e2e8f0)',
         background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'block',
+        display: 'inline-block',
         flexShrink: 0,
       }}
       onError={() => setFailed(true)}
@@ -280,7 +348,7 @@ function InstallationThumbnail({
   );
 }
 
-/* ───────── Overlay CSS (Jammu pattern) ───────── */
+/* ───────── Overlay CSS ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -379,7 +447,7 @@ const OVERLAY_CSS = `
   }
 `;
 
-/* ───────── Responsive Page CSS (Jammu pattern) ───────── */
+/* ───────── Responsive Page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -399,11 +467,16 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--ax-space-4, 16px);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--ax-space-3, 12px);
     margin-bottom: var(--ax-space-5, 20px);
   }
-  @media (max-width: 992px) {
+  @media (max-width: 1400px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 820px) {
     .solar-erp-page .asw-cards-row {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -536,38 +609,56 @@ function DetailViewModal({
 }) {
   if (!open || !item) return null;
 
-  const modImg = item.module_image ? resolveUpMediaUrl(item.module_image) : null;
-  const invImg = item.inverter_vfd_image ? resolveUpMediaUrl(item.inverter_vfd_image) : null;
-  const waterImg = item.running_water_image ? resolveUpMediaUrl(item.running_water_image) : null;
+  const applicantName = item.applicant_name || item.f_farmer_name || item.farmer_name || item.beneficiary_name || DASH;
+  const modImg = item.module_image || item.farmer_module_image || item.f_module_image ? resolveUpMediaUrl(item.module_image || item.farmer_module_image || item.f_module_image || '') : null;
+  const invImg = item.inverter_vfd_image || item.inverter_image || item.vfd_image ? resolveUpMediaUrl(item.inverter_vfd_image || item.inverter_image || item.vfd_image || '') : null;
+  const waterImg = item.running_water_image || item.water_image ? resolveUpMediaUrl(item.running_water_image || item.water_image || '') : null;
+  const hocImg = item.hoc_photo ? resolveUpMediaUrl(item.hoc_photo) : null;
   const hasGeo = item.latitude && item.longitude;
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="kusumc-detail-title" dialogClass="ax-modal__dialog--lg" dialogStyle={{ maxWidth: 680 }}>
+    <Modal open={open} onClose={onClose} labelledBy="kusumc-detail-title" dialogClass="ax-modal__dialog--lg" dialogStyle={{ maxWidth: 720 }}>
       <div className="ax-modal__header">
         <div>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Kusum-C Installation Details
+            UP Kusum-C Installation Detail
           </span>
           <h3 id="kusumc-detail-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }}>
-            {item.f_farmer_name || DASH} <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{item.id})</span>
+            {applicantName} <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{item.id})</span>
           </h3>
         </div>
         <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
       </div>
 
       <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Site Information */}
+        {/* Applicant & Location Information */}
         <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Farmer &amp; Site Information</h4>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Applicant &amp; Location Information</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Farmer Name: </span><strong>{item.f_farmer_name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Father Name: </span><strong>{item.f_father_name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.f_district || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><strong>{item.f_village || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No.: </span><strong>{item.inverter_no || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>VFD No.: </span><strong>{item.vfd_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{item.state || item.f_state || 'UP'}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.district || item.f_district || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><strong>{item.block || item.f_block || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><strong>{item.village || item.f_village || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Applicant Name: </span><strong>{applicantName}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Father Name: </span><strong>{item.father_name || item.f_father_name || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact No: </span><strong>{item.contact_no || item.f_contact || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Pump Capacity: </span><strong>{item.pump_capacity || DASH}</strong></div>
+          </div>
+        </div>
+
+        {/* Equipment & Verification Details */}
+        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Equipment &amp; Audit Details</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>VFD No.: </span><strong>{item.vfd_no || item.vfd_serial_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No.: </span><strong>{item.inverter_no || item.inverter_serial_no || DASH}</strong></div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <span style={{ color: 'var(--ax-text-muted)' }}>Module Serial No.: </span>
+              <strong>{formatModuleSerials(item.module_serial_no || item.module_no)}</strong>
+            </div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{item.remarks || item.inst_remarks || DASH}</strong></div>
             <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Coordinates: </span>
+              <span style={{ color: 'var(--ax-text-muted)' }}>GPS Geotag: </span>
               <strong>
                 {hasGeo ? (
                   <a
@@ -575,69 +666,75 @@ function DetailViewModal({
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
-                    title="Open location in Google Maps"
                   >
                     {item.latitude}, {item.longitude}
                   </a>
                 ) : DASH}
               </strong>
             </div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{item.inst_remarks || DASH}</strong></div>
-          </div>
-        </div>
-
-        {/* Status Section */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Verification &amp; Document Status</h4>
-          <div style={{ display: 'flex', gap: 16, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Status: </span><VerifyBadge value={item.inst_verify_status} /></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>HOC Status: </span><DocBadge value={item.inst_doc_status} /></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Status: </span><VerifyBadge value={item.inst_verify_status ?? item.verify_status} /></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Remarks: </span><strong>{item.verify_remarks || item.inst_verify_remarks || item.verification_remarks || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Document Status: </span><DocBadge value={item.inst_doc_status ?? item.document_status} /></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Doc Verify Remarks: </span><strong>{item.doc_verify_remarks || item.inst_doc_remarks || item.hoc_remarks || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Claim Status: </span><ClaimBadge value={item.inst_claim_status ?? item.claim_status} /></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Status: </span><PaymentBadge value={item.inst_pay_status ?? item.payment_status ?? item.pay_status} /></div>
           </div>
         </div>
 
         {/* Photo Gallery */}
         <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Installation Photos</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Installation Photo Evidence</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
             <div style={{ textAlign: 'center' }}>
               {modImg ? (
                 <img
                   src={modImg}
-                  alt="Module"
-                  style={{ width: '100%', height: 120, objectFit: 'cover', border: '1px solid var(--ax-border)', cursor: 'zoom-in' }}
-                  onClick={() => onPreview(modImg, 'Module Photo')}
+                  alt="Farmer With Module Image"
+                  style={{ width: '100%', height: 110, objectFit: 'cover', border: '1px solid var(--ax-border)', borderRadius: 0, cursor: 'zoom-in' }}
+                  onClick={() => onPreview(modImg, 'Farmer With Module Image')}
                 />
               ) : (
-                <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
+                <div style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
               )}
-              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Module Photo</span>
+              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Farmer With Module</span>
             </div>
             <div style={{ textAlign: 'center' }}>
               {invImg ? (
                 <img
                   src={invImg}
-                  alt="Inverter & VFD"
-                  style={{ width: '100%', height: 120, objectFit: 'cover', border: '1px solid var(--ax-border)', cursor: 'zoom-in' }}
-                  onClick={() => onPreview(invImg, 'Inverter & VFD Photo')}
+                  alt="Inverter and VFD with Farmer"
+                  style={{ width: '100%', height: 110, objectFit: 'cover', border: '1px solid var(--ax-border)', borderRadius: 0, cursor: 'zoom-in' }}
+                  onClick={() => onPreview(invImg, 'Inverter and VFD with Farmer Image')}
                 />
               ) : (
-                <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
+                <div style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
               )}
-              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Inverter &amp; VFD</span>
+              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Inverter &amp; VFD with Farmer</span>
             </div>
             <div style={{ textAlign: 'center' }}>
               {waterImg ? (
                 <img
                   src={waterImg}
-                  alt="Running Water"
-                  style={{ width: '100%', height: 120, objectFit: 'cover', border: '1px solid var(--ax-border)', cursor: 'zoom-in' }}
-                  onClick={() => onPreview(waterImg, 'Running Water Photo')}
+                  alt="Running Water With Farmer"
+                  style={{ width: '100%', height: 110, objectFit: 'cover', border: '1px solid var(--ax-border)', borderRadius: 0, cursor: 'zoom-in' }}
+                  onClick={() => onPreview(waterImg, 'Running Water With Farmer Image')}
                 />
               ) : (
-                <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
+                <div style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No image</div>
               )}
-              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Running Water</span>
+              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Running Water With Farmer</span>
             </div>
+            {hocImg && (
+              <div style={{ textAlign: 'center' }}>
+                <img
+                  src={hocImg}
+                  alt="HOC Document"
+                  style={{ width: '100%', height: 110, objectFit: 'cover', border: '1px solid var(--ax-border)', borderRadius: 0, cursor: 'zoom-in' }}
+                  onClick={() => onPreview(hocImg, 'HOC Document')}
+                />
+                <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>HOC Certificate</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -673,13 +770,14 @@ export function UP_Installation_KusumC_ViewInstallation() {
   const [search, setSearch] = useState('');
   const [verifyFilter, setVerifyFilter] = useState<'all' | 'approved' | 'pending' | 'reject'>('all');
   const [docFilter, setDocFilter] = useState<'all' | 'approved' | 'pending' | 'none'>('all');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
-  // Toast / feedback message (Jammu pattern)
+  // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Photo preview modal (lightbox zoom — Jammu pattern)
+  // Photo preview modal (lightbox zoom)
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
@@ -717,7 +815,9 @@ export function UP_Installation_KusumC_ViewInstallation() {
     setLoading(true);
     try {
       const res = await upInstallationService.getKusumCInstalledSites();
-      setCounts(res.install_detail);
+      if (res.install_detail) {
+        setCounts(res.install_detail);
+      }
       setSites(res.sites || []);
     } catch (err: any) {
       setToastMsg({ type: 'danger', text: err?.message || 'Failed to load Kusum-C installed sites.' });
@@ -744,17 +844,18 @@ export function UP_Installation_KusumC_ViewInstallation() {
       setEditVfdNo(target.vfd_no || '');
       setEditLat(target.latitude || '');
       setEditLng(target.longitude || '');
-      setEditRemarks(target.inst_remarks || '');
+      setEditRemarks(target.remarks || target.inst_remarks || '');
 
       let parsedSerials: string[] = [];
-      if (typeof target.module_serial_no === 'string') {
+      const rawSerials = target.module_serial_no || target.module_no;
+      if (typeof rawSerials === 'string') {
         try {
-          parsedSerials = JSON.parse(target.module_serial_no);
+          parsedSerials = JSON.parse(rawSerials);
         } catch {
-          parsedSerials = target.module_serial_no.split(',').map((s) => s.trim());
+          parsedSerials = rawSerials.split(',').map((s) => s.trim());
         }
-      } else if (Array.isArray(target.module_serial_no)) {
-        parsedSerials = target.module_serial_no;
+      } else if (Array.isArray(rawSerials)) {
+        parsedSerials = rawSerials;
       }
       setEditSerials(parsedSerials.length > 0 ? parsedSerials : ['']);
     } catch (e: any) {
@@ -764,7 +865,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
       setEditVfdNo(site.vfd_no || '');
       setEditLat(site.latitude || '');
       setEditLng(site.longitude || '');
-      setEditRemarks(site.inst_remarks || '');
+      setEditRemarks(site.remarks || site.inst_remarks || '');
       setEditSerials(['']);
       setEditError(e?.message || 'Failed to load site details for editing.');
     }
@@ -786,7 +887,10 @@ export function UP_Installation_KusumC_ViewInstallation() {
     fd.append('latitude', editLat.trim());
     fd.append('inst_longitude', editLng.trim());
     fd.append('longitude', editLng.trim());
-    if (editRemarks.trim()) fd.append('inst_remarks', editRemarks.trim());
+    if (editRemarks.trim()) {
+      fd.append('inst_remarks', editRemarks.trim());
+      fd.append('remarks', editRemarks.trim());
+    }
 
     if (editModuleImg) fd.append('module_image', editModuleImg);
     if (editInverterImg) fd.append('inverter_vfd_image', editInverterImg);
@@ -836,32 +940,61 @@ export function UP_Installation_KusumC_ViewInstallation() {
     }
   };
 
+  // Distinct Districts for dropdown filter
+  const districtList = useMemo(() => {
+    const set = new Set<string>();
+    sites.forEach((s) => {
+      const d = s.district || s.f_district;
+      if (d) set.add(d.trim());
+    });
+    return Array.from(set).sort();
+  }, [sites]);
+
   // Filtered sites
   const filtered = useMemo(() => {
     return sites.filter((s) => {
-      if (verifyFilter === 'approved' && s.inst_verify_status !== 1) return false;
-      if (verifyFilter === 'reject' && s.inst_verify_status !== 2) return false;
-      if (verifyFilter === 'pending' && (s.inst_verify_status === 1 || s.inst_verify_status === 2)) return false;
+      const vStatus = Number(s.inst_verify_status ?? s.verify_status ?? 0);
+      if (verifyFilter === 'approved' && vStatus !== 1) return false;
+      if (verifyFilter === 'reject' && vStatus !== 2) return false;
+      if (verifyFilter === 'pending' && (vStatus === 1 || vStatus === 2)) return false;
 
-      if (docFilter === 'approved' && s.inst_doc_status !== 2) return false;
-      if (docFilter === 'pending' && s.inst_doc_status !== 1) return false;
-      if (docFilter === 'none' && (s.inst_doc_status === 1 || s.inst_doc_status === 2)) return false;
+      const dStatus = Number(s.inst_doc_status ?? s.document_status ?? 0);
+      if (docFilter === 'approved' && dStatus !== 2) return false;
+      if (docFilter === 'pending' && dStatus !== 1) return false;
+      if (docFilter === 'none' && (dStatus === 1 || dStatus === 2)) return false;
+
+      if (selectedDistrict !== 'all') {
+        const d = s.district || s.f_district;
+        if (!d || d.trim().toLowerCase() !== selectedDistrict.toLowerCase()) return false;
+      }
 
       if (search.trim()) {
         const q = search.toLowerCase();
         const idStr = String(s.id);
-        const nameStr = String(s.f_farmer_name || '').toLowerCase();
-        const vfdStr = String(s.vfd_no || '').toLowerCase();
-        const invStr = String(s.inverter_no || '').toLowerCase();
-        const distStr = String(s.f_district || '').toLowerCase();
-        const villStr = String(s.f_village || '').toLowerCase();
-        if (!idStr.includes(q) && !nameStr.includes(q) && !vfdStr.includes(q) && !invStr.includes(q) && !distStr.includes(q) && !villStr.includes(q)) {
+        const nameStr = String(s.applicant_name || s.farmer_name || s.f_farmer_name || s.beneficiary_name || '').toLowerCase();
+        const vfdStr = String(s.vfd_no || s.vfd_serial_no || '').toLowerCase();
+        const invStr = String(s.inverter_no || s.inverter_serial_no || '').toLowerCase();
+        const distStr = String(s.district || s.f_district || '').toLowerCase();
+        const blockStr = String(s.block || s.f_block || '').toLowerCase();
+        const villStr = String(s.village || s.f_village || '').toLowerCase();
+        const serialStr = String(s.module_serial_no || s.module_no || '').toLowerCase();
+
+        if (
+          !idStr.includes(q) &&
+          !nameStr.includes(q) &&
+          !vfdStr.includes(q) &&
+          !invStr.includes(q) &&
+          !distStr.includes(q) &&
+          !blockStr.includes(q) &&
+          !villStr.includes(q) &&
+          !serialStr.includes(q)
+        ) {
           return false;
         }
       }
       return true;
     });
-  }, [sites, verifyFilter, docFilter, search]);
+  }, [sites, verifyFilter, docFilter, selectedDistrict, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -873,30 +1006,39 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, verifyFilter, docFilter]);
+  }, [search, verifyFilter, docFilter, selectedDistrict]);
 
-  const hasFilters = search.trim() !== '' || verifyFilter !== 'all' || docFilter !== 'all';
+  const hasFilters = search.trim() !== '' || verifyFilter !== 'all' || docFilter !== 'all' || selectedDistrict !== 'all';
   const resetFilters = () => {
     setSearch('');
     setVerifyFilter('all');
     setDocFilter('all');
+    setSelectedDistrict('all');
     setCurrentPage(1);
   };
 
+  /* ───────── 20 Export Columns matching Table ───────── */
   const exportCols: ExportColumn<UpKusumCInstalledSiteItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_: any, idx?: number) => (idx !== undefined ? idx + 1 : 1) },
-      { header: 'Site ID', accessor: (r: any) => String(r.id) },
-      { header: 'Farmer Name', accessor: (r: any) => r.f_farmer_name || DASH },
-      { header: 'District', accessor: (r: any) => r.f_district || DASH },
-      { header: 'Village', accessor: (r: any) => r.f_village || DASH },
-      { header: 'Inverter No', accessor: (r: any) => r.inverter_no || DASH },
-      { header: 'VFD No', accessor: (r: any) => r.vfd_no || DASH },
-      { header: 'Latitude', accessor: (r: any) => r.latitude || DASH },
-      { header: 'Longitude', accessor: (r: any) => r.longitude || DASH },
-      { header: 'Verify Status', accessor: (r: any) => (r.inst_verify_status === 1 ? 'Approved' : r.inst_verify_status === 2 ? 'Rejected' : 'Pending') },
-      { header: 'HOC Status', accessor: (r: any) => (r.inst_doc_status === 2 ? 'Approved' : r.inst_doc_status === 1 ? 'Submitted' : 'Pending') },
-      { header: 'Remarks', accessor: (r: any) => r.inst_remarks || DASH },
+      { header: 'State', accessor: (r: any) => r.state || r.f_state || 'UP' },
+      { header: 'District', accessor: (r: any) => r.district || r.f_district || DASH },
+      { header: 'Block', accessor: (r: any) => r.block || r.f_block || DASH },
+      { header: 'Village', accessor: (r: any) => r.village || r.f_village || DASH },
+      { header: 'Applicant Name', accessor: (r: any) => r.applicant_name || r.f_farmer_name || r.farmer_name || r.beneficiary_name || DASH },
+      { header: 'VFD No.', accessor: (r: any) => r.vfd_no || r.vfd_serial_no || DASH },
+      { header: 'Inverter No.', accessor: (r: any) => r.inverter_no || r.inverter_serial_no || DASH },
+      { header: 'Module Serial No.', accessor: (r: any) => formatModuleSerials(r.module_serial_no || r.module_no) },
+      { header: 'Farmer With Module Image', accessor: (r: any) => (r.module_image || r.farmer_module_image || r.f_module_image ? 'Uploaded' : DASH) },
+      { header: 'Inverter and VFD with Farmer Image', accessor: (r: any) => (r.inverter_vfd_image || r.inverter_image || r.vfd_image ? 'Uploaded' : DASH) },
+      { header: 'Running Water With Farmer Image', accessor: (r: any) => (r.running_water_image || r.water_image ? 'Uploaded' : DASH) },
+      { header: 'Remarks', accessor: (r: any) => r.remarks || r.inst_remarks || DASH },
+      { header: 'Verify Status', accessor: (r: any) => getVerifyLabel(r.inst_verify_status ?? r.verify_status) },
+      { header: 'Verify Remarks', accessor: (r: any) => r.verify_remarks || r.inst_verify_remarks || r.verification_remarks || DASH },
+      { header: 'Document Status', accessor: (r: any) => getDocLabel(r.inst_doc_status ?? r.document_status) },
+      { header: 'Doc Verify Remarks', accessor: (r: any) => r.doc_verify_remarks || r.inst_doc_remarks || r.hoc_remarks || DASH },
+      { header: 'Claim Status', accessor: (r: any) => getClaimLabel(r.inst_claim_status ?? r.claim_status) },
+      { header: 'Payment Status', accessor: (r: any) => getPaymentLabel(r.inst_pay_status ?? r.payment_status ?? r.pay_status) },
     ],
     []
   );
@@ -909,14 +1051,36 @@ export function UP_Installation_KusumC_ViewInstallation() {
   const handleExcel = () => exportDataToExcel('UP_KusumC_Installations', filtered, exportCols);
   const handlePdf = () => printTableData('UP Kusum-C Installations', filtered, exportCols);
 
-  const totalColumns = 12;
+  const totalColumns = 20;
+
+  /* ───────── Calculated KPI Metrics (Pure Numbers, NO "Nos.") ───────── */
+  const totalAssign = counts.total_assign ?? counts.total ?? sites.length ?? 0;
+
+  const completeInst = counts.complete ?? sites.filter((s) => s.inst_status === 1).length ?? 0;
+  const pendingInst = counts.pending ?? Math.max(0, (totalAssign || sites.length) - completeInst);
+
+  const verifyApp = counts.verify_approved ?? sites.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 1).length ?? 0;
+  const verifyPen = counts.verify_pending ?? sites.filter((s) => !s.inst_verify_status && !s.verify_status || Number(s.inst_verify_status ?? s.verify_status) === 0).length ?? 0;
+  const verifyRej = counts.verify_reject ?? sites.filter((s) => Number(s.inst_verify_status ?? s.verify_status) === 2).length ?? 0;
+
+  const docApp = counts.doc_approved ?? sites.filter((s) => Number(s.inst_doc_status ?? s.document_status) === 2).length ?? 0;
+  const docPen = counts.doc_pending ?? sites.filter((s) => Number(s.inst_doc_status ?? s.document_status) === 1 || Number(s.inst_doc_status ?? s.document_status) === 0 || !s.inst_doc_status).length ?? 0;
+  const docRej = counts.doc_reject ?? sites.filter((s) => Number(s.inst_doc_status ?? s.document_status) === 3).length ?? 0;
+
+  const claimApp = counts.claim_approved ?? sites.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 1).length ?? 0;
+  const claimPen = counts.claim_pending ?? sites.filter((s) => !s.inst_claim_status && !s.claim_status || Number(s.inst_claim_status ?? s.claim_status) === 0).length ?? 0;
+  const claimRej = counts.claim_reject ?? sites.filter((s) => Number(s.inst_claim_status ?? s.claim_status) === 2).length ?? 0;
+
+  const payPaid = counts.paid ?? sites.filter((s) => Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status) === 1).length ?? 0;
+  const payPartially = counts.partially ?? sites.filter((s) => Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status) === 2).length ?? 0;
+  const payPen = (counts.pending_pay ?? counts.payment_pending ?? counts.inst_pay_pending ?? Math.max(0, (totalAssign || sites.length) - payPaid - payPartially)) ?? 0;
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head (Jammu pattern) ── */}
+      {/* ── Page Head ── */}
       <PageHead
         title="View Kusum-C Installed Sites"
         subtitle="Master register of installed solar pumps, verification status, HOC documents, and photo evidence"
@@ -943,7 +1107,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
         }
       />
 
-      {/* Toast notification (Jammu pattern) */}
+      {/* Toast notification */}
       {toastMsg && (
         <div className={`ax-alert ax-alert--${toastMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
           <div className="ax-alert__title">{toastMsg.type === 'success' ? 'Success' : 'Error'}</div>
@@ -951,13 +1115,29 @@ export function UP_Installation_KusumC_ViewInstallation() {
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (4 cards in 1 row — Jammu pattern) ── */}
+      {/* ── Top Metric KPI Cards (6 cards in responsive grid) ── */}
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
-          label="Installed Sites"
-          value={(counts.complete || sites.length).toLocaleString('en-IN')}
-          sub="Total complete installations"
+          label="Total Assign"
+          value={totalAssign.toLocaleString('en-IN')}
+          sub="Total assigned sites"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Installation Status"
+          value={`${completeInst.toLocaleString('en-IN')} / ${pendingInst.toLocaleString('en-IN')}`}
+          sub="Complete / Pending"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
@@ -968,9 +1148,9 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
         <KpiCard
           tone="emerald"
-          label="Verified Approved"
-          value={(counts.verify_approved || 0).toLocaleString('en-IN')}
-          sub={`${counts.verify_pending || 0} audit pending`}
+          label="Verification Status"
+          value={`${verifyApp.toLocaleString('en-IN')} / ${verifyPen.toLocaleString('en-IN')} / ${verifyRej.toLocaleString('en-IN')}`}
+          sub="Approved / Pending / Reject"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="9" />
@@ -980,10 +1160,10 @@ export function UP_Installation_KusumC_ViewInstallation() {
         />
 
         <KpiCard
-          tone="cyan"
-          label="HOC Approved"
-          value={(counts.doc_approved || 0).toLocaleString('en-IN')}
-          sub={`HOC Pending: ${counts.doc_pending || 0}`}
+          tone="violet"
+          label="Document Verify Status"
+          value={`${docApp.toLocaleString('en-IN')} / ${docPen.toLocaleString('en-IN')} / ${docRej.toLocaleString('en-IN')}`}
+          sub="Approved / Pending / Reject"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -994,9 +1174,23 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
         <KpiCard
           tone="amber"
-          label="Claims Paid"
-          value={(counts.paid || 0).toLocaleString('en-IN')}
-          sub={`Claim Approved: ${counts.claim_approved || 0}`}
+          label="Claim Verify Status"
+          value={`${claimApp.toLocaleString('en-IN')} / ${claimPen.toLocaleString('en-IN')} / ${claimRej.toLocaleString('en-IN')}`}
+          sub="Approved / Pending / Reject"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M9 15l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Payment Status"
+          value={`${payPaid.toLocaleString('en-IN')} / ${payPartially.toLocaleString('en-IN')} / ${payPen.toLocaleString('en-IN')}`}
+          sub="Paid / Partially / Pending"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23" />
@@ -1020,10 +1214,26 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
+                {/* District Filter */}
+                {districtList.length > 0 && (
+                  <select
+                    className="ax-input ax-input--sm"
+                    style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                    value={selectedDistrict}
+                    onChange={(e) => { setSelectedDistrict(e.target.value); setCurrentPage(1); }}
+                    aria-label="Filter by district"
+                  >
+                    <option value="all">All Districts</option>
+                    {districtList.map((dist) => (
+                      <option key={dist} value={dist}>{dist}</option>
+                    ))}
+                  </select>
+                )}
+
                 {/* Verification Status Filter */}
                 <select
                   className="ax-input ax-input--sm"
-                  style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={verifyFilter}
                   onChange={(e) => { setVerifyFilter(e.target.value as any); setCurrentPage(1); }}
                   aria-label="Filter by verify status"
@@ -1031,21 +1241,21 @@ export function UP_Installation_KusumC_ViewInstallation() {
                   <option value="all">All Verification</option>
                   <option value="approved">Approved</option>
                   <option value="pending">Pending</option>
-                  <option value="reject">Rejected</option>
+                  <option value="reject">Reject</option>
                 </select>
 
-                {/* HOC Status Filter */}
+                {/* Document Status Filter */}
                 <select
                   className="ax-input ax-input--sm"
-                  style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={docFilter}
                   onChange={(e) => { setDocFilter(e.target.value as any); setCurrentPage(1); }}
-                  aria-label="Filter by HOC status"
+                  aria-label="Filter by document status"
                 >
-                  <option value="all">All HOC Status</option>
-                  <option value="approved">HOC Approved</option>
-                  <option value="pending">HOC Submitted</option>
-                  <option value="none">HOC Pending</option>
+                  <option value="all">All Doc Status</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Submitted</option>
+                  <option value="none">Pending</option>
                 </select>
 
                 {hasFilters && (
@@ -1062,7 +1272,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 <SearchInput
                   value={search}
                   onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search site, farmer, VFD…"
+                  placeholder="Search applicant, VFD, village…"
                   size="sm"
                   ariaLabel="Search installed sites"
                 />
@@ -1077,23 +1287,31 @@ export function UP_Installation_KusumC_ViewInstallation() {
             </div>
           </div>
 
-          {/* ── Table ── */}
+          {/* ── Table (Exact 20 Columns Specified) ── */}
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1380 }}>
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
               <caption className="ax-visually-hidden">UP Kusum-C Installation Data</caption>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col" style={{ width: 60, textAlign: 'center' }}>Sr. No.</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 80 }}>Site ID</th>
-                  <th className="ax-table__th" scope="col">Farmer Name</th>
-                  <th className="ax-table__th" scope="col">Inverter No.</th>
+                  <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Block</th>
+                  <th className="ax-table__th" scope="col">Village</th>
+                  <th className="ax-table__th" scope="col">Applicant Name</th>
                   <th className="ax-table__th" scope="col">VFD No.</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Module Photo</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Inverter &amp; VFD</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Water Photo</th>
-                  <th className="ax-table__th" scope="col">GPS Geotag</th>
+                  <th className="ax-table__th" scope="col">Inverter No.</th>
+                  <th className="ax-table__th" scope="col">Module Serial No.</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Farmer With Module Image</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Inverter and VFD with Farmer Image</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Running Water With Farmer Image</th>
+                  <th className="ax-table__th" scope="col">Remarks</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Verify Status</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>HOC Status</th>
+                  <th className="ax-table__th" scope="col">Verify Remarks</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Document Status</th>
+                  <th className="ax-table__th" scope="col">Doc Verify Remarks</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Claim Status</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Payment Status</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 180 }}>Action</th>
                 </tr>
               </thead>
@@ -1110,11 +1328,11 @@ export function UP_Installation_KusumC_ViewInstallation() {
                   <tr>
                     <td className="ax-table__td" colSpan={totalColumns} style={{ padding: 0 }}>
                       <TableEmptyState
-                        title="No installation records found"
+                        title="No data available in table"
                         message={
                           hasFilters
                             ? 'No records match your filters or search. Try clearing your query.'
-                            : 'Completed Kusum-C installations will appear here once installation work is recorded.'
+                            : undefined
                         }
                         onClear={hasFilters ? resetFilters : undefined}
                         clearLabel="Clear filters"
@@ -1125,64 +1343,88 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 {!loading &&
                   paginatedData.map((row, idx) => {
                     const srNo = (safePage - 1) * pageSize + idx + 1;
-                    const hasGeo = row.latitude && row.longitude && !Number.isNaN(Number(row.latitude)) && !Number.isNaN(Number(row.longitude));
-                    const siteLabel = row.f_farmer_name || `Site #${row.id}`;
-                    const isVerifyApproved = Number(row.inst_verify_status) === 1;
+                    const applicantName = row.applicant_name || row.f_farmer_name || row.farmer_name || row.beneficiary_name || DASH;
+                    const isVerifyApproved = Number(row.inst_verify_status ?? row.verify_status) === 1;
 
                     return (
                       <tr key={row.id} className="ax-table__row">
                         <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>{srNo}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>#{row.id}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{row.f_farmer_name || DASH}</td>
-                        <td className="ax-table__td" style={monoCell}>{row.inverter_no || DASH}</td>
-                        <td className="ax-table__td" style={monoCell}>{row.vfd_no || DASH}</td>
+                        <td className="ax-table__td">{row.state || row.f_state || 'UP'}</td>
+                        <td className="ax-table__td">{row.district || row.f_district || DASH}</td>
+                        <td className="ax-table__td">{row.block || row.f_block || DASH}</td>
+                        <td className="ax-table__td">{row.village || row.f_village || DASH}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {applicantName}
+                        </td>
+                        <td className="ax-table__td" style={monoCell}>{row.vfd_no || row.vfd_serial_no || DASH}</td>
+                        <td className="ax-table__td" style={monoCell}>{row.inverter_no || row.inverter_serial_no || DASH}</td>
+                        <td className="ax-table__td" style={monoCell}>
+                          {formatModuleSerials(row.module_serial_no || row.module_no)}
+                        </td>
 
-                        {/* Photo Thumbnails: Click-to-preview lightbox (Jammu pattern) */}
+                        {/* Farmer With Module Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <InstallationThumbnail
-                            src={row.module_image}
-                            alt={`${siteLabel} - Module Photo`}
-                            onPreview={openPreview}
-                          />
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <InstallationThumbnail
-                            src={row.inverter_vfd_image}
-                            alt={`${siteLabel} - Inverter & VFD`}
-                            onPreview={openPreview}
-                          />
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <InstallationThumbnail
-                            src={row.running_water_image}
-                            alt={`${siteLabel} - Running Water`}
+                            src={row.module_image || row.farmer_module_image || row.f_module_image}
+                            alt={`${applicantName} - Farmer With Module Image`}
                             onPreview={openPreview}
                           />
                         </td>
 
-                        {/* Geolocation (Jammu pattern — clickable maps link) */}
-                        <td className="ax-table__td" style={{ fontSize: 11, fontFamily: 'var(--ax-font-mono)' }}>
-                          {hasGeo ? (
-                            <a
-                              href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
-                              title="Open location in Google Maps"
-                            >
-                              {row.latitude}, {row.longitude}
-                            </a>
-                          ) : DASH}
+                        {/* Inverter and VFD with Farmer Image */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <InstallationThumbnail
+                            src={row.inverter_vfd_image || row.inverter_image || row.vfd_image}
+                            alt={`${applicantName} - Inverter and VFD with Farmer Image`}
+                            onPreview={openPreview}
+                          />
                         </td>
 
+                        {/* Running Water With Farmer Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <VerifyBadge value={row.inst_verify_status} />
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <DocBadge value={row.inst_doc_status} />
+                          <InstallationThumbnail
+                            src={row.running_water_image || row.water_image}
+                            alt={`${applicantName} - Running Water With Farmer Image`}
+                            onPreview={openPreview}
+                          />
                         </td>
 
-                        {/* Action column (Jammu pattern — locked if approved) */}
+                        {/* Remarks */}
+                        <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {row.remarks || row.inst_remarks || DASH}
+                        </td>
+
+                        {/* Verify Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <VerifyBadge value={row.inst_verify_status ?? row.verify_status} />
+                        </td>
+
+                        {/* Verify Remarks */}
+                        <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {row.verify_remarks || row.inst_verify_remarks || row.verification_remarks || DASH}
+                        </td>
+
+                        {/* Document Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <DocBadge value={row.inst_doc_status ?? row.document_status} />
+                        </td>
+
+                        {/* Doc Verify Remarks */}
+                        <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {row.doc_verify_remarks || row.inst_doc_remarks || row.hoc_remarks || DASH}
+                        </td>
+
+                        {/* Claim Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <ClaimBadge value={row.inst_claim_status ?? row.claim_status} />
+                        </td>
+
+                        {/* Payment Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <PaymentBadge value={row.inst_pay_status ?? row.payment_status ?? row.pay_status} />
+                        </td>
+
+                        {/* Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {isVerifyApproved ? (
                             <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
@@ -1257,7 +1499,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
             </table>
           </div>
 
-          {/* ── Footer & Pagination (Jammu pattern) ── */}
+          {/* ── Footer & Pagination ── */}
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
@@ -1274,7 +1516,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
         </section>
       </div>
 
-      {/* ── Detail View Modal (Jammu pattern — rich sections) ── */}
+      {/* ── Detail View Modal ── */}
       <DetailViewModal
         open={Boolean(viewDetailModal)}
         item={viewDetailModal}
@@ -1282,10 +1524,10 @@ export function UP_Installation_KusumC_ViewInstallation() {
         onPreview={openPreview}
       />
 
-      {/* ── Photo Preview Modal (Zoom, Fullscreen — Jammu pattern) ── */}
+      {/* ── Photo Preview Modal (Zoom, Fullscreen) ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
-      {/* ── Edit Installation Modal (Jammu ax-modern-field pattern) ── */}
+      {/* ── Edit Installation Modal ── */}
       <Modal open={!!editItem} onClose={() => setEditItem(null)} labelledBy="edit-kusumc-title" dialogClass="ax-modal__dialog--lg" dialogStyle={{ maxWidth: 680 }}>
         <form onSubmit={handleEditSubmit}>
           <div className="ax-modal__header">
@@ -1294,7 +1536,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 Edit Installation Details
               </h4>
               <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Site: <b>{editItem?.f_farmer_name}</b> (#{editItem?.id})
+                Site: <b>{editItem?.applicant_name || editItem?.f_farmer_name || editItem?.farmer_name}</b> (#{editItem?.id})
               </p>
             </div>
             <button type="button" className="ax-modal__close" onClick={() => setEditItem(null)} disabled={updating} aria-label="Close dialog">{X_ICON}</button>
@@ -1394,15 +1636,15 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 <label className="ax-modern-label"><span>Replace Photos (optional)</span></label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div className="ax-modern-field">
-                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Module Image</span>
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Farmer With Module Image</span>
                     <input type="file" accept="image/*" onChange={(e) => setEditModuleImg(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
                   </div>
                   <div className="ax-modern-field">
-                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>VFD / Inverter Image</span>
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Inverter and VFD with Farmer</span>
                     <input type="file" accept="image/*" onChange={(e) => setEditInverterImg(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
                   </div>
                   <div className="ax-modern-field">
-                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Running Water Image</span>
+                    <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Running Water With Farmer</span>
                     <input type="file" accept="image/*" onChange={(e) => setEditWaterImg(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
                   </div>
                 </div>
@@ -1431,7 +1673,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
         </form>
       </Modal>
 
-      {/* ── HOC Document Upload Modal (Jammu ax-modern-field pattern) ── */}
+      {/* ── HOC Document Upload Modal ── */}
       <Modal open={!!hocModalSite} onClose={() => setHocModalSite(null)} labelledBy="hoc-modal-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 520 }}>
         <form onSubmit={handleHocSubmit}>
           <div className="ax-modal__header">
@@ -1440,7 +1682,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 Submit HOC Document
               </span>
               <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }} id="hoc-modal-title">
-                {hocModalSite?.f_farmer_name || 'Site'} <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{hocModalSite?.id})</span>
+                {hocModalSite?.applicant_name || hocModalSite?.f_farmer_name || hocModalSite?.farmer_name || 'Site'} <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{hocModalSite?.id})</span>
               </h4>
             </div>
             <button type="button" className="ax-modal__close" onClick={() => setHocModalSite(null)} disabled={submittingHoc} aria-label="Close dialog">{X_ICON}</button>
@@ -1448,7 +1690,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
           <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-              Upload the signed Handing Over Certificate (HOC) photo for farmer <strong>{hocModalSite?.f_farmer_name}</strong>.
+              Upload the signed Handing Over Certificate (HOC) photo for applicant <strong>{hocModalSite?.applicant_name || hocModalSite?.f_farmer_name || hocModalSite?.farmer_name}</strong>.
             </p>
 
             <div className="ax-modern-field">

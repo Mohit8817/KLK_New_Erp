@@ -4,6 +4,7 @@ import {
   kashmirSrtService,
   type KashmirExpensePaymentData,
   type KashmirExpenseItem,
+  getKashmirMediaUrl,
 } from '../../kashmir-services';
 import {
   TableExportToolbar,
@@ -19,9 +20,10 @@ import {
 } from '../../../../../common';
 
 const DASH = '—';
-const TOTAL_COLUMNS = 12;
+const TOTAL_COLUMNS = 15;
 
 type PayFilter = 'all' | 'paid' | 'partial' | 'pending';
+type ClaimFilter = 'all' | 'approved' | 'pending' | 'rejected';
 
 const DEFAULT_DETAILS = { total: 0, complete: 0, partially: 0, pending: 0 };
 
@@ -35,6 +37,7 @@ const pick = (r: KashmirExpenseItem, ...keys: string[]): string => {
   return '';
 };
 
+/* ── Pay Status helpers ── */
 const payKey = (r: KashmirExpenseItem): Exclude<PayFilter, 'all'> => {
   const s = Number(r.pay_status);
   return s === 1 ? 'paid' : s === 2 ? 'partial' : 'pending';
@@ -45,18 +48,45 @@ const payLabel = (r: KashmirExpenseItem) => {
   return k === 'paid' ? 'Paid' : k === 'partial' ? 'Partial' : 'Pending';
 };
 
-const num = (v: string) => {
-  const n = Number(v);
-  return isNaN(n) ? 0 : n;
+/* ── Claim Status helpers ── */
+const claimStatusLabel = (r: KashmirExpenseItem) => {
+  const s = Number(pick(r, 'claim_status'));
+  if (s === 1) return 'Pending';
+  if (s === 2) return 'Approved';
+  if (s === 3) return 'Rejected';
+  return 'Pending';
+};
+
+const claimStatusBadge = (r: KashmirExpenseItem) => {
+  const s = Number(pick(r, 'claim_status'));
+  if (s === 2) return <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Approved</span>;
+  if (s === 3) return <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600 }}>Rejected</span>;
+  return <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>;
 };
 
 const money = (v: unknown) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 
-const payAmountOf = (r: KashmirExpenseItem) => num(pick(r, 'pay_amount', 'paid_amount'));
-const balanceOf = (r: KashmirExpenseItem) => {
-  const explicit = pick(r, 'balance_amount', 'balance');
-  if (explicit !== '') return num(explicit);
-  return Math.max(0, Number(r.amount || 0) - payAmountOf(r));
+/* Format datetime: "2026-11-04 13:49:03" → "04 Nov 2026, 01:49 PM" */
+const fmtDate = (v: string | null | undefined): string => {
+  if (!v) return DASH;
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return v;
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return v;
+  }
+};
+
+const fmtDateTime = (v: string | null | undefined): string => {
+  if (!v) return DASH;
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return v;
+    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch {
+    return v;
+  }
 };
 
 /* ───────── KPI Card (same style as View Assigned SRT Installation) ───────── */
@@ -69,7 +99,7 @@ const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
 };
 
-const svg = (children: ReactNode) => (
+const svgIcon = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
 
@@ -129,7 +159,7 @@ function KpiCard({
   );
 }
 
-/* ───────── Responsive page CSS (Punjab-style footer, no tfoot) ───────── */
+/* ───────── Responsive page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -209,6 +239,12 @@ const PAGE_CSS = `
     white-space: nowrap;
     vertical-align: middle;
   }
+
+  .solar-erp-page .invoice-thumb {
+    width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--ax-border);
+    cursor: pointer; transition: transform 0.2s ease;
+  }
+  .solar-erp-page .invoice-thumb:hover { transform: scale(1.15); }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -304,11 +340,14 @@ const X_ICON = (
   </svg>
 );
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Main Component
+ * ═══════════════════════════════════════════════════════════════════════════ */
 export function Kashmir_Expenses_ViewPayments() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<KashmirExpensePaymentData | null>(null);
   const [search, setSearch] = useState('');
-  const [districtFilter, setDistrictFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<PayFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
@@ -345,12 +384,12 @@ export function Kashmir_Expenses_ViewPayments() {
     setCurrentPage(1);
   };
 
-  // Distinct districts
-  const districts = useMemo(() => {
+  // Distinct expense types for filter dropdown
+  const expenseTypes = useMemo(() => {
     const set = new Set<string>();
     payments.forEach((r) => {
-      const d = pick(r, 'district').trim();
-      if (d) set.add(d);
+      const t = pick(r, 'type').trim();
+      if (t) set.add(t);
     });
     return Array.from(set).sort();
   }, [payments]);
@@ -358,9 +397,11 @@ export function Kashmir_Expenses_ViewPayments() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return payments.filter((r) => {
+      // Pay status filter
       if (statusFilter !== 'all' && payKey(r) !== statusFilter) return false;
 
-      if (districtFilter !== 'all' && pick(r, 'district').toLowerCase() !== districtFilter.toLowerCase()) {
+      // Type filter (installation, survey, etc.)
+      if (typeFilter !== 'all' && pick(r, 'type').toLowerCase() !== typeFilter.toLowerCase()) {
         return false;
       }
 
@@ -369,38 +410,47 @@ export function Kashmir_Expenses_ViewPayments() {
         String(r.id).includes(q) ||
         (r.amount && String(r.amount).includes(q)) ||
         (r.purpose && r.purpose.toLowerCase().includes(q)) ||
-        (r.site_name && r.site_name.toLowerCase().includes(q)) ||
-        pick(r, 'district').toLowerCase().includes(q)
+        pick(r, 'type').toLowerCase().includes(q) ||
+        pick(r, 'state').toLowerCase().includes(q) ||
+        pick(r, 'project').toLowerCase().includes(q) ||
+        pick(r, 'vendor_id').includes(q) ||
+        pick(r, 'site_id').includes(q) ||
+        pick(r, 'remarks').toLowerCase().includes(q) ||
+        pick(r, 'approved_remarks').toLowerCase().includes(q)
       );
     });
-  }, [payments, search, districtFilter, statusFilter]);
+  }, [payments, search, typeFilter, statusFilter]);
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, currentPage, pageSize]);
 
-  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+  const hasFilters = search.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'all';
   const resetFilters = () => {
     setSearch('');
-    setDistrictFilter('all');
+    setTypeFilter('all');
     setStatusFilter('all');
     setCurrentPage(1);
   };
 
-  // Export columns (same as table headers)
+  // Export columns — mapped to ACTUAL API fields
   const exportCols: ExportColumn<KashmirExpenseItem>[] = useMemo(
     () => [
+      { header: 'ID', accessor: (r) => String(r.id ?? '') },
       { header: 'Date', accessor: (r) => r.date || DASH },
-      { header: 'District', accessor: (r) => pick(r, 'district') || DASH },
-      { header: 'Site Name', accessor: (r) => r.site_name || String(r.site_id ?? '') },
+      { header: 'State', accessor: (r) => pick(r, 'state') || DASH },
+      { header: 'Project', accessor: (r) => pick(r, 'project') || DASH },
+      { header: 'Type', accessor: (r) => pick(r, 'type') || DASH },
+      { header: 'Site ID', accessor: (r) => pick(r, 'site_id') || DASH },
+      { header: 'Vendor ID', accessor: (r) => pick(r, 'vendor_id') || DASH },
       { header: 'Purpose', accessor: (r) => r.purpose || DASH },
       { header: 'Amount', accessor: (r) => String(r.amount ?? '') },
-      { header: 'Remarks', accessor: (r) => pick(r, 'remarks', 'remark') || DASH },
-      { header: 'Pay Amount', accessor: (r) => String(payAmountOf(r)) },
-      { header: 'Balance Amount', accessor: (r) => String(balanceOf(r)) },
-      { header: 'Pay Date', accessor: (r) => pick(r, 'pay_date', 'payment_date') || DASH },
-      { header: 'Pay Remarks', accessor: (r) => pick(r, 'pay_remarks', 'payment_remarks') || DASH },
+      { header: 'Remarks', accessor: (r) => pick(r, 'remarks') || DASH },
+      { header: 'Claim Status', accessor: (r) => claimStatusLabel(r) },
+      { header: 'Approved Date', accessor: (r) => pick(r, 'approved_date') || DASH },
+      { header: 'Approved By', accessor: (r) => pick(r, 'approved_by') || DASH },
+      { header: 'Approved Remarks', accessor: (r) => pick(r, 'approved_remarks') || DASH },
       { header: 'Pay Status', accessor: (r) => payLabel(r) },
     ],
     []
@@ -472,7 +522,7 @@ export function Kashmir_Expenses_ViewPayments() {
               sub="All payment requests"
               active={statusFilter === 'all'}
               onClick={() => setStatus('all')}
-              icon={svg(
+              icon={svgIcon(
                 <>
                   <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
                   <rect x="9" y="3" width="6" height="4" rx="2" />
@@ -487,7 +537,7 @@ export function Kashmir_Expenses_ViewPayments() {
               sub="Complete"
               active={statusFilter === 'paid'}
               onClick={() => setStatus('paid')}
-              icon={svg(
+              icon={svgIcon(
                 <>
                   <circle cx="12" cy="12" r="9" />
                   <path d="M9 12l2 2 4-4" />
@@ -501,7 +551,7 @@ export function Kashmir_Expenses_ViewPayments() {
               sub="Partially"
               active={statusFilter === 'partial'}
               onClick={() => setStatus('partial')}
-              icon={svg(
+              icon={svgIcon(
                 <>
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 3v9h9" />
@@ -515,7 +565,7 @@ export function Kashmir_Expenses_ViewPayments() {
               sub="Pending"
               active={statusFilter === 'pending'}
               onClick={() => setStatus('pending')}
-              icon={svg(
+              icon={svgIcon(
                 <>
                   <circle cx="12" cy="12" r="9" />
                   <path d="M12 7v5l3 3" />
@@ -539,21 +589,21 @@ export function Kashmir_Expenses_ViewPayments() {
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                {districts.length > 0 && (
+                {expenseTypes.length > 0 && (
                   <select
-                    id="dist_filter"
+                    id="type_filter"
                     className="ax-input ax-input--sm"
-                    style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                    value={districtFilter}
+                    style={{ width: 150, height: 32, fontSize: 'var(--ax-text-xs)', textTransform: 'capitalize' }}
+                    value={typeFilter}
                     onChange={(e) => {
-                      setDistrictFilter(e.target.value);
+                      setTypeFilter(e.target.value);
                       setCurrentPage(1);
                     }}
-                    aria-label="Filter by district"
+                    aria-label="Filter by type"
                   >
-                    <option value="all">All Districts</option>
-                    {districts.map((d) => (
-                      <option key={d} value={d}>{d}</option>
+                    <option value="all">All Types</option>
+                    {expenseTypes.map((t) => (
+                      <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>
                     ))}
                   </select>
                 )}
@@ -586,7 +636,7 @@ export function Kashmir_Expenses_ViewPayments() {
                 <SearchInput
                   value={search}
                   onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search site, purpose, district…"
+                  placeholder="Search site, purpose, vendor…"
                   size="sm"
                   ariaLabel="Search payments"
                 />
@@ -604,22 +654,25 @@ export function Kashmir_Expenses_ViewPayments() {
           <div className="ax-table-wrap">
             <table
               className="ax-table ax-table--hover ula-table--wide"
-              style={{ whiteSpace: 'nowrap', minWidth: 1700 }}
+              style={{ whiteSpace: 'nowrap', minWidth: 1800 }}
             >
               <caption className="ax-visually-hidden">View Expenses Payment Records</caption>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col" style={{ width: 60 }}>S.No.</th>
                   <th className="ax-table__th" scope="col">Date</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Site Name</th>
+                  <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">Project</th>
+                  <th className="ax-table__th" scope="col">Type</th>
+                  <th className="ax-table__th" scope="col">Site ID</th>
+                  <th className="ax-table__th" scope="col">Vendor ID</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Purpose</th>
                   <th className="ax-table__th" scope="col">Amount</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
-                  <th className="ax-table__th" scope="col">Pay Amount</th>
-                  <th className="ax-table__th" scope="col">Balance Amount</th>
-                  <th className="ax-table__th" scope="col">Pay Date</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Pay Remarks</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Invoice</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Claim Status</th>
+                  <th className="ax-table__th" scope="col">Approved Date</th>
+                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Approved Remarks</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Pay Status</th>
                 </tr>
               </thead>
@@ -650,23 +703,89 @@ export function Kashmir_Expenses_ViewPayments() {
                 {!loading &&
                   paginated.map((r, idx) => {
                     const k = payKey(r);
+                    const fileUrl = pick(r, 'file');
+                    const mediaUrl = fileUrl ? getKashmirMediaUrl(fileUrl) : null;
+
                     return (
                       <tr key={r.id || idx} className="ax-table__row">
+                        {/* S.No. */}
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="ax-table__td">{r.date || DASH}</td>
-                        <td className="ax-table__td">{pick(r, 'district') || DASH}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.site_name || (r.site_id ? `#${r.site_id}` : DASH)}</td>
+
+                        {/* Date */}
+                        <td className="ax-table__td">{fmtDate(r.date)}</td>
+
+                        {/* State */}
+                        <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>
+                          {pick(r, 'state') || DASH}
+                        </td>
+
+                        {/* Project */}
+                        <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
+                          {pick(r, 'project') || DASH}
+                        </td>
+
+                        {/* Type */}
+                        <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>
+                          {pick(r, 'type') || DASH}
+                        </td>
+
+                        {/* Site ID */}
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {pick(r, 'site_id') ? `#${pick(r, 'site_id')}` : DASH}
+                        </td>
+
+                        {/* Vendor ID */}
+                        <td className="ax-table__td">
+                          {pick(r, 'vendor_id') || DASH}
+                        </td>
+
+                        {/* Purpose */}
                         <td className="ax-table__td">{r.purpose || DASH}</td>
+
+                        {/* Amount */}
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{money(r.amount)}</td>
+
+                        {/* Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                          {pick(r, 'remarks', 'remark') || DASH}
+                          {pick(r, 'remarks') || DASH}
                         </td>
-                        <td className="ax-table__td">{money(payAmountOf(r))}</td>
-                        <td className="ax-table__td">{money(balanceOf(r))}</td>
-                        <td className="ax-table__td">{pick(r, 'pay_date', 'payment_date') || DASH}</td>
+
+                        {/* Invoice File */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          {mediaUrl ? (
+                            <a href={mediaUrl} target="_blank" rel="noopener noreferrer" title="View Invoice">
+                              <img
+                                src={mediaUrl}
+                                alt="Invoice"
+                                className="invoice-thumb"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  (e.target as HTMLImageElement).parentElement!.innerHTML =
+                                    '<span class="ax-badge ax-badge--soft ax-badge--primary" style="font-size:10px;cursor:pointer;">View File</span>';
+                                }}
+                              />
+                            </a>
+                          ) : (
+                            DASH
+                          )}
+                        </td>
+
+                        {/* Claim Status */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          {claimStatusBadge(r)}
+                        </td>
+
+                        {/* Approved Date */}
+                        <td className="ax-table__td" style={{ fontSize: 12 }}>
+                          {fmtDateTime(pick(r, 'approved_date'))}
+                        </td>
+
+                        {/* Approved Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                          {pick(r, 'pay_remarks', 'payment_remarks') || DASH}
+                          {pick(r, 'approved_remarks') || DASH}
                         </td>
+
+                        {/* Pay Status */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {k === 'paid' ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Paid</span>
@@ -683,7 +802,7 @@ export function Kashmir_Expenses_ViewPayments() {
             </table>
           </div>
 
-          {/* ── Table Footer (Punjab-style: pagination only) ── */}
+          {/* ── Table Footer: Pagination ── */}
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination

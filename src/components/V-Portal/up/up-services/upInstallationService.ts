@@ -497,6 +497,7 @@ export interface UpKusumCAssignmentItem {
 
 export interface UpKusumCInstalledCounts {
   total: number;
+  total_assign?: number;
   complete: number;
   pending: number;
   verify_approved: number;
@@ -510,32 +511,69 @@ export interface UpKusumCInstalledCounts {
   claim_reject: number;
   paid: number;
   partially: number;
+  pending_pay?: number;
+  payment_pending?: number;
+  inst_pay_pending?: number;
+  [key: string]: any;
 }
 
 export interface UpKusumCInstalledSiteItem {
   id: number;
-  f_farmer_name?: string;
-  f_father_name?: string;
+  state?: string;
+  f_state?: string;
+  district?: string;
   f_district?: string;
+  block?: string;
+  f_block?: string;
+  village?: string;
   f_village?: string;
+  post?: string;
+  f_post?: string;
+  applicant_name?: string;
+  farmer_name?: string;
+  f_farmer_name?: string;
+  beneficiary_name?: string;
+  father_name?: string;
+  f_father_name?: string;
+  contact_no?: string;
   f_contact?: string;
   pump_capacity?: string;
   vfd_no?: string;
+  vfd_serial_no?: string;
   inverter_no?: string;
+  inverter_serial_no?: string;
   module_serial_no?: string | string[];
+  module_no?: string;
   latitude?: string;
   longitude?: string;
   module_image?: string;
+  farmer_module_image?: string;
   inverter_vfd_image?: string;
+  inverter_image?: string;
+  vfd_image?: string;
   running_water_image?: string;
+  water_image?: string;
   hoc_photo?: string;
+  remarks?: string;
+  inst_remarks?: string;
   inst_status?: number;
   inst_verify_status?: number;
-  inst_doc_status?: number; // 1 = Pending, 2 = Approved, 3 = Rejected
+  verify_status?: number;
+  verify_remarks?: string;
+  inst_verify_remarks?: string;
+  verification_remarks?: string;
+  inst_doc_status?: number; // 1 = Pending/Submitted, 2 = Approved, 3 = Rejected
+  document_status?: number;
+  doc_verify_remarks?: string;
+  inst_doc_remarks?: string;
+  hoc_remarks?: string;
   inst_claim_status?: number;
+  claim_status?: number;
   inst_pay_status?: number;
-  inst_remarks?: string;
+  payment_status?: number;
+  pay_status?: number;
   inst_date?: string;
+  [key: string]: any;
 }
 
 export interface UpKusumCClaimPaymentItem {
