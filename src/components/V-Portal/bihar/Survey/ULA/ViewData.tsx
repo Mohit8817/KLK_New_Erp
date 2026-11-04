@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -23,7 +23,41 @@ import {
 
 const DASH = '—';
 
-/* ───────── KPI Card (same as SRT Claim Request) ───────── */
+const DEFAULT_KPIS: UlaSurveyKpis = {
+  total: 0,
+  feasible: 0,
+  not_feasible: 0,
+  verified: 0,
+  pending: 0,
+  rejected: 0,
+};
+
+/* ───────── Shared icon constants (Kashmir pattern) ───────── */
+const ICON_PROPS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/* ───────── KPI Card (Kashmir pattern) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -40,33 +74,48 @@ const svg = (children: ReactNode) => (
 );
 
 function KpiCard({
-  icon, tone, label, value, sub,
+  icon,
+  tone,
+  label,
+  value,
+  sub,
 }: {
-  icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; sub: string;
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: ReactNode;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+    <div className="ax-card ax-col--3" style={{ padding: '16px 20px', borderRadius: 12, transition: 'all 0.2s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-        {sub}
-      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
     </div>
   );
 }
 
-/* ───────── Responsive page CSS (same as SRT Claim Request) ───────── */
+/* ───────── Responsive page CSS (Kashmir pattern) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -139,6 +188,12 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .solar-erp-page .ax-table th,
+  .solar-erp-page .ax-table td {
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   @media (max-width: 1100px) {
@@ -155,6 +210,12 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 900px) {
+    .solar-erp-page .ax-dash-grid > .ax-card {
+      grid-column: span 12 !important;
+    }
   }
 
   @media (max-width: 760px) {
@@ -187,8 +248,10 @@ const PAGE_CSS = `
   }
 `;
 
+/* ───────── Overlay / Modal CSS (separated like Kashmir) ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
+
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;
     height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
@@ -199,8 +262,13 @@ const OVERLAY_CSS = `
   }
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  @media (max-width: 560px) {
+    .ula-m-stage { height: 56vh; }
+  }
 `;
 
+/* ───────── Shared style constants (Kashmir pattern) ───────── */
 const actionsRowStyle = {
   gap: 'var(--ax-space-2)',
   flexWrap: 'wrap',
@@ -209,33 +277,33 @@ const actionsRowStyle = {
   width: '100%',
 } as const;
 
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-  </svg>
-);
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
 
-const ICON_PLUS = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 5l0 14" />
-    <path d="M5 12l14 0" />
-  </svg>
-);
-
-/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+/* ───────── Reusable Modal Component (Kashmir pattern) ───────── */
 function Modal({
   open,
   onClose,
   labelledBy,
+  centered = true,
   dialogClass = '',
+  dialogStyle,
   closeOnBackdrop = true,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   labelledBy: string;
+  centered?: boolean;
   dialogClass?: string;
+  dialogStyle?: CSSProperties;
   closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
@@ -252,10 +320,20 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
+
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div
+      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+    >
       <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+      <div
+        ref={dialogRef}
+        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
+        style={dialogStyle}
+      >
         {children}
       </div>
     </div>,
@@ -263,14 +341,8 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal with zoom ───────── */
+/* ───────── Image Preview Modal with Zoom (Kashmir pattern) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const [zoomIdx, setZoomIdx] = useState(0);
@@ -291,8 +363,12 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ula-m-stage">
-          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
-          {status === 'error' && <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
+          {status === 'loading' && (
+            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+          )}
+          {status === 'error' && (
+            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+          )}
           <img
             key={url}
             src={url}
@@ -326,6 +402,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
+/* ───────── Image URL resolution ───────── */
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
   .replace(/\/+$/, '');
@@ -371,15 +448,17 @@ function getSurveyImageCandidates(path?: string | null): string[] {
   return Array.from(new Set(candidates));
 }
 
-/* ── Robust Table Image: strict NO BORDER RADIUS ── */
+/* ───────── Survey Thumbnail (Kashmir pattern — size 34, zoom-in) ───────── */
 function SurveyThumbnail({
   src,
   alt,
   onPreview,
+  size = 34,
 }: {
   src?: string | null;
   alt: string;
   onPreview: (url: string, title: string) => void;
+  size?: number;
 }) {
   const candidates = useMemo(() => getSurveyImageCandidates(src), [src]);
   const [candidateIdx, setCandidateIdx] = useState(0);
@@ -391,7 +470,7 @@ function SurveyThumbnail({
   }, [src]);
 
   if (!src || failed || candidateIdx >= candidates.length) {
-    return <span style={{ color: 'var(--ax-text-subtle)', fontSize: '11px' }}>{DASH}</span>;
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
   }
 
   const currentUrl = candidates[candidateIdx];
@@ -401,13 +480,16 @@ function SurveyThumbnail({
       src={currentUrl}
       alt={alt}
       style={{
-        width: 38,
-        height: 38,
+        width: size,
+        height: size,
         objectFit: 'cover',
         borderRadius: 0,
-        border: '1px solid var(--ax-border)',
-        cursor: 'pointer',
-        display: 'inline-block',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        cursor: 'zoom-in',
+        display: 'block',
+        margin: '0 auto',
+        flexShrink: 0,
       }}
       onError={() => {
         if (candidateIdx + 1 < candidates.length) {
@@ -422,23 +504,14 @@ function SurveyThumbnail({
   );
 }
 
-const DEFAULT_KPIS: UlaSurveyKpis = {
-  total: 0,
-  feasible: 0,
-  not_feasible: 0,
-  verified: 0,
-  pending: 0,
-  rejected: 0,
-};
-
+/* ───────── Helpers ───────── */
 const mono = { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } as const;
-
 const yesNo = (v: unknown) => (v === 1 || v === '1' ? 'Yes' : 'No');
 
+/* ───────── Main Component ───────── */
 export function Bihar_Survey_ULA_ViewData() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [kpis, setKpis] = useState<UlaSurveyKpis>(DEFAULT_KPIS);
   const [surveys, setSurveys] = useState<BiharUlaSurveyItem[]>([]);
   const [search, setSearch] = useState('');
@@ -448,34 +521,40 @@ export function Bihar_Survey_ULA_ViewData() {
   const [pageSize, setPageSize] = useState(100);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  // Column Visibility
+  /* Feedback alert (Kashmir pattern — auto-dismiss) */
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedbackMsg) return;
+    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [feedbackMsg]);
+
+  /* Column Visibility */
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
   const isVisible = (header: string) => !hiddenCols.includes(header);
 
-  // Load surveys from backend
-  const loadData = async () => {
+  /* Load surveys from backend */
+  const loadData = useCallback(async () => {
     setLoading(true);
-    setErrorMsg('');
+    setFeedbackMsg(null);
     try {
       const resp = await biharUlaSurveyService.getViewSurveys();
       setSurveys(resp.surveys || []);
       setKpis(resp.kpis || DEFAULT_KPIS);
-      if (!resp.surveys?.length) {
-        setErrorMsg('No ULA survey records found from server.');
-      }
     } catch (err: any) {
       console.error('[Bihar ULA Survey] Failed to load surveys:', err);
-      setErrorMsg(err?.message || 'Failed to load ULA survey records from server.');
+      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load ULA survey records from server.' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  // Districts list for filter dropdown
+  /* Districts list for filter dropdown */
   const districts = useMemo(() => {
     const set = new Set<string>();
     surveys.forEach((s) => {
@@ -484,7 +563,7 @@ export function Bihar_Survey_ULA_ViewData() {
     return Array.from(set).sort();
   }, [surveys]);
 
-  // Filtered surveys (district + verify status + search)
+  /* Filtered surveys (district + verify status + search) */
   const filteredSurveys = useMemo(() => {
     let list = surveys;
 
@@ -520,13 +599,21 @@ export function Bihar_Survey_ULA_ViewData() {
     return list;
   }, [surveys, search, districtFilter, statusFilter]);
 
-  // Pagination slice
+  /* Pagination slice */
   const pagedSurveys = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredSurveys.slice(start, start + pageSize);
   }, [filteredSurveys, currentPage, pageSize]);
 
-  // Format date helper
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setSearch('');
+    setDistrictFilter('all');
+    setStatusFilter('all');
+    setCurrentPage(1);
+  };
+
+  /* Format date helper */
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return DASH;
     try {
@@ -544,7 +631,7 @@ export function Bihar_Survey_ULA_ViewData() {
       ? r.verifier
       : '';
 
-  // Export column definitions
+  /* Export column definitions */
   const exportCols: ExportColumn<BiharUlaSurveyItem>[] = useMemo(
     () => [
       { header: 'Survey Date', accessor: (r) => formatDate(r.survey_date || r.created_at) },
@@ -581,8 +668,6 @@ export function Bihar_Survey_ULA_ViewData() {
     () => exportCols.filter((col) => !hiddenCols.includes(col.header)),
     [exportCols, hiddenCols]
   );
-
-
 
   const handleCopy = () => copyTableDataToClipboard(filteredSurveys, activeExportCols);
   const handleCsv = () => exportDataToCSV('Bihar_ULA_Surveys', filteredSurveys, activeExportCols);
@@ -621,21 +706,42 @@ export function Bihar_Survey_ULA_ViewData() {
           { label: 'ULA' },
         ]}
         actions={
-          <div className="ax-cluster">
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              {ICON_REFRESH}
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/ula-surveys/create')}>
-              {ICON_PLUS}
+              <svg className="ax-btn__icon" {...ICON_PROPS}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
               <span className="ax-btn__label">Add Survey</span>
             </button>
           </div>
         }
       />
 
-      {/* ── KPI Summary Grid ── */}
-      <div className="ax-dash-grid">
+      {/* ── Feedback Alert (Kashmir pattern — auto-dismiss + dismiss button) ── */}
+      {feedbackMsg && (
+        <div
+          className={`ax-alert ax-alert--${feedbackMsg.type}`}
+          style={{ marginBottom: 'var(--ax-space-4)' }}
+          role="status"
+        >
+          <div className="ax-alert__content">{feedbackMsg.text}</div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--xs"
+            onClick={() => setFeedbackMsg(null)}
+            aria-label="Dismiss alert"
+          >
+            {X_ICON}
+          </button>
+        </div>
+      )}
+
+      {/* ── KPI Cards (separated dash-grid with marginBottom) ── */}
+      <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
@@ -670,8 +776,10 @@ export function Bihar_Survey_ULA_ViewData() {
             />
           </>
         )}
+      </div>
 
-        {/* ── Main Table Card ── */}
+      {/* ── Main Table Card (separate dash-grid) ── */}
+      <div className="ax-dash-grid">
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -716,16 +824,11 @@ export function Bihar_Survey_ULA_ViewData() {
                   <option value="rejected">Rejected</option>
                 </select>
 
-                {(search || districtFilter !== 'all' || statusFilter !== 'all') && (
+                {hasFilters && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={() => {
-                      setSearch('');
-                      setDistrictFilter('all');
-                      setStatusFilter('all');
-                      setCurrentPage(1);
-                    }}
+                    onClick={resetFilters}
                     style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                   >
                     Reset
@@ -738,7 +841,7 @@ export function Bihar_Survey_ULA_ViewData() {
                     setSearch(val);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search consumer, district, CA..."
+                  placeholder="Search consumer, district, CA…"
                   size="sm"
                   ariaLabel="Search survey records"
                 />
@@ -748,7 +851,6 @@ export function Bihar_Survey_ULA_ViewData() {
                   onExportCSV={handleCsv}
                   onExportExcel={handleExcel}
                   onExportPDF={handlePdf}
-
                 />
               </div>
             </div>
@@ -757,7 +859,7 @@ export function Bihar_Survey_ULA_ViewData() {
           <div className="ax-table-wrap">
             <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
               <caption className="ax-visually-hidden">Bihar ULA Survey Records</caption>
-              <thead>
+              <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
                   {th('Survey Date')}
@@ -777,9 +879,9 @@ export function Bihar_Survey_ULA_ViewData() {
                   {th('Feasible')}
                   {th('Latitude')}
                   {th('Longitude')}
-                  <th className="ax-table__th" scope="col">Electricity Bill Photo</th>
-                  <th className="ax-table__th" scope="col">Consent Form Photo</th>
-                  <th className="ax-table__th" scope="col">Aadhaar Card Photo</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Electricity Bill Photo</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Consent Form Photo</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Aadhaar Card Photo</th>
                   {th('Remarks')}
                   {th('Status')}
                   {th('Verification')}
@@ -788,32 +890,37 @@ export function Bihar_Survey_ULA_ViewData() {
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {loading ? (
+              <tbody aria-busy={loading}>
+                {loading && (
                   <tr>
-                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                      Loading ULA survey records...
+                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: 32 }}>
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading ULA survey records…
                     </td>
                   </tr>
-                ) : filteredSurveys.length === 0 ? (
+                )}
+                {!loading && filteredSurveys.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                    <td className="ax-table__td" colSpan={colCount} style={{ padding: 0 }}>
                       <TableEmptyState
-                        title="No survey records found"
+                        title={hasFilters ? 'No matching survey records' : 'No survey records found'}
                         message={
-                          search || districtFilter !== 'all' || statusFilter !== 'all'
-                            ? 'No survey records match your filters. Try clearing them.'
-                            : errorMsg || 'No survey records available.'
+                          hasFilters
+                            ? 'No survey records match your filters or search. Try clearing your query.'
+                            : 'No ULA survey records available.'
                         }
+                        query={search}
+                        onClear={hasFilters ? resetFilters : undefined}
+                        clearLabel="Clear filters"
                       />
                     </td>
                   </tr>
-                ) : (
+                )}
+                {!loading &&
                   pagedSurveys.map((item, idx) => {
                     const srNo = (currentPage - 1) * pageSize + idx + 1;
                     return (
-                      <tr key={item.id || idx}>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
+                      <tr key={item.id || idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num">{srNo}</td>
                         {isVisible('Survey Date') && (
                           <td className="ax-table__td" style={mono}>{formatDate(item.survey_date || item.created_at)}</td>
                         )}
@@ -848,27 +955,15 @@ export function Bihar_Survey_ULA_ViewData() {
                         {isVisible('Latitude') && <td className="ax-table__td" style={mono}>{item.latitude ?? DASH}</td>}
                         {isVisible('Longitude') && <td className="ax-table__td" style={mono}>{item.longitude ?? DASH}</td>}
 
-                        {/* Photos (NO BORDER RADIUS) */}
+                        {/* Photos */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <SurveyThumbnail
-                            src={item.electricity_bill_photo}
-                            alt="Electricity Bill"
-                            onPreview={(url, t) => preview(item, url, t)}
-                          />
+                          <SurveyThumbnail src={item.electricity_bill_photo} alt="Electricity Bill" onPreview={(url, t) => preview(item, url, t)} />
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <SurveyThumbnail
-                            src={item.consent_form_photo}
-                            alt="Consent Form"
-                            onPreview={(url, t) => preview(item, url, t)}
-                          />
+                          <SurveyThumbnail src={item.consent_form_photo} alt="Consent Form" onPreview={(url, t) => preview(item, url, t)} />
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <SurveyThumbnail
-                            src={item.aadhar_card_photo}
-                            alt="Aadhaar Card"
-                            onPreview={(url, t) => preview(item, url, t)}
-                          />
+                          <SurveyThumbnail src={item.aadhar_card_photo} alt="Aadhaar Card" onPreview={(url, t) => preview(item, url, t)} />
                         </td>
 
                         {isVisible('Remarks') && <td className="ax-table__td">{item.remarks || DASH}</td>}
@@ -911,13 +1006,13 @@ export function Bihar_Survey_ULA_ViewData() {
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  })}
               </tbody>
             </table>
           </div>
 
-          <div className="ax-card__footer">
+          {/* ── Table Footer (Kashmir pattern — footerStyle) ── */}
+          <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
                 page={currentPage}
@@ -928,14 +1023,14 @@ export function Bihar_Survey_ULA_ViewData() {
                   setPageSize(sz);
                   setCurrentPage(1);
                 }}
-                pageSizeOptions={[100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200, 300]}
               />
             </div>
           </div>
         </section>
       </div>
 
-      {/* ── Image Preview Modal with Zoom ── */}
+      {/* ── Image Preview Modal ── */}
       {previewImage && (
         <ImagePreviewModal
           url={previewImage.url}

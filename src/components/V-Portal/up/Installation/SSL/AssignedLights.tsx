@@ -22,6 +22,25 @@ import {
 
 const DASH = '—';
 
+/* ───────── API helpers ───────── */
+
+// API se status string ("2") aata hai, local update ke baad number (2) — dono handle karo
+const isAcceptedStatus = (status: number | string | null | undefined) => Number(status) === 2;
+
+// village: '["Bhartapur"]' -> 'Bhartapur'
+const parseVillages = (v?: string | null): string => {
+  if (!v) return '';
+  try {
+    const p = JSON.parse(v);
+    return Array.isArray(p) ? p.map(String).filter(Boolean).join(', ') : String(p);
+  } catch {
+    return v;
+  }
+};
+
+// '2026-11-04 12:51:16' -> '2026-11-04'
+const fmtDate = (d?: string | null) => (d ? d.split(/[ T]/)[0] : '');
+
 /* ───────── KPI Card ───────── */
 type KpiTone = 'accent' | 'emerald' | 'amber';
 
@@ -386,7 +405,7 @@ export function UP_Installation_SSL_AssignedLights() {
 
   /* ── Summary counts ── */
   const summary = useMemo(() => {
-    const accepted = sites.filter((s) => s.status === 2).length;
+    const accepted = sites.filter((s) => isAcceptedStatus(s.status)).length;
     return { total: sites.length, accepted, pending: sites.length - accepted };
   }, [sites]);
 
@@ -402,8 +421,8 @@ export function UP_Installation_SSL_AssignedLights() {
   /* ── Filtered data ── */
   const filteredSites = useMemo(() => {
     return sites.filter((s) => {
-      if (statusFilter === 'pending' && s.status === 2) return false;
-      if (statusFilter === 'accepted' && s.status !== 2) return false;
+      if (statusFilter === 'pending' && isAcceptedStatus(s.status)) return false;
+      if (statusFilter === 'accepted' && !isAcceptedStatus(s.status)) return false;
 
       if (districtFilter !== 'all' && (s.district || '').toLowerCase() !== districtFilter.toLowerCase()) {
         return false;
@@ -417,10 +436,10 @@ export function UP_Installation_SSL_AssignedLights() {
           s.state || '',
           s.district || '',
           s.block || '',
-          s.panchayat || '',
+          parseVillages(s.village),
           s.remarks || '',
-          s.start_date || '',
-          s.end_date || '',
+          s.assign_date || '',
+          s.deadline_date || '',
         ].join(' ').toLowerCase();
         if (!haystack.includes(q)) return false;
       }
@@ -453,16 +472,16 @@ export function UP_Installation_SSL_AssignedLights() {
     () => [
       { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
       { header: 'Vendor', accessor: (r) => r.vendor || DASH },
-      { header: 'State', accessor: (r) => r.state ? r.state.toUpperCase() : 'UP' },
+      { header: 'State', accessor: (r) => (r.state ? r.state.toUpperCase() : 'UP') },
       { header: 'District', accessor: (r) => r.district || DASH },
       { header: 'Block', accessor: (r) => r.block || DASH },
-      { header: 'Panchayat', accessor: (r) => r.panchayat || DASH },
-      { header: 'Start Date', accessor: (r) => r.start_date || DASH },
-      { header: 'End Date', accessor: (r) => r.end_date || DASH },
+      { header: 'Village', accessor: (r) => parseVillages(r.village) || DASH },
+      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date) || DASH },
+      { header: 'Deadline', accessor: (r) => fmtDate(r.deadline_date) || DASH },
       { header: 'Site Count', accessor: (r) => String(r.site_count ?? DASH) },
       { header: 'File', accessor: (r) => r.file || DASH },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending') },
+      { header: 'Status', accessor: (r) => (isAcceptedStatus(r.status) ? 'Accepted' : 'Pending') },
     ],
     []
   );
@@ -650,9 +669,9 @@ export function UP_Installation_SSL_AssignedLights() {
                   <th className="ax-table__th" scope="col">State</th>
                   <th className="ax-table__th" scope="col">District</th>
                   <th className="ax-table__th" scope="col">Block</th>
-                  <th className="ax-table__th" scope="col">Panchayat</th>
-                  <th className="ax-table__th" scope="col">Start Date</th>
-                  <th className="ax-table__th" scope="col">End Date</th>
+                  <th className="ax-table__th" scope="col">Village</th>
+                  <th className="ax-table__th" scope="col">Assign Date</th>
+                  <th className="ax-table__th" scope="col">Deadline</th>
                   <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>Site Count</th>
                   <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>File</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
@@ -684,7 +703,7 @@ export function UP_Installation_SSL_AssignedLights() {
                 )}
                 {!loading &&
                   paginatedData.map((item, index) => {
-                    const isAccepted = item.status === 2;
+                    const accepted = isAcceptedStatus(item.status);
                     const fileUrl = item.file ? resolveUpMediaUrl(item.file) : '';
 
                     return (
@@ -698,9 +717,9 @@ export function UP_Installation_SSL_AssignedLights() {
                         </td>
                         <td className="ax-table__td">{item.district || DASH}</td>
                         <td className="ax-table__td">{item.block || DASH}</td>
-                        <td className="ax-table__td">{item.panchayat || DASH}</td>
-                        <td className="ax-table__td">{item.start_date || DASH}</td>
-                        <td className="ax-table__td">{item.end_date || DASH}</td>
+                        <td className="ax-table__td">{parseVillages(item.village) || DASH}</td>
+                        <td className="ax-table__td">{fmtDate(item.assign_date) || DASH}</td>
+                        <td className="ax-table__td">{fmtDate(item.deadline_date) || DASH}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <span
                             className="ax-badge ax-badge--soft"
@@ -738,7 +757,7 @@ export function UP_Installation_SSL_AssignedLights() {
                           {item.remarks || DASH}
                         </td>
                         <td className="ax-table__td">
-                          {isAccepted ? (
+                          {accepted ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
                               Accepted
                             </span>
@@ -813,14 +832,14 @@ export function UP_Installation_SSL_AssignedLights() {
               <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{(viewItem.state || 'UP').toUpperCase()}</strong></div>
               <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{viewItem.district || DASH}</strong></div>
               <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><strong>{viewItem.block || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Panchayat: </span><strong>{viewItem.panchayat || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Start Date: </span><strong>{viewItem.start_date || DASH}</strong></div>
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>End Date: </span><strong>{viewItem.end_date || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><strong>{parseVillages(viewItem.village) || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong>{fmtDate(viewItem.assign_date) || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Deadline: </span><strong>{fmtDate(viewItem.deadline_date) || DASH}</strong></div>
               <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Count: </span><strong>{viewItem.site_count ?? DASH}</strong></div>
               <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{viewItem.remarks || DASH}</strong></div>
               <div>
                 <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-                {viewItem.status === 2 ? (
+                {isAcceptedStatus(viewItem.status) ? (
                   <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Accepted</span>
                 ) : (
                   <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>

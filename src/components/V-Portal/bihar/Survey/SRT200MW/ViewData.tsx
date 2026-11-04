@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -21,6 +21,9 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
+const DASH = '—';
+const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
+
 const DEFAULT_KPIS: SurveyDetailKpis = {
   total: 0,
   complete: 0,
@@ -39,11 +42,35 @@ type Row = BiharSrtSiteItem & {
 /* ── Helpers: API field + purana field fallback ── */
 const getDept = (r: Row) => r.dept_name ?? (r as any).department;
 const getVerifyRemarks = (r: Row) => r.survey_verify_remarks ?? (r as any).verify_remarks;
-// API se survey_status string ("1") aa sakta hai, isliye Number() use kiya
 const isSurveyDone = (r: Row) => Number(r.survey_status) === 1;
 const verifyStatusNum = (r: Row) => Number(r.survey_verify_status);
 
-/* ───────── KPI Card (same as SRT Claim Request) ───────── */
+/* ───────── Shared icon constants (Kashmir pattern) ───────── */
+const ICON_PROPS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/* ───────── KPI Card (Kashmir pattern) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -60,33 +87,48 @@ const svg = (children: ReactNode) => (
 );
 
 function KpiCard({
-  icon, tone, label, value, sub,
+  icon,
+  tone,
+  label,
+  value,
+  sub,
 }: {
-  icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; sub: string;
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: ReactNode;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+    <div className="ax-card ax-col--3" style={{ padding: '16px 20px', borderRadius: 12, transition: 'all 0.2s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-        {sub}
-      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
     </div>
   );
 }
 
-/* ───────── Responsive page CSS (same as SRT Claim Request) ───────── */
+/* ───────── Responsive page CSS (Kashmir pattern) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -159,6 +201,12 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .solar-erp-page .ax-table th,
+  .solar-erp-page .ax-table td {
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   @media (max-width: 1100px) {
@@ -175,6 +223,12 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 900px) {
+    .solar-erp-page .ax-dash-grid > .ax-card {
+      grid-column: span 12 !important;
+    }
   }
 
   @media (max-width: 760px) {
@@ -207,8 +261,10 @@ const PAGE_CSS = `
   }
 `;
 
+/* ───────── Overlay / Modal CSS (separated like Kashmir) ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
+
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;
     height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
@@ -219,8 +275,13 @@ const OVERLAY_CSS = `
   }
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  @media (max-width: 560px) {
+    .ula-m-stage { height: 56vh; }
+  }
 `;
 
+/* ───────── Shared style constants (Kashmir pattern) ───────── */
 const actionsRowStyle = {
   gap: 'var(--ax-space-2)',
   flexWrap: 'wrap',
@@ -229,33 +290,33 @@ const actionsRowStyle = {
   width: '100%',
 } as const;
 
-const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-  </svg>
-);
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
 
-const ICON_PLUS = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 5l0 14" />
-    <path d="M5 12l14 0" />
-  </svg>
-);
-
-/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+/* ───────── Reusable Modal Component (Kashmir pattern) ───────── */
 function Modal({
   open,
   onClose,
   labelledBy,
+  centered = true,
   dialogClass = '',
+  dialogStyle,
   closeOnBackdrop = true,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   labelledBy: string;
+  centered?: boolean;
   dialogClass?: string;
+  dialogStyle?: CSSProperties;
   closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
@@ -272,10 +333,20 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
+
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div
+      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+    >
       <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+      <div
+        ref={dialogRef}
+        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
+        style={dialogStyle}
+      >
         {children}
       </div>
     </div>,
@@ -283,14 +354,8 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal with zoom ───────── */
+/* ───────── Image Preview Modal with Zoom (Kashmir pattern) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const [zoomIdx, setZoomIdx] = useState(0);
@@ -311,8 +376,12 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ula-m-stage">
-          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
-          {status === 'error' && <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
+          {status === 'loading' && (
+            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+          )}
+          {status === 'error' && (
+            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+          )}
           <img
             key={url}
             src={url}
@@ -346,63 +415,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ── Table column config (same columns / order as before) ── */
-interface TextCol { key: string; th: string; get: (r: Row) => ReactNode; style?: CSSProperties }
-
-const DASH = '—';
-const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
-
-const TEXT_COLS_BEFORE_MEDIA: TextCol[] = [
-  { key: 'Unique ID', th: 'Unique ID', get: (r) => txt(r.uid), style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' } },
-  { key: 'State', th: 'State', get: (r) => r.state || 'Bihar' },
-  { key: 'District', th: 'District', get: (r) => txt(r.district), style: { fontWeight: 600 } },
-  { key: 'Division', th: 'Division', get: (r) => txt(r.division) },
-  { key: 'Sub Division', th: 'Sub Division', get: (r) => txt(r.sub_division) },
-  { key: 'Department', th: 'Department', get: (r) => txt(getDept(r)) },
-  { key: 'Site Name', th: 'Site Name', get: (r) => txt(r.site_name), style: { fontWeight: 600, color: 'var(--ax-text-strong)' } },
-  { key: 'Site Address', th: 'Site Address', get: (r) => txt(r.address) },
-  { key: 'CA No.', th: 'CA No.', get: (r) => txt(r.ca_no) },
-  { key: 'Survey Address', th: 'Survey Address', get: (r) => txt(r.survey_address) },
-  { key: 'Nearest Landmark', th: 'Nearest Landmark', get: (r) => txt(r.near_landmark) },
-  { key: 'Agency Contact Person', th: 'Agency Contact Person', get: (r) => txt(r.agency_person_name) },
-  { key: 'Agency Contact Number', th: 'Agency Contact Number', get: (r) => txt(r.agency_person_contact) },
-  { key: 'Nodal Person', th: 'Nodal Person', get: (r) => txt(r.nodal_person) },
-  { key: 'Nodal Contact', th: 'Nodal Person Contact', get: (r) => txt(r.contact_nodal) },
-  { key: 'Latitude', th: 'Latitude', get: (r) => txt(r.latitude), style: { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } },
-  { key: 'Longitude', th: 'Longitude', get: (r) => txt(r.longitude), style: { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } },
-  { key: 'Load Type', th: 'Load Type', get: (r) => txt(r.load_type) },
-  { key: 'Connection Phase', th: 'Connection Phase', get: (r) => txt(r.connection_phase) },
-  { key: 'Meter Connection Type', th: 'Meter Connection Type', get: (r) => txt(r.meter_connection) },
-  { key: 'Meter Number', th: 'Meter Number', get: (r) => txt(r.meter_number) },
-  { key: 'Meter Type', th: 'Meter Type', get: (r) => txt(r.meter_type) },
-  { key: 'Sanction Load', th: 'Sanction Load (KW/KVA)', get: (r) => txt(r.sanction_load) },
-  { key: 'Connected Load', th: 'Connected Load (KW)', get: (r) => txt(r.connected_load) },
-  { key: 'Grid Power Availability', th: 'Grid Power Availability', get: (r) => txt(r.grid_power) },
-  { key: 'Three-Phase Availability', th: 'Three-Phase Availability', get: (r) => txt(r.all_3_phase_ltdb) },
-  { key: 'Missing Phase', th: 'Missing Phase', get: (r) => txt(r.missing_phase) },
-  { key: 'LTDB Present', th: 'LTDB Present', get: (r) => txt(r.ltdb_present) },
-  { key: 'Roof Condition', th: 'Roof Condition', get: (r) => txt(r.roof_condition) },
-  { key: 'Total Roof Area (Sq.Ft)', th: 'Total Roof Area (Sq.Ft)', get: (r) => txt(r.area_roof) },
-  { key: 'Free Space Solar (Sq.Ft)', th: 'Free Space Solar (Sq.Ft)', get: (r) => txt(r.free_space_solar) },
-  { key: 'Free Space Inverter (Sq.Ft)', th: 'Free Space Inverter (Sq.Ft)', get: (r) => txt(r.free_space_inverter) },
-  { key: 'Earth Pit Position', th: 'Earth Pit Position', get: (r) => txt(r.earth_pit) },
-  { key: 'Age of Building', th: 'Age of Building', get: (r) => txt(r.building_age) },
-  { key: 'Roof Access', th: 'Access to Roof', get: (r) => txt(r.roof_access) },
-  { key: 'Rooftop Height', th: 'Rooftop Height (Feet)', get: (r) => txt(r.rooftop_height) },
-  { key: 'Parapet Height', th: 'Parapet Height (Feet)', get: (r) => txt(r.parapet_height) },
-  { key: 'No. of Floors', th: 'No. of Floors (G+...)', get: (r) => txt(r.floors_number) },
-  { key: 'Water Source', th: 'Water Source for Cleaning', get: (r) => txt(r.water_source) },
-  { key: 'Access to Site', th: 'Access to Site', get: (r) => txt(r.site_access) },
-  { key: 'Distance from Road', th: 'Distance from Main Road (km)', get: (r) => txt(r.site_distance) },
-];
-
-const MEDIA_COLS: { th: string; alt: string; field: 'image1' | 'image2' | 'image3' | 'image4' }[] = [
-  { th: 'Building Image', alt: 'Building', field: 'image1' },
-  { th: 'Roof Image', alt: 'Roof', field: 'image2' },
-  { th: 'Control Room', alt: 'Control Room', field: 'image3' },
-  { th: 'Other Image', alt: 'Other', field: 'image4' },
-];
-
+/* ───────── Image URL resolution ───────── */
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
   .replace(/\/+$/, '');
@@ -465,15 +478,17 @@ function resolveSurveyFileUrl(path?: string | null): string {
   return `${BACKEND_BASE}/uploads/bihar/survey/srt/${filename}`;
 }
 
-/* ── Robust Table Image: strict NO BORDER RADIUS ── */
+/* ───────── Survey Thumbnail (Kashmir pattern — size 34, zoom-in) ───────── */
 function SurveyThumbnail({
   src,
   alt,
   onPreview,
+  size = 34,
 }: {
   src?: string | null;
   alt: string;
   onPreview: (url: string, title: string) => void;
+  size?: number;
 }) {
   const candidates = useMemo(() => getSurveyImageCandidates(src), [src]);
   const [candidateIdx, setCandidateIdx] = useState(0);
@@ -485,7 +500,7 @@ function SurveyThumbnail({
   }, [src]);
 
   if (!src || failed || candidateIdx >= candidates.length) {
-    return <span style={{ color: 'var(--ax-text-subtle)', fontSize: '11px' }}>{DASH}</span>;
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
   }
 
   const currentUrl = candidates[candidateIdx];
@@ -495,13 +510,16 @@ function SurveyThumbnail({
       src={currentUrl}
       alt={alt}
       style={{
-        width: 38,
-        height: 38,
+        width: size,
+        height: size,
         objectFit: 'cover',
         borderRadius: 0,
-        border: '1px solid var(--ax-border)',
-        cursor: 'pointer',
-        display: 'inline-block',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        cursor: 'zoom-in',
+        display: 'block',
+        margin: '0 auto',
+        flexShrink: 0,
       }}
       onError={() => {
         if (candidateIdx + 1 < candidates.length) {
@@ -516,10 +534,64 @@ function SurveyThumbnail({
   );
 }
 
+/* ── Table column config ── */
+interface TextCol { key: string; th: string; get: (r: Row) => ReactNode; style?: CSSProperties }
+
+const TEXT_COLS_BEFORE_MEDIA: TextCol[] = [
+  { key: 'Unique ID', th: 'Unique ID', get: (r) => txt(r.uid), style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' } },
+  { key: 'State', th: 'State', get: (r) => r.state || 'Bihar' },
+  { key: 'District', th: 'District', get: (r) => txt(r.district), style: { fontWeight: 600 } },
+  { key: 'Division', th: 'Division', get: (r) => txt(r.division) },
+  { key: 'Sub Division', th: 'Sub Division', get: (r) => txt(r.sub_division) },
+  { key: 'Department', th: 'Department', get: (r) => txt(getDept(r)) },
+  { key: 'Site Name', th: 'Site Name', get: (r) => txt(r.site_name), style: { fontWeight: 600, color: 'var(--ax-text-strong)' } },
+  { key: 'Site Address', th: 'Site Address', get: (r) => txt(r.address) },
+  { key: 'CA No.', th: 'CA No.', get: (r) => txt(r.ca_no) },
+  { key: 'Survey Address', th: 'Survey Address', get: (r) => txt(r.survey_address) },
+  { key: 'Nearest Landmark', th: 'Nearest Landmark', get: (r) => txt(r.near_landmark) },
+  { key: 'Agency Contact Person', th: 'Agency Contact Person', get: (r) => txt(r.agency_person_name) },
+  { key: 'Agency Contact Number', th: 'Agency Contact Number', get: (r) => txt(r.agency_person_contact) },
+  { key: 'Nodal Person', th: 'Nodal Person', get: (r) => txt(r.nodal_person) },
+  { key: 'Nodal Contact', th: 'Nodal Person Contact', get: (r) => txt(r.contact_nodal) },
+  { key: 'Latitude', th: 'Latitude', get: (r) => txt(r.latitude), style: { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } },
+  { key: 'Longitude', th: 'Longitude', get: (r) => txt(r.longitude), style: { fontFamily: 'var(--ax-font-mono)', fontSize: '11px' } },
+  { key: 'Load Type', th: 'Load Type', get: (r) => txt(r.load_type) },
+  { key: 'Connection Phase', th: 'Connection Phase', get: (r) => txt(r.connection_phase) },
+  { key: 'Meter Connection Type', th: 'Meter Connection Type', get: (r) => txt(r.meter_connection) },
+  { key: 'Meter Number', th: 'Meter Number', get: (r) => txt(r.meter_number) },
+  { key: 'Meter Type', th: 'Meter Type', get: (r) => txt(r.meter_type) },
+  { key: 'Sanction Load', th: 'Sanction Load (KW/KVA)', get: (r) => txt(r.sanction_load) },
+  { key: 'Connected Load', th: 'Connected Load (KW)', get: (r) => txt(r.connected_load) },
+  { key: 'Grid Power Availability', th: 'Grid Power Availability', get: (r) => txt(r.grid_power) },
+  { key: 'Three-Phase Availability', th: 'Three-Phase Availability', get: (r) => txt(r.all_3_phase_ltdb) },
+  { key: 'Missing Phase', th: 'Missing Phase', get: (r) => txt(r.missing_phase) },
+  { key: 'LTDB Present', th: 'LTDB Present', get: (r) => txt(r.ltdb_present) },
+  { key: 'Roof Condition', th: 'Roof Condition', get: (r) => txt(r.roof_condition) },
+  { key: 'Total Roof Area (Sq.Ft)', th: 'Total Roof Area (Sq.Ft)', get: (r) => txt(r.area_roof) },
+  { key: 'Free Space Solar (Sq.Ft)', th: 'Free Space Solar (Sq.Ft)', get: (r) => txt(r.free_space_solar) },
+  { key: 'Free Space Inverter (Sq.Ft)', th: 'Free Space Inverter (Sq.Ft)', get: (r) => txt(r.free_space_inverter) },
+  { key: 'Earth Pit Position', th: 'Earth Pit Position', get: (r) => txt(r.earth_pit) },
+  { key: 'Age of Building', th: 'Age of Building', get: (r) => txt(r.building_age) },
+  { key: 'Roof Access', th: 'Access to Roof', get: (r) => txt(r.roof_access) },
+  { key: 'Rooftop Height', th: 'Rooftop Height (Feet)', get: (r) => txt(r.rooftop_height) },
+  { key: 'Parapet Height', th: 'Parapet Height (Feet)', get: (r) => txt(r.parapet_height) },
+  { key: 'No. of Floors', th: 'No. of Floors (G+...)', get: (r) => txt(r.floors_number) },
+  { key: 'Water Source', th: 'Water Source for Cleaning', get: (r) => txt(r.water_source) },
+  { key: 'Access to Site', th: 'Access to Site', get: (r) => txt(r.site_access) },
+  { key: 'Distance from Road', th: 'Distance from Main Road (km)', get: (r) => txt(r.site_distance) },
+];
+
+const MEDIA_COLS: { th: string; alt: string; field: 'image1' | 'image2' | 'image3' | 'image4' }[] = [
+  { th: 'Building Image', alt: 'Building', field: 'image1' },
+  { th: 'Roof Image', alt: 'Roof', field: 'image2' },
+  { th: 'Control Room', alt: 'Control Room', field: 'image3' },
+  { th: 'Other Image', alt: 'Other', field: 'image4' },
+];
+
+/* ───────── Main Component ───────── */
 export function Bihar_Survey_SRT200MW_ViewData() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [kpis, setKpis] = useState<SurveyDetailKpis>(DEFAULT_KPIS);
   const [sites, setSites] = useState<Row[]>([]);
   const [search, setSearch] = useState('');
@@ -529,34 +601,40 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const [pageSize, setPageSize] = useState(100);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  // Column Visibility
+  /* Feedback alert (Kashmir pattern — auto-dismiss) */
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedbackMsg) return;
+    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [feedbackMsg]);
+
+  /* Column Visibility */
   const [hiddenCols, setHiddenCols] = useState<string[]>([]);
   const isVisible = (header: string) => !hiddenCols.includes(header);
 
-  // Load survey view data
-  const loadData = async () => {
+  /* Load survey view data */
+  const loadData = useCallback(async () => {
     setLoading(true);
-    setErrorMsg('');
+    setFeedbackMsg(null);
     try {
       const resp = await biharSrt200mwService.getViewSurveyData();
       setKpis(resp.data.survey_detail || DEFAULT_KPIS);
       setSites((resp.data.srt200mw || []) as Row[]);
-      if (!resp.data.srt200mw?.length) {
-        setErrorMsg('No survey records found from server.');
-      }
     } catch (err: any) {
       console.error('[Bihar SRT 200MW] Failed to load data:', err);
-      setErrorMsg(err?.message || 'Failed to load survey records from server.');
+      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load survey records from server.' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  // Districts list for filter dropdown
+  /* Districts list for filter dropdown */
   const districts = useMemo(() => {
     const set = new Set<string>();
     sites.forEach((s) => {
@@ -565,7 +643,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
     return Array.from(set).sort();
   }, [sites]);
 
-  // Filtered sites (district + verify status + search)
+  /* Filtered sites (district + verify status + search) */
   const filteredSites = useMemo(() => {
     let list = sites;
 
@@ -595,13 +673,21 @@ export function Bihar_Survey_SRT200MW_ViewData() {
     return list;
   }, [sites, search, districtFilter, statusFilter]);
 
-  // Pagination
+  /* Pagination */
   const pagedSites = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredSites.slice(start, start + pageSize);
   }, [filteredSites, currentPage, pageSize]);
 
-  // Export column definitions
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setSearch('');
+    setDistrictFilter('all');
+    setStatusFilter('all');
+    setCurrentPage(1);
+  };
+
+  /* Export column definitions */
   const exportCols: ExportColumn<Row>[] = useMemo(
     () => [
       { header: 'Unique ID', accessor: (r) => r.uid ?? '' },
@@ -661,8 +747,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
     [exportCols, hiddenCols]
   );
 
-
-
   const handleCopy = () => copyTableDataToClipboard(filteredSites, activeExportCols);
   const handleCsv = () => exportDataToCSV('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols);
   const handleExcel = () => exportDataToExcel('Bihar_SRT_200MW_Survey', filteredSites, activeExportCols);
@@ -672,7 +756,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
   const surveyDonePct = kpis.total > 0 ? Math.round((kpis.complete / kpis.total) * 100) : 0;
   const verifyDonePct = kpis.total > 0 ? Math.round((kpis.verify_complete / kpis.total) * 100) : 0;
 
-  // Total column count for empty / loading rows
+  /* Total column count for empty / loading rows */
   const colCount =
     1 + visibleTextCols.length + MEDIA_COLS.length + 1 +
     (isVisible('Survey Status') ? 1 : 0) +
@@ -695,21 +779,42 @@ export function Bihar_Survey_SRT200MW_ViewData() {
           { label: 'SRT 200MW' },
         ]}
         actions={
-          <div className="ax-cluster">
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              {ICON_REFRESH}
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/srt200mw-survey')}>
-              {ICON_PLUS}
+              <svg className="ax-btn__icon" {...ICON_PROPS}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
               <span className="ax-btn__label">Add Survey</span>
             </button>
           </div>
         }
       />
 
-      {/* ── KPI Summary Grid ── */}
-      <div className="ax-dash-grid">
+      {/* ── Feedback Alert (Kashmir pattern — auto-dismiss + dismiss button) ── */}
+      {feedbackMsg && (
+        <div
+          className={`ax-alert ax-alert--${feedbackMsg.type}`}
+          style={{ marginBottom: 'var(--ax-space-4)' }}
+          role="status"
+        >
+          <div className="ax-alert__content">{feedbackMsg.text}</div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--xs"
+            onClick={() => setFeedbackMsg(null)}
+            aria-label="Dismiss alert"
+          >
+            {X_ICON}
+          </button>
+        </div>
+      )}
+
+      {/* ── KPI Cards (separated dash-grid with marginBottom) ── */}
+      <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
@@ -744,8 +849,10 @@ export function Bihar_Survey_SRT200MW_ViewData() {
             />
           </>
         )}
+      </div>
 
-        {/* ── Main Table Card ── */}
+      {/* ── Main Table Card (separate dash-grid) ── */}
+      <div className="ax-dash-grid">
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -790,16 +897,11 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                   <option value="rejected">Rejected</option>
                 </select>
 
-                {(search || districtFilter !== 'all' || statusFilter !== 'all') && (
+                {hasFilters && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={() => {
-                      setSearch('');
-                      setDistrictFilter('all');
-                      setStatusFilter('all');
-                      setCurrentPage(1);
-                    }}
+                    onClick={resetFilters}
                     style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                   >
                     Reset
@@ -812,7 +914,7 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                     setSearch(val);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search site, district, UID..."
+                  placeholder="Search site, district, UID…"
                   size="sm"
                   ariaLabel="Search survey records"
                 />
@@ -822,7 +924,6 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                   onExportCSV={handleCsv}
                   onExportExcel={handleExcel}
                   onExportPDF={handlePdf}
-
                 />
               </div>
             </div>
@@ -831,54 +932,59 @@ export function Bihar_Survey_SRT200MW_ViewData() {
           <div className="ax-table-wrap">
             <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
               <caption className="ax-visually-hidden">Bihar SRT 200MW Survey Records</caption>
-              <thead>
+              <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
                   {visibleTextCols.map((c) => (
                     <th key={c.key} className="ax-table__th" scope="col">{c.th}</th>
                   ))}
                   {MEDIA_COLS.map((m) => (
-                    <th key={m.field} className="ax-table__th" scope="col">{m.th}</th>
+                    <th key={m.field} className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>{m.th}</th>
                   ))}
-                  <th className="ax-table__th" scope="col">PDF</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>PDF</th>
                   {isVisible('Survey Status') && <th className="ax-table__th" scope="col">Survey Status</th>}
                   {isVisible('Verify Status') && <th className="ax-table__th" scope="col">Verify Status</th>}
                   {isVisible('Verify Remarks') && <th className="ax-table__th" scope="col">Verify Remarks</th>}
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {loading ? (
+              <tbody aria-busy={loading}>
+                {loading && (
                   <tr>
-                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                      Loading survey records...
+                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: 32 }}>
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading survey records…
                     </td>
                   </tr>
-                ) : filteredSites.length === 0 ? (
+                )}
+                {!loading && filteredSites.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={colCount} style={{ textAlign: 'center', padding: '36px 16px' }}>
+                    <td className="ax-table__td" colSpan={colCount} style={{ padding: 0 }}>
                       <TableEmptyState
-                        title="No survey records found"
+                        title={hasFilters ? 'No matching survey records' : 'No survey records found'}
                         message={
-                          search || districtFilter !== 'all' || statusFilter !== 'all'
-                            ? 'No survey records match your filters. Try clearing them.'
-                            : errorMsg || 'No survey records available.'
+                          hasFilters
+                            ? 'No survey records match your filters or search. Try clearing your query.'
+                            : 'No survey records available.'
                         }
+                        query={search}
+                        onClear={hasFilters ? resetFilters : undefined}
+                        clearLabel="Clear filters"
                       />
                     </td>
                   </tr>
-                ) : (
+                )}
+                {!loading &&
                   pagedSites.map((item, idx) => {
                     const srNo = (currentPage - 1) * pageSize + idx + 1;
                     return (
-                      <tr key={item.id || idx}>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
+                      <tr key={item.id || idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num">{srNo}</td>
 
                         {visibleTextCols.map((c) => (
                           <td key={c.key} className="ax-table__td" style={c.style}>{c.get(item)}</td>
                         ))}
 
-                        {/* Images (NO BORDER RADIUS) */}
+                        {/* Images */}
                         {MEDIA_COLS.map((m) => (
                           <td key={m.field} className="ax-table__td" style={{ textAlign: 'center' }}>
                             <SurveyThumbnail
@@ -898,13 +1004,13 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                               href={resolveSurveyFileUrl(item.pdf_file)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              className="ax-btn ax-btn--ghost ax-btn--sm"
+                              style={{ padding: '2px 8px', fontSize: 11 }}
                             >
-                              📄 View PDF
+                              PDF ↗
                             </a>
                           ) : (
-                            <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                           )}
                         </td>
 
@@ -949,13 +1055,13 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  })}
               </tbody>
             </table>
           </div>
 
-          <div className="ax-card__footer">
+          {/* ── Table Footer (Kashmir pattern — footerStyle) ── */}
+          <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
                 page={currentPage}
@@ -966,14 +1072,14 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                   setPageSize(sz);
                   setCurrentPage(1);
                 }}
-                pageSizeOptions={[100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200, 300]}
               />
             </div>
           </div>
         </section>
       </div>
 
-      {/* ── Image Preview Modal with Zoom ── */}
+      {/* ── Image Preview Modal ── */}
       {previewImage && (
         <ImagePreviewModal
           url={previewImage.url}

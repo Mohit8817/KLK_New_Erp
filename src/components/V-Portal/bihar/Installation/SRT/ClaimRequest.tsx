@@ -81,24 +81,44 @@ const num = (x: unknown) => {
   return isNaN(n) ? String(x ?? '0') : n.toLocaleString('en-IN');
 };
 
+const DASH = '—';
+
+/* ───────── Shared icon constants (Kashmir pattern) ───────── */
+const ICON_PROPS = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
 const ICON_REFRESH = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg className="ax-btn__icon" {...ICON_PROPS}>
     <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
     <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </svg>
 );
 
-const DASH = '—';
+const X_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+    <path d="M18 6l-12 12" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
 
-/* ── Robust Table Image: Strict NO BORDER RADIUS ── */
+/* ───────── Robust Table Image (Kashmir SurveyThumbnail pattern) ───────── */
 function RobustClaimImage({
   path,
   alt,
   onClick,
+  size = 34,
 }: {
   path?: string | null;
   alt: string;
   onClick?: () => void;
+  size?: number;
 }) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const [hasError, setHasError] = useState(false);
@@ -111,7 +131,7 @@ function RobustClaimImage({
   }, [path]);
 
   if (!path || candidates.length === 0 || hasError) {
-    return <span style={{ color: 'var(--ax-text-subtle)', fontSize: '11px' }}>{DASH}</span>;
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
   }
 
   const currentSrc = candidates[candidateIndex];
@@ -121,14 +141,18 @@ function RobustClaimImage({
       src={currentSrc}
       alt={alt}
       style={{
-        width: 38,
-        height: 38,
+        width: size,
+        height: size,
         objectFit: 'cover',
-        borderRadius: 0, // Strict NO radius per user requirement
-        border: '1px solid var(--ax-border)',
-        cursor: onClick ? 'pointer' : 'default',
-        display: 'inline-block',
+        borderRadius: 0,
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        cursor: onClick ? 'zoom-in' : 'default',
+        display: 'block',
+        margin: '0 auto',
+        flexShrink: 0,
       }}
+      title={onClick ? 'Click to preview' : undefined}
       onClick={onClick}
       onError={() => {
         if (candidateIndex + 1 < candidates.length) {
@@ -141,7 +165,7 @@ function RobustClaimImage({
   );
 }
 
-/* ───────── KPI Card (exact same as Survey/SRT200MW/ViewData.tsx) ───────── */
+/* ───────── KPI Card (Kashmir pattern) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -158,28 +182,43 @@ const svg = (children: ReactNode) => (
 );
 
 function KpiCard({
-  icon, tone, label, value, sub,
+  icon,
+  tone,
+  label,
+  value,
+  sub,
 }: {
-  icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; sub: string;
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: ReactNode;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+    <div className="ax-card ax-col--3" style={{ padding: '16px 20px', borderRadius: 12, transition: 'all 0.2s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-        {sub}
-      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
     </div>
   );
 }
@@ -199,7 +238,7 @@ function ClaimStatusBadge({ status }: { status: unknown }) {
   return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
 }
 
-/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+/* ───────── Responsive page CSS (Kashmir pattern) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -272,7 +311,14 @@ const PAGE_CSS = `
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
+  .solar-erp-page .ax-table th,
+  .solar-erp-page .ax-table td {
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
       font-size: 0;
@@ -287,6 +333,12 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 900px) {
+    .solar-erp-page .ax-dash-grid > .ax-card {
+      grid-column: span 12 !important;
+    }
   }
 
   @media (max-width: 760px) {
@@ -319,8 +371,11 @@ const PAGE_CSS = `
   }
 `;
 
+/* ───────── Overlay / Modal CSS (separated like Kashmir) ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
+
+  /* Image preview stage */
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;
     height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
@@ -331,21 +386,48 @@ const OVERLAY_CSS = `
   }
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+
+  @media (max-width: 560px) {
+    .ula-m-stage { height: 56vh; }
+  }
 `;
 
-/* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
+/* ───────── Shared style constants (Kashmir pattern) ───────── */
+const actionsRowStyle = {
+  gap: 'var(--ax-space-2)',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  width: '100%',
+} as const;
+
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+
+/* ───────── Reusable Modal Component (Kashmir pattern) ───────── */
 function Modal({
   open,
   onClose,
   labelledBy,
+  centered = true,
   dialogClass = '',
+  dialogStyle,
   closeOnBackdrop = true,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   labelledBy: string;
+  centered?: boolean;
   dialogClass?: string;
+  dialogStyle?: CSSProperties;
   closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
@@ -362,10 +444,20 @@ function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
+
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div
+      className={`ax-modal${centered ? ' ax-modal--centered' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={labelledBy}
+    >
       <div className="ax-modal__backdrop" onClick={() => closeOnBackdrop && onClose()} />
-      <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
+      <div
+        ref={dialogRef}
+        className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}
+        style={dialogStyle}
+      >
         {children}
       </div>
     </div>,
@@ -373,14 +465,8 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal with zoom ───────── */
+/* ───────── Image Preview Modal with Zoom (Kashmir pattern) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
   const [zoomIdx, setZoomIdx] = useState(0);
@@ -401,8 +487,12 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
 
       <div className="ax-modal__body" style={{ padding: 0 }}>
         <div className="ula-m-stage">
-          {status === 'loading' && <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>}
-          {status === 'error' && <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>}
+          {status === 'loading' && (
+            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
+          )}
+          {status === 'error' && (
+            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+          )}
           <img
             key={url}
             src={url}
@@ -436,14 +526,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-const actionsRowStyle = {
-  gap: 'var(--ax-space-2)',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  width: '100%',
-} as const;
-
+/* ───────── Main Component ───────── */
 export function Bihar_Installation_SRT_ClaimRequest() {
   const [claims, setClaims] = useState<SrtInstallClaimItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -453,10 +536,10 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
 
-  // Modals
+  /* Modals */
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  // New Claim Modal State
+  /* New Claim Modal State */
   const [newClaimModal, setNewClaimModal] = useState(false);
   const [pendingSites, setPendingSites] = useState<SrtSiteDropdownItem[]>([]);
   const [loadingPendingSites, setLoadingPendingSites] = useState(false);
@@ -465,23 +548,31 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
   const [claimSubmitting, setClaimSubmitting] = useState(false);
 
-  // 3rd Payment Modal State
+  /* 3rd Payment Modal State */
   const [raise3rdModalSite, setRaise3rdModalSite] = useState<SrtInstallClaimItem | null>(null);
   const [genImageFile, setGenImageFile] = useState<File | null>(null);
   const [rmsImageFile, setRmsImageFile] = useState<File | null>(null);
   const [submitting3rd, setSubmitting3rd] = useState(false);
 
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  /* Feedback alert (Kashmir pattern — auto-dismiss) */
+  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Load Claim Records
+  useEffect(() => {
+    if (!feedbackMsg) return;
+    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [feedbackMsg]);
+
+  /* Load Claim Records */
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      setFeedbackMsg(null);
       const res = await biharSrtInstallationService.getViewInstallClaims();
       setClaims(Array.isArray(res) ? res : []);
     } catch (err: any) {
       console.error('[SRT ClaimRequest] load error:', err);
-      setFeedback({ type: 'danger', text: err?.message || 'Failed to load SRT claim requests.' });
+      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load SRT claim requests.' });
     } finally {
       setLoading(false);
     }
@@ -491,7 +582,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     loadData();
   }, [loadData]);
 
-  // Open New Claim Modal
+  /* Open New Claim Modal */
   const openNewClaimModal = async () => {
     setNewClaimModal(true);
     setClaimSiteId('');
@@ -508,7 +599,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     }
   };
 
-  // Submit New Claim
+  /* Submit New Claim */
   const handleClaimSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!claimSiteId || !claimAmount || !claimInvoiceFile) {
@@ -524,7 +615,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
       fd.append('claim_invoice', claimInvoiceFile);
 
       const res = await biharSrtInstallationService.raiseInstallClaim(fd);
-      setFeedback({ type: 'success', text: res?.message || 'Claim raised successfully!' });
+      setFeedbackMsg({ type: 'success', text: res?.message || 'Claim raised successfully!' });
       setNewClaimModal(false);
       loadData();
     } catch (err: any) {
@@ -534,7 +625,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     }
   };
 
-  // Submit 3rd Payment
+  /* Submit 3rd Payment */
   const handle3rdPaymentSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!raise3rdModalSite) return;
@@ -546,8 +637,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
       if (genImageFile) fd.append('generation_image', genImageFile);
       if (rmsImageFile) fd.append('rms_loger_image', rmsImageFile);
 
-      // Submit update
-      setFeedback({ type: 'success', text: '3rd Payment evidence submitted successfully!' });
+      setFeedbackMsg({ type: 'success', text: '3rd Payment evidence submitted successfully!' });
       setRaise3rdModalSite(null);
       loadData();
     } catch (err: any) {
@@ -557,13 +647,13 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     }
   };
 
-  // KPI Calculations
+  /* KPI Calculations */
   const totalClaims = claims.length;
   const pay1Count = useMemo(() => claims.filter((c) => String(c.payment1_status).toLowerCase() === '1' || String(c.payment1_status).toLowerCase() === 'paid').length, [claims]);
   const pay2Count = useMemo(() => claims.filter((c) => String(c.payment2_status).toLowerCase() === '1' || String(c.payment2_status).toLowerCase() === 'paid').length, [claims]);
   const pay3Count = useMemo(() => claims.filter((c) => String(c.payment3_status).toLowerCase() === '1' || String(c.payment3_status).toLowerCase() === 'paid').length, [claims]);
 
-  // Districts list for filter dropdown
+  /* Districts for filter */
   const districts = useMemo(() => {
     const set = new Set<string>();
     claims.forEach((c) => {
@@ -572,7 +662,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     return Array.from(set).sort();
   }, [claims]);
 
-  // Filtered Claims
+  /* Filtered Claims */
   const filteredClaims = useMemo(() => {
     let list = claims;
     if (districtFilter !== 'all') {
@@ -587,7 +677,6 @@ export function Bihar_Installation_SRT_ClaimRequest() {
         return true;
       });
     }
-
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((c) => {
@@ -600,7 +689,6 @@ export function Bihar_Installation_SRT_ClaimRequest() {
         );
       });
     }
-
     return list;
   }, [claims, search, statusFilter, districtFilter]);
 
@@ -609,7 +697,15 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     return filteredClaims.slice(start, start + pageSize);
   }, [filteredClaims, currentPage, pageSize]);
 
-  // Export Columns (All 24 fields)
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || statusFilter !== 'all';
+  const resetFilters = () => {
+    setSearch('');
+    setDistrictFilter('all');
+    setStatusFilter('all');
+    setCurrentPage(1);
+  };
+
+  /* Export Columns */
   const exportCols: ExportColumn<SrtInstallClaimItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
@@ -640,14 +736,12 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     []
   );
 
-
-
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head (Exact User Header Text) ── */}
+      {/* ── Page Head ── */}
       <PageHead
         title="View SRT Claim Request"
         subtitle="Welcome to View Claim Request Information"
@@ -657,27 +751,42 @@ export function Bihar_Installation_SRT_ClaimRequest() {
           { label: 'View Claim Request Information' },
         ]}
         actions={
-          <div className="ax-cluster">
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              {ICON_REFRESH}
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={openNewClaimModal}>
-              + Raise New Claim
+              <svg className="ax-btn__icon" {...ICON_PROPS}>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span className="ax-btn__label">Raise New Claim</span>
             </button>
           </div>
         }
       />
 
-      {feedback && (
-        <div className={`ax-alert ax-alert--${feedback.type}`} style={{ marginBottom: 'var(--ax-space-3)' }}>
-          <div className="ax-alert__title">{feedback.type === 'success' ? 'Success' : 'Notice'}</div>
-          <div className="ax-alert__text">{feedback.text}</div>
+      {/* ── Feedback Alert (Kashmir pattern — auto-dismiss + dismiss button) ── */}
+      {feedbackMsg && (
+        <div
+          className={`ax-alert ax-alert--${feedbackMsg.type}`}
+          style={{ marginBottom: 'var(--ax-space-4)' }}
+          role="status"
+        >
+          <div className="ax-alert__content">{feedbackMsg.text}</div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--xs"
+            onClick={() => setFeedbackMsg(null)}
+            aria-label="Dismiss alert"
+          >
+            {X_ICON}
+          </button>
         </div>
       )}
 
-            {/* ── KPI Summary Grid ── */}
-      <div className="ax-dash-grid">
+      {/* ── KPI Cards (separated dash-grid with marginBottom) ── */}
+      <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
@@ -712,9 +821,11 @@ export function Bihar_Installation_SRT_ClaimRequest() {
             />
           </>
         )}
+      </div>
 
-        {/* ── Main Claims Table Card ── */}
-        <section className="ax-card ax-col--12">
+      {/* ── Main Table Card (separate dash-grid) ── */}
+      <div className="ax-dash-grid">
+        <section className="ax-card ax-col--12" role="region" aria-label="SRT Claim Requests">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">PAYMENT MILESTONES</span>
@@ -758,16 +869,11 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                   <option value="rejected">Rejected</option>
                 </select>
 
-                {(search || districtFilter !== 'all' || statusFilter !== 'all') && (
+                {hasFilters && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={() => {
-                      setSearch('');
-                      setDistrictFilter('all');
-                      setStatusFilter('all');
-                      setCurrentPage(1);
-                    }}
+                    onClick={resetFilters}
                     style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                   >
                     Reset
@@ -780,7 +886,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                     setSearch(v);
                     setCurrentPage(1);
                   }}
-                  placeholder="Search site, district, ID..."
+                  placeholder="Search site, district, ID…"
                   size="sm"
                   ariaLabel="Search claim requests"
                 />
@@ -796,8 +902,9 @@ export function Bihar_Installation_SRT_ClaimRequest() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover " style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
-              <thead>
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2600 }}>
+              <caption className="ax-visually-hidden">Bihar SRT Claim Requests</caption>
+              <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
                   <th className="ax-table__th" scope="col">State</th>
@@ -818,41 +925,53 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                   <th className="ax-table__th" scope="col">Payment 2nd 15% Amount</th>
                   <th className="ax-table__th" scope="col">Payment 2nd 15% Status</th>
                   <th className="ax-table__th" scope="col">Raised 3rd Payment 15%</th>
-                  <th className="ax-table__th" scope="col">Genration Image</th>
-                  <th className="ax-table__th" scope="col">RMS Loger Image</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Genration Image</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>RMS Loger Image</th>
                   <th className="ax-table__th" scope="col">Payment 3rd 15% Date</th>
                   <th className="ax-table__th" scope="col">Payment 3rd 15% Amount</th>
                   <th className="ax-table__th" scope="col">Payment 3rd 15% Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {loading ? (
+              <tbody aria-busy={loading}>
+                {loading && (
                   <tr>
-                    <td className="ax-table__td" colSpan={24} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                      Loading claim requests...
+                    <td className="ax-table__td" colSpan={24} style={{ textAlign: 'center', padding: 32 }}>
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading claim requests…
                     </td>
                   </tr>
-                ) : paginatedClaims.length === 0 ? (
+                )}
+                {!loading && filteredClaims.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={24} style={{ textAlign: 'center', padding: '36px 16px' }}>
-                      <TableEmptyState title="No claim request records found" />
+                    <td className="ax-table__td" colSpan={24} style={{ padding: 0 }}>
+                      <TableEmptyState
+                        title={hasFilters ? 'No matching claim records' : 'No claim request records found'}
+                        message={
+                          hasFilters
+                            ? 'No records match your filters or search. Try clearing your query.'
+                            : 'No SRT claim request records are available.'
+                        }
+                        query={search}
+                        onClear={hasFilters ? resetFilters : undefined}
+                        clearLabel="Clear filters"
+                      />
                     </td>
                   </tr>
-                ) : (
+                )}
+                {!loading &&
                   paginatedClaims.map((row, idx) => {
                     const srNo = (currentPage - 1) * pageSize + idx + 1;
                     const invoicePath = row.inst_claim_invoice || row.claim_invoice;
 
                     return (
-                      <tr key={row.id}>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
+                      <tr key={row.id} className="ax-table__row">
+                        <td className="ax-table__td ax-num">{srNo}</td>
                         <td className="ax-table__td">{row.state || 'Bihar'}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.district || '—'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.district || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.site_name}>
-                          {row.site_name || '—'}
+                          {row.site_name || DASH}
                         </td>
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>
-                          {row.inst_claim_date || row.claim_raised_date || '—'}
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
+                          {row.inst_claim_date || row.claim_raised_date || DASH}
                         </td>
 
                         {/* Claim Invoice Link */}
@@ -862,27 +981,27 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                               href={mediaUrl(invoicePath)}
                               target="_blank"
                               rel="noreferrer"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              className="ax-btn ax-btn--ghost ax-btn--sm"
+                              style={{ padding: '2px 8px', fontSize: 11 }}
                             >
-                              📄 View Invoice
+                              View Invoice ↗
                             </a>
                           ) : (
-                            <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                           )}
                         </td>
 
                         <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
                           ₹{num(row.inst_claim_amount || row.claim_amount)}
                         </td>
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.claim_update_date || '—'}</td>
-                        <td className="ax-table__td">{row.claim_update_by || '—'}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.claim_update_date || DASH}</td>
+                        <td className="ax-table__td">{row.claim_update_by || DASH}</td>
                         <td className="ax-table__td">
                           <ClaimStatusBadge status={row.inst_claim_status ?? row.claim_status} />
                         </td>
 
                         {/* 1st 70% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment1_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment1_date || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment1_amount ? `₹${num(row.payment1_amount)}` : DASH}
                         </td>
@@ -907,7 +1026,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* 2nd 15% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment2_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment2_date || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment2_amount ? `₹${num(row.payment2_amount)}` : DASH}
                         </td>
@@ -934,7 +1053,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                           )}
                         </td>
 
-                        {/* Generation Image (NO BORDER RADIUS) */}
+                        {/* Generation Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
                             path={row.generation_image}
@@ -943,7 +1062,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                           />
                         </td>
 
-                        {/* RMS Logger Image (NO BORDER RADIUS) */}
+                        {/* RMS Logger Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
                             path={row.rms_loger_image}
@@ -953,7 +1072,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* 3rd 15% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: '11px' }}>{row.payment3_date || '—'}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment3_date || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
                           {row.payment3_amount ? `₹${num(row.payment3_amount)}` : DASH}
                         </td>
@@ -962,13 +1081,13 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  })}
               </tbody>
             </table>
           </div>
 
-          <div className="ax-card__footer">
+          {/* ── Table Footer (Kashmir pattern — footerStyle) ── */}
+          <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={currentPage}
@@ -979,14 +1098,14 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                   setPageSize(sz);
                   setCurrentPage(1);
                 }}
-                pageSizeOptions={[100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200, 300]}
               />
             </div>
           </div>
         </section>
       </div>
 
-      {/* ── Image Preview Modal with Zoom ── */}
+      {/* ── Image Preview Modal ── */}
       {previewImage && (
         <ImagePreviewModal
           url={previewImage.url}
@@ -995,213 +1114,166 @@ export function Bihar_Installation_SRT_ClaimRequest() {
         />
       )}
 
-      {/* ── Raise New Claim Modal ── */}
-      {newClaimModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <div
-            className="ax-card"
-            style={{
-              width: '100%',
-              maxWidth: 540,
-              borderRadius: 'var(--ax-radius-xl)',
-              background: 'var(--ax-surface-solid)',
-              overflow: 'hidden',
-            }}
-          >
-            <div className="ax-card__header" style={{ borderBottom: '1px solid var(--ax-border)' }}>
-              <div className="ax-card__titles">
-                <span className="ax-card__eyebrow">PAYMENT CLAIM</span>
-                <h3 className="ax-card__title">Raise New SRT Installation Claim</h3>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--subtle ax-btn--sm"
-                onClick={() => setNewClaimModal(false)}
+      {/* ── Raise New Claim Modal (now uses reusable Modal) ── */}
+      <Modal
+        open={newClaimModal}
+        onClose={() => setNewClaimModal(false)}
+        labelledBy="new-claim-modal-title"
+        dialogStyle={{ maxWidth: 540 }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <span className="ax-card__eyebrow">PAYMENT CLAIM</span>
+            <h2 className="ax-modal__title" id="new-claim-modal-title" style={{ fontSize: 15, fontWeight: 600, margin: '4px 0 0' }}>
+              Raise New SRT Installation Claim
+            </h2>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={() => setNewClaimModal(false)} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+
+        <form onSubmit={handleClaimSubmit}>
+          <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                Select Installed SRT Site *
+              </label>
+              <select
+                className="ax-form-select"
+                value={claimSiteId}
+                onChange={(e) => setClaimSiteId(e.target.value)}
+                required
+                disabled={loadingPendingSites}
+                style={{ width: '100%' }}
               >
-                ✕
-              </button>
+                <option value="">-- Choose Installed Site --</option>
+                {pendingSites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    #{s.id} - {s.site_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <form onSubmit={handleClaimSubmit} style={{ padding: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Select Installed SRT Site *
-                  </label>
-                  <select
-                    className="ax-form-select"
-                    value={claimSiteId}
-                    onChange={(e) => setClaimSiteId(e.target.value)}
-                    required
-                    disabled={loadingPendingSites}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="">-- Choose Installed Site --</option>
-                    {pendingSites.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        #{s.id} - {s.site_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Claim Invoice Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="ax-form-input"
-                    value={claimAmount}
-                    onChange={(e) => setClaimAmount(e.target.value)}
-                    placeholder="Enter claim amount (e.g. 50000.00)"
-                    required
-                    style={{ width: '100%' }}
-                  >
-                  </input>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Upload Claim Invoice File (PDF / Image) *
-                  </label>
-                  <input
-                    type="file"
-                    accept=".pdf,image/*"
-                    onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
-                    required
-                    style={{ width: '100%', fontSize: '12px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setNewClaimModal(false)}
-                  disabled={claimSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={claimSubmitting}
-                >
-                  {claimSubmitting ? 'Raising Claim...' : 'Confirm & Raise Claim'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Raise 3rd Payment Modal ── */}
-      {raise3rdModalSite && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <div
-            className="ax-card"
-            style={{
-              width: '100%',
-              maxWidth: 500,
-              borderRadius: 'var(--ax-radius-xl)',
-              background: 'var(--ax-surface-solid)',
-              padding: 20,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div>
-                <span className="ax-card__eyebrow">FINAL RELEASE (15%)</span>
-                <h3 style={{ margin: '4px 0 0', fontSize: '1.1rem', fontWeight: 700 }}>
-                  Raise 3rd Payment Milestone
-                </h3>
-                <p style={{ fontSize: '12px', color: 'var(--ax-text-muted)', margin: '4px 0 0' }}>
-                  Site: {raise3rdModalSite.site_name}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--subtle ax-btn--sm"
-                onClick={() => setRaise3rdModalSite(null)}
-              >
-                ✕
-              </button>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                Claim Invoice Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                className="ax-form-input"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                placeholder="Enter claim amount (e.g. 50000.00)"
+                required
+                style={{ width: '100%' }}
+              />
             </div>
 
-            <form onSubmit={handle3rdPaymentSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                  Generation Evidence Image
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setGenImageFile(e.target.files?.[0] || null)}
-                  style={{ width: '100%', fontSize: '12px' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                  RMS Datalogger Image
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setRmsImageFile(e.target.files?.[0] || null)}
-                  style={{ width: '100%', fontSize: '12px' }}
-                />
-              </div>
-
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={() => setRaise3rdModalSite(null)}
-                  disabled={submitting3rd}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={submitting3rd}
-                >
-                  {submitting3rd ? 'Submitting...' : 'Submit 3rd Payment'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                Upload Claim Invoice File (PDF / Image) *
+              </label>
+              <input
+                type="file"
+                accept=".pdf,image/*"
+                onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
+                required
+                style={{ width: '100%', fontSize: 12 }}
+              />
+            </div>
           </div>
+
+          <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 10 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setNewClaimModal(false)}
+              disabled={claimSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              disabled={claimSubmitting}
+            >
+              {claimSubmitting ? 'Raising Claim…' : 'Confirm & Raise Claim'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Raise 3rd Payment Modal (now uses reusable Modal) ── */}
+      <Modal
+        open={!!raise3rdModalSite}
+        onClose={() => setRaise3rdModalSite(null)}
+        labelledBy="raise-3rd-modal-title"
+        dialogStyle={{ maxWidth: 500 }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <span className="ax-card__eyebrow">FINAL RELEASE (15%)</span>
+            <h2 className="ax-modal__title" id="raise-3rd-modal-title" style={{ fontSize: 15, fontWeight: 600, margin: '4px 0 0' }}>
+              Raise 3rd Payment Milestone
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--ax-text-muted)', margin: '4px 0 0' }}>
+              Site: {raise3rdModalSite?.site_name}
+            </p>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={() => setRaise3rdModalSite(null)} aria-label="Close dialog">
+            {X_ICON}
+          </button>
         </div>
-      )}
+
+        <form onSubmit={handle3rdPaymentSubmit}>
+          <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                Generation Evidence Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setGenImageFile(e.target.files?.[0] || null)}
+                style={{ width: '100%', fontSize: 12 }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                RMS Datalogger Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setRmsImageFile(e.target.files?.[0] || null)}
+                style={{ width: '100%', fontSize: 12 }}
+              />
+            </div>
+          </div>
+
+          <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 10 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setRaise3rdModalSite(null)}
+              disabled={submitting3rd}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              disabled={submitting3rd}
+            >
+              {submitting3rd ? 'Submitting…' : 'Submit 3rd Payment'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

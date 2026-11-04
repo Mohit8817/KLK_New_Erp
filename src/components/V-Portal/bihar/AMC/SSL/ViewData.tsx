@@ -21,12 +21,24 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-type Row = BiharSslAmcItem;
+// API fields (village, light_no, amc_latittude, amc_v_remarks...) may not be on the service type yet
+type Row = BiharSslAmcItem & Record<string, any>;
 type TabType = 'Incomplete' | 'Complete';
 
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
-const panchayatOf = (r: Row) => r.panchyat || r.panchayat;
+
+/* ───────── API field helpers ───────── */
+const panchayatOf = (r: any) => r.panchyat || r.panchayat; // API typo: "panchyat"
+const stateOf = (r: any) => {
+  const s = String(r.state || 'Bihar').trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Bihar';
+};
+const villageOf = (r: any) => r.village || r.location;
+const luminaryOf = (r: any) => r.luminary_no || r.light_no;
+const amcLatOf = (r: any) => r.amc_latittude || r.amc_latitude || r.latitude; // API typo: "amc_latittude"
+const amcLngOf = (r: any) => r.amc_longitude || r.longitude;
+const remarksOf = (r: any) => r.amc_v_remarks || r.amc_remarks || r.remark || r.remarks;
 const isApprovedRow = (r: any) => Number(r?.amc_verify) === 1 || Number(r?.amcverify_status) === 1;
 
 /* ───────── Responsive page CSS (same as Arunachal SHL reference) ───────── */
@@ -268,7 +280,9 @@ function SslAmcDetailModal({ item, onClose, onImageClick }: { item: Row; onClose
       setLoading(true);
       try {
         const res: any = await biharAmcService.getViewSslAmcDetail(item.id);
-        if (active) setDetailData(res?.site ?? res);
+        // response may be { data: { site } } | { site } | { data } | plain object
+        const payload = res?.data?.site ?? res?.site ?? res?.data ?? res;
+        if (active && payload && typeof payload === 'object') setDetailData(payload);
       } catch (err) {
         console.warn('Could not fetch extra SSL AMC details:', err);
       } finally {
@@ -291,6 +305,8 @@ function SslAmcDetailModal({ item, onClose, onImageClick }: { item: Row; onClose
 
   const data: any = { ...item, ...(detailData || {}) };
   const approved = isApprovedRow(data);
+  const lat = amcLatOf(data);
+  const lng = amcLngOf(data);
 
   const images: { label: string; path?: string }[] = [
     { label: 'AMC Inspection Photo 1', path: data.amc_image1 },
@@ -329,37 +345,44 @@ function SslAmcDetailModal({ item, onClose, onImageClick }: { item: Row; onClose
 
           <Section title="Site & Location">
             <Field label="Unique ID">{txt(data.unique_id)}</Field>
-            <Field label="State">{txt(data.state || 'Bihar')}</Field>
+            <Field label="State">{txt(stateOf(data))}</Field>
             <Field label="District">{txt(data.district)}</Field>
             <Field label="Block">{txt(data.block)}</Field>
             <Field label="Panchayat">{txt(panchayatOf(data))}</Field>
+            <Field label="Village">{txt(villageOf(data))}</Field>
             <Field label="Ward No.">{txt(data.ward_no)}</Field>
             <Field label="Pole No.">{txt(data.pole_no)}</Field>
             <Field label="Phase">{txt(data.phase)}</Field>
-            <Field label="Location / Landmark" span>{txt(data.location)}</Field>
           </Section>
 
           <Section title="Beneficiary">
             <Field label="Beneficiary Name">{txt(data.beneficiary_name)}</Field>
             <Field label="Contact No.">{txt(data.contact_no)}</Field>
+            {(data.amc_beneficiary_name || data.amc_beneficiary_contact_no) && (
+              <>
+                <Field label="AMC Beneficiary Name">{txt(data.amc_beneficiary_name)}</Field>
+                <Field label="AMC Beneficiary Contact">{txt(data.amc_beneficiary_contact_no)}</Field>
+              </>
+            )}
           </Section>
 
           <Section title="Hardware / Technical">
-            <Field label="Luminary No.">{txt(data.luminary_no)}</Field>
+            <Field label="Luminary / Light No.">{txt(luminaryOf(data))}</Field>
             <Field label="SIM No.">{txt(data.sim_no)}</Field>
             <Field label="Battery Serial No.">{txt(data.battery_serial_no)}</Field>
             <Field label="Module No.">{txt(data.module_no)}</Field>
+            <Field label="IMEI No.">{txt(data.imei_no)}</Field>
           </Section>
 
           <Section title="AMC Inspection & Verification">
             <Field label="Visit / AMC Date">{txt(data.amc_v_date || data.updated_at || data.created_at)}</Field>
-            <Field label="GPS Latitude">{txt(data.latitude)}</Field>
-            <Field label="GPS Longitude">{txt(data.longitude)}</Field>
-            {data.latitude && data.longitude && (
+            <Field label="GPS Latitude">{txt(lat)}</Field>
+            <Field label="GPS Longitude">{txt(lng)}</Field>
+            {lat && lng && (
               <div>
                 <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block' }}>Map Location</span>
                 <a
-                  href={`https://maps.google.com/?q=${data.latitude},${data.longitude}`}
+                  href={`https://maps.google.com/?q=${lat},${lng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ax-btn ax-btn--ghost ax-btn--xs"
@@ -369,7 +392,7 @@ function SslAmcDetailModal({ item, onClose, onImageClick }: { item: Row; onClose
               </div>
             )}
             <Field label="Inspection Remarks" span>
-              <span style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>{txt(data.amc_remarks || data.remarks)}</span>
+              <span style={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>{txt(remarksOf(data))}</span>
             </Field>
           </Section>
 
@@ -442,13 +465,15 @@ export function Bihar_AMC_SSL_ViewData() {
     setErrorMsg('');
     try {
       const resp: any = await biharAmcService.getViewSslAmcData();
-      const ssls: Row[] = resp?.ssls || [];
-      const coms: Row[] = resp?.coms || [];
+      // API shape: { status, message, data: { total, incomplete, complete, approved, ssls, coms } }
+      const payload: any = resp?.data && typeof resp.data === 'object' && !Array.isArray(resp.data) ? resp.data : resp;
+      const ssls: Row[] = Array.isArray(payload?.ssls) ? payload.ssls : [];
+      const coms: Row[] = Array.isArray(payload?.coms) ? payload.coms : [];
       setSummary({
-        total: resp?.total ?? ssls.length + coms.length,
-        incomplete: resp?.incomplete ?? ssls.length,
-        complete: resp?.complete ?? coms.length,
-        approved: resp?.approved ?? 0,
+        total: Number(payload?.total ?? ssls.length + coms.length),
+        incomplete: Number(payload?.incomplete ?? ssls.length),
+        complete: Number(payload?.complete ?? coms.length),
+        approved: Number(payload?.approved ?? coms.filter(isApprovedRow).length),
       });
       setIncompleteList(ssls);
       setCompleteList(coms);
@@ -480,8 +505,8 @@ export function Bihar_AMC_SSL_ViewData() {
       if (districtFilter !== 'all' && String(r.district || '').trim().toLowerCase() !== districtFilter.toLowerCase()) return false;
       if (!q) return true;
       const haystack = [
-        r.unique_id, r.district, r.block, panchayatOf(r), r.ward_no, r.pole_no,
-        r.beneficiary_name, r.contact_no, r.location, r.luminary_no, r.sim_no, r.battery_serial_no,
+        r.unique_id, r.district, r.block, panchayatOf(r), villageOf(r), r.ward_no, r.pole_no,
+        r.beneficiary_name, r.contact_no, luminaryOf(r), r.sim_no, r.battery_serial_no,
       ]
         .filter(Boolean)
         .join(' ')
@@ -507,17 +532,17 @@ export function Bihar_AMC_SSL_ViewData() {
     () => [
       { header: 'Sr. No.', accessor: (_r, i) => (i !== undefined ? i + 1 : '') },
       { header: 'Unique Id', accessor: (r) => r.unique_id || '' },
-      { header: 'State', accessor: (r) => r.state || 'Bihar' },
+      { header: 'State', accessor: (r) => stateOf(r) },
       { header: 'Phase', accessor: (r) => r.phase || '' },
       { header: 'District', accessor: (r) => r.district || '' },
       { header: 'Block', accessor: (r) => r.block || '' },
       { header: 'Panchayat', accessor: (r) => panchayatOf(r) || '' },
+      { header: 'Village', accessor: (r) => villageOf(r) || '' },
       { header: 'Ward No.', accessor: (r) => r.ward_no || '' },
       { header: 'Pole No.', accessor: (r) => r.pole_no || '' },
       { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name || '' },
       { header: 'Contact No.', accessor: (r) => r.contact_no || '' },
-      { header: 'Location', accessor: (r) => r.location || '' },
-      { header: 'Luminary No.', accessor: (r) => r.luminary_no || '' },
+      { header: 'Luminary / Light No.', accessor: (r) => luminaryOf(r) || '' },
       { header: 'SIM No.', accessor: (r) => r.sim_no || '' },
       { header: 'Battery Serial No.', accessor: (r) => r.battery_serial_no || '' },
       { header: 'Status', accessor: () => 'Incomplete' },
@@ -529,7 +554,7 @@ export function Bihar_AMC_SSL_ViewData() {
     () => [
       { header: 'Sr. No.', accessor: (_r, i) => (i !== undefined ? i + 1 : '') },
       { header: 'Unique Id', accessor: (r) => r.unique_id || '' },
-      { header: 'State', accessor: (r) => r.state || 'Bihar' },
+      { header: 'State', accessor: (r) => stateOf(r) },
       { header: 'District', accessor: (r) => r.district || '' },
       { header: 'Block', accessor: (r) => r.block || '' },
       { header: 'Panchayat', accessor: (r) => panchayatOf(r) || '' },
@@ -736,8 +761,8 @@ export function Bihar_AMC_SSL_ViewData() {
                     <th className="ax-table__th" scope="col">Pole No.</th>
                     <th className="ax-table__th" scope="col">Beneficiary Name</th>
                     <th className="ax-table__th" scope="col">Contact No.</th>
-                    <th className="ax-table__th" scope="col">Location</th>
-                    <th className="ax-table__th" scope="col">Luminary No.</th>
+                    <th className="ax-table__th" scope="col">Village</th>
+                    <th className="ax-table__th" scope="col">Luminary / Light No.</th>
                     <th className="ax-table__th" scope="col">SIM No.</th>
                     <th className="ax-table__th" scope="col">Battery Serial No.</th>
                     <th className="ax-table__th" scope="col">Status</th>
@@ -793,7 +818,7 @@ export function Bihar_AMC_SSL_ViewData() {
                         <tr key={key} className="ax-table__row">
                           <td className="ax-table__td ax-num">{srNo}</td>
                           <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--ax-accent)' }}>{txt(r.unique_id)}</td>
-                          <td className="ax-table__td">{txt(r.state || 'Bihar')}</td>
+                          <td className="ax-table__td">{txt(stateOf(r))}</td>
                           <td className="ax-table__td">{txt(r.phase)}</td>
                           <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(r.district)}</td>
                           <td className="ax-table__td">{txt(r.block)}</td>
@@ -802,8 +827,8 @@ export function Bihar_AMC_SSL_ViewData() {
                           <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(r.pole_no)}</td>
                           <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{txt(r.beneficiary_name)}</td>
                           <td className="ax-table__td">{txt(r.contact_no)}</td>
-                          <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }} title={r.location}>{txt(r.location)}</td>
-                          <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(r.luminary_no)}</td>
+                          <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }} title={villageOf(r)}>{txt(villageOf(r))}</td>
+                          <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(luminaryOf(r))}</td>
                           <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(r.sim_no)}</td>
                           <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(r.battery_serial_no)}</td>
                           <td className="ax-table__td">
@@ -826,7 +851,7 @@ export function Bihar_AMC_SSL_ViewData() {
                       <tr key={key} className="ax-table__row">
                         <td className="ax-table__td ax-num">{srNo}</td>
                         <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--ax-accent)' }}>{txt(r.unique_id)}</td>
-                        <td className="ax-table__td">{txt(r.state || 'Bihar')}</td>
+                        <td className="ax-table__td">{txt(stateOf(r))}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(r.district)}</td>
                         <td className="ax-table__td">{txt(r.block)}</td>
                         <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(panchayatOf(r))}</td>
