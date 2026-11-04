@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -20,9 +20,7 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-/* ═══════════════════════════════════════════════════════════════════
- * Normalized row — API (view-dashboard) fields mapped in normalizeSite()
- * ═══════════════════════════════════════════════════════════════════ */
+/* Normalized row — API (view-dashboard) fields are mapped into these in normalizeSite() */
 interface Row {
   id: number;
   unique_id?: string;
@@ -66,6 +64,8 @@ const pickNum = (...vals: unknown[]): number => {
   return 0;
 };
 
+/* Maps API fields (inst_date, solarmeter_no, nm_sm_no, inst_latitude, inst_verify_status …)
+   to the field names used in this page. Old names are kept as fallbacks. */
 const normalizeSite = (r: any): Row => ({
   id: r.id,
   unique_id: pickStr(r.unique_id),
@@ -119,116 +119,83 @@ const StatusBadge = ({ value }: { value?: number | string }) => {
   );
 };
 
-/* ═══════════════════════════════════════════════════════════════════
- * CSS – Kashmir-style unified design for dashboard / table page
- * ═══════════════════════════════════════════════════════════════════ */
-const SINGLE_CARD_PAGE_CSS = `
-/* ── Card base ── */
-.up-resco-detail-page .ax-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); overflow: hidden; min-width: 0; }
-.up-resco-detail-page .ax-card__header { padding: var(--ax-space-5) var(--ax-space-6); border-bottom: 1px solid var(--ax-border-subtle); background: var(--ax-surface-subtle); }
-.up-resco-detail-page .ax-card__body { padding: var(--ax-space-6); }
-.up-resco-detail-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+/* ───────── Responsive page CSS (same as Arunachal SHL reference) ───────── */
+const PAGE_CSS = `
+  .solar-erp-page .ax-card { min-width: 0; }
+  .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
+  .solar-erp-page .ula-pagination-left {
+    width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
+  }
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+  .solar-erp-page img, .solar-erp-page .ax-card img { border-radius: 0 !important; }
+  .solar-erp-page .ax-card__header {
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 200px; max-width: 240px; }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
 
-/* ── KPI Grid ── */
-.up-resco-detail-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--ax-space-4); margin-bottom: var(--ax-space-6); }
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__actions { width: 100%; justify-content: stretch; margin-left: 0; }
+    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+  }
 
-/* ── Filter Pills ── */
-.up-resco-detail-filter-pills { display: flex; gap: var(--ax-space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-.up-resco-detail-pill-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--ax-radius-pill); font-size: var(--ax-text-xs); font-weight: 500; white-space: nowrap; background: var(--ax-surface-solid); border: 1px solid var(--ax-border); color: var(--ax-text); cursor: pointer; transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease); text-decoration: none; }
-.up-resco-detail-pill-btn:hover { border-color: var(--ax-accent); color: var(--ax-accent); background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid)); }
-.up-resco-detail-pill-btn--active { background: var(--ax-accent); color: #fff; border-color: var(--ax-accent); }
-.up-resco-detail-pill-btn--active:hover { background: var(--ax-accent); color: #fff; }
-.up-resco-detail-pill-btn .pill-count { background: rgba(255,255,255,0.2); padding: 1px 7px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
-.up-resco-detail-pill-btn:not(.up-resco-detail-pill-btn--active) .pill-count { background: var(--ax-surface-subtle); }
-
-/* ── Section divider ── */
-.up-resco-detail-section-divider { border: 0; border-top: 1px dashed var(--ax-border); margin: var(--ax-space-6) 0; }
-
-/* ── Table ── */
-.up-resco-detail-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
-.up-resco-detail-page .ula-pagination-left {
-  width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
-}
-.up-resco-detail-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
-.up-resco-detail-page img, .up-resco-detail-page .ax-card img { border-radius: 0 !important; }
-
-/* ── Card header responsive ── */
-.up-resco-detail-page .up-resco-detail-header-row {
-  display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
-}
-.up-resco-detail-page .up-resco-detail-header-titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
-.up-resco-detail-page .ax-card__title,
-.up-resco-detail-page .ax-card__eyebrow,
-.up-resco-detail-page .ax-card__subtitle { max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none; }
-.up-resco-detail-page .ax-card__subtitle { line-height: 1.45; }
-.up-resco-detail-page .up-resco-detail-header-actions {
-  flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
-  justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
-}
-.up-resco-detail-page .up-resco-detail-header-actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
-.up-resco-detail-page .up-resco-detail-header-actions .ax-search,
-.up-resco-detail-page .up-resco-detail-header-actions [class*="search"] { flex: 1 1 140px; min-width: 200px; max-width: 240px; }
-.up-resco-detail-page .up-resco-detail-header-actions input { min-width: 0; width: 100%; }
-.up-resco-detail-page .up-resco-detail-header-actions .ax-export-toolbar,
-.up-resco-detail-page .up-resco-detail-header-actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
-.up-resco-detail-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
-
-@media (max-width: 1100px) {
-  .up-resco-detail-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
-  .up-resco-detail-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
-  .up-resco-detail-page .up-resco-detail-header-actions .ax-search,
-  .up-resco-detail-page .up-resco-detail-header-actions [class*="search"] { max-width: 180px; }
-}
-@media (max-width: 760px) {
-  .up-resco-detail-page .up-resco-detail-header-row { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
-  .up-resco-detail-page .up-resco-detail-header-titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-  .up-resco-detail-page .up-resco-detail-header-actions { width: 100%; justify-content: stretch; margin-left: 0; }
-  .up-resco-detail-page .up-resco-detail-header-actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
-  .up-resco-detail-page .up-resco-detail-header-actions .ax-search,
-  .up-resco-detail-page .up-resco-detail-header-actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
-}
-
-/* ── View Detail Modal grid ── */
-.up-resco-detail-modal-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;
-  background: var(--ax-surface-subtle, #f8fafc); padding: 16px; border-radius: var(--ax-radius-md, 8px);
-  border: 1px solid var(--ax-border-subtle, #e2e8f0);
-}
-.up-resco-detail-modal-grid .detail-label { font-size: 11px; font-weight: 600; color: var(--ax-text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
-.up-resco-detail-modal-grid .detail-value { font-size: 13px; font-weight: 600; color: var(--ax-text-strong, #0f172a); word-break: break-word; }
-
-/* ── Modal & Lightbox ── */
-.ax-modal {
-  position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.ax-modal__backdrop { position: fixed; inset: 0; background: transparent; }
-.ax-modal__dialog {
-  position: relative; z-index: 1; background: #ffffff; border-radius: 16px;
-  border: 1px solid var(--ax-border, #e2e8f0); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  overflow: hidden; width: 100%;
-}
-.ax-modal__dialog--lg { max-width: 900px; }
-.ax-modal__header {
-  padding: 16px 20px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
-  background: var(--ax-surface-subtle, #f8fafc); display: flex; align-items: center; justify-content: space-between;
-}
-.ax-modal__close {
-  width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center; color: var(--ax-text-muted, #64748b);
-}
-.ax-modal__body { padding: 0; overflow-y: auto; max-height: calc(85vh - 120px); }
-.ax-modal__footer {
-  padding: 14px 20px; border-top: 1px solid var(--ax-border, #e2e8f0);
-  background: var(--ax-surface-subtle, #f8fafc); display: flex; align-items: center; justify-content: space-between;
-}
-.ula-m-stage { position: relative; display: flex; overflow: auto; height: min(66vh, 600px); background: #0f172a; }
-.ula-m-stage__msg {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 13px; color: #94a3b8; text-align: center; padding: 16px;
-}
-.ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
-.ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
+  /* Modal & Lightbox Styles */
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .ax-modal__backdrop { position: fixed; inset: 0; background: transparent; }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff; border-radius: 16px;
+    border: 1px solid var(--ax-border, #e2e8f0); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__dialog--lg { max-width: 900px; }
+  .ax-modal__header {
+    padding: 16px 20px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc); display: flex; align-items: center; justify-content: space-between;
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--ax-text-muted, #64748b);
+  }
+  .ax-modal__body { padding: 0; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    padding: 14px 20px; border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc); display: flex; align-items: center; justify-content: space-between;
+  }
+  .ula-m-stage { position: relative; display: flex; overflow: auto; height: min(66vh, 600px); background: #0f172a; }
+  .ula-m-stage__msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 13px; color: #94a3b8; text-align: center; padding: 16px;
+  }
+  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
+  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -250,7 +217,7 @@ const svgIcon = (children: ReactNode) => (
 function KpiCard({ icon, tone, label, value, sub }: { icon: ReactNode; tone: KpiTone; label: string; value: ReactNode; sub: string }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12 }}>
+    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
@@ -369,9 +336,6 @@ const FILTER_TABS: { key: TabFilter; label: string }[] = [
   { key: 'pending', label: 'Installation Pending' },
 ];
 
-/* ═══════════════════════════════════════════════════════════════════
- * Main Component
- * ═══════════════════════════════════════════════════════════════════ */
 export function UP_Installation_Resco_InstallationDetail() {
   const navigate = useNavigate();
 
@@ -498,17 +462,12 @@ export function UP_Installation_Resco_InstallationDetail() {
   const tabCount = (k: TabFilter) => (k === 'completed' ? summary.complete : k === 'pending' ? summary.pending : summary.total);
 
   return (
-    <div className="up-resco-detail-page">
-      <style>{SINGLE_CARD_PAGE_CSS}</style>
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
 
-      {/* ── Page Head ── */}
       <PageHead
         title="UP Resco Installation Detail"
-        subtitle={
-          <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Rooftop solar installation progress, metering equipment and site verification status
-          </span>
-        }
+        subtitle="Rooftop solar installation progress, metering equipment and site verification status"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Uttar Pradesh' },
@@ -517,108 +476,117 @@ export function UP_Installation_Resco_InstallationDetail() {
           { label: 'Installation Detail' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 8 }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--pill" onClick={loadData} disabled={loading}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
                 <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
               </svg>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <Link to="/v/up/resco-install-site" className="ax-btn ax-btn--primary ax-btn--pill">
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/up/resco-install-site')}>
               <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 5l0 14" />
                 <path d="M5 12l14 0" />
               </svg>
               <span className="ax-btn__label">Install Site</span>
-            </Link>
+            </button>
           </div>
         }
       />
 
-      {/* Error Banner */}
-      {errorMsg && !loading && sites.length === 0 && (
-        <div className="ax-alert ax-alert--danger" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
-          <span className="ax-alert__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /><path d="M12 16h.01" /></svg>
-          </span>
-          <div className="ax-alert__content">
-            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>{errorMsg}</h4>
+      <div className="ax-dash-grid">
+        {/* ── KPI Row ── */}
+        {loading ? (
+          <KpiSkeleton count={4} />
+        ) : (
+          <>
+            <KpiCard
+              tone="accent"
+              label="Total Assigned"
+              value={summary.total.toLocaleString('en-IN')}
+              sub={`${summary.complete} completed · ${summary.pending} pending`}
+              icon={svgIcon(
+                <>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M9 15l2 2 4-4" />
+                </>
+              )}
+            />
+            <KpiCard
+              tone="emerald"
+              label="Verify Approved"
+              value={summary.vApp.toLocaleString('en-IN')}
+              sub={`${summary.vPend} pending audit · ${summary.vRej} rejected`}
+              icon={svgIcon(
+                <>
+                  <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+                  <path d="M9 12l2 2 4-4" />
+                </>
+              )}
+            />
+            <KpiCard
+              tone="cyan"
+              label="Document Approved"
+              value={summary.dApp.toLocaleString('en-IN')}
+              sub={`${summary.dPend} pending · ${summary.dRej} rejected`}
+              icon={svgIcon(
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
+              )}
+            />
+            <KpiCard
+              tone="amber"
+              label="Installation Pending"
+              value={summary.pending.toLocaleString('en-IN')}
+              sub={`${summary.complete} sites completed`}
+              icon={svgIcon(
+                <>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </>
+              )}
+            />
+          </>
+        )}
+
+        {/* ── Filter Tabs ── */}
+        <div className="ax-col--12">
+          <div className="ax-cluster" role="tablist" aria-label="Installation filter tabs" style={{ gap: 'var(--ax-space-2)' }}>
+            {FILTER_TABS.map((t) => {
+              const active = t.key === activeTab;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                  onClick={() => {
+                    setActiveTab(t.key);
+                    setSelectedDistrict('all');
+                    setCurrentPage(1);
+                  }}
+                >
+                  <span className="ax-btn__label">{t.label} ({loading ? '…' : tabCount(t.key)})</span>
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
 
-      {/* ── KPI Row ── */}
-      {loading ? (
-        <div className="up-resco-detail-kpi-grid">
-          <KpiSkeleton count={4} />
-        </div>
-      ) : (
-        <div className="up-resco-detail-kpi-grid">
-          <KpiCard
-            tone="accent"
-            label="Total Assigned"
-            value={summary.total.toLocaleString('en-IN')}
-            sub={`${summary.complete} completed · ${summary.pending} pending`}
-            icon={svgIcon(
-              <>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-                <path d="M9 15l2 2 4-4" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="emerald"
-            label="Verify Approved"
-            value={summary.vApp.toLocaleString('en-IN')}
-            sub={`${summary.vPend} pending audit · ${summary.vRej} rejected`}
-            icon={svgIcon(
-              <>
-                <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-                <path d="M9 12l2 2 4-4" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="cyan"
-            label="Document Approved"
-            value={summary.dApp.toLocaleString('en-IN')}
-            sub={`${summary.dPend} pending · ${summary.dRej} rejected`}
-            icon={svgIcon(
-              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-            )}
-          />
-          <KpiCard
-            tone="amber"
-            label="Installation Pending"
-            value={summary.pending.toLocaleString('en-IN')}
-            sub={`${summary.complete} sites completed`}
-            icon={svgIcon(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-              </>
-            )}
-          />
-        </div>
-      )}
-
-      {/* ── Main Table Card ── */}
-      <section className="ax-card" role="region" aria-label="UP Resco Installation Details">
-        <div className="ax-card__header" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
-          {/* Title row + actions */}
-          <div className="up-resco-detail-header-row">
-            <div className="up-resco-detail-header-titles">
-              <span className="ax-card__eyebrow">Resco Installations</span>
-              <h2 className="ax-card__title" style={{ margin: 0 }}>UP Resco Installation Details</h2>
-              <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
+        {/* ── Main Table Card ── */}
+        <section className="ax-card ax-col--12" role="region" aria-label="UP Resco Installation Details">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">UP Resco Installation</h2>
+              <p className="ax-card__subtitle">
                 <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{tabItems.length}</span> sites
                 {' '}· Total <b className="ax-num">{summary.total}</b> · Verified <b className="ax-num">{summary.vApp}</b> · Completed <b className="ax-num">{summary.complete}</b>
               </p>
             </div>
 
-            <div className="up-resco-detail-header-actions">
+            <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
                 <select
                   className="ax-input ax-input--sm"
@@ -674,190 +642,159 @@ export function UP_Installation_Resco_InstallationDetail() {
             </div>
           </div>
 
-          {/* Filter Pills row */}
-          <div className="up-resco-detail-filter-pills" role="tablist" aria-label="Installation filter tabs">
-            {FILTER_TABS.map((t) => {
-              const active = t.key === activeTab;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  className={`up-resco-detail-pill-btn ${active ? 'up-resco-detail-pill-btn--active' : ''}`}
-                  onClick={() => {
-                    setActiveTab(t.key);
-                    setSelectedDistrict('all');
-                    setCurrentPage(1);
-                  }}
-                >
-                  <span>{t.label}</span>
-                  <span className="pill-count">{loading ? '…' : tabCount(t.key)}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-            <caption className="ax-visually-hidden">UP Resco Installation Details</caption>
-            <thead className="ax-table__head">
-              <tr>
-                <th className="ax-table__th" scope="col">Sr. No.</th>
-                <th className="ax-table__th" scope="col">Installation Date</th>
-                <th className="ax-table__th" scope="col">State</th>
-                <th className="ax-table__th" scope="col">District</th>
-                <th className="ax-table__th" scope="col">Site Name</th>
-                <th className="ax-table__th" scope="col">Contact Person</th>
-                <th className="ax-table__th" scope="col">Contact Number</th>
-                <th className="ax-table__th" scope="col">Solar Meter No.</th>
-                <th className="ax-table__th" scope="col">Inverter No.</th>
-                <th className="ax-table__th" scope="col">Net/Smart Meter No.</th>
-                <th className="ax-table__th" scope="col">Loger No.</th>
-                <th className="ax-table__th" scope="col">System Image</th>
-                <th className="ax-table__th" scope="col">Inverter Image</th>
-                <th className="ax-table__th" scope="col">Panel Image</th>
-                <th className="ax-table__th" scope="col">Net Meter Image</th>
-                <th className="ax-table__th" scope="col">Loger Image</th>
-                <th className="ax-table__th" scope="col">Latitude</th>
-                <th className="ax-table__th" scope="col">Longitude</th>
-                <th className="ax-table__th" scope="col">Remark</th>
-                <th className="ax-table__th" scope="col">Verify Status</th>
-                <th className="ax-table__th" scope="col">Verify Remarks</th>
-                <th className="ax-table__th" scope="col">Document Status</th>
-                <th className="ax-table__th" scope="col">Document File</th>
-                <th className="ax-table__th" scope="col">Document Remarks</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody aria-busy={loading}>
-              {loading && (
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+              <caption className="ax-visually-hidden">UP Resco Installation Details</caption>
+              <thead className="ax-table__head">
                 <tr>
-                  <td colSpan={25} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                    <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
-                    Loading Resco installation records from server…
-                  </td>
+                  <th className="ax-table__th" scope="col">Sr. No.</th>
+                  <th className="ax-table__th" scope="col">Installation Date</th>
+                  <th className="ax-table__th" scope="col">State</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Site Name</th>
+                  <th className="ax-table__th" scope="col">Contact Person</th>
+                  <th className="ax-table__th" scope="col">Contact Number</th>
+                  <th className="ax-table__th" scope="col">Solar Meter No.</th>
+                  <th className="ax-table__th" scope="col">Inverter No.</th>
+                  <th className="ax-table__th" scope="col">Net/Smart Meter No.</th>
+                  <th className="ax-table__th" scope="col">Loger No.</th>
+                  <th className="ax-table__th" scope="col">System Image</th>
+                  <th className="ax-table__th" scope="col">Inverter Image</th>
+                  <th className="ax-table__th" scope="col">Panel Image</th>
+                  <th className="ax-table__th" scope="col">Net Meter Image</th>
+                  <th className="ax-table__th" scope="col">Loger Image</th>
+                  <th className="ax-table__th" scope="col">Latitude</th>
+                  <th className="ax-table__th" scope="col">Longitude</th>
+                  <th className="ax-table__th" scope="col">Remark</th>
+                  <th className="ax-table__th" scope="col">Verify Status</th>
+                  <th className="ax-table__th" scope="col">Verify Remarks</th>
+                  <th className="ax-table__th" scope="col">Document Status</th>
+                  <th className="ax-table__th" scope="col">Document File</th>
+                  <th className="ax-table__th" scope="col">Document Remarks</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={25} style={{ padding: 0 }}>
-                    <TableEmptyState
-                      title="No installation records found"
-                      message={hasFilters ? 'No sites match your filters. Try clearing filters or search term.' : errorMsg || 'No Resco installations recorded yet.'}
-                      onClear={hasFilters ? clearFilters : undefined}
-                      clearLabel="Clear filters"
-                    />
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                paged.map((item, idx) => {
-                  const sr = (currentPage - 1) * pageSize + idx + 1;
-                  const docUrl = item.document_file ? resolveUpMediaUrl(item.document_file) : '';
-                  return (
-                    <tr key={item.id ?? idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{sr}</td>
-                      <td className="ax-table__td">{txt(item.installation_date)}</td>
-                      <td className="ax-table__td">{item.state ? item.state.toUpperCase() : 'UP'}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(item.district)}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-accent)' }}>{txt(item.site_name)}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{txt(item.contact_person)}</td>
-                      <td className="ax-table__td">{txt(item.contact_number)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.solar_meter_no)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.inverter_no)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.net_smart_meter_no)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.loger_no)}</td>
-                      <td className="ax-table__td"><Thumb path={item.system_image} alt={`System image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
-                      <td className="ax-table__td"><Thumb path={item.inverter_image} alt={`Inverter image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
-                      <td className="ax-table__td"><Thumb path={item.panel_image} alt={`Panel image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
-                      <td className="ax-table__td"><Thumb path={item.net_meter_smart_meter_image} alt={`Net meter image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
-                      <td className="ax-table__td"><Thumb path={item.loger_image} alt={`Loger image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.latitude)}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.longitude)}</td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.remark)}</td>
-                      <td className="ax-table__td"><StatusBadge value={item.verify_status} /></td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.verify_remarks)}</td>
-                      <td className="ax-table__td"><StatusBadge value={item.document_status} /></td>
-                      <td className="ax-table__td">
-                        {docUrl ? (
-                          <a href={docUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost ax-btn--xs">View File</a>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                        )}
-                      </td>
-                      <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.document_remarks)}</td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setViewModal(item)} title="View site details" style={{ padding: '0 8px' }}>
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="ax-card__footer">
-          <div className="ula-pagination-left">
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filtered.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
-            />
+              </thead>
+              <tbody aria-busy={loading}>
+                {loading && (
+                  <tr>
+                    <td colSpan={25} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                      <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
+                      Loading Resco installation records from server…
+                    </td>
+                  </tr>
+                )}
+                {!loading && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={25} style={{ padding: 0 }}>
+                      <TableEmptyState
+                        title="No installation records found"
+                        message={hasFilters ? 'No sites match your filters. Try clearing filters or search term.' : errorMsg || 'No Resco installations recorded yet.'}
+                        onClear={hasFilters ? clearFilters : undefined}
+                        clearLabel="Clear filters"
+                      />
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  paged.map((item, idx) => {
+                    const sr = (currentPage - 1) * pageSize + idx + 1;
+                    const docUrl = item.document_file ? resolveUpMediaUrl(item.document_file) : '';
+                    return (
+                      <tr key={item.id ?? idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num">{sr}</td>
+                        <td className="ax-table__td">{txt(item.installation_date)}</td>
+                        <td className="ax-table__td">{item.state ? item.state.toUpperCase() : 'UP'}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(item.district)}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-accent)' }}>{txt(item.site_name)}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{txt(item.contact_person)}</td>
+                        <td className="ax-table__td">{txt(item.contact_number)}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.solar_meter_no)}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.inverter_no)}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.net_smart_meter_no)}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.loger_no)}</td>
+                        <td className="ax-table__td"><Thumb path={item.system_image} alt={`System image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
+                        <td className="ax-table__td"><Thumb path={item.inverter_image} alt={`Inverter image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
+                        <td className="ax-table__td"><Thumb path={item.panel_image} alt={`Panel image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
+                        <td className="ax-table__td"><Thumb path={item.net_meter_smart_meter_image} alt={`Net meter image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
+                        <td className="ax-table__td"><Thumb path={item.loger_image} alt={`Loger image — ${item.site_name || item.id}`} onPreview={openPreview} /></td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.latitude)}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>{txt(item.longitude)}</td>
+                        <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.remark)}</td>
+                        <td className="ax-table__td"><StatusBadge value={item.verify_status} /></td>
+                        <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.verify_remarks)}</td>
+                        <td className="ax-table__td"><StatusBadge value={item.document_status} /></td>
+                        <td className="ax-table__td">
+                          {docUrl ? (
+                            <a href={docUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost ax-btn--xs">View File</a>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                          )}
+                        </td>
+                        <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: 12 }}>{txt(item.document_remarks)}</td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={() => setViewModal(item)} title="View site details" style={{ padding: '0 8px' }}>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
 
-      {/* ── Photo Lightbox ── */}
+          <div className="ax-card__footer">
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={filtered.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                pageSizeOptions={[10, 25, 50, 100]}
+              />
+            </div>
+          </div>
+        </section>
+      </div>
+
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
       {/* ── View Site Detail Modal ── */}
       {viewModal && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="resco-view-detail-title">
           <div className="ax-modal__backdrop" onClick={() => setViewModal(null)} />
-          <div className="ax-modal__dialog" style={{ maxWidth: 720 }}>
+          <div className="ax-modal__dialog" style={{ maxWidth: 680 }}>
             <div className="ax-modal__header">
-              <div>
-                <span style={{ fontSize: 'var(--ax-text-2xs, 10px)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ax-text-muted)' }}>Site Detail</span>
-                <h2 className="ax-modal__title" id="resco-view-detail-title" style={{ fontSize: 15, fontWeight: 600, margin: '2px 0 0' }}>
-                  {viewModal.site_name || `Site #${viewModal.id}`}
-                </h2>
-              </div>
+              <h2 className="ax-modal__title" id="resco-view-detail-title" style={{ fontSize: 15, fontWeight: 600 }}>
+                Site Detail: {viewModal.site_name || `Site #${viewModal.id}`}
+              </h2>
               <button type="button" className="ax-modal__close" onClick={() => setViewModal(null)} aria-label="Close dialog">{X_ICON}</button>
             </div>
             <div className="ax-modal__body" style={{ padding: 20 }}>
-              <div className="up-resco-detail-modal-grid">
-                <div><div className="detail-label">State</div><div className="detail-value">{viewModal.state ? viewModal.state.toUpperCase() : 'UP'}</div></div>
-                <div><div className="detail-label">District</div><div className="detail-value">{txt(viewModal.district)}</div></div>
-                <div><div className="detail-label">Site Name</div><div className="detail-value" style={{ color: 'var(--ax-accent)' }}>{txt(viewModal.site_name)}</div></div>
-                <div><div className="detail-label">Installation Date</div><div className="detail-value">{txt(viewModal.installation_date)}</div></div>
-                <div><div className="detail-label">Contact Person</div><div className="detail-value">{txt(viewModal.contact_person)}</div></div>
-                <div><div className="detail-label">Contact Number</div><div className="detail-value">{txt(viewModal.contact_number)}</div></div>
-                <div><div className="detail-label">Solar Meter No.</div><div className="detail-value">{txt(viewModal.solar_meter_no)}</div></div>
-                <div><div className="detail-label">Inverter No.</div><div className="detail-value">{txt(viewModal.inverter_no)}</div></div>
-                <div><div className="detail-label">Net/Smart Meter No.</div><div className="detail-value">{txt(viewModal.net_smart_meter_no)}</div></div>
-                <div><div className="detail-label">Loger No.</div><div className="detail-value">{txt(viewModal.loger_no)}</div></div>
-                <div><div className="detail-label">Latitude</div><div className="detail-value">{txt(viewModal.latitude)}</div></div>
-                <div><div className="detail-label">Longitude</div><div className="detail-value">{txt(viewModal.longitude)}</div></div>
-                <div><div className="detail-label">Verify Status</div><div className="detail-value"><StatusBadge value={viewModal.verify_status} /></div></div>
-                <div><div className="detail-label">Document Status</div><div className="detail-value"><StatusBadge value={viewModal.document_status} /></div></div>
-                <div style={{ gridColumn: 'span 2' }}><div className="detail-label">Remark</div><div className="detail-value">{txt(viewModal.remark)}</div></div>
-                <div style={{ gridColumn: 'span 2' }}><div className="detail-label">Verify Remarks</div><div className="detail-value">{txt(viewModal.verify_remarks)}</div></div>
-                <div style={{ gridColumn: 'span 2' }}><div className="detail-label">Document Remarks</div><div className="detail-value">{txt(viewModal.document_remarks)}</div></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{viewModal.state ? viewModal.state.toUpperCase() : 'UP'}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{txt(viewModal.district)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{txt(viewModal.site_name)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Installation Date:</span> <b>{txt(viewModal.installation_date)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact Person:</span> <b>{txt(viewModal.contact_person)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact Number:</span> <b>{txt(viewModal.contact_number)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Solar Meter No.:</span> <b>{txt(viewModal.solar_meter_no)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No.:</span> <b>{txt(viewModal.inverter_no)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Net/Smart Meter No.:</span> <b>{txt(viewModal.net_smart_meter_no)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Loger No.:</span> <b>{txt(viewModal.loger_no)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Latitude:</span> <b>{txt(viewModal.latitude)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Longitude:</span> <b>{txt(viewModal.longitude)}</b></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Status:</span> <StatusBadge value={viewModal.verify_status} /></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Document Status:</span> <StatusBadge value={viewModal.document_status} /></div>
+                <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remark:</span> <b>{txt(viewModal.remark)}</b></div>
+                <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Verify Remarks:</span> <b>{txt(viewModal.verify_remarks)}</b></div>
+                <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Document Remarks:</span> <b>{txt(viewModal.document_remarks)}</b></div>
               </div>
 
-              <hr className="up-resco-detail-section-divider" />
-
-              <div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 10 }}>Photographs</span>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 14, borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', display: 'block', marginBottom: 8 }}>Photographs:</span>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   {[
                     { label: 'System', path: viewModal.system_image },
                     { label: 'Inverter', path: viewModal.inverter_image },
@@ -865,9 +802,9 @@ export function UP_Installation_Resco_InstallationDetail() {
                     { label: 'Net Meter', path: viewModal.net_meter_smart_meter_image },
                     { label: 'Loger', path: viewModal.loger_image },
                   ].map((p) => (
-                    <div key={p.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div key={p.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <Thumb path={p.path} alt={`${p.label} image`} onPreview={openPreview} />
-                      <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 500 }}>{p.label}</span>
+                      <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>{p.label}</span>
                     </div>
                   ))}
                 </div>
@@ -879,11 +816,6 @@ export function UP_Installation_Resco_InstallationDetail() {
           </div>
         </div>
       )}
-
-      {/* ── Footer ── */}
-      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
-      </footer>
     </div>
   );
 }

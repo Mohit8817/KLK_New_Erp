@@ -75,11 +75,26 @@ export function UP_Complaint_SSL_AddComplaint() {
 
   useEffect(() => {
     let active = true;
-    upComplaintService.getSslAddData().then((res) => {
-      if (active && res.districts && res.districts.length > 0) {
-        setDistricts(res.districts);
+    const loadDistricts = async () => {
+      try {
+        if (typeof upComplaintService.getSslAddData === 'function') {
+          const res = await upComplaintService.getSslAddData();
+          if (active && res?.districts && res.districts.length > 0) {
+            setDistricts(res.districts);
+            return;
+          }
+        }
+        if (typeof upComplaintService.getSslDistricts === 'function') {
+          const list = await upComplaintService.getSslDistricts();
+          if (active && Array.isArray(list) && list.length > 0) {
+            setDistricts(list);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading SSL districts:', err);
       }
-    });
+    };
+    loadDistricts();
     return () => {
       active = false;
     };

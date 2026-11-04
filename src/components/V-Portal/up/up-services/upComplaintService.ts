@@ -669,6 +669,10 @@ export const upComplaintService = {
     return { status: res.status, districts: districts.filter(Boolean), data: res.data };
   },
 
+  async storeRescoComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    return this.saveRescoComplaint(formData);
+  },
+
   async getRescoSiteNames(district: string): Promise<{ id: string | number; site_name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.GET_SITE_NAMES(district));
     if (res.status && res.data) {
@@ -787,11 +791,19 @@ export const upComplaintService = {
   },
 
   /* ------------------- SSL APIS ------------------- */
+  async getSslAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
+    const districts = await this.getSslDistricts();
+    return { status: true, districts, data: districts };
+  },
+
   async getSslDistricts(): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_DISTRICTS);
     if (res.status && res.data) {
       if (Array.isArray(res.data)) {
         return res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || '')).filter(Boolean);
+      }
+      if (Array.isArray(res.data.districts)) {
+        return res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || '')).filter(Boolean);
       }
     }
     return [];
@@ -851,6 +863,10 @@ export const upComplaintService = {
       message: res.message || (res.status ? 'SSL Complaint stored successfully!' : 'Failed to store SSL complaint.'),
       errors: res.errors,
     };
+  },
+
+  async saveSslComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    return this.storeSslComplaint(formData);
   },
 
   async getSslViewComplaints(): Promise<UpSslComplaintItem[]> {
@@ -996,6 +1012,10 @@ export const upComplaintService = {
     };
   },
 
+  async saveKusumCComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    return this.storeKusumCComplaint(formData);
+  },
+
   async getKusumCViewComplaints(): Promise<UpKusumCComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.VIEW_COMPLAINT);
     if (res.status && res.data) {
@@ -1107,6 +1127,10 @@ export const upComplaintService = {
       message: res.message || (res.status ? 'Kusum B Complaint stored successfully!' : 'Failed to store complaint.'),
       errors: res.errors,
     };
+  },
+
+  async saveKusumBComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    return this.storeKusumBComplaint(formData);
   },
 
   async getKusumBViewComplaints(): Promise<UpKusumBComplaintItem[]> {
@@ -1317,6 +1341,10 @@ export const upComplaintService = {
       message: res.message || (res.status ? 'Off Grid Complaint added successfully!' : 'Failed to add complaint.'),
       errors: res.errors,
     };
+  },
+
+  async saveOffgridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    return this.storeOffgridComplaint(formData);
   },
 
   async getOffgridViewComplaints(): Promise<UpOffgridComplaintItem[]> {

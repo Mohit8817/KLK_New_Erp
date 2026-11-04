@@ -1,311 +1,86 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 
 /**
- * Unified Single-Card Form Styling matching Bihar AMC Add Data Design
- * Features:
- * - Single card with distinct header & section navigation pills
- * - Floating labels that transition smoothly to field border
- * - Floating select with sleek chevron indicator
- * - Floating textarea with generous multiline padding
- * - Modern upload drop area with cloud upload icon, browse button, and clear action
- * - Floating sticky bottom action bar with backdrop-blur
- * - Consistent alerts and responsive 1-, 2-, 3- and 4-column form grid
+ * Shared complaint form styling — identical to the Kashmir SRT 70MW Survey page.
+ * - Single card, header with eyebrow + section pills
+ * - Floating labels, native ax-select, FieldFeedback below every field
+ * - Drag & drop upload box (with existing-file preview support)
+ * - Sticky action bar OUTSIDE the card, badge on the left, buttons on the right
+ * - Dashed section dividers, "Section N of T" badge headers, footer copyright
+ *
+ * Class names (up-*) and all exports are unchanged, so the other UP pages keep working.
  */
 export const SINGLE_CARD_FORM_CSS = `
-.up-single-card-form .ax-card {
-  border: 1px solid var(--ax-border, #e2e8f0);
-  border-radius: var(--ax-radius-xl, 12px);
-  background: var(--ax-surface-solid, #ffffff);
-  box-shadow: var(--ax-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
-  overflow: hidden;
-}
-.up-single-card-form .ax-card__header {
-  padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
-  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
-  background: var(--ax-surface-subtle, #f8fafc);
-  display: flex;
-  flex-direction: column;
-  gap: var(--ax-space-4, 16px);
-}
-.up-single-card-form .ax-card__body {
-  padding: var(--ax-space-6, 24px);
-}
+.up-single-card-form .ax-card { border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); background: var(--ax-surface-solid); box-shadow: var(--ax-shadow-sm); overflow: hidden; }
+.up-single-card-form .ax-card__header { padding: var(--ax-space-5) var(--ax-space-6); border-bottom: 1px solid var(--ax-border-subtle); background: var(--ax-surface-subtle); display: flex; flex-direction: column; gap: var(--ax-space-4); }
+.up-single-card-form .ax-card__body { padding: var(--ax-space-6); }
 
-.up-section-pills {
-  display: flex;
-  gap: var(--ax-space-2, 8px);
-  flex-wrap: wrap;
-  padding-top: var(--ax-space-1, 4px);
-}
-.up-section-pill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: var(--ax-radius-pill, 9999px);
-  font-size: var(--ax-text-xs, 12px);
-  font-weight: 600;
-  border: 1px solid var(--ax-border, #cbd5e1);
-  background: var(--ax-surface-solid, #ffffff);
-  color: var(--ax-text-muted, #64748b);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-decoration: none;
-}
-.up-section-pill-btn:hover {
-  background: var(--ax-surface-hover, #f1f5f9);
-  color: var(--ax-text-strong, #0f172a);
-  border-color: var(--ax-accent, #2563eb);
-}
-.up-section-pill-btn .pill-num {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--ax-surface-subtle, #f1f5f9);
-  color: var(--ax-text-subtle, #64748b);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-}
+.up-section-pills { display: flex; gap: var(--ax-space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.up-section-pill-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--ax-radius-pill); font-size: var(--ax-text-xs); font-weight: 500; white-space: nowrap; background: var(--ax-surface-solid); border: 1px solid var(--ax-border); color: var(--ax-text); cursor: pointer; transition: all var(--ax-motion-fast) var(--ax-ease-standard); text-decoration: none; }
+.up-section-pill-btn:hover { border-color: var(--ax-accent); color: var(--ax-accent); background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid)); }
+.up-section-pill-btn .pill-num { width: 18px; height: 18px; border-radius: 50%; background: var(--ax-surface-subtle); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
 
-.up-section-block {
-  padding-top: var(--ax-space-2, 8px);
-}
-.up-section-block + .up-section-block {
-  margin-top: var(--ax-space-8, 32px);
-  padding-top: var(--ax-space-6, 24px);
-  border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
-}
-.up-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--ax-space-2, 8px);
-  margin-bottom: var(--ax-space-5, 20px);
-  padding-bottom: var(--ax-space-3, 12px);
-  border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
-}
-.up-section-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.up-section-divider {
-  border: 0;
-  border-top: 1px solid var(--ax-border-subtle, #f1f5f9);
-  margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
-}
+.up-section-block { padding-top: var(--ax-space-2); scroll-margin-top: 80px; }
+.up-section-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--ax-space-2); margin-bottom: var(--ax-space-5); padding-bottom: var(--ax-space-3); border-bottom: 1px solid var(--ax-border-subtle); }
+.up-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.up-section-divider { border: 0; border-top: 1px dashed var(--ax-border); margin: var(--ax-space-8) 0 var(--ax-space-6); }
 
-.up-form-grid {
-  display: grid;
-  gap: 16px;
+/* ──────── Grid ──────── */
+.up-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--ax-space-4); }
+@media (min-width: 1024px) {
+  .up-form-grid--2col { grid-template-columns: repeat(2, 1fr); }
+  .up-form-grid--3col { grid-template-columns: repeat(3, 1fr); }
+  .up-form-grid--4col { grid-template-columns: repeat(4, 1fr); }
 }
-.up-form-grid--2col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.up-form-grid--3col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.up-form-grid--4col { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-
-@media (max-width: 900px) {
-  .up-form-grid--3col, .up-form-grid--4col {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 600px) {
-  .up-form-grid--2col, .up-form-grid--3col, .up-form-grid--4col {
-    grid-template-columns: 1fr;
-  }
-}
-
 .ax-col--span-2 { grid-column: span 2 / span 2; }
 .ax-col--span-3 { grid-column: span 3 / span 3; }
 .ax-col--span-full { grid-column: 1 / -1; }
-
-@media (max-width: 900px) {
-  .ax-col--span-3 { grid-column: 1 / -1; }
-}
-@media (max-width: 600px) {
+@media (max-width: 1023px) {
   .ax-col--span-2, .ax-col--span-3 { grid-column: 1 / -1; }
 }
 
-/* ──────── Floating Inputs (Exact Bihar AMC Add Data) ──────── */
-.ax-float {
-  position: relative;
-  width: 100%;
-}
-.ax-float__input {
-  width: 100%;
-  height: 46px;
-  padding: 12px 14px 4px 14px;
-  font-size: var(--ax-text-sm, 14px);
-  background: var(--ax-surface-solid, #ffffff);
-  border: 1px solid var(--ax-border, #cbd5e1);
-  border-radius: var(--ax-radius-md, 8px);
-  color: var(--ax-text, #0f172a);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-sizing: border-box;
-}
-.ax-float__input::placeholder {
-  color: transparent;
-}
-.ax-float__input:focus {
-  border-color: var(--ax-accent, #2563eb);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 20%, transparent);
-}
-.ax-float__input[readonly] {
-  background: var(--ax-surface-subtle, #f8fafc);
-  opacity: 0.9;
-}
-.ax-float__input:disabled {
-  background: var(--ax-surface-subtle, #f8fafc);
-  opacity: 0.7;
-  cursor: not-allowed;
-}
+/* ──────── Floating inputs ──────── */
+.ax-float { position: relative; width: 100%; }
+.ax-float__input { width: 100%; height: 46px; padding: 12px 14px 4px 14px; font-size: var(--ax-text-sm); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-md); color: var(--ax-text); outline: none; transition: border-color var(--ax-motion-fast) var(--ax-ease-standard), box-shadow var(--ax-motion-fast) var(--ax-ease-standard); }
+.ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
+.ax-float__input[readonly] { background: var(--ax-surface-subtle); }
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
 
-.ax-float__label {
-  position: absolute;
-  inset-inline-start: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  margin: 0;
-  padding: 0 4px;
-  font-size: var(--ax-text-sm, 14px);
-  color: var(--ax-text-subtle, #64748b);
-  background: var(--ax-surface-solid, #ffffff);
-  border-radius: 4px;
-  pointer-events: none;
-  transition: top 0.15s ease, font-size 0.15s ease, color 0.15s ease;
-  z-index: 2;
-  white-space: nowrap;
-  max-width: calc(100% - 24px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.ax-float__label { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top var(--ax-motion-fast) var(--ax-ease-standard), font-size var(--ax-motion-fast) var(--ax-ease-standard), color var(--ax-motion-fast) var(--ax-ease-standard); z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
 
 .ax-float__input:focus + .ax-float__label,
 .ax-float__input:not(:placeholder-shown) + .ax-float__label,
 .ax-float.has-value .ax-float__label,
 .ax-float--select .ax-float__label,
-.ax-float--date .ax-float__label {
-  top: 0;
-  transform: translateY(-50%);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ax-text-muted, #64748b);
-}
-.ax-float__input:focus + .ax-float__label {
-  color: var(--ax-accent, #2563eb);
-}
+.ax-float--date .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs); font-weight: 500; color: var(--ax-text-muted); }
+.ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
 
-.ax-float.has-error .ax-float__input,
-.ax-float__input.is-invalid {
-  border-color: var(--ax-danger, #ef4444) !important;
-}
-.ax-float.has-error .ax-float__input:focus,
-.ax-float__input.is-invalid:focus {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger, #ef4444) 20%, transparent) !important;
-}
-.ax-float.has-error .ax-float__label,
-.ax-float__input.is-invalid + .ax-float__label {
-  color: var(--ax-danger, #ef4444) !important;
-}
+.ax-float__input.is-invalid { border-color: var(--ax-danger-500) !important; }
+.ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-danger-500) 24%, transparent) !important; }
+.ax-float__input.is-invalid + .ax-float__label { color: var(--ax-danger-500) !important; }
 
-.ax-float--area .ax-float__input {
-  height: auto;
-  min-height: 84px;
-  padding-top: 18px;
-  resize: vertical;
-}
-.ax-float--area .ax-float__label {
-  top: 18px;
-  transform: none;
-}
+.ax-float--area .ax-float__input { height: auto; min-height: 84px; padding-top: 18px; resize: vertical; }
+.ax-float--area .ax-float__label { top: 18px; transform: none; }
 .ax-float--area .ax-float__input:focus + .ax-float__label,
 .ax-float--area .ax-float__input:not(:placeholder-shown) + .ax-float__label,
-.ax-float--area.has-value .ax-float__label {
-  top: 0;
-  transform: translateY(-50%);
-  font-size: 11px;
-  font-weight: 600;
-}
+.ax-float--area.has-value .ax-float__label { top: 0; transform: translateY(-50%); }
 
-.ax-field__error {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--ax-danger, #ef4444);
-  margin-top: 4px;
-  padding-left: 2px;
-}
+.ax-field-feedback { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--ax-text-2xs); min-height: 16px; }
+.ax-field-feedback--error { color: var(--ax-danger-500); }
 
-/* ──────── Modern Upload Box ──────── */
-.up-upload-box {
-  border: 1px dashed var(--ax-border, #cbd5e1);
-  border-radius: var(--ax-radius-md, 8px);
-  padding: 8px 12px;
-  background: var(--ax-surface-subtle, #f8fafc);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 46px;
-  box-sizing: border-box;
-}
+/* ──────── Read-only info card ──────── */
+.up-info-card { background: var(--ax-surface-subtle); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-lg); padding: var(--ax-space-4); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--ax-space-3); font-size: var(--ax-text-xs); }
+.up-info-item { display: flex; flex-direction: column; gap: 2px; }
+.up-info-label { color: var(--ax-text-muted); font-weight: 500; font-size: 11px; }
+.up-info-value { color: var(--ax-text-strong); font-weight: 600; word-break: break-word; }
 
-/* ──────── Read-only Info Card (Key-Value) ──────── */
-.up-info-card {
-  background: var(--ax-surface-subtle, #f8fafc);
-  border: 1px solid var(--ax-border, #e2e8f0);
-  border-radius: var(--ax-radius-lg, 8px);
-  padding: var(--ax-space-4, 16px);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--ax-space-3, 12px);
-  font-size: var(--ax-text-xs, 12px);
-}
-.up-info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.up-info-label {
-  color: var(--ax-text-muted, #64748b);
-  font-weight: 500;
-  font-size: 11px;
-}
-.up-info-value {
-  color: var(--ax-text-strong, #0f172a);
-  font-weight: 600;
-  word-break: break-word;
-}
+/* ──────── Sticky action bar ──────── */
+.up-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
 
-/* ──────── Sticky Action Bar (Exact Bihar AMC Add Data) ──────── */
-.up-form-sticky-bar {
-  position: sticky;
-  bottom: var(--ax-space-4, 16px);
-  z-index: 30;
-  margin-top: var(--ax-space-6, 24px);
-  padding: 12px 20px;
-  background: var(--ax-surface-solid, #ffffff);
-  border: 1px solid var(--ax-border, #e2e8f0);
-  border-radius: var(--ax-radius-xl, 12px);
-  box-shadow: var(--ax-shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  backdrop-filter: blur(12px);
-}
-
-@keyframes up-spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes up-spin { to { transform: rotate(360deg); } }
 `;
 
 export function getTodayFormatted(): string {
@@ -321,49 +96,40 @@ export function opts(list: string[]): { value: string; label: string }[] {
 }
 
 export const BackArrowIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ width: 14, height: 14, marginRight: 6 }}
-    aria-hidden="true"
-  >
-    <path d="M19 12H5" />
-    <path d="M12 19l-7-7 7-7" />
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12l14 0" />
+    <path d="M5 12l6 6" />
+    <path d="M5 12l6 -6" />
   </svg>
 );
 
+/* ──────── Alert banner (success / error) ──────── */
 export function StatusBanner({ toast }: { toast: { type: 'success' | 'error'; message: string } | null }) {
   if (!toast) return null;
+  const isSuccess = toast.type === 'success';
   return (
     <div
-      className={`ax-alert ax-alert--${toast.type === 'success' ? 'success' : 'danger'}`}
-      style={{ marginBottom: 'var(--ax-space-5, 20px)' }}
-      role="status"
+      className={`ax-alert ax-alert--${isSuccess ? 'success' : 'danger'}`}
+      role={isSuccess ? 'status' : 'alert'}
+      style={{ marginBottom: 'var(--ax-space-6)' }}
     >
       <span className="ax-alert__icon">
-        {toast.type === 'success' ? (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+        {isSuccess ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12l5 5l10 -10" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 9v4" />
+            <path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" />
+            <path d="M12 16h.01" />
           </svg>
         )}
       </span>
       <div className="ax-alert__content">
-        <h4 className="ax-alert__title" style={{ fontSize: 'var(--ax-text-base, 15px)', fontWeight: 600, margin: 0 }}>
-          {toast.type === 'success' ? 'Success' : 'Error'}
-        </h4>
-        <div className="ax-alert__text" style={{ marginTop: 2, fontSize: 'var(--ax-text-sm, 13px)' }}>
+        <h4 className="ax-alert__title" style={{ fontSize: isSuccess ? 'var(--ax-text-base)' : undefined, fontWeight: 600 }}>
           {toast.message}
-        </div>
+        </h4>
       </div>
     </div>
   );
@@ -380,7 +146,8 @@ export function SectionPills({ sections, onJump }: { sections: SectionItem[]; on
     <div className="up-section-pills" role="navigation" aria-label="Jump to section">
       {sections.map((s) => (
         <button key={s.id} type="button" className="up-section-pill-btn" onClick={() => onJump(s.id)}>
-          <span className="pill-num">{s.num}</span> {s.title}
+          <span className="pill-num">{s.num}</span>
+          <span>{s.title}</span>
         </button>
       ))}
     </div>
@@ -396,45 +163,24 @@ export function SectionHeader({
   num: string | number;
   total?: number;
   title: string;
-  desc?: string;
+  desc?: ReactNode;
 }) {
   return (
     <div className="up-section-header">
       <div className="up-section-title-wrap">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: '50%',
-              background: 'var(--ax-accent, #2563eb)',
-              color: '#ffffff',
-              fontSize: 11,
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {num}
+        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
+            {total ? `Section ${num} of ${total}` : `Section ${num}`}
           </span>
-          <h3 className="ax-card__title" style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>
-            {title}
-          </h3>
-          {total && (
-            <span style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', fontWeight: 500 }}>
-              (Step {num} of {total})
-            </span>
-          )}
+          <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>{title}</h3>
         </div>
-        {desc && <p className="ax-card__subtitle" style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--ax-text-muted, #64748b)' }}>{desc}</p>}
+        {desc && <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{desc}</p>}
       </div>
     </div>
   );
 }
 
-/* ──────── Read-only Info Item Component ──────── */
+/* ──────── Read-only Info Item ──────── */
 export function InfoItem({ label, value }: { label: string; value?: string | number | null }) {
   const displayVal = value !== null && value !== undefined && value !== '' ? String(value) : '—';
   return (
@@ -445,7 +191,26 @@ export function InfoItem({ label, value }: { label: string; value?: string | num
   );
 }
 
-/* ──────── Floating Input Primitives ──────── */
+/* ──────── Shared bits ──────── */
+const Asterisk = () => <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>;
+
+function FieldFeedback({ error }: { error?: string }) {
+  if (error) {
+    return (
+      <span className="ax-field-feedback ax-field-feedback--error" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        {error}
+      </span>
+    );
+  }
+  return <span className="ax-field-feedback" />;
+}
+
+/* ──────── Floating Input ──────── */
 export interface FloatingInputProps {
   id: string;
   label: string;
@@ -460,7 +225,7 @@ export interface FloatingInputProps {
   maxLength?: number;
   step?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function FloatingInput({
@@ -476,46 +241,39 @@ export function FloatingInput({
   placeholder = ' ',
   maxLength,
   step,
-  className = '',
+  className,
   style,
 }: FloatingInputProps) {
   const hasValue = value !== '' && value !== null && value !== undefined;
   const isDate = type === 'date' || type === 'datetime-local' || type === 'month';
 
   return (
-    <div
-      className={`ax-float ${hasValue ? 'has-value' : ''} ${isDate ? 'ax-float--date' : ''} ${error ? 'has-error' : ''} ${className}`}
-      style={style}
-    >
-      <input
-        id={id}
-        type={type}
-        className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        readOnly={readOnly}
-        maxLength={maxLength}
-        step={step}
-      />
-      <label htmlFor={id} className="ax-float__label">
-        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-      </label>
-      {error && (
-        <div className="ax-field__error">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12, flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
+    <div className={className} style={style}>
+      <div className={`ax-float ${hasValue ? 'has-value' : ''} ${isDate ? 'ax-float--date' : ''}`}>
+        <input
+          id={id}
+          type={type}
+          step={step}
+          className={`ax-input ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          disabled={disabled}
+          readOnly={readOnly}
+          maxLength={maxLength}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
     </div>
   );
 }
 
+/* ──────── Floating Select ──────── */
 export interface FloatingSelectProps {
   id: string;
   label: string;
@@ -527,7 +285,7 @@ export interface FloatingSelectProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function FloatingSelect({
@@ -540,69 +298,38 @@ export function FloatingSelect({
   required,
   disabled,
   placeholder = '-- Select --',
-  className = '',
+  className,
   style,
 }: FloatingSelectProps) {
-  const hasValue = value !== '' && value !== null && value !== undefined;
-
   return (
-    <div
-      className={`ax-float ax-float--select ${hasValue ? 'has-value' : ''} ${error ? 'has-error' : ''} ${className}`}
-      style={style}
-    >
-      <select
-        id={id}
-        className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        style={{ paddingRight: 36, appearance: 'none', WebkitAppearance: 'none' }}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-          position: 'absolute',
-          right: 12,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 14,
-          height: 14,
-          color: 'var(--ax-text-muted, #64748b)',
-          pointerEvents: 'none',
-        }}
-        aria-hidden="true"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-      <label htmlFor={id} className="ax-float__label">
-        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-      </label>
-      {error && (
-        <div className="ax-field__error">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12, flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
+    <div className={className} style={style}>
+      <div className="ax-float ax-float--select">
+        <select
+          id={id}
+          className={`ax-select ax-float__input ${error ? 'is-invalid' : ''}`}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
     </div>
   );
 }
 
+/* ──────── Floating Textarea ──────── */
 export interface FloatingTextareaProps {
   id: string;
   label: string;
@@ -614,7 +341,7 @@ export interface FloatingTextareaProps {
   rows?: number;
   placeholder?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function FloatingTextarea({
@@ -627,125 +354,285 @@ export function FloatingTextarea({
   disabled,
   rows = 3,
   placeholder = ' ',
-  className = '',
+  className,
   style,
 }: FloatingTextareaProps) {
   const hasValue = value !== '' && value !== null && value !== undefined;
 
   return (
-    <div
-      className={`ax-float ax-float--area ${hasValue ? 'has-value' : ''} ${error ? 'has-error' : ''} ${className}`}
-      style={style}
-    >
-      <textarea
-        id={id}
-        className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        rows={rows}
-        style={{ height: 'auto', minHeight: 84, paddingTop: 18 }}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-      />
-      <label htmlFor={id} className="ax-float__label">
-        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-      </label>
-      {error && (
-        <div className="ax-field__error">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12, flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
+    <div className={className} style={style}>
+      <div className={`ax-float ax-float--area ${hasValue ? 'has-value' : ''}`}>
+        <textarea
+          id={id}
+          rows={rows}
+          className={`ax-textarea ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
     </div>
   );
 }
 
+/* ──────── Drag & Drop File Input (same as Kashmir) ──────── */
 export interface FloatingFileInputProps {
   id: string;
   label: string;
   file: File | null;
   onChange: (file: File | null) => void;
+  existingUrl?: string | null;
   error?: string;
   required?: boolean;
   accept?: string;
   disabled?: boolean;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
+
+const IMG_RE = /\.(png|jpe?g|webp|gif|svg)$/i;
 
 export function FloatingFileInput({
   id,
   label,
   file,
   onChange,
+  existingUrl,
   error,
   required,
   accept = 'image/*,.pdf',
   disabled,
-  className = '',
+  className,
   style,
 }: FloatingFileInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const objectUrl = useMemo(
+    () => (file && file.type.startsWith('image/') ? URL.createObjectURL(file) : null),
+    [file]
+  );
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [objectUrl]);
+
+  const openPicker = () => {
+    if (!disabled) inputRef.current?.click();
+  };
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(null);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (disabled) return;
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onChange(chosen);
+  };
+
+  const existingClean = existingUrl ? existingUrl.split('?')[0] : '';
+  const existingName = existingClean ? existingClean.split('/').pop() : null;
+  const existingIsImage = Boolean(existingClean && IMG_RE.test(existingClean));
+
+  const thumbStyle: CSSProperties = {
+    width: 44,
+    height: 44,
+    objectFit: 'cover',
+    borderRadius: 0,
+    border: '1px solid var(--ax-border)',
+    flexShrink: 0,
+  };
+
+  const iconCircle = (bg: string, fg: string, children: ReactNode) => (
+    <div
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: '50%',
+        background: bg,
+        color: fg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+
   return (
-    <div className={`ax-float has-value ${error ? 'has-error' : ''} ${className}`} style={style}>
-      <div className="up-upload-box">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flex: 1 }}>
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.75}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ width: 18, height: 18, color: 'var(--ax-accent, #2563eb)', flexShrink: 0 }}
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          <input
-            id={id}
-            type="file"
-            accept={accept}
-            disabled={disabled}
-            style={{ fontSize: 12, flex: 1, minWidth: 0, cursor: 'pointer' }}
-            onChange={(e) => onChange(e.target.files?.[0] || null)}
-          />
-        </div>
-        {file && (
-          <button
-            type="button"
-            className="ax-btn ax-btn--ghost ax-btn--sm"
-            style={{
-              padding: '2px 8px',
-              height: 26,
-              fontSize: 11,
-              color: 'var(--ax-danger, #ef4444)',
-              borderRadius: 4,
-              flexShrink: 0,
-            }}
-            onClick={() => onChange(null)}
-          >
-            Clear
-          </button>
+    <div className={`${error ? 'is-invalid' : ''} ${className ?? ''}`} style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <Asterisk />}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        disabled={disabled}
+        style={{ display: 'none' }}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      <div
+        onClick={openPicker}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openPicker();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered ? '#fbfcfd' : '#ffffff',
+          padding: file || existingName ? '12px 16px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.7 : 1,
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {objectUrl ? (
+                <img src={objectUrl} alt={label} style={thumbStyle} />
+              ) : (
+                iconCircle('#ecfdf5', '#10b981',
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                )
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {(file.size / 1024).toFixed(0)} KB · Ready to upload
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove file"
+            >
+              Remove
+            </button>
+          </div>
+        ) : existingName ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {existingIsImage && existingUrl ? (
+                <img src={existingUrl} alt={label} style={thumbStyle} />
+              ) : (
+                iconCircle('#eff6ff', '#3b82f6',
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                )
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {existingName}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  Existing file · Click to replace
+                </div>
+              </div>
+            </div>
+            <span className="ax-btn ax-btn--secondary ax-btn--sm" style={{ flexShrink: 0, pointerEvents: 'none' }}>
+              Replace
+            </span>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              {accept === 'application/pdf' ? 'PDF file' : 'JPG, PNG, WEBP or PDF'}
+            </div>
+          </>
         )}
       </div>
-      <label htmlFor={id} className="ax-float__label" style={{ top: 0, fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted, #64748b)' }}>
-        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
-      </label>
-      {error && (
-        <div className="ax-field__error">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12, flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
+
+      <FieldFeedback error={error} />
     </div>
   );
 }
@@ -770,71 +657,39 @@ export function SmsRadioGroup({
 }: SmsRadioGroupProps) {
   const isYes = value.toLowerCase() === yesValue.toLowerCase() || value === 'Yes';
 
+  const pill = (active: boolean): CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '6px 14px',
+    borderRadius: 'var(--ax-radius-pill, 9999px)',
+    fontSize: 12,
+    fontWeight: 600,
+    border: active ? '1.5px solid var(--ax-accent)' : '1px solid var(--ax-border)',
+    background: active ? 'color-mix(in srgb, var(--ax-accent) 12%, transparent)' : 'var(--ax-surface-solid)',
+    color: active ? 'var(--ax-accent)' : 'var(--ax-text-muted)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+  });
+  const dot = (active: boolean): CSSProperties => ({
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+    border: active ? '4px solid var(--ax-accent)' : '1.5px solid var(--ax-border)',
+    background: '#ffffff',
+    boxSizing: 'border-box',
+  });
+
   return (
-    <div role="radiogroup" aria-label={label} style={{ padding: '4px 0' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #0f172a)', marginBottom: 8 }}>
-        {label}
-      </div>
+    <div role="radiogroup" aria-label={label} data-name={name} style={{ padding: '4px 0' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', marginBottom: 8 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          type="button"
-          onClick={() => onChange(yesValue)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 14px',
-            borderRadius: 'var(--ax-radius-pill, 9999px)',
-            fontSize: 12,
-            fontWeight: 600,
-            border: isYes ? '1.5px solid var(--ax-accent, #2563eb)' : '1px solid var(--ax-border, #cbd5e1)',
-            background: isYes ? 'color-mix(in srgb, var(--ax-accent, #2563eb) 12%, transparent)' : 'var(--ax-surface-solid, #ffffff)',
-            color: isYes ? 'var(--ax-accent, #2563eb)' : 'var(--ax-text-muted, #64748b)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <span
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              border: isYes ? '4px solid var(--ax-accent, #2563eb)' : '1.5px solid var(--ax-border, #cbd5e1)',
-              background: '#ffffff',
-              boxSizing: 'border-box',
-            }}
-          />
+        <button type="button" onClick={() => onChange(yesValue)} style={pill(isYes)}>
+          <span style={dot(isYes)} />
           <span>Yes</span>
         </button>
-
-        <button
-          type="button"
-          onClick={() => onChange(noValue)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 14px',
-            borderRadius: 'var(--ax-radius-pill, 9999px)',
-            fontSize: 12,
-            fontWeight: 600,
-            border: !isYes ? '1.5px solid var(--ax-accent, #2563eb)' : '1px solid var(--ax-border, #cbd5e1)',
-            background: !isYes ? 'color-mix(in srgb, var(--ax-accent, #2563eb) 12%, transparent)' : 'var(--ax-surface-solid, #ffffff)',
-            color: !isYes ? 'var(--ax-accent, #2563eb)' : 'var(--ax-text-muted, #64748b)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <span
-            style={{
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              border: !isYes ? '4px solid var(--ax-accent, #2563eb)' : '1.5px solid var(--ax-border, #cbd5e1)',
-              background: '#ffffff',
-              boxSizing: 'border-box',
-            }}
-          />
+        <button type="button" onClick={() => onChange(noValue)} style={pill(!isYes)}>
+          <span style={dot(!isYes)} />
           <span>No</span>
         </button>
       </div>
@@ -851,12 +706,14 @@ export interface ComplaintFormLayoutProps {
   viewLabel?: string;
   eyebrow: string;
   formTitle: string;
-  formSubtitle: string;
+  formSubtitle: ReactNode;
   sections: SectionItem[];
   onSubmit: (e: FormEvent) => void;
   onReset: () => void;
   loading: boolean;
   submitLabel?: string;
+  /** Small badge on the left of the sticky bar (like "New Survey" in Kashmir) */
+  statusLabel?: string;
   toast: { type: 'success' | 'error'; message: string } | null;
   children: ReactNode;
 }
@@ -874,7 +731,8 @@ export function ComplaintFormLayout({
   onSubmit,
   onReset,
   loading,
-  submitLabel = 'Submit Complaint Ticket',
+  submitLabel = 'Submit Complaint',
+  statusLabel = 'New Complaint',
   toast,
   children,
 }: ComplaintFormLayoutProps) {
@@ -882,13 +740,24 @@ export function ComplaintFormLayout({
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Scroll to top when a banner appears (same behaviour as Kashmir)
+  useEffect(() => {
+    if (toast) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [toast]);
+
   return (
-    <div className="solar-erp-page up-single-card-form" style={{ paddingBottom: 'var(--ax-space-6, 24px)' }}>
+    <div className="solar-erp-page up-single-card-form">
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
         title={title}
-        subtitle={subtitle}
+        subtitle={
+          typeof subtitle === 'string' ? (
+            <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>{subtitle}</span>
+          ) : (
+            subtitle
+          )
+        }
         breadcrumbs={breadcrumbs}
         actions={
           <Link to={viewLink} className="ax-btn ax-btn--secondary ax-btn--pill">
@@ -901,26 +770,15 @@ export function ComplaintFormLayout({
       <StatusBanner toast={toast} />
 
       <form onSubmit={onSubmit} noValidate>
+        {/* ── Unified single card ── */}
         <div className="ax-card">
           <div className="ax-card__header">
             <div>
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: 'var(--ax-accent, #2563eb)',
-                  marginBottom: 2,
-                }}
-              >
-                {eyebrow}
-              </span>
-              <h2 className="ax-card__title" style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+              <span className="ax-card__eyebrow">{eyebrow}</span>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>
                 {formTitle}
               </h2>
-              <p className="ax-card__subtitle" style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+              <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
                 {formSubtitle}
               </p>
             </div>
@@ -928,52 +786,39 @@ export function ComplaintFormLayout({
           </div>
 
           <div className="ax-card__body">{children}</div>
+        </div>
 
-          {/* Sticky Action Bar matching Bihar AMC Add Data */}
-          <div className="up-form-sticky-bar">
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary"
-              onClick={onReset}
-              disabled={loading}
-              style={{ fontWeight: 600, paddingInline: 18 }}
-            >
-              Reset Form
+        {/* ── Sticky action footer (outside the card, same as Kashmir) ── */}
+        <div className="up-form-sticky-bar">
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">{statusLabel}</span>
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={onReset} disabled={loading}>
+              <span className="ax-btn__label">Reset Form</span>
             </button>
-            <button
-              type="submit"
-              className="ax-btn ax-btn--primary"
-              disabled={loading}
-              style={{
-                fontWeight: 600,
-                paddingInline: 24,
-                boxShadow: '0 2px 4px rgba(37,99,235,0.25)',
-              }}
-            >
+            <button type="submit" disabled={loading} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
               {loading ? (
                 <>
-                  <span
-                    className="ax-spinner"
-                    style={{
-                      marginRight: 8,
-                      display: 'inline-block',
-                      width: 14,
-                      height: 14,
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderTopColor: '#ffffff',
-                      borderRadius: '50%',
-                      animation: 'up-spin 0.8s linear infinite',
-                    }}
-                  />
-                  Submitting…
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'up-spin 1s linear infinite' }}>
+                    <path d="M12 3a9 9 0 1 0 9 9" />
+                  </svg>
+                  <span className="ax-btn__label">Submitting...</span>
                 </>
               ) : (
-                submitLabel
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12l5 5l10 -10" />
+                  </svg>
+                  <span className="ax-btn__label">{submitLabel}</span>
+                </>
               )}
             </button>
           </div>
         </div>
       </form>
+
+      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
+      </footer>
     </div>
   );
 }
