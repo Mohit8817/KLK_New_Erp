@@ -3,36 +3,110 @@ import { upRescoAmcApi } from '../../up-services';
 
 export function UP_AMC_Resco_PendingAMC() {
   const fetchYears = async () => {
-    const res = await upRescoAmcApi.getCreateYears();
-    const arr = res?.data?.amc_years;
-    if (Array.isArray(arr) && arr.length > 0) return arr;
-    return [new Date().getFullYear()];
+    try {
+      const res: any = await upRescoAmcApi.getCreateYears();
+      const arr =
+        res?.data?.amc_years ||
+        res?.amc_years ||
+        res?.data?.years ||
+        res?.years ||
+        (Array.isArray(res?.data) ? res.data : null) ||
+        (Array.isArray(res) ? res : null);
+      if (Array.isArray(arr) && arr.length > 0) return arr.map(Number);
+      return [new Date().getFullYear()];
+    } catch (err) {
+      console.error('Error fetching Resco AMC years:', err);
+      return [new Date().getFullYear()];
+    }
   };
 
   const fetchMonths = async (year: number) => {
-    const res = await upRescoAmcApi.getMonth(year);
-    if (Array.isArray(res?.data) && res.data.length > 0) {
-      return res.data;
+    try {
+      const res: any = await upRescoAmcApi.getMonth(year);
+      let list: any[] = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (Array.isArray(res?.months)) {
+        list = res.months;
+      } else if (Array.isArray(res?.data?.months)) {
+        list = res.data.months;
+      } else if (Array.isArray(res?.data)) {
+        list = res.data;
+      } else if (res?.data && typeof res.data === 'object') {
+        const firstArr = Object.values(res.data).find(Array.isArray);
+        if (firstArr) list = firstArr as any[];
+      } else if (res && typeof res === 'object') {
+        const firstArr = Object.values(res).find(Array.isArray);
+        if (firstArr) list = firstArr as any[];
+      }
+
+      return list
+        .map((m: any) => (typeof m === 'object' && m !== null ? (m.month ?? m.months ?? m.id ?? m.value ?? m) : m))
+        .filter((m: any) => m !== undefined && m !== null && m !== '');
+    } catch (err) {
+      console.error('Error fetching Resco AMC months:', err);
+      return [];
     }
-    return [];
   };
 
-  const fetchSites = async (year: number, month?: number | string) => {
-    if (!month) return [];
-    const res = await upRescoAmcApi.getSiteName(year, month);
-    if (Array.isArray(res?.data)) {
-      return res.data.map((s: any) => ({
-        id: s.id,
-        label: s.site_name ? `${s.site_name} (ID: ${s.id})` : `Site #${s.id}`,
-        ...s,
-      }));
+  const fetchSites = async (year: number, months?: number | string) => {
+    if (!months) return [];
+    try {
+      const res: any = await upRescoAmcApi.getSiteName(year, months);
+      let list: any[] = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (Array.isArray(res?.data)) {
+        list = res.data;
+      } else if (Array.isArray(res?.data?.site_name)) {
+        list = res.data.site_name;
+      } else if (Array.isArray(res?.data?.sites)) {
+        list = res.data.sites;
+      } else if (Array.isArray(res?.site_name)) {
+        list = res.site_name;
+      } else if (Array.isArray(res?.sites)) {
+        list = res.sites;
+      } else if (res?.data && typeof res.data === 'object') {
+        const firstArr = Object.values(res.data).find(Array.isArray);
+        if (firstArr) list = firstArr as any[];
+      } else if (res && typeof res === 'object') {
+        const firstArr = Object.values(res).find(Array.isArray);
+        if (firstArr) list = firstArr as any[];
+      }
+
+      return list.map((s: any) => {
+        const id = s.id ?? s.site_id ?? s.site_name;
+        const name = s.site_name ?? s.name ?? `Site #${id}`;
+        return {
+          id,
+          label: name ? `${name} (ID: ${id})` : `Site #${id}`,
+          site_name: name,
+          ...s,
+        };
+      });
+    } catch (err) {
+      console.error('Error fetching Resco AMC sites:', err);
+      return [];
     }
-    return [];
   };
 
   const fetchSiteDetails = async (id: number | string) => {
-    const res = await upRescoAmcApi.getSiteDetails(id);
-    return res?.data || null;
+    try {
+      const res: any = await upRescoAmcApi.getSiteDetails(id);
+      const d =
+        res?.data?.site_details ||
+        res?.data?.site ||
+        res?.site_details ||
+        res?.site ||
+        res?.data ||
+        res ||
+        null;
+      if (Array.isArray(d)) return d[0] || null;
+      return d;
+    } catch (err) {
+      console.error('Error fetching Resco AMC site details:', err);
+      return null;
+    }
   };
 
   const submitAmc = async (formData: FormData) => {

@@ -10,8 +10,8 @@ export function UP_AMC_Ongrid_PendingAMC() {
   };
 
   const fetchMonths = async (year: number) => {
-    const res = await upOngridAmcApi.getMonths(year);
-    const arr = Array.isArray(res) ? res : res?.data;
+    const res: any = await upOngridAmcApi.getMonths(year);
+    const arr = Array.isArray(res) ? res : res?.months || res?.data?.months || res?.data;
     if (Array.isArray(arr) && arr.length > 0) return arr;
     return [];
   };

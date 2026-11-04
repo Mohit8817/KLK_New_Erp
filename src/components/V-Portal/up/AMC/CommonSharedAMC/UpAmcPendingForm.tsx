@@ -71,6 +71,30 @@ const SECTIONS = [
   { id: 'sec-5', num: '5', title: 'Complaint' },
 ];
 
+const MONTH_NAMES = [
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const formatMonthLabel = (m: string | number) => {
+  const num = Number(m);
+  if (!isNaN(num) && num >= 1 && num <= 12) {
+    return MONTH_NAMES[num];
+  }
+  return String(m);
+};
+
 export interface UpAmcPendingFormProps {
   title: string;
   subtitle: string;
@@ -127,7 +151,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   const [longitude, setLongitude] = useState('');
   const [meterReading, setMeterReading] = useState('');
   const [nextDueDate, setNextDueDate] = useState('');
-  const [visitTime, setVisitTime] = useState('');
+  const [visitTime, setVisitTime] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  });
   const [amcDate, setAmcDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [remark, setRemark] = useState('');
 
@@ -183,6 +210,12 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     let active = true;
 
     if (onFetchMonths) {
+      // FIX: Clear stale month & sites immediately so effect 2 won't fire with wrong month
+      setSelectedMonth('');
+      setSites([]);
+      setSelectedSiteId('');
+      setSiteDetails({});
+
       setLoadingMonths(true);
       onFetchMonths(Number(selectedYear))
         .then((mList) => {
@@ -197,6 +230,11 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
         .catch(() => { if (active) setMonths([]); })
         .finally(() => { if (active) setLoadingMonths(false); });
     } else {
+      // No month-based flow — directly fetch sites for the year
+      setSites([]);
+      setSelectedSiteId('');
+      setSiteDetails({});
+
       setLoadingSites(true);
       onFetchSites(Number(selectedYear))
         .then((sList) => {
@@ -214,9 +252,12 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     return () => { active = false; };
   }, [selectedYear, onFetchMonths, onFetchSites]);
 
-  // Load Sites when Month changes
+  // Load Sites when Month changes (only when onFetchMonths exists)
   useEffect(() => {
     if (!selectedYear || !onFetchMonths) return;
+    // FIX: Don't fetch sites until a valid month is actually selected
+    if (!selectedMonth) return;
+
     let active = true;
     setLoadingSites(true);
     onFetchSites(Number(selectedYear), selectedMonth)
@@ -245,8 +286,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       .then((det) => {
         if (!active || !det) return;
         setSiteDetails(det);
-        const bName = det.beneficiary_name || det.beneficiary || det.farmer_name || det.f_farmer_name || det.contact_person || '';
-        const bContact = det.beneficiary_contact || det.contact || det.mobile || det.f_mobile || det.contact_number || '';
+        const bName = det.beneficiary_name || det.beneficiary || det.farmer_name || det.f_farmer_name || det.contact_person || det.contact_name || '';
+        const bContact = det.beneficiary_contact || det.contact || det.mobile || det.f_mobile || det.contact_number || det.contact_no || '';
         if (bName) setBeneficiaryName(String(bName));
         if (bContact) setBeneficiaryContact(String(bContact));
         if (det.latitude) setLatitude(String(det.latitude));
@@ -481,7 +522,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                     required
                     placeholder={loadingMonths ? 'Loading months…' : '— Select Month —'}
                     value={selectedMonth}
-                    options={months.map((m) => ({ value: String(m), label: `Month ${m}` }))}
+                    options={months.map((m) => ({ value: String(m), label: formatMonthLabel(m) }))}
                     disabled={loadingMonths || !selectedYear}
                     onChange={(v) => setSelectedMonth(v)}
                   />
@@ -519,11 +560,14 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
             <div id="sec-2" className="up-section-block">
               <SectionHeader num="2" total={totalSections} title="Site & Installation Details" desc="Auto-populated from system records for the selected site (Read-only)." />
               <div className="up-form-grid up-form-grid--3col">
+                <FloatingInput id="up-ro-state" label="State" readOnly value={siteDetails.state || 'UP'} />
                 <FloatingInput id="up-ro-district" label="District" readOnly value={siteDetails.district || siteDetails.f_district || siteDetails.installation_dsitrict || '—'} />
-                <FloatingInput id="up-ro-dept" label="Department / Block" readOnly value={siteDetails.dept_name || siteDetails.department || siteDetails.block || '—'} />
-                <FloatingInput id="up-ro-address" label="Address / Village" readOnly value={siteDetails.address || siteDetails.village || siteDetails.f_village || siteDetails.location || '—'} />
+                <FloatingInput id="up-ro-sitename" label="Site Name" readOnly value={siteDetails.site_name || siteDetails.name || '—'} />
+                <FloatingInput id="up-ro-location" label="Location" readOnly value={siteDetails.location || siteDetails.address || siteDetails.village || siteDetails.f_village || '—'} />
                 <FloatingInput id="up-ro-ca" label="CA / Application No" readOnly value={siteDetails.ca_no || siteDetails.saral_id || siteDetails.application_no || '—'} />
-                <FloatingInput id="up-ro-capacity" label="Sanction Load / Capacity" readOnly value={siteDetails.sanction_load || siteDetails.pump_capacity || siteDetails.plant_capacity || siteDetails.volume || '—'} />
+                <FloatingInput id="up-ro-capacity" label="Sanction Load (kVA / kW)" readOnly value={siteDetails.sanction_load || siteDetails.pump_capacity || siteDetails.plant_capacity || siteDetails.volume || '—'} />
+                <FloatingInput id="up-ro-plantsc" label="Plan SC (kVA / kW)" readOnly value={siteDetails.plant_sc || siteDetails.plan_sc || siteDetails.capacity || '—'} />
+                <FloatingInput id="up-ro-dept" label="Department / Block" readOnly value={siteDetails.dept_name || siteDetails.department || siteDetails.block || '—'} />
                 <FloatingInput id="up-ro-wo" label="Work Order / Lot No" readOnly value={siteDetails.wo_no || siteDetails.work_order_no || siteDetails.lot_no || '—'} />
               </div>
             </div>
