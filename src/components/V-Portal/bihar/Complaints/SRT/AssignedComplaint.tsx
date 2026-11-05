@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharComplaintService,
+  getBiharComplaintMediaUrl,
+  getBiharComplaintMediaCandidates,
   getMediaUrl,
   type BiharComplaintItem,
   type AssignedComplaintsResponse,
@@ -37,6 +39,76 @@ const X = (
     <path d="M6 6l12 12" />
   </svg>
 );
+
+/* ───────── API response normalisation ─────────
+ * Real API shape (GET /bihar/srt/complaint/assign):
+ *   { status: true, data: { vendor, name, loginId, data[] (CLOSED), open[], approved[] (PENDING + REJECTED),
+ *     open_complaint, approved_complaint, close_complaint, total_complaint, vendors{ "142": "App Testing" } } }
+ *   - status / close_status are STRINGS ("0" | "1" | "2")  -> close_status "2" = rejected
+ *   - `vendors` is a flat map id -> name (string), not objects
+ *   - there is no `assigned_vendor_name`; only `assigned_to` (vendor id)
+ *   - `site_name` is null for most rows -> fall back to dept_name / location
+ *   - created_by is sometimes a name, sometimes a vendor id
+ *   - dates mixed: DD-MM-YYYY and YYYY-MM-DD
+ */
+const unwrapPayload = (resp: any): any => {
+  if (resp && resp.data && !Array.isArray(resp.data) && typeof resp.data === 'object') return resp.data;
+  return resp || {};
+};
+
+const fmtDate = (v: unknown) => {
+  if (typeof v !== 'string' || !v.trim()) return v;
+  const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
+};
+
+const normalizeAssigned = (raw: any): AssignedComplaintsResponse => {
+  const p = unwrapPayload(raw);
+  const vendorsMap: Record<string, any> = p.vendors || {};
+  const loginId = String(p.loginId ?? p.vendor?.id ?? '');
+  const loginName = p.name || p.vendor?.name || '';
+
+  const vendorName = (id: unknown) => {
+    const key = String(id ?? '');
+    if (!key) return '';
+    const v = vendorsMap[key];
+    if (typeof v === 'string') return v;
+    if (v && typeof v === 'object' && v.name) return v.name;
+    return key === loginId ? loginName : '';
+  };
+
+  const norm = (i: any): any => {
+    const createdIsId = /^\d+$/.test(String(i.created_by ?? ''));
+    return {
+      ...i,
+      status: Number(i.status) || 0,
+      close_status: Number(i.close_status) || 0,
+      site_name: i.site_name || i.dept_name || i.location || '',
+      start_date: fmtDate(i.start_date),
+      close_date: fmtDate(i.close_date),
+      manual_close_date: fmtDate(i.manual_close_date),
+      contact_person: i.contact_person ?? '',
+      contact_number: i.contact_number ?? '',
+      assigned_vendor_name: i.assigned_vendor_name || vendorName(i.assigned_to) || '',
+      created_by: createdIsId ? (vendorName(i.created_by) || i.created_by) : i.created_by,
+    };
+  };
+
+  const list = (a: any) => (Array.isArray(a) ? a.map(norm) : []);
+  return { ...p, open: list(p.open), approved: list(p.approved), data: list(p.data) } as AssignedComplaintsResponse;
+};
+
+/** Build attachment list from numbered keys (file, file2..file10 / r_file, r_file2..r_file9, r_file510) */
+const COMPLAINT_FILE_KEYS = ['file', 'file2', 'file3', 'file4', 'file5', 'file6', 'file7', 'file8', 'file9', 'file10'];
+const RESOLVE_FILE_KEYS = ['r_file', 'r_file2', 'r_file3', 'r_file4', 'r_file5', 'r_file6', 'r_file7', 'r_file8', 'r_file9', 'r_file510'];
+const pickFiles = (item: any, keys: string[], label: string) =>
+  keys.map((k, i) => ({ label: `${label} ${i + 1}`, file: item?.[k] as string | null | undefined }));
+
+/** "50" -> "50 kW", "ram" -> "ram" */
+const kw = (v: unknown) => {
+  if (v === null || v === undefined || v === '') return '—';
+  return /^\d+(\.\d+)?$/.test(String(v).trim()) ? `${v} kW` : String(v);
+};
 
 /* ───────── Responsive page CSS (same as View Complaint) ───────── */
 const PAGE_CSS = `
@@ -510,6 +582,66 @@ function PhoneLink({ phone }: { phone?: string | null }) {
   );
 }
 
+function AttachmentItem({ item }: { item: { label: string; file?: string | null } }) {
+  const candidates = useMemo(() => getBiharComplaintMediaCandidates(item.file, 'srt'), [item.file]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const currentUrl = candidates[candidateIdx] || getBiharComplaintMediaUrl(item.file, 'srt');
+  const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(item.file || '');
+
+  const handleImgError = () => {
+    if (candidateIdx < candidates.length - 1) {
+      setCandidateIdx((prev) => prev + 1);
+    }
+  };
+
+  return (
+    <a
+      href={currentUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '8px',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        borderRadius: '8px',
+        textDecoration: 'none',
+        color: '#1e293b',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#2563eb';
+        e.currentTarget.style.background = '#f0f7ff';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#e2e8f0';
+        e.currentTarget.style.background = '#f8fafc';
+      }}
+    >
+      {isImg ? (
+        <div style={{ width: '100%', height: 64, borderRadius: 4, overflow: 'hidden', background: '#e2e8f0', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img
+            src={currentUrl}
+            alt={item.label}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={handleImgError}
+          />
+        </div>
+      ) : (
+        <div style={{ width: '100%', height: 64, borderRadius: 4, background: '#f1f5f9', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+      )}
+      <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+        {item.label}
+      </span>
+      <span style={{ fontSize: 10, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>View File ↗</span>
+    </a>
+  );
+}
+
 function AttachmentChips({ files }: { files: { label: string; file?: string | null }[] }) {
   const valid = files.filter(f => Boolean(f.file && typeof f.file === 'string' && f.file.trim().length > 0));
   if (valid.length === 0) return null;
@@ -520,52 +652,9 @@ function AttachmentChips({ files }: { files: { label: string; file?: string | nu
         Attached Files & Documents ({valid.length})
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-        {valid.map((item, idx) => {
-          const url = getMediaUrl(item.file);
-          const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(item.file || '');
-          return (
-            <a
-              key={idx}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '8px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                color: '#1e293b',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#2563eb';
-                e.currentTarget.style.background = '#f0f7ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.background = '#f8fafc';
-              }}
-            >
-              {isImg ? (
-                <div style={{ width: '100%', height: 64, borderRadius: 4, overflow: 'hidden', background: '#e2e8f0', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={url} alt={item.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as any).style.display = 'none'; }} />
-                </div>
-              ) : (
-                <div style={{ width: '100%', height: 64, borderRadius: 4, background: '#f1f5f9', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-              )}
-              <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-                {item.label}
-              </span>
-              <span style={{ fontSize: 10, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>View File ↗</span>
-            </a>
-          );
-        })}
+        {valid.map((item, idx) => (
+          <AttachmentItem key={idx} item={item} />
+        ))}
       </div>
     </div>
   );
@@ -618,15 +707,6 @@ function DetailItem({
     <div className={`view-data-cell${fullWidth ? ' view-data-cell--full' : ''}`}>
       <span className="view-data-label">{label}</span>
       <div className="view-data-value">{children !== undefined ? children : (value ?? '—')}</div>
-    </div>
-  );
-}
-
-function Field({ label, span, children }: { label: string; span: number; children: ReactNode }) {
-  return (
-    <div className={`ax-col--${span}`}>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 2 }}>{children}</div>
     </div>
   );
 }
@@ -719,6 +799,7 @@ function UploadDrop({
   );
 }
 
+/** close_status "2" => rejected (these rows arrive inside the `approved` array) */
 const isItemRejected = (item: BiharComplaintItem | any): boolean => {
   if (!item) return false;
   const statusStr = String(item.status ?? '').toLowerCase().trim();
@@ -749,8 +830,9 @@ const ellipsis = (maxWidth: number, v: unknown) => (
 );
 
 const COLS: Col[] = [
-  { key: 'Complaint ID', th: 'Complaint ID', get: (r) => `#${r.complaint_id}`, exp: (r) => r.complaint_id ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' } },
+  { key: 'Complaint ID', th: 'Complaint ID', get: (r) => txt(r.complaint_id), exp: (r) => r.complaint_id ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' } },
   { key: 'Complaint Date', th: 'Complaint Date', get: (r) => txt(r.start_date), exp: (r) => r.start_date ?? '' },
+  { key: 'Close Date', th: 'Close Date', get: (r) => txt(r.close_date || r.manual_close_date), exp: (r) => r.close_date || r.manual_close_date || '' },
   { key: 'Complaint', th: 'Complaint', get: (r) => ellipsis(260, r.complaint), exp: (r) => r.complaint ?? '' },
   { key: 'State', th: 'State', get: (r) => txt(r.state || 'Bihar'), exp: (r) => r.state || 'Bihar' },
   { key: 'Discom', th: 'Discom', get: (r) => txt(r.discom), exp: (r) => r.discom ?? '' },
@@ -758,21 +840,35 @@ const COLS: Col[] = [
   { key: 'Dept Name', th: 'Dept Name', get: (r) => txt(r.dept_name), exp: (r) => r.dept_name ?? '' },
   { key: 'Site Name', th: 'Site Name', get: (r) => txt(r.site_name), exp: (r) => r.site_name ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-text-strong)' } },
   { key: 'Location', th: 'Location', get: (r) => ellipsis(180, r.location), exp: (r) => r.location ?? '' },
+  { key: 'Contact Person', th: 'Contact Person', get: (r) => txt(r.contact_person), exp: (r) => r.contact_person ?? '' },
+  {
+    key: 'Contact Number', th: 'Contact Number',
+    get: (r) => (r.contact_number ? <PhoneLink phone={r.contact_number} /> : DASH),
+    exp: (r) => r.contact_number ?? '',
+  },
   { key: 'Firm Name', th: 'Firm Name', get: (r) => txt(r.firm_name), exp: (r) => r.firm_name ?? '' },
   { key: 'CA No', th: 'CA No', get: (r) => txt(r.ca_no), exp: (r) => r.ca_no ?? '' },
-  { key: 'Sanction Load', th: 'Sanction Load', get: (r) => txt(r.sanction_load), exp: (r) => r.sanction_load ?? '' },
-  { key: 'Plant SC', th: 'Plant SC', get: (r) => txt(r.plant_sc), exp: (r) => r.plant_sc ?? '' },
+  { key: 'Sanction Load', th: 'Sanction Load', get: (r) => kw(r.sanction_load), exp: (r) => r.sanction_load ?? '' },
+  { key: 'Plant SC', th: 'Plant SC', get: (r) => (r.plant_sc ? `${r.plant_sc} kW` : DASH), exp: (r) => r.plant_sc ?? '' },
   { key: 'WO No', th: 'WO No', get: (r) => txt(r.wo_no), exp: (r) => r.wo_no ?? '' },
   { key: 'Phase', th: 'Phase', get: (r) => txt(r.phase), exp: (r) => r.phase ?? '' },
   {
     key: 'Document', th: 'Document',
     get: (r) => {
-      const url = r.file ? getMediaUrl(r.file) : '';
+      const doc = r.file || r.r_file || r.file2 || r.r_file2;
+      const url = doc ? getBiharComplaintMediaUrl(doc, 'srt') : '';
       return url ? (
-        <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-accent)', textDecoration: 'none' }} title="View Document">View</a>
+        <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-accent)', textDecoration: 'none', fontWeight: 600 }} title="View Document">
+          View {r.file ? 'Doc' : 'Proof'}
+        </a>
       ) : DASH;
     },
-    exp: (r) => (r.file ? getMediaUrl(r.file) : ''),
+    exp: (r) => (r.file ? getBiharComplaintMediaUrl(r.file, 'srt') : (r.r_file ? getBiharComplaintMediaUrl(r.r_file, 'srt') : '')),
+  },
+  {
+    key: 'Resolved By', th: 'Resolved By',
+    get: (r) => txt(r.resolved_by),
+    exp: (r) => r.resolved_by ?? '',
   },
   {
     key: 'Assign Complaint', th: 'Assign Complaint',
@@ -781,10 +877,19 @@ const COLS: Col[] = [
       : DASH),
     exp: (r) => r.assigned_vendor_name ?? '',
   },
+  {
+    key: 'Status', th: 'Status',
+    get: (r) => {
+      if (Number(r.close_status) === 1) return <span className="ax-badge ax-badge--success ax-badge--pill">Closed</span>;
+      if (Number(r.status) === 1) return <span className="ax-badge ax-badge--warning ax-badge--pill">Submitted</span>;
+      return <span className="ax-badge ax-badge--info ax-badge--pill">Open</span>;
+    },
+    exp: (r) => (Number(r.close_status) === 1 ? 'Closed' : (Number(r.status) === 1 ? 'Submitted' : 'Open')),
+  },
 ];
 
 const approvalLabel = (r: Row) =>
-  isItemRejected(r) ? 'Rejected' : r.close_status === 1 ? 'Approved' : r.status === 1 ? 'Pending Approval' : 'Open';
+  isItemRejected(r) ? 'Rejected' : Number(r.close_status) === 1 ? 'Approved' : Number(r.status) === 1 ? 'Pending Approval' : 'Open';
 
 export function Bihar_Complaint_SRT_AssignedComplaint() {
   const navigate = useNavigate();
@@ -796,7 +901,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Column Visibility
-  const [hiddenCols, setHiddenCols] = useState<string[]>([]);
+  const [hiddenCols] = useState<string[]>([]);
   const isVisible = (key: string) => !hiddenCols.includes(key);
 
   // Detail Modal
@@ -822,11 +927,8 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   const [attempted, setAttempted] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Record<number, number>>({});
-  const showToast = useCallback((msg: string, ttl = 3500) => {
-    const id = ++TID;
-    setToasts((t) => [...t, { id, msg }]);
-    timers.current[id] = window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), ttl);
-  }, []);
+  void timers;
+  void setToasts;
 
   const pickResolveFile = (f: File | null, setter: (f: File | null) => void) => {
     if (!f) return;
@@ -838,14 +940,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   };
 
   const openResolveModal = (item: BiharComplaintItem) => {
+    const vendor = (assignedData as any)?.vendor;
     setAttempted(false);
     setResolvingItem(item);
     setResolveError(null);
-    setResolvedBy(assignedData?.name || (assignedData as any)?.vendor?.name || 'App Testing');
-    setContactPerson(item.contact_person || item.site_name || item.beneficiary_name || '');
-    setContactNumber(item.contact_number || item.contact_no || '');
-    setREmail((assignedData as any)?.vendor?.email || '');
-    setRMobile((assignedData as any)?.vendor?.contact || '');
+    setResolvedBy((assignedData as any)?.name || vendor?.name || 'App Testing');
+    setContactPerson(item.contact_person || item.site_name || '');
+    setContactNumber(item.contact_number || '');
+    setREmail(vendor?.email || '');
+    setRMobile(vendor?.contact || '');
     setClosingDate(new Date().toISOString().split('T')[0]);
     setRemarks('');
     setCloseSms('Yes');
@@ -889,13 +992,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
       if (rFile3) fd.append('r_file3', rFile3);
       if (rFile4) fd.append('r_file4', rFile4);
 
-      const res = await biharComplaintService.closeUpdateSrtComplaint(fd);
-      if (res.success) {
+      const res: any = await biharComplaintService.closeUpdateSrtComplaint(fd);
+      // backend may answer with `success` or `status`
+      const ok = res?.success ?? res?.status;
+      if (ok === true || ok === 1 || ok === '1' || ok === 'true') {
         setSuccessToast(res.message || 'Complaint Close Request Raised Successfully.');
         setResolvingItem(null);
         await loadData();
       } else {
-        setResolveError(res.message || 'Failed to resolve SRT complaint.');
+        setResolveError(res?.message || 'Failed to resolve SRT complaint.');
       }
     } catch (err: any) {
       setResolveError(err?.message || 'Error occurred while resolving complaint.');
@@ -904,10 +1009,6 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     }
   };
 
-  const contactInvalid = attempted && contactNumber.trim().replace(/\D/g, '').length !== 10;
-  const emailInvalid = attempted && (!rEmail.trim() || !/\S+@\S+\.\S+/.test(rEmail));
-  const mobileInvalid = attempted && rMobile.trim().replace(/\D/g, '').length !== 10;
-
   const deferredQuery = useDeferredValue(searchQuery);
 
   const loadData = useCallback(async () => {
@@ -915,7 +1016,8 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
     setErrorMsg(null);
     try {
       // API 10: GET /bihar/srt/complaint/assign
-      const resp = await biharComplaintService.getAssignedSrtComplaints();
+      const raw = await biharComplaintService.getAssignedSrtComplaints();
+      const resp = normalizeAssigned(raw);
       setAssignedData(resp);
       if (resp.open && resp.open.length > 0) setActiveTab('open');
       else if (resp.approved && resp.approved.length > 0) setActiveTab('approved');
@@ -953,6 +1055,8 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
         const str = [
           item.complaint_id, item.site_name, item.dept_name, item.ca_no, item.wo_no,
           item.district, item.discom, item.location, item.complaint, item.firm_name,
+          item.assigned_vendor_name, item.contact_person, item.contact_number,
+          item.close_date, item.manual_close_date, item.resolved_by, item.r_mobile,
         ].join(' ').toLowerCase();
         if (!str.includes(q)) return false;
       }
@@ -962,23 +1066,22 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
 
   const pagination = usePagination({ data: filtered, initialPageSize: 100 });
 
-  // Counts from API response #10
-  const totalCount = assignedData?.total_complaint ?? 0;
-  const openCount = assignedData?.open_complaint ?? 0;
-  const approvedCount = assignedData?.approved_complaint ?? 0;
-  const closedCount = assignedData?.close_complaint ?? 0;
+  // Counts from API response #10 (fallback to list lengths)
+  const openCount = assignedData?.open_complaint ?? assignedData?.open?.length ?? 0;
+  const approvedCount = assignedData?.approved_complaint ?? assignedData?.approved?.length ?? 0;
+  const closedCount = assignedData?.close_complaint ?? assignedData?.data?.length ?? 0;
+  const totalCount = assignedData?.total_complaint ?? (Number(openCount) + Number(approvedCount) + Number(closedCount));
 
   /* ── Export ── */
   const exportCols: ExportColumn<Row>[] = useMemo(
     () => [
       ...COLS.filter((c) => c.key !== 'Document').map((c) => ({ header: c.key, accessor: c.exp })),
       { header: 'Approval Status', accessor: (r: Row) => approvalLabel(r) },
-      { header: 'Status', accessor: (r: Row) => (r.close_status === 1 ? 'Closed' : 'Open') },
+      { header: 'Status', accessor: (r: Row) => (Number(r.close_status) === 1 ? 'Closed' : 'Open') },
     ],
     []
   );
   const activeExportCols = useMemo(() => exportCols.filter((c) => !hiddenCols.includes(c.header)), [exportCols, hiddenCols]);
-
 
   const handleCopy = () => copyTableDataToClipboard(filtered, activeExportCols);
   const handleExportCSV = () => exportDataToCSV(`Bihar_SRT_Assigned_${activeTab}`, filtered, activeExportCols);
@@ -999,15 +1102,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   const renderApproval = (item: Row) => {
     if (isItemRejected(item)) {
       return (
-        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger" title={(item as any).reject_reason || (item as any).reject_remarks || 'Complaint rejected from main portal'}>
+        <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger" title={(item as any).reject_reason || (item as any).reject_remarks || item.remarks || 'Complaint rejected from main portal'}>
           <span className="ax-badge__dot" />Rejected
         </span>
       );
     }
-    if (activeTab === 'approved' || (item.status === 1 && item.close_status !== 1)) {
+    if (activeTab === 'approved' || (Number(item.status) === 1 && Number(item.close_status) !== 1)) {
       return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--info"><span className="ax-badge__dot" />Pending</span>;
     }
-    if (activeTab === 'closed' || item.close_status === 1) {
+    if (activeTab === 'closed' || Number(item.close_status) === 1) {
       return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success"><span className="ax-badge__dot" />Approved</span>;
     }
     return <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--warning"><span className="ax-badge__dot" />Open</span>;
@@ -1148,7 +1251,6 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   onExportCSV={handleExportCSV}
                   onExportExcel={handleExportExcel}
                   onExportPDF={handleExportPDF}
-
                 />
               </div>
             </div>
@@ -1228,7 +1330,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                                   <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedItem(item)}>
                                     View
                                   </button>
-                                  {item.close_status !== 1 && (
+                                  {Number(item.close_status) !== 1 && (
                                     <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => openResolveModal(item)} title="Resolve this complaint">
                                       Resolve
                                     </button>
@@ -1269,7 +1371,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   SRT COMPLAINT · SOLAR ROOFTOP
                 </span>
                 <h2 className="ax-modal__title" id="m-srt-view-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>Complaint #{selectedItem.complaint_id}</span>
+                  <span>Complaint {selectedItem.complaint_id}</span>
                   {selectedItem.ca_no && (
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#475569', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6 }}>
                       CA: {selectedItem.ca_no}
@@ -1277,7 +1379,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   )}
                 </h2>
                 <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', marginTop: '4px' }}>
-                  Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Registered: {selectedItem.start_date || selectedItem.complaint_date || '—'}
+                  Assigned to: <strong style={{ color: 'var(--ax-text-strong)' }}>{selectedItem.assigned_vendor_name || '—'}</strong> • Registered: {selectedItem.start_date || '—'}
                 </div>
               </div>
               <button
@@ -1296,7 +1398,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                 <div className="view-summary-strip">
                   <div className="view-summary-col">
                     <span className="view-summary-label">Complaint ID</span>
-                    <span className="view-summary-value" style={{ color: '#2563eb' }}>#{selectedItem.complaint_id}</span>
+                    <span className="view-summary-value" style={{ color: '#2563eb' }}>{selectedItem.complaint_id}</span>
                   </div>
                   {selectedItem.ca_no && (
                     <div className="view-summary-col">
@@ -1309,9 +1411,9 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     <div>
                       {isItemRejected(selectedItem) ? (
                         <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger">Rejected by Portal</span>
-                      ) : selectedItem.close_status === 1 || activeTab === 'closed' ? (
+                      ) : Number(selectedItem.close_status) === 1 || activeTab === 'closed' ? (
                         <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">Resolved & Approved</span>
-                      ) : selectedItem.status === 1 || activeTab === 'approved' ? (
+                      ) : Number(selectedItem.status) === 1 || activeTab === 'approved' ? (
                         <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--cyan">Pending Approval</span>
                       ) : (
                         <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--accent">Open & Assigned</span>
@@ -1324,7 +1426,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   </div>
                   <div className="view-summary-col">
                     <span className="view-summary-label">Complaint Date</span>
-                    <span className="view-summary-value">{selectedItem.start_date || selectedItem.complaint_date || '—'}</span>
+                    <span className="view-summary-value">{selectedItem.start_date || '—'}</span>
                   </div>
                 </div>
 
@@ -1337,7 +1439,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     <div className="ax-alert__content">
                       <p className="ax-alert__title" style={{ fontWeight: 700, color: '#991b1b', marginBottom: 2 }}>Complaint Rejected by Main Portal</p>
                       <p className="ax-alert__message" style={{ color: '#b91c1c' }}>
-                        Reason / Remarks: <strong>{(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks || (selectedItem as any).admin_remarks || 'Not specified'}</strong>
+                        Reason / Remarks: <strong>{(selectedItem as any).reject_reason || (selectedItem as any).reject_remarks || (selectedItem as any).admin_remarks || selectedItem.remarks || 'Not specified'}</strong>
                       </p>
                     </div>
                   </div>
@@ -1352,10 +1454,11 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   <div className="view-grid-3">
                     <DetailItem label="Site Name" value={selectedItem.site_name || '—'} />
                     <DetailItem label="Department Name" value={selectedItem.dept_name || '—'} />
+                    <DetailItem label="Firm Name" value={selectedItem.firm_name || '—'} />
                     <DetailItem label="DISCOM" value={selectedItem.discom || '—'} />
                     <DetailItem label="District" value={selectedItem.district || '—'} />
                     <DetailItem label="State" value={selectedItem.state || 'Bihar'} />
-                    <DetailItem label="Campus / Location Address" fullWidth value={selectedItem.location || selectedItem.address || '—'} />
+                    <DetailItem label="Campus / Location Address" fullWidth value={selectedItem.location || '—'} />
                   </div>
                 </DetailSection>
 
@@ -1367,13 +1470,10 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                 >
                   <div className="view-grid-3">
                     <DetailItem label="Consumer CA Number" value={selectedItem.ca_no || '—'} />
-                    <DetailItem label="Sanctioned Load">
-                      {selectedItem.sanction_load ? `${selectedItem.sanction_load} kW` : '—'}
-                    </DetailItem>
+                    <DetailItem label="Sanctioned Load" value={kw(selectedItem.sanction_load)} />
                     <DetailItem label="Plant SC Number" value={selectedItem.plant_sc || '—'} />
                     <DetailItem label="Work Order Number" value={selectedItem.wo_no || '—'} />
                     <DetailItem label="Electrical Phase" value={selectedItem.phase || '—'} />
-                    <DetailItem label="Date of Installation" value={selectedItem.date_of_installation || selectedItem.inst_date || '—'} />
                   </div>
                 </DetailSection>
 
@@ -1384,9 +1484,9 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   badgeTone="emerald"
                 >
                   <div className="view-grid-2">
-                    <DetailItem label="Contact Person Name" value={selectedItem.contact_person || selectedItem.beneficiary_name || '—'} />
+                    <DetailItem label="Contact Person Name" value={selectedItem.contact_person || '—'} />
                     <DetailItem label="Contact Mobile Number">
-                      <PhoneLink phone={selectedItem.contact_number || selectedItem.contact_no} />
+                      <PhoneLink phone={selectedItem.contact_number} />
                     </DetailItem>
                   </div>
                 </DetailSection>
@@ -1398,13 +1498,9 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   badgeTone="purple"
                 >
                   <div className="view-grid-3" style={{ marginBottom: 12 }}>
-                    <DetailItem label="Reported Issue Category">
-                      <span style={{ display: 'inline-block', background: '#f5f3ff', color: '#6d28d9', padding: '3px 10px', borderRadius: 6, fontWeight: 700, fontSize: 12.5 }}>
-                        {selectedItem.complaint_issue || 'Solar Rooftop Issue'}
-                      </span>
-                    </DetailItem>
-                    <DetailItem label="Complaint Source" value={selectedItem.complaint_source || '—'} />
-                    <DetailItem label="Complaint Date" value={selectedItem.start_date || selectedItem.complaint_date || '—'} />
+                    <DetailItem label="Complaint Date" value={selectedItem.start_date || '—'} />
+                    <DetailItem label="Registered By" value={selectedItem.created_by || '—'} />
+                    <DetailItem label="SMS Notification" value={selectedItem.sms || '—'} />
                   </div>
 
                   <div className="view-data-cell view-data-cell--full">
@@ -1414,18 +1510,11 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     </div>
                   </div>
 
-                  <AttachmentChips
-                    files={[
-                      { label: 'Complaint Document 1', file: selectedItem.file },
-                      { label: 'Complaint Document 2', file: selectedItem.file2 },
-                      { label: 'Complaint Document 3', file: selectedItem.file3 },
-                      { label: 'Complaint Document 4', file: selectedItem.file4 },
-                    ]}
-                  />
+                  <AttachmentChips files={pickFiles(selectedItem, COMPLAINT_FILE_KEYS, 'Complaint Document')} />
                 </DetailSection>
 
                 {/* ── 5. Resolution & Verification Work Log ── */}
-                {(selectedItem.close_status === 1 || selectedItem.status === 1 || selectedItem.resolved_by || selectedItem.close_date || selectedItem.remarks || selectedItem.r_file) && (
+                {(Number(selectedItem.close_status) === 1 || Number(selectedItem.status) === 1 || selectedItem.resolved_by || selectedItem.close_date || selectedItem.remarks || selectedItem.r_file) && (
                   <DetailSection
                     title="Resolution & Verification Work Log"
                     icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
@@ -1434,8 +1523,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     <div className="view-grid-3" style={{ marginBottom: 12 }}>
                       <DetailItem label="Resolved By" value={selectedItem.resolved_by || '—'} />
                       <DetailItem label="Resolution Date" value={selectedItem.close_date || '—'} />
+                      <DetailItem label="Resolver Mobile">
+                        <PhoneLink phone={selectedItem.r_mobile} />
+                      </DetailItem>
+                      <DetailItem label="Resolver Email" value={selectedItem.r_email || '—'} />
+                      <DetailItem label="Close SMS" value={selectedItem.close_sms || '—'} />
                       <DetailItem label="Current Resolution Status">
-                        {selectedItem.close_status === 1 ? (
+                        {isItemRejected(selectedItem) ? (
+                          <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--danger">Rejected</span>
+                        ) : Number(selectedItem.close_status) === 1 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">Approved & Closed</span>
                         ) : (
                           <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--cyan">Submitted for Approval</span>
@@ -1450,14 +1546,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                       </div>
                     </div>
 
-                    <AttachmentChips
-                      files={[
-                        { label: 'Resolution Proof 1', file: selectedItem.r_file },
-                        { label: 'Resolution Proof 2', file: selectedItem.r_file2 },
-                        { label: 'Resolution Proof 3', file: selectedItem.r_file3 },
-                        { label: 'Resolution Proof 4', file: selectedItem.r_file4 },
-                      ]}
-                    />
+                    <AttachmentChips files={pickFiles(selectedItem, RESOLVE_FILE_KEYS, 'Resolution Proof')} />
                   </DetailSection>
                 )}
               </div>
@@ -1478,7 +1567,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
                     <span className="ax-btn__label">Edit & Fix Complaint</span>
                   </button>
-                ) : activeTab === 'open' && selectedItem.close_status !== 1 && (
+                ) : activeTab === 'open' && Number(selectedItem.close_status) !== 1 && (
                   <button
                     type="button"
                     className="ax-btn ax-btn--primary ax-btn--sm"
@@ -1517,7 +1606,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   Vendor Close Complaints
                 </span>
                 <h2 className="ax-modal__title" id="m-srt-resolve-title">
-                  Resolve Complaint #{resolvingItem.complaint_id}
+                  Resolve Complaint {resolvingItem.complaint_id}
                 </h2>
                 <p style={{ margin: '2px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
                   Enter resolution information, attach proof images and submit to close.
@@ -1559,7 +1648,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>Discom:</span> <b>{resolvingItem.discom || '—'}</b></div>
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>Dept Name:</span> <b>{resolvingItem.dept_name || '—'}</b></div>
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{resolvingItem.site_name || '—'}</b></div>
-                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Location:</span> <b>{resolvingItem.location || resolvingItem.address || '—'}</b></div>
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Location:</span> <b>{resolvingItem.location || '—'}</b></div>
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>CA No:</span> <b>{resolvingItem.ca_no || '—'}</b></div>
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>Sanction Load:</span> <b>{resolvingItem.sanction_load || '—'}</b></div>
                   <div><span style={{ color: 'var(--ax-text-muted)' }}>Plant SC:</span> <b>{resolvingItem.plant_sc || '—'}</b></div>

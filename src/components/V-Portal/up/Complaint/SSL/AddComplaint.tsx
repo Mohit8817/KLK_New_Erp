@@ -73,32 +73,29 @@ export function UP_Complaint_SSL_AddComplaint() {
     clearErr(k);
   };
 
-  useEffect(() => {
-    let active = true;
-    const loadDistricts = async () => {
-      try {
-        if (typeof upComplaintService.getSslAddData === 'function') {
-          const res = await upComplaintService.getSslAddData();
-          if (active && res?.districts && res.districts.length > 0) {
-            setDistricts(res.districts);
-            return;
-          }
+useEffect(() => {
+  let active = true;
+  // Reset cascading fields on type change
+  setDistricts([]);
+  setBlocks([]);
+  setPanchayats([]);
+  setBeneficiaries([]);
+
+  const loadDistricts = async () => {
+    try {
+      if (typeof upComplaintService.getSslDistricts === 'function') {
+        const list = await upComplaintService.getSslDistricts(form.type);
+        if (active && Array.isArray(list) && list.length > 0) {
+          setDistricts(list);
         }
-        if (typeof upComplaintService.getSslDistricts === 'function') {
-          const list = await upComplaintService.getSslDistricts();
-          if (active && Array.isArray(list) && list.length > 0) {
-            setDistricts(list);
-          }
-        }
-      } catch (err) {
-        console.error('Error loading SSL districts:', err);
       }
-    };
-    loadDistricts();
-    return () => {
-      active = false;
-    };
-  }, []);
+    } catch (err) {
+      console.error('Error loading SSL districts:', err);
+    }
+  };
+  loadDistricts();
+  return () => { active = false; };
+}, [form.type]);  // ← re-run when type changes
 
   const handleDistrictChange = async (d: string) => {
     setForm((p) => ({

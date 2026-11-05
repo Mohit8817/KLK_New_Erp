@@ -134,7 +134,8 @@ export function UP_Installation_KusumC_InstallSite() {
       const detail = await upInstallationService.getKusumCSiteDetail(id);
       if (detail) {
         setSiteDetails(detail);
-        if (detail.inverter_no) setInverterNo(detail.inverter_no);
+        const inv = (detail as any).Inverter_no || detail.inverter_no;
+        if (inv) setInverterNo(inv);
         if (detail.vfd_no) setVfdNo(detail.vfd_no);
       } else {
         const found = list.find((s) => String(s.id) === id);
@@ -224,6 +225,7 @@ export function UP_Installation_KusumC_InstallSite() {
     fd.append('srt_id', selectedSiteId);
     fd.append('id', selectedSiteId);
     fd.append('inverter_no', inverterNo.trim());
+    fd.append('Inverter_no', inverterNo.trim());
     fd.append('vfd_no', vfdNo.trim());
 
     const validSerials = moduleSerials.filter((s) => s.trim() !== '');

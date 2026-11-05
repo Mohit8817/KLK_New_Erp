@@ -22,12 +22,16 @@ export const DASH = '—';
 /* ───────── Helpers ───────── */
 const asRec = (row: unknown): Record<string, any> => row as Record<string, any>;
 
-/** First non-empty value among keys, else fallback (default DASH). */
+/** First non-empty value among keys, else fallback (default DASH). Trims string values and ignores null/undefined/'null'/'undefined'. */
 export const pick = (row: unknown, keys: string[], fallback: string = DASH): string => {
   const r = asRec(row);
+  if (!r) return fallback;
   for (const k of keys) {
     const v = r[k];
-    if (v !== null && v !== undefined && v !== '') return String(v);
+    if (v !== null && v !== undefined && v !== '') {
+      const s = String(v).trim();
+      if (s !== '' && s !== 'null' && s !== 'undefined') return s;
+    }
   }
   return fallback;
 };
@@ -36,8 +40,16 @@ type StatusKey = 'open' | 'pending' | 'resolved';
 
 export const statusKey = (row: unknown): StatusKey => {
   const r = asRec(row);
-  const s = String(r.complaint_status || r.status || '').toLowerCase();
-  if (s === '2' || s === 'closed' || s === 'resolved') return 'resolved';
+  if (!r) return 'open';
+  const s = String(r.complaint_status || r.status || '').toLowerCase().trim();
+  const cs = String(r.close_status || '').toLowerCase().trim();
+  const hasCloseDate = !!(
+    (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
+    (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null')
+  );
+  if (s === '2' || s === 'closed' || s === 'resolved' || cs === '1' || cs === '2' || cs === 'closed' || hasCloseDate) {
+    return 'resolved';
+  }
   if (s === '1' || s === 'approved' || s === 'pending approval') return 'pending';
   return 'open';
 };
@@ -55,9 +67,35 @@ export const StatusBadge = ({ row }: { row: unknown }) => {
   return <span className={`ax-badge ax-badge--soft ax-badge--${m.tone}`}>{m.label}</span>;
 };
 
+export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => {
+  const r = asRec(row);
+  if (!r) return [];
+  const list: { label: string; url: string }[] = [];
+  const add = (label: string, path?: string | null) => {
+    if (path && typeof path === 'string') {
+      const trimmed = path.trim();
+      if (trimmed && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'NA') {
+        const url = getMediaUrl(trimmed);
+        if (url && !list.some((item) => item.url === url)) {
+          list.push({ label, url });
+        }
+      }
+    }
+  };
+  add('File 1', r.file1);
+  add('File 2', r.file2);
+  add('Document', r.document);
+  add('File', r.file);
+  add('Resolution File 1', r.r_file1);
+  add('Resolution File 2', r.r_file2);
+  add('Resolution File', r.r_file);
+  return list;
+};
+
 export const docUrlOf = (row: unknown): string => {
   const r = asRec(row);
-  return getMediaUrl(r.document || r.file || r.file1) || '';
+  if (!r) return '';
+  return getMediaUrl(r.file1 || r.document || r.file || r.file2 || r.r_file1 || r.r_file) || '';
 };
 
 /* ───────── Column helpers ───────── */
@@ -107,7 +145,28 @@ export function statusCol<T>(header = 'Complaint Status'): ComplaintColumn<T> {
 export function documentCol<T>(header = 'Document'): ComplaintColumn<T> {
   return {
     header,
-    cell: (row, ctx) => <DocThumb url={docUrlOf(row)} alt="Document" onPreview={ctx.openPreview} />,
+    cell: (row, ctx) => {
+      const docs = allDocUrlsOf(row);
+      if (docs.length === 0) {
+        return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+      }
+      return (
+        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+          {docs.slice(0, 2).map((d, i) => (
+            <DocThumb key={i} url={d.url} alt={d.label} onPreview={ctx.openPreview} />
+          ))}
+          {docs.length > 2 && (
+            <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600 }}>
+              +{docs.length - 2}
+            </span>
+          )}
+        </div>
+      );
+    },
+    exportValue: (row) => {
+      const docs = allDocUrlsOf(row);
+      return docs.map((d) => d.url).join(', ') || DASH;
+    },
   };
 }
 

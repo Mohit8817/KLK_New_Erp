@@ -165,6 +165,7 @@ export interface UpSsl18wInstallDetailsCount {
   verify_reject: number;
   claim_applicable: number;
   claim_raised: number;
+  claim_submit?: number;
   claim_not_applicable: number;
   claim_verify_approved: number;
   claim_verify_pending: number;
@@ -478,12 +479,27 @@ export interface UpKusumCReadySiteItem {
 
 export interface UpKusumCAssignmentItem {
   id: number;
+  company_id?: string;
+  purpose?: string;
+  vendor?: string | number;
+  status: number | string; // "1" = Pending, "2" = Accepted
+  assign_date?: string;
+  deadline_date?: string;
   state?: string;
   project?: string;
-  purpose?: string;
-  site_id?: string; // e.g. "[701,702]"
-  status: number; // 1 = Assigned, 2 = Accepted
-  Names?: { f_farmer_name: string; inst_deadline: string }[];
+  volume?: string;
+  district?: string;
+  block?: string | null;
+  village?: string | null;
+  site_id?: string; // e.g. "[\"3030\"]" or "[3030]"
+  site_count?: string | number;
+  file?: string | null;
+  remarks?: string | null;
+  created_by?: string | number | null;
+  updated_by?: string | number | null;
+  created_at?: string;
+  updated_at?: string;
+  Names?: { f_farmer_name: string; inst_deadline?: string }[];
   details?: {
     state?: string;
     f_district?: string;
@@ -492,7 +508,9 @@ export interface UpKusumCAssignmentItem {
     f_farmer_name?: string;
     f_father_name?: string;
     inst_deadline?: string;
+    [key: string]: any;
   }[];
+  [key: string]: any;
 }
 
 export interface UpKusumCInstalledCounts {
@@ -519,60 +537,135 @@ export interface UpKusumCInstalledCounts {
 
 export interface UpKusumCInstalledSiteItem {
   id: number;
+  company_id?: string;
+  excel_id?: string;
+  uid?: string | null;
+  lot_no?: string;
   state?: string;
   f_state?: string;
-  district?: string;
-  f_district?: string;
-  block?: string;
-  f_block?: string;
-  village?: string;
-  f_village?: string;
-  post?: string;
-  f_post?: string;
-  applicant_name?: string;
-  farmer_name?: string;
+  phase?: string;
+  kc_wise?: string;
+  volume?: string;
+  f_customer_no?: string;
   f_farmer_name?: string;
+  farmer_name?: string;
+  applicant_name?: string;
   beneficiary_name?: string;
-  father_name?: string;
   f_father_name?: string;
-  contact_no?: string;
+  father_name?: string;
   f_contact?: string;
+  contact_no?: string;
+  f_aadhar?: string | null;
+  f_village?: string;
+  village?: string;
+  f_post?: string;
+  post?: string;
+  f_tehsil?: string | null;
+  f_block?: string | null;
+  block?: string;
+  f_district?: string;
+  district?: string;
+  f_pin?: string | null;
+  f_invoice_no?: string | null;
+  f_invoice_date?: string | null;
   pump_capacity?: string;
+  c_contractor_name?: string | null;
+  KLK_Firm?: string | null;
+  c_contact_no?: string | null;
+  c_email?: string | null;
+  sd_survey_done?: string;
+  sd_latitude?: string | null;
+  sd_longitude?: string | null;
+  sd_survey_received_date?: string | null;
+  material_dispatch_status?: number;
+  mt_inverter?: string;
+  mt_structure?: string;
+  mt_modules?: string;
+  mt_bos?: string;
+  mt_date?: string | null;
+  mt_updated_by?: string | null;
+  mt_updated_at?: string | null;
+  ins_foundation?: string;
+  ins_foundation_date?: string | null;
+  ins_structure?: string;
+  ins_structure_data?: string | null;
+  ins_module_mounting?: string;
+  ins_module_mounting_date?: string | null;
+  ins_inverter_installation?: string;
+  ins_inverter_installation_date?: string | null;
+  inst_vendor?: number | string;
+  inst_deadline?: string;
+  inst_assigned_by?: string;
+  inst_assign_date?: string;
+  inst_assigned_id?: number;
+  inst_accept?: number;
+  inst_status?: number;
+  inst_date?: string;
   vfd_no?: string;
+  vfd_status?: number;
   vfd_serial_no?: string;
+  Inverter_no?: string; // Note Capital I from API!
   inverter_no?: string;
   inverter_serial_no?: string;
+  longitude?: string;
+  latitude?: string;
+  remarks?: string;
+  inst_remarks?: string;
   module_serial_no?: string | string[];
   module_no?: string;
-  latitude?: string;
-  longitude?: string;
   module_image?: string;
   farmer_module_image?: string;
+  f_module_image?: string;
   inverter_vfd_image?: string;
   inverter_image?: string;
   vfd_image?: string;
   running_water_image?: string;
   water_image?: string;
-  hoc_photo?: string;
-  remarks?: string;
-  inst_remarks?: string;
-  inst_status?: number;
   inst_verify_status?: number;
   verify_status?: number;
-  verify_remarks?: string;
+  inst_verify_by?: string | number;
+  inst_verify_date?: string;
   inst_verify_remarks?: string;
+  verify_remarks?: string;
   verification_remarks?: string;
-  inst_doc_status?: number; // 1 = Pending/Submitted, 2 = Approved, 3 = Rejected
+  inst_doc_status?: number; // 1 = Submitted, 2 = Approved, 3 = Rejected, 0 = Pending
   document_status?: number;
+  inst_doc_date?: string;
+  inst_doc?: string | null; // Note inst_doc from API!
+  hoc_photo?: string | null;
+  doc_hoc_photo?: string | null;
+  doc_hoc?: string;
+  doc_hoc_date?: string | null;
+  doc_hoc_photo_date?: string | null;
+  inst_doc_remarks?: string | null;
+  inst_doc_verify_by?: number | string;
+  inst_doc_verify_date?: string;
+  inst_doc_verify_remarks?: string | null; // Note inst_doc_verify_remarks from API!
   doc_verify_remarks?: string;
-  inst_doc_remarks?: string;
   hoc_remarks?: string;
   inst_claim_status?: number;
   claim_status?: number;
   inst_pay_status?: number;
   payment_status?: number;
   pay_status?: number;
-  inst_date?: string;
+  file_submission?: string;
+  file_submission_date?: string | null;
+  inspection_done?: string;
+  net_metering?: string;
+  net_metering_date?: string | null;
+  net_metering_slip_status?: number;
+  net_metering_slip?: string | null;
+  sealing_slip_status?: number;
+  sealing_slip?: string | null;
+  pay1?: number;
+  pay2?: number;
+  pay3?: number;
+  pay4?: number;
+  pay5?: number;
+  pay6?: number;
+  pay7?: number;
+  created_at?: string;
+  updated_at?: string;
   [key: string]: any;
 }
 
@@ -702,26 +795,31 @@ class UpInstallationService {
   /** SSL 8: Installed lights and counts */
   async getSsl18wInstalledLights(): Promise<UpSsl18wInstalledViewResponse> {
     const res = await apiRequest('up/ssl-view-installed-18w-light');
-    const install_details: UpSsl18wInstallDetailsCount = res.install_details || {
-      total: 0,
-      complete: 0,
-      pending: 0,
-      verify_approved: 0,
-      verify_pending: 0,
-      verify_reject: 0,
-      claim_applicable: 0,
-      claim_raised: 0,
-      claim_not_applicable: 0,
-      claim_verify_approved: 0,
-      claim_verify_pending: 0,
-      claim_verify_reject: 0,
-      payment_complete: 0,
-      payment_pending: 0,
+    const d = res.install_details || res.install_detail || (res.data && (res.data.install_details || res.data.install_detail)) || {};
+    const install_details: UpSsl18wInstallDetailsCount = {
+      total: Number(d.total ?? 0),
+      complete: Number(d.complete ?? 0),
+      pending: Number(d.pending ?? 0),
+      accept: Number(d.accept ?? 0),
+      verify_approved: Number(d.verify_approved ?? 0),
+      verify_pending: Number(d.verify_pending ?? 0),
+      verify_reject: Number(d.verify_reject ?? 0),
+      claim_applicable: Number(d.claim_applicable ?? 0),
+      claim_raised: Number(d.claim_raised ?? d.claim_submit ?? 0),
+      claim_submit: Number(d.claim_submit ?? d.claim_raised ?? 0),
+      claim_not_applicable: Number(d.claim_not_applicable ?? 0),
+      claim_verify_approved: Number(d.claim_verify_approved ?? 0),
+      claim_verify_pending: Number(d.claim_verify_pending ?? 0),
+      claim_verify_reject: Number(d.claim_verify_reject ?? 0),
+      payment_complete: Number(d.payment_complete ?? 0),
+      payment_pending: Number(d.payment_pending ?? 0),
+      payment_partially: Number(d.payment_partially ?? 0),
+      ...d,
     };
     return {
       install_details,
-      payment_sites: Array.isArray(res.payment_sites) ? res.payment_sites : [],
-      completed_sites: Array.isArray(res.completed_sites) ? res.completed_sites : [],
+      payment_sites: Array.isArray(res.payment_sites) ? res.payment_sites : (Array.isArray(res.data?.payment_sites) ? res.data.payment_sites : []),
+      completed_sites: Array.isArray(res.completed_sites) ? res.completed_sites : (Array.isArray(res.data?.completed_sites) ? res.data.completed_sites : []),
     };
   }
 
@@ -964,25 +1062,53 @@ class UpInstallationService {
 
   /** Resco Claim Helper: List claims */
   async getRescoClaims(): Promise<UpRescoClaimItem[]> {
-    try {
-      const res = await apiRequest('up/resco/installation/view-claim');
-      return Array.isArray(res.data) ? res.data : (res.data?.payments || []);
-    } catch {
-      return [];
+    const endpoints = [
+      'up/resco/installation/view-claim',
+      'up/resco/view-claim',
+      'up/resco/installation/view-installation-claim',
+      'up/resco/installation-claim',
+    ];
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep);
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.data?.payments)) return res.data.payments;
+        if (Array.isArray(res.payments)) return res.payments;
+      } catch {
+        // try next endpoint
+      }
     }
+    return [];
   }
 
   /** Resco Claim Helper: Submit claim */
   async storeRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string }> {
-    try {
-      return await apiRequest('up/resco/installation/claim-store', {
-        method: 'POST',
-        body: fd,
-        isMultipart: true,
-      });
-    } catch (err: any) {
-      return { status: false, message: err?.message || 'Failed to submit claim' };
+    const endpoints = [
+      'up/resco/installation/claim-store',
+      'up/resco/installation/add-claim',
+      'up/resco/claim-store',
+      'up/resco/installation-claim-store',
+    ];
+    let lastError: any = null;
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep, {
+          method: 'POST',
+          body: fd,
+          isMultipart: true,
+        });
+        if (res.status !== false && res.success !== false) {
+          return { status: true, message: res.message || 'Payment claim submitted successfully!' };
+        }
+      } catch (err: any) {
+        lastError = err;
+        if (err?.status === 422 || err?.errors || err?.message?.toLowerCase().includes('validation')) {
+          const errMsg = err?.errors ? Object.values(err.errors).flat().join(', ') : err?.message;
+          return { status: false, message: errMsg || 'Validation failed.' };
+        }
+      }
     }
+    return { status: false, message: lastError?.message || 'Failed to submit claim' };
   }
 
   /** Resco 17: Dashboard summary */
@@ -1063,10 +1189,15 @@ class UpInstallationService {
       partially: 0,
     };
 
+    const d = res.data;
+    const sites = Array.isArray(d?.sites) ? d.sites : Array.isArray(d) ? d : [];
+    const install_detail = d?.install_detail || defaultCounts;
+    const assign = d?.assign ?? install_detail?.total ?? sites.length;
+
     return {
-      assign: res.data?.assign,
-      install_detail: res.data?.install_detail || defaultCounts,
-      sites: Array.isArray(res.data?.sites) ? res.data.sites : [],
+      assign,
+      install_detail,
+      sites,
     };
   }
 

@@ -430,7 +430,7 @@ function RaiseClaimModal({
         </div>
         <form onSubmit={handleSubmit}>
           <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 13, color: 'var(--ax-text-muted)' }}>
+            <div style={{ fontSize: 13, color: 'var(--ax-accent)' }}>
               Site: <b>{site.site_name}</b> (ID: #{site.id})
             </div>
             {err && (
@@ -544,8 +544,8 @@ function DocumentSubmitModal({
           )}
 
           <div style={{ background: 'var(--ax-surface-subtle, #f8fafc)', padding: 14, borderRadius: 8, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{site.site_name || `Site #${site.id}`}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site ID:</span> <b>#{site.id}</b></div>
+            <div><span style={{color: 'var(--ax-accent)'}}>Site Name:</span> <b style={{color: 'var(--ax-accent)'}} >{site.site_name || `${site.id}`}</b></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site ID:</span> <b>{site.id}</b></div> 
             <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{txt(site.district)}</b></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
               <span style={{ color: 'var(--ax-text-muted)' }}>Document Status:</span>
@@ -611,7 +611,7 @@ function SiteDetailModal({
             <div><span style={{ color: 'var(--ax-text-muted)' }}>ID:</span> <b>#{site.id}</b></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>State:</span> <b>{site.state || 'Kashmir'}</b></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>District:</span> <b>{txt(site.district)}</b></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b>{txt(site.site_name)}</b></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <b style={{color: 'var(--ax-accent)'}}>{txt(site.site_name)}</b></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact Person:</span> <b>{txt(site.contact_person)}</b></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact Number:</span> <b>{txt(site.contact_number)}</b></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Solar Meter No.:</span> <b>{txt(site.solarmeter_no)}</b></div>

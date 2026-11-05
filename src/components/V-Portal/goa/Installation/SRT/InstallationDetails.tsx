@@ -504,7 +504,7 @@ export function Goa_Installation_SRT_InstallationDetails() {
 
   const siteSelectOptions: Option[] = siteOptions.map((s) => ({
     value: String(s.id),
-    label: `${s.site_name} (ID: #${s.id})`,
+    label: `${s.site_name}`,
   }));
 
   return (
@@ -516,7 +516,7 @@ export function Goa_Installation_SRT_InstallationDetails() {
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
             {isEditMode
-              ? 'Update solar rooftop equipment serial numbers, GPS coordinates, remarks, and photos.'
+              ? 'Update  equipment serial numbers, GPS coordinates, remarks, and photos.'
               : 'Capture rooftop solar installation data, serial numbers, geocoordinates, and verification photos.'}
           </span>
         }
@@ -567,7 +567,7 @@ export function Goa_Installation_SRT_InstallationDetails() {
             <div>
               <span className="ax-card__eyebrow">Installation</span>
               <h2 className="ax-card__title" style={{ margin: 0 }}>
-                {isEditMode ? 'Edit Goa SRT Installation' : 'Goa Solar Rooftop Commissioning Form'}
+                {isEditMode ? 'Edit Goa SRT Installation' : 'Goa SRT Form'}
               </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
                 All installation fields organized inside one main card across 6 dedicated sections.
@@ -587,7 +587,7 @@ export function Goa_Installation_SRT_InstallationDetails() {
           <div className="ax-card__body">
             {/* Section 1: Select Site */}
             <div id="sec-1" className="goa-section-block">
-              <SectionHeader num="1" title="Select Rooftop Site" desc="Choose from accepted sites pending installation." />
+              <SectionHeader num="1" title="Select  Site" desc="Choose from accepted sites pending installation." />
               <div className="goa-form-grid goa-form-grid--3col">
                 <div className="goa-form-col-span-full" style={{ maxWidth: 540 }}>
                   <FloatingSelect

@@ -1,15 +1,89 @@
-import { authService } from '../../../../services/authService';
+import { authService, API_BASE_URL } from '../../../../services/authService';
 import { BIHAR_COMPLAINT_API } from '../../V_Portal_APIS/Bihar_API';
-import { getMediaUrl } from './biharSslInstallationService';
 
-export { getMediaUrl };
+const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+const R2_BASE = 'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev';
+
+/**
+ * Returns an ordered list of candidate URLs for a given Bihar complaint attachment.
+ * Solves 404 errors by mapping bare filenames (e.g. 'srtcomp_r_file_1778347794.jpg')
+ * to their real server upload directories ('uploads/bihar/complaint/srt/image/...').
+ */
+export function getBiharComplaintMediaCandidates(path?: string | null, type?: 'srt' | 'ssl'): string[] {
+  if (!path) return [];
+  const trimmed = String(path).trim();
+  if (!trimmed) return [];
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
+
+  const normalized = trimmed.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  // If already full relative path starting with uploads/ or storage/
+  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  const isSrt = type === 'srt' || normalized.includes('srt') || /^srtcomp/i.test(filename);
+  const isSsl = type === 'ssl' || normalized.includes('ssl') || /^sslcomp/i.test(filename) || /^r_file/i.test(filename);
+
+  if (isSrt) {
+    candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/srt/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/srt/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/srt/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+  }
+
+  if (isSsl) {
+    candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/ssl/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/ssl/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/ssl/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+  }
+
+  // General fallbacks across possible directories
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/srt/image/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/ssl/image/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+
+  // R2 storage fallbacks
+  if (R2_BASE) {
+    if (isSrt) candidates.push(`${R2_BASE}/uploads/bihar/complaint/srt/${filename}`);
+    if (isSsl) candidates.push(`${R2_BASE}/uploads/bihar/complaint/ssl/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+/**
+ * Resolves a media path into its primary valid absolute URL.
+ */
+export function getBiharComplaintMediaUrl(path?: string | null, type?: 'srt' | 'ssl'): string {
+  if (!path) return '';
+  const trimmed = String(path).trim();
+  if (!trimmed) return '';
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+
+  const candidates = getBiharComplaintMediaCandidates(trimmed, type);
+  return candidates[0] || `${BACKEND_BASE}/${trimmed.replace(/^\/+/, '')}`;
+}
+
+export const getMediaUrl = (path?: string | null): string => {
+  return getBiharComplaintMediaUrl(path);
+};
 
 export interface BiharComplaintItem {
   id: number;
   complaint_id: number | string;
   uid?: string;
   state: string;
-  company_id?: number;
+  company_id?: number | string | null;
   discom?: string;
   district: string;
   block?: string;
@@ -31,8 +105,8 @@ export interface BiharComplaintItem {
   light_no?: string;
   beneficiary_name?: string;
   contact_no?: string;
-  contact_person?: string;
-  contact_number?: string;
+  contact_person?: string | null;
+  contact_number?: string | null;
   latitude?: string | number;
   longitude?: string | number;
   along_with_pole?: string;
@@ -55,21 +129,36 @@ export interface BiharComplaintItem {
   assigned_vendor_name?: string;
   complaint_raised_by?: string | number;
   raised_complaint?: string | number;
-  created_by?: number;
+  created_by?: number | string | null;
+  vendor?: number | string | null;
   file?: string | null;
   file2?: string | null;
   file3?: string | null;
   file4?: string | null;
+  file5?: string | null;
+  file6?: string | null;
+  file7?: string | null;
+  file8?: string | null;
+  file9?: string | null;
+  file10?: string | null;
   r_file?: string | null;
   r_file2?: string | null;
   r_file3?: string | null;
   r_file4?: string | null;
-  remarks?: string;
-  resolved_by?: string;
-  r_email?: string;
-  r_mobile?: string;
-  close_date?: string;
-  manual_close_date?: string;
+  r_file5?: string | null;
+  r_file6?: string | null;
+  r_file7?: string | null;
+  r_file8?: string | null;
+  r_file9?: string | null;
+  r_file510?: string | null;
+  close_beneficiary_name?: string | null;
+  close_beneficiary_contact?: string | null;
+  remarks?: string | null;
+  resolved_by?: string | null;
+  r_email?: string | null;
+  r_mobile?: string | null;
+  close_date?: string | null;
+  manual_close_date?: string | null;
 }
 
 export interface AssignedComplaintsResponse {

@@ -597,8 +597,8 @@ export function Kashmir_Installation_AssignSite() {
                     return (
                       <tr key={a.id || index} className="ax-table__row">
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {r.vendor_name || `Vendor #${a.vendor}`}
+                        <td className="ax-table__td" style={{ fontWeight: 600  , color: 'var(--ax-accent)'}}>
+                          {r.vendor_name || `${a.vendor}`}
                         </td>
                         <td className="ax-table__td">{a.assign_date || DASH}</td>
                         <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{a.state || 'Kashmir'}</td>

@@ -43,7 +43,7 @@ type Row = BiharSrtSiteItem & {
 const getDept = (r: Row) => r.dept_name ?? (r as any).department;
 const getVerifyRemarks = (r: Row) => r.survey_verify_remarks ?? (r as any).verify_remarks;
 const isSurveyDone = (r: Row) => Number(r.survey_status) === 1;
-const verifyStatusNum = (r: Row) => Number(r.survey_verify_status);
+const verifyStatusNum = (r: Row) => Number(r.survey_verify_status ?? (r as any).verify_status);
 
 /* ───────── Shared icon constants (Kashmir pattern) ───────── */
 const ICON_PROPS = {
@@ -1045,13 +1045,46 @@ export function Bihar_Survey_SRT200MW_ViewData() {
 
                         {/* Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--xs"
-                            onClick={() => navigate(`/v/bihar/srt200mw-survey?id=${item.id}`)}
-                          >
-                            Edit
-                          </button>
+                          {verifyStatusNum(item) === 1 ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              disabled
+                              title="Survey is approved and locked"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: 'not-allowed',
+                                pointerEvents: 'auto',
+                                opacity: 0.7,
+                              }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width={12}
+                                height={12}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect x="5" y="11" width="14" height="10" rx="2" />
+                                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                              </svg>
+                              Locked
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              onClick={() => navigate(`/v/bihar/srt200mw-survey?id=${item.id}`)}
+                            >
+                              Edit
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

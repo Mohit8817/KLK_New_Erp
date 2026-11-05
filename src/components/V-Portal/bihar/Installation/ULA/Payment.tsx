@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, type CSSProperties, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
+  getMediaUrl,
   type PaymentClaimItem,
 } from '../../bihar-services';
 import {
@@ -26,24 +26,59 @@ const ICON_REFRESH = (
   </svg>
 );
 
-const ICON_PLUS = (
-  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 5l0 14" />
-    <path d="M5 12l14 0" />
-  </svg>
-);
-
-const ICON_EYE = (
-  <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="2" />
-    <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
-  </svg>
-);
-
 const inr = (v: unknown) => `₹${Number(v || 0).toLocaleString('en-IN')}`;
 
+/* ───────── API status codes (from real response) ─────────
+ * claim_status : 0/1 = submitted (pending) | 2 = approved | 3 = rejected
+ * pay_status   : 0 = pending | 1 = partial | 2 = paid
+ * Change these constants if your backend uses different codes.
+ */
+const CLAIM_APPROVED = 2;
+const CLAIM_REJECTED = 3;
+const PAY_PARTIAL = 1;
+const PAY_PAID = 2;
 
-/* ───────── KPI Card (exact same as ULA/SRT Request Accept & standard V-Portal) ───────── */
+const isApproved = (c: any) => Number(c.claim_status) === CLAIM_APPROVED;
+const isRejected = (c: any) => Number(c.claim_status) === CLAIM_REJECTED;
+const isPending = (c: any) => !isApproved(c) && !isRejected(c);
+const isPaid = (c: any) => Number(c.payment_status) === PAY_PAID;
+
+/** "2026-10-21" or "2026-10-21T11:29:45.000000Z" -> "21-10-2026" */
+const fmtDate = (v: unknown) => {
+  if (typeof v !== 'string' || !v.trim()) return '—';
+  const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
+};
+
+/**
+ * API fields -> UI fields:
+ *   approved_date    -> payment_date
+ *   approved_remarks -> payment_remarks
+ *   pay_status       -> payment_status
+ *   payment_amount / payment_balance are NOT in API -> derived from amount + pay_status
+ */
+const normalizeClaim = (c: any): PaymentClaimItem => {
+  const claim = Number(c.claim_status) || 0;
+  const pay = Number(c.pay_status ?? c.payment_status) || 0;
+  const amount = Number(c.amount) || 0;
+  const paidAmt = c.payment_amount != null ? Number(c.payment_amount) || 0 : pay === PAY_PAID ? amount : 0;
+  const balance =
+    c.payment_balance != null
+      ? Number(c.payment_balance) || 0
+      : claim === CLAIM_APPROVED ? Math.max(amount - paidAmt, 0) : 0;
+
+  return {
+    ...c,
+    claim_status: claim,
+    payment_status: pay,
+    payment_amount: paidAmt,
+    payment_balance: balance,
+    payment_date: c.payment_date ?? c.approved_date ?? null,
+    payment_remarks: c.payment_remarks ?? c.approved_remarks ?? null,
+  } as PaymentClaimItem;
+};
+
+/* ───────── KPI Card ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -86,8 +121,7 @@ function KpiCard({
   );
 }
 
-/* ───────── Responsive CSS (Bihar AMC view jaisa) ───────── */
-/* ───────── Responsive page CSS (Exact from Installation Details) ───────── */
+/* ───────── Responsive page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -228,13 +262,15 @@ export function Bihar_Installation_ULA_Payment() {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
 
   // Modal State
-  const [selectedClaim, setSelectedClaim] = useState<PaymentClaimItem | null>(null);
+  const [, setSelectedClaim] = useState<PaymentClaimItem | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await biharUlaInstallationService.getViewPayments();
-      setClaims(data || []);
+      const raw: any = await biharUlaInstallationService.getViewPayments();
+      // service may return the array directly or the full { success, data: [] } body
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+      setClaims(list.map(normalizeClaim));
     } catch (err: any) {
       console.error('Failed to load payment claims:', err);
       setClaims([]);
@@ -272,9 +308,9 @@ export function Bihar_Installation_ULA_Payment() {
     return claims.filter((c) => {
       const matchType = selectedTypeFilter === 'All' || String(c.payment_type) === selectedTypeFilter;
       let matchStatus = true;
-      if (selectedStatusFilter === 'Approved') matchStatus = Number(c.claim_status) === 1;
-      else if (selectedStatusFilter === 'Pending') matchStatus = Number(c.claim_status) === 0;
-      else if (selectedStatusFilter === 'Paid') matchStatus = Number(c.payment_status) === 1;
+      if (selectedStatusFilter === 'Approved') matchStatus = isApproved(c);
+      else if (selectedStatusFilter === 'Pending') matchStatus = isPending(c);
+      else if (selectedStatusFilter === 'Paid') matchStatus = isPaid(c);
 
       if (!matchType || !matchStatus) return false;
 
@@ -300,24 +336,30 @@ export function Bihar_Installation_ULA_Payment() {
 
   const hasFilters = selectedTypeFilter !== 'All' || selectedStatusFilter !== 'All' || !!search;
 
-  // Export Cols
+  const claimLabel = (r: PaymentClaimItem) => (isApproved(r) ? 'Approved' : isRejected(r) ? 'Rejected' : 'Pending');
+  const payLabel = (r: PaymentClaimItem) =>
+    isPaid(r) ? 'Paid' : Number(r.payment_status) === PAY_PARTIAL ? 'Partial' : 'Pending';
+
   const exportCols: ExportColumn<PaymentClaimItem>[] = useMemo(
     () => [
-      { header: 'Claim ID', accessor: (r) => `#${r.id}` },
-      { header: 'Claim Date', accessor: (r) => r.created_at || '—' },
-      { header: 'Type', accessor: (r) => `${r.payment_type || 50}% Claim` },
-      { header: 'Sites Count', accessor: (r) => getSiteCount(r) },
-      { header: 'Claim Amount', accessor: (r) => inr(r.amount) },
-      { header: 'Claim Status', accessor: (r) => (Number(r.claim_status) === 1 ? 'Approved' : Number(r.claim_status) === 2 ? 'Rejected' : 'Pending') },
-      { header: 'Paid Amount', accessor: (r) => inr(r.payment_amount) },
-      { header: 'Balance', accessor: (r) => inr(r.payment_balance) },
-      { header: 'Payment Date', accessor: (r) => r.payment_date || '—' },
+      { header: 'S.No.', accessor: (_r: PaymentClaimItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Payment Type', accessor: (r) => `${r.payment_type || 50}% Claim` },
+      { header: 'Date', accessor: (r) => fmtDate((r as any).date || r.created_at) },
+      { header: 'Sites', accessor: (r) => getSiteCount(r) },
+      { header: 'Invoice', accessor: (r) => (r.file ? getMediaUrl(r.file) : '—') },
+      { header: 'Amount', accessor: (r) => inr(r.amount) },
+      { header: 'Remarks', accessor: (r) => r.remarks || '—' },
+      { header: 'Claim Status', accessor: (r) => claimLabel(r) },
+      { header: 'Payment Amount', accessor: (r) => inr(r.payment_amount) },
+      { header: 'Payment Balance', accessor: (r) => inr(r.payment_balance) },
+      { header: 'Payment Date', accessor: (r) => fmtDate(r.payment_date) },
       { header: 'Payment Remarks', accessor: (r) => r.payment_remarks || '—' },
+      { header: 'Payment Status', accessor: (r) => payLabel(r) },
     ],
     []
   );
 
-  const COLS = 13;
+  const COLS = 14;
 
   return (
     <div className="solar-erp-page">
@@ -343,7 +385,6 @@ export function Bihar_Installation_ULA_Payment() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-    
           </div>
         }
       />
@@ -389,9 +430,9 @@ export function Bihar_Installation_ULA_Payment() {
           <div className="ax-cluster" role="tablist" aria-label="Claims filter tabs" style={{ gap: 'var(--ax-space-2)' }}>
             {[
               { key: 'All', label: 'All Claims', count: claims.length },
-              { key: 'Approved', label: 'Approved', count: claims.filter((c) => Number(c.claim_status) === 1).length },
-              { key: 'Pending', label: 'Pending Approval', count: claims.filter((c) => Number(c.claim_status) === 0).length },
-              { key: 'Paid', label: 'Disbursed', count: claims.filter((c) => Number(c.payment_status) === 1).length },
+              { key: 'Approved', label: 'Approved', count: claims.filter(isApproved).length },
+              { key: 'Pending', label: 'Pending Approval', count: claims.filter(isPending).length },
+              { key: 'Paid', label: 'Disbursed', count: claims.filter(isPaid).length },
             ].map((t) => {
               const active = t.key === selectedStatusFilter;
               return (
@@ -412,7 +453,6 @@ export function Bihar_Installation_ULA_Payment() {
 
         {/* Claims Table */}
         <section className="ax-card ax-col--12" role="region" aria-labelledby="claim-table-title">
-          {/* Header: title (left) | filters + search + export in ONE line (right) */}
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <h2 id="claim-table-title" className="ax-card__title">Payment Claims History</h2>
@@ -484,21 +524,22 @@ export function Bihar_Installation_ULA_Payment() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2000 }}>
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 2200 }}>
               <caption className="ax-visually-hidden">Payment Claims History</caption>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Claim ID</th>
-                  <th className="ax-table__th" scope="col">Stage</th>
+                  <th className="ax-table__th" scope="col">S.No.</th>
+                  <th className="ax-table__th" scope="col">Payment Type</th>
                   <th className="ax-table__th" scope="col">Date</th>
-                  <th className="ax-table__th" scope="col">Sites Count</th>
-                  <th className="ax-table__th" scope="col">Claim Amount</th>
+                  <th className="ax-table__th" scope="col">Sites</th>
                   <th className="ax-table__th" scope="col">Invoice</th>
+                  <th className="ax-table__th" scope="col">Amount</th>
+                  <th className="ax-table__th" scope="col">Remarks</th>
                   <th className="ax-table__th" scope="col">Claim Status</th>
-                  <th className="ax-table__th" scope="col">Paid Amount</th>
-                  <th className="ax-table__th" scope="col">Balance</th>
-                  <th className="ax-table__th" scope="col">Payment Date &amp; UTR</th>
+                  <th className="ax-table__th" scope="col">Payment Amount</th>
+                  <th className="ax-table__th" scope="col">Payment Balance</th>
+                  <th className="ax-table__th" scope="col">Payment Date</th>
+                  <th className="ax-table__th" scope="col">Payment Remarks</th>
                   <th className="ax-table__th" scope="col">Payment Status</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
@@ -515,20 +556,19 @@ export function Bihar_Installation_ULA_Payment() {
                   </tr>
                 )}
                 {!loading && paginatedData.map((c, index) => {
-                  const isClaimApproved = Number(c.claim_status) === 1;
-                  const isClaimRejected = Number(c.claim_status) === 2;
-                  const isPayDone = Number(c.payment_status) === 1;
+                  const claimOk = isApproved(c);
+                  const claimRej = isRejected(c);
+                  const payDone = isPaid(c);
+                  const invoiceUrl = c.file ? getMediaUrl(c.file) : '';
 
                   return (
                     <tr key={c.id} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-medium)', color: 'var(--ax-text-strong)' }}>#{c.id}</td>
                       <td className="ax-table__td">
-                        <span className="ax-badge ax-badge--soft ax-badge--info">{c.payment_type || 50}%</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--info">{c.payment_type || 50}% Claim</span>
                       </td>
-                      <td className="ax-table__td ax-num">
-                        {c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}
-                      </td>
+                      {/* Date -> API `date` (fallback created_at) */}
+                      <td className="ax-table__td ax-num">{fmtDate((c as any).date || c.created_at)}</td>
                       <td className="ax-table__td">
                         <button
                           type="button"
@@ -539,20 +579,24 @@ export function Bihar_Installation_ULA_Payment() {
                           {getSiteCount(c)} Sites
                         </button>
                       </td>
-                      <td className="ax-table__td ax-num" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{inr(c.amount)}</td>
+                      {/* Invoice -> relative path, needs full media URL */}
                       <td className="ax-table__td">
-                        {c.file ? (
-                          <a href={c.file} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">
+                        {invoiceUrl ? (
+                          <a href={invoiceUrl} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">
                             View Inv
                           </a>
                         ) : (
                           '—'
                         )}
                       </td>
+                      <td className="ax-table__td ax-num" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{inr(c.amount)}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: 'var(--ax-text-xs)' }}>
+                        {c.remarks || '—'}
+                      </td>
                       <td className="ax-table__td">
-                        {isClaimApproved ? (
+                        {claimOk ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success">Approved</span>
-                        ) : isClaimRejected ? (
+                        ) : claimRej ? (
                           <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>
                         ) : (
                           <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
@@ -564,18 +608,16 @@ export function Bihar_Installation_ULA_Payment() {
                       <td className="ax-table__td ax-num" style={{ color: Number(c.payment_balance) > 0 ? 'var(--ax-warning)' : 'inherit' }}>
                         {inr(c.payment_balance)}
                       </td>
-                      <td className="ax-table__td">
-                        <div className="ax-num">{c.payment_date || '—'}</div>
-                        {c.payment_remarks && (
-                          <div style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                            {c.payment_remarks}
-                          </div>
-                        )}
+                      {/* Payment Date -> API `approved_date` */}
+                      <td className="ax-table__td ax-num">{fmtDate(c.payment_date)}</td>
+                      {/* Payment Remarks -> API `approved_remarks` */}
+                      <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                        {c.payment_remarks || '—'}
                       </td>
                       <td className="ax-table__td">
-                        {isPayDone ? (
+                        {payDone ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success">Paid</span>
-                        ) : Number(c.payment_amount) > 0 ? (
+                        ) : Number(c.payment_status) === PAY_PARTIAL ? (
                           <span className="ax-badge ax-badge--soft ax-badge--warning">Partial</span>
                         ) : (
                           <span className="ax-badge ax-badge--soft ax-badge--neutral">Pending</span>
@@ -611,8 +653,6 @@ export function Bihar_Installation_ULA_Payment() {
           </div>
         </section>
       </div>
-
-
     </div>
   );
 }

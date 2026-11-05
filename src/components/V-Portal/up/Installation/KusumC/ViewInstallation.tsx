@@ -609,15 +609,17 @@ function DetailViewModal({
 }) {
   if (!open || !item) return null;
 
-  const applicantName = item.applicant_name || item.f_farmer_name || item.farmer_name || item.beneficiary_name || DASH;
+  const applicantName = item.f_farmer_name || item.applicant_name || item.farmer_name || item.beneficiary_name || DASH;
   const modImg = item.module_image || item.farmer_module_image || item.f_module_image ? resolveUpMediaUrl(item.module_image || item.farmer_module_image || item.f_module_image || '') : null;
   const invImg = item.inverter_vfd_image || item.inverter_image || item.vfd_image ? resolveUpMediaUrl(item.inverter_vfd_image || item.inverter_image || item.vfd_image || '') : null;
   const waterImg = item.running_water_image || item.water_image ? resolveUpMediaUrl(item.running_water_image || item.water_image || '') : null;
-  const hocImg = item.hoc_photo ? resolveUpMediaUrl(item.hoc_photo) : null;
+  const hocImg = item.inst_doc || item.hoc_photo || (item.doc_hoc_photo && item.doc_hoc_photo !== 'NO' ? item.doc_hoc_photo : null)
+    ? resolveUpMediaUrl(item.inst_doc || item.hoc_photo || item.doc_hoc_photo || '')
+    : null;
   const hasGeo = item.latitude && item.longitude;
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy="kusumc-detail-title" dialogClass="ax-modal__dialog--lg" dialogStyle={{ maxWidth: 720 }}>
+    <Modal open={open} onClose={onClose} labelledBy="kusumc-detail-title" dialogClass="ax-modal__dialog--lg" dialogStyle={{ maxWidth: 740 }}>
       <div className="ax-modal__header">
         <div>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -636,13 +638,15 @@ function DetailViewModal({
           <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Applicant &amp; Location Information</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{item.state || item.f_state || 'UP'}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.district || item.f_district || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><strong>{item.block || item.f_block || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Village: </span><strong>{item.village || item.f_village || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.f_district || item.district || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Block: </span><strong>{item.f_block || item.block || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Village / Post: </span><strong>{[item.f_village || item.village, item.f_post || item.post].filter(Boolean).join(', ') || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Customer No.: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{item.f_customer_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Lot No.: </span><strong>{item.lot_no || DASH}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Applicant Name: </span><strong>{applicantName}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Father Name: </span><strong>{item.father_name || item.f_father_name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact No: </span><strong>{item.contact_no || item.f_contact || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Pump Capacity: </span><strong>{item.pump_capacity || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Father Name: </span><strong>{item.f_father_name || item.father_name || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact No: </span><strong>{item.f_contact || item.contact_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Pump Capacity: </span><strong>{item.pump_capacity ? `${item.pump_capacity} HP` : DASH}</strong></div>
           </div>
         </div>
 
@@ -650,13 +654,16 @@ function DetailViewModal({
         <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Equipment &amp; Audit Details</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>VFD No.: </span><strong>{item.vfd_no || item.vfd_serial_no || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No.: </span><strong>{item.inverter_no || item.inverter_serial_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>VFD No.: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{item.vfd_no || item.vfd_serial_no || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No.: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{item.Inverter_no || item.inverter_no || item.inverter_serial_no || DASH}</strong></div>
             <div style={{ gridColumn: '1 / -1' }}>
               <span style={{ color: 'var(--ax-text-muted)' }}>Module Serial No.: </span>
-              <strong>{formatModuleSerials(item.module_serial_no || item.module_no)}</strong>
+              <strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{formatModuleSerials(item.module_serial_no || item.module_no)}</strong>
             </div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{item.remarks || item.inst_remarks || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Install Date: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{item.inst_date || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Assignment Batch: </span><strong>{item.inst_assigned_id ? `#${item.inst_assigned_id}` : DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date / Deadline: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{item.inst_assign_date || DASH} / {item.inst_deadline || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{item.inst_remarks || item.remarks || DASH}</strong></div>
             <div>
               <span style={{ color: 'var(--ax-text-muted)' }}>GPS Geotag: </span>
               <strong>
@@ -665,7 +672,7 @@ function DetailViewModal({
                     href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
+                    style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}
                   >
                     {item.latitude}, {item.longitude}
                   </a>
@@ -673,9 +680,9 @@ function DetailViewModal({
               </strong>
             </div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Status: </span><VerifyBadge value={item.inst_verify_status ?? item.verify_status} /></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Remarks: </span><strong>{item.verify_remarks || item.inst_verify_remarks || item.verification_remarks || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Remarks: </span><strong>{item.inst_verify_remarks || item.verify_remarks || item.verification_remarks || DASH}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Document Status: </span><DocBadge value={item.inst_doc_status ?? item.document_status} /></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Doc Verify Remarks: </span><strong>{item.doc_verify_remarks || item.inst_doc_remarks || item.hoc_remarks || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Doc Verify Remarks: </span><strong>{item.inst_doc_verify_remarks || item.doc_verify_remarks || item.inst_doc_remarks || item.hoc_remarks || DASH}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Claim Status: </span><ClaimBadge value={item.inst_claim_status ?? item.claim_status} /></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Payment Status: </span><PaymentBadge value={item.inst_pay_status ?? item.payment_status ?? item.pay_status} /></div>
           </div>
@@ -724,17 +731,19 @@ function DetailViewModal({
               )}
               <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>Running Water With Farmer</span>
             </div>
-            {hocImg && (
-              <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              {hocImg ? (
                 <img
                   src={hocImg}
                   alt="HOC Document"
                   style={{ width: '100%', height: 110, objectFit: 'cover', border: '1px solid var(--ax-border)', borderRadius: 0, cursor: 'zoom-in' }}
                   onClick={() => onPreview(hocImg, 'HOC Document')}
                 />
-                <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>HOC Certificate</span>
-              </div>
-            )}
+              ) : (
+                <div style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>No document</div>
+              )}
+              <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', display: 'block', marginTop: 4 }}>HOC Certificate</span>
+            </div>
           </div>
         </div>
       </div>
@@ -769,7 +778,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
   const [search, setSearch] = useState('');
   const [verifyFilter, setVerifyFilter] = useState<'all' | 'approved' | 'pending' | 'reject'>('all');
-  const [docFilter, setDocFilter] = useState<'all' | 'approved' | 'pending' | 'none'>('all');
+  const [docFilter, setDocFilter] = useState<'all' | 'approved' | 'submitted' | 'pending' | 'reject'>('all');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -816,7 +825,10 @@ export function UP_Installation_KusumC_ViewInstallation() {
     try {
       const res = await upInstallationService.getKusumCInstalledSites();
       if (res.install_detail) {
-        setCounts(res.install_detail);
+        setCounts({
+          ...res.install_detail,
+          total_assign: res.assign ?? res.install_detail.total ?? 0,
+        });
       }
       setSites(res.sites || []);
     } catch (err: any) {
@@ -840,11 +852,11 @@ export function UP_Installation_KusumC_ViewInstallation() {
       const fetched = await upInstallationService.getKusumCSiteForEdit(site.id);
       const target = fetched || site;
       setEditItem(target);
-      setEditInverterNo(target.inverter_no || '');
-      setEditVfdNo(target.vfd_no || '');
+      setEditInverterNo(target.Inverter_no || target.inverter_no || target.inverter_serial_no || '');
+      setEditVfdNo(target.vfd_no || target.vfd_serial_no || '');
       setEditLat(target.latitude || '');
       setEditLng(target.longitude || '');
-      setEditRemarks(target.remarks || target.inst_remarks || '');
+      setEditRemarks(target.inst_remarks || target.remarks || '');
 
       let parsedSerials: string[] = [];
       const rawSerials = target.module_serial_no || target.module_no;
@@ -861,11 +873,11 @@ export function UP_Installation_KusumC_ViewInstallation() {
     } catch (e: any) {
       console.warn('Edit fetch error:', e);
       setEditItem(site);
-      setEditInverterNo(site.inverter_no || '');
-      setEditVfdNo(site.vfd_no || '');
+      setEditInverterNo(site.Inverter_no || site.inverter_no || site.inverter_serial_no || '');
+      setEditVfdNo(site.vfd_no || site.vfd_serial_no || '');
       setEditLat(site.latitude || '');
       setEditLng(site.longitude || '');
-      setEditRemarks(site.remarks || site.inst_remarks || '');
+      setEditRemarks(site.inst_remarks || site.remarks || '');
       setEditSerials(['']);
       setEditError(e?.message || 'Failed to load site details for editing.');
     }
@@ -879,6 +891,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
     const fd = new FormData();
     fd.append('id', String(editItem.id));
+    fd.append('Inverter_no', editInverterNo.trim());
     fd.append('inverter_no', editInverterNo.trim());
     fd.append('vfd_no', editVfdNo.trim());
     const validSerials = editSerials.filter((s) => s.trim() !== '');
@@ -921,6 +934,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
     const fd = new FormData();
     fd.append('site_id', String(hocModalSite.id));
     fd.append('hoc_photo', hocFile);
+    fd.append('inst_doc', hocFile);
     fd.append('date', hocDate);
 
     try {
@@ -944,7 +958,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
   const districtList = useMemo(() => {
     const set = new Set<string>();
     sites.forEach((s) => {
-      const d = s.district || s.f_district;
+      const d = s.f_district || s.district;
       if (d) set.add(d.trim());
     });
     return Array.from(set).sort();
@@ -960,24 +974,28 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
       const dStatus = Number(s.inst_doc_status ?? s.document_status ?? 0);
       if (docFilter === 'approved' && dStatus !== 2) return false;
-      if (docFilter === 'pending' && dStatus !== 1) return false;
-      if (docFilter === 'none' && (dStatus === 1 || dStatus === 2)) return false;
+      if (docFilter === 'submitted' && dStatus !== 1) return false;
+      if (docFilter === 'reject' && dStatus !== 3) return false;
+      if (docFilter === 'pending' && (dStatus === 1 || dStatus === 2 || dStatus === 3)) return false;
 
       if (selectedDistrict !== 'all') {
-        const d = s.district || s.f_district;
+        const d = s.f_district || s.district;
         if (!d || d.trim().toLowerCase() !== selectedDistrict.toLowerCase()) return false;
       }
 
       if (search.trim()) {
         const q = search.toLowerCase();
         const idStr = String(s.id);
-        const nameStr = String(s.applicant_name || s.farmer_name || s.f_farmer_name || s.beneficiary_name || '').toLowerCase();
+        const nameStr = String(s.f_farmer_name || s.applicant_name || s.farmer_name || s.beneficiary_name || '').toLowerCase();
         const vfdStr = String(s.vfd_no || s.vfd_serial_no || '').toLowerCase();
-        const invStr = String(s.inverter_no || s.inverter_serial_no || '').toLowerCase();
-        const distStr = String(s.district || s.f_district || '').toLowerCase();
-        const blockStr = String(s.block || s.f_block || '').toLowerCase();
-        const villStr = String(s.village || s.f_village || '').toLowerCase();
+        const invStr = String(s.Inverter_no || s.inverter_no || s.inverter_serial_no || '').toLowerCase();
+        const distStr = String(s.f_district || s.district || '').toLowerCase();
+        const blockStr = String(s.f_block || s.block || '').toLowerCase();
+        const villStr = String(s.f_village || s.village || s.f_post || s.post || '').toLowerCase();
         const serialStr = String(s.module_serial_no || s.module_no || '').toLowerCase();
+        const remarksStr = String(s.inst_remarks || s.remarks || '').toLowerCase();
+        const customerNoStr = String(s.f_customer_no || '').toLowerCase();
+        const lotStr = String(s.lot_no || '').toLowerCase();
 
         if (
           !idStr.includes(q) &&
@@ -987,7 +1005,10 @@ export function UP_Installation_KusumC_ViewInstallation() {
           !distStr.includes(q) &&
           !blockStr.includes(q) &&
           !villStr.includes(q) &&
-          !serialStr.includes(q)
+          !serialStr.includes(q) &&
+          !remarksStr.includes(q) &&
+          !customerNoStr.includes(q) &&
+          !lotStr.includes(q)
         ) {
           return false;
         }
@@ -1022,21 +1043,21 @@ export function UP_Installation_KusumC_ViewInstallation() {
     () => [
       { header: 'Sr. No.', accessor: (_: any, idx?: number) => (idx !== undefined ? idx + 1 : 1) },
       { header: 'State', accessor: (r: any) => r.state || r.f_state || 'UP' },
-      { header: 'District', accessor: (r: any) => r.district || r.f_district || DASH },
-      { header: 'Block', accessor: (r: any) => r.block || r.f_block || DASH },
-      { header: 'Village', accessor: (r: any) => r.village || r.f_village || DASH },
-      { header: 'Applicant Name', accessor: (r: any) => r.applicant_name || r.f_farmer_name || r.farmer_name || r.beneficiary_name || DASH },
+      { header: 'District', accessor: (r: any) => r.f_district || r.district || DASH },
+      { header: 'Block', accessor: (r: any) => r.f_block || r.block || DASH },
+      { header: 'Village', accessor: (r: any) => r.f_village || r.village || DASH },
+      { header: 'Applicant Name', accessor: (r: any) => r.f_farmer_name || r.applicant_name || r.farmer_name || r.beneficiary_name || DASH },
       { header: 'VFD No.', accessor: (r: any) => r.vfd_no || r.vfd_serial_no || DASH },
-      { header: 'Inverter No.', accessor: (r: any) => r.inverter_no || r.inverter_serial_no || DASH },
+      { header: 'Inverter No.', accessor: (r: any) => r.Inverter_no || r.inverter_no || r.inverter_serial_no || DASH },
       { header: 'Module Serial No.', accessor: (r: any) => formatModuleSerials(r.module_serial_no || r.module_no) },
       { header: 'Farmer With Module Image', accessor: (r: any) => (r.module_image || r.farmer_module_image || r.f_module_image ? 'Uploaded' : DASH) },
       { header: 'Inverter and VFD with Farmer Image', accessor: (r: any) => (r.inverter_vfd_image || r.inverter_image || r.vfd_image ? 'Uploaded' : DASH) },
       { header: 'Running Water With Farmer Image', accessor: (r: any) => (r.running_water_image || r.water_image ? 'Uploaded' : DASH) },
-      { header: 'Remarks', accessor: (r: any) => r.remarks || r.inst_remarks || DASH },
+      { header: 'Remarks', accessor: (r: any) => r.inst_remarks || r.remarks || DASH },
       { header: 'Verify Status', accessor: (r: any) => getVerifyLabel(r.inst_verify_status ?? r.verify_status) },
-      { header: 'Verify Remarks', accessor: (r: any) => r.verify_remarks || r.inst_verify_remarks || r.verification_remarks || DASH },
+      { header: 'Verify Remarks', accessor: (r: any) => r.inst_verify_remarks || r.verify_remarks || r.verification_remarks || DASH },
       { header: 'Document Status', accessor: (r: any) => getDocLabel(r.inst_doc_status ?? r.document_status) },
-      { header: 'Doc Verify Remarks', accessor: (r: any) => r.doc_verify_remarks || r.inst_doc_remarks || r.hoc_remarks || DASH },
+      { header: 'Doc Verify Remarks', accessor: (r: any) => r.inst_doc_verify_remarks || r.doc_verify_remarks || r.inst_doc_remarks || r.hoc_remarks || DASH },
       { header: 'Claim Status', accessor: (r: any) => getClaimLabel(r.inst_claim_status ?? r.claim_status) },
       { header: 'Payment Status', accessor: (r: any) => getPaymentLabel(r.inst_pay_status ?? r.payment_status ?? r.pay_status) },
     ],
@@ -1254,8 +1275,9 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 >
                   <option value="all">All Doc Status</option>
                   <option value="approved">Approved</option>
-                  <option value="pending">Submitted</option>
-                  <option value="none">Pending</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="pending">Pending</option>
+                  <option value="reject">Reject</option>
                 </select>
 
                 {hasFilters && (
@@ -1343,21 +1365,21 @@ export function UP_Installation_KusumC_ViewInstallation() {
                 {!loading &&
                   paginatedData.map((row, idx) => {
                     const srNo = (safePage - 1) * pageSize + idx + 1;
-                    const applicantName = row.applicant_name || row.f_farmer_name || row.farmer_name || row.beneficiary_name || DASH;
+                    const applicantName = row.f_farmer_name || row.applicant_name || row.farmer_name || row.beneficiary_name || DASH;
                     const isVerifyApproved = Number(row.inst_verify_status ?? row.verify_status) === 1;
 
                     return (
                       <tr key={row.id} className="ax-table__row">
                         <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>{srNo}</td>
                         <td className="ax-table__td">{row.state || row.f_state || 'UP'}</td>
-                        <td className="ax-table__td">{row.district || row.f_district || DASH}</td>
-                        <td className="ax-table__td">{row.block || row.f_block || DASH}</td>
-                        <td className="ax-table__td">{row.village || row.f_village || DASH}</td>
+                        <td className="ax-table__td">{row.f_district || row.district || DASH}</td>
+                        <td className="ax-table__td">{row.f_block || row.block || DASH}</td>
+                        <td className="ax-table__td">{row.f_village || row.village || DASH}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                           {applicantName}
                         </td>
                         <td className="ax-table__td" style={monoCell}>{row.vfd_no || row.vfd_serial_no || DASH}</td>
-                        <td className="ax-table__td" style={monoCell}>{row.inverter_no || row.inverter_serial_no || DASH}</td>
+                        <td className="ax-table__td" style={monoCell}>{row.Inverter_no || row.inverter_no || row.inverter_serial_no || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>
                           {formatModuleSerials(row.module_serial_no || row.module_no)}
                         </td>
@@ -1391,7 +1413,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
                         {/* Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {row.remarks || row.inst_remarks || DASH}
+                          {row.inst_remarks || row.remarks || DASH}
                         </td>
 
                         {/* Verify Status */}
@@ -1401,17 +1423,30 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
                         {/* Verify Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {row.verify_remarks || row.inst_verify_remarks || row.verification_remarks || DASH}
+                          {row.inst_verify_remarks || row.verify_remarks || row.verification_remarks || DASH}
                         </td>
 
                         {/* Document Status */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <DocBadge value={row.inst_doc_status ?? row.document_status} />
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            <DocBadge value={row.inst_doc_status ?? row.document_status} />
+                            {(row.inst_doc || row.hoc_photo) && (
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--ghost ax-btn--xs"
+                                style={{ padding: '2px 6px', fontSize: 10, height: 20 }}
+                                onClick={() => openPreview(resolveUpMediaUrl(row.inst_doc || row.hoc_photo)!, `${applicantName} - HOC Document`)}
+                                title="View HOC Document"
+                              >
+                                View Doc
+                              </button>
+                            )}
+                          </div>
                         </td>
 
                         {/* Doc Verify Remarks */}
                         <td className="ax-table__td" style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {row.doc_verify_remarks || row.inst_doc_remarks || row.hoc_remarks || DASH}
+                          {row.inst_doc_verify_remarks || row.doc_verify_remarks || row.inst_doc_remarks || row.hoc_remarks || DASH}
                         </td>
 
                         {/* Claim Status */}

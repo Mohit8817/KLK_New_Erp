@@ -224,6 +224,17 @@ export function UPComplaintKCAdd() {
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
       });
+      if (form.farmer_name) {
+        fd.append('f_name', form.farmer_name);
+        fd.append('beneficiary_name', form.farmer_name);
+      }
+      if (form.father_name) {
+        fd.append('f_father_name', form.father_name);
+      }
+      if (form.contact_no) {
+        fd.append('f_mobile', form.contact_no);
+        fd.append('contact_number', form.contact_no);
+      }
       if (file) {
         fd.append('document', file);
         fd.append('file', file);

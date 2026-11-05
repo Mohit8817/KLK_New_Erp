@@ -444,18 +444,77 @@ function SurveyThumbnail({
   );
 }
 
-/* ───────── Text columns (used for both table and export) ───────── */
-const isDgYes = (r: Row) =>
-  Number(r.dg_set_available) === 1 || String(r.dg_set_available).toLowerCase() === 'yes' ? 'Yes' : 'No';
+/* ───────── API value normalisers ─────────
+ * Real API (GET survey view) mixes formats between records:
+ *   - state is lowercase ("kashmir")
+ *   - flags come as "1"/"0" in some rows and "Yes"/"No" in others
+ *   - connection_type is "3" in some rows and "3 Phase" in others
+ *   - roof_condition / roof_access / earth_pit: "0"/"1" or text
+ *   - DG flag key is `existing_dg_set`, earth pit key is `earth_pit`, address key is `address`
+ *   - survey_date is YYYY-MM-DD
+ */
+const norm = (v: unknown) => String(v ?? '').trim();
 
+const cap = (v: unknown) => {
+  const s = norm(v);
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+};
+
+// 1 / 0 / Yes / No  ->  Yes / No
+const yn = (v: unknown) => {
+  const s = norm(v).toLowerCase();
+  if (!s) return '';
+  if (s === '1' || s === 'yes') return 'Yes';
+  if (s === '0' || s === 'no') return 'No';
+  return norm(v);
+};
+
+// "3" -> "3 Phase", "3 Phase" -> "3 Phase"
+const phaseLabel = (v: unknown) => {
+  const s = norm(v);
+  return s === '1' || s === '3' ? `${s} Phase` : s;
+};
+
+const roofCondLabel = (v: unknown) => {
+  const s = norm(v).toLowerCase();
+  if (!s) return '';
+  if (s === '1' || s === 'feasiable' || s === 'feasible') return 'Feasible';
+  if (s === '0' || s === 'not feasiable' || s === 'not feasible') return 'Not Feasible';
+  return norm(v);
+};
+
+const earthPitLabel = (v: unknown) => {
+  const s = norm(v).toLowerCase();
+  if (!s) return '';
+  if (s === '1' || s === 'ok') return 'Ok';
+  if (s === '0' || s === 'not ok') return 'Not Ok';
+  return norm(v);
+};
+
+const roofAccessLabel = (v: unknown) => {
+  const s = norm(v).toLowerCase();
+  if (!s) return '';
+  if (s === '1' || s === 'available') return 'Available';
+  if (s === '0' || s === 'not available') return 'Not Available';
+  return norm(v);
+};
+
+const fmtDate = (v: unknown) => {
+  const m = norm(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : norm(v);
+};
+
+const isDgYes = (r: Row) => yn((r as any).existing_dg_set ?? r.dg_set_available) || 'No';
+
+/* ───────── Text columns (used for both table and export) ───────── */
 type TextCol = { h: string; e: string; v: (r: Row) => string | number | null | undefined; minWidth?: number };
 
 const TEXT_COLS: TextCol[] = [
-  { h: 'State', e: 'State', v: (r) => r.state || 'Kashmir' },
+  { h: 'State', e: 'State', v: (r) => cap(r.state) || 'Kashmir' },
   { h: 'District', e: 'District', v: (r) => r.district },
   { h: 'Department', e: 'Department', v: (r) => r.dept_name || r.department },
   { h: 'Site Name', e: 'Site Name', v: (r) => r.site_name, minWidth: 160 },
-  { h: 'Site Address', e: 'Site Address', v: (r) => r.site_address, minWidth: 180 },
+  { h: 'Site Address', e: 'Site Address', v: (r) => (r as any).address || r.site_address, minWidth: 180 },
   { h: 'CA No.', e: 'CA No.', v: (r) => r.ca_no },
   { h: 'Survey Address', e: 'Survey Address', v: (r) => r.survey_site_address, minWidth: 180 },
   { h: 'Nearest Landmark', e: 'Nearest Landmark', v: (r) => r.near_landmark },
@@ -465,33 +524,34 @@ const TEXT_COLS: TextCol[] = [
   { h: 'Latitude', e: 'Latitude', v: (r) => r.latitude },
   { h: 'Longitude', e: 'Longitude', v: (r) => r.longitude },
   { h: 'Load Type', e: 'Load Type', v: (r) => r.load_type },
-  { h: 'Connection Phase', e: 'Connection Phase', v: (r) => r.connection_type },
+  { h: 'Connection Phase', e: 'Connection Phase', v: (r) => phaseLabel(r.connection_type) },
   { h: 'Meter Connection Type', e: 'Meter Connection Type', v: (r) => r.meter_connection_type },
   { h: 'Meter Number', e: 'Meter Number', v: (r) => r.meter_no || r.meter_number },
   { h: 'Sanction Load (KW/KVA)', e: 'Sanction Load (KW/KVA)', v: (r) => r.sanction_load },
   { h: 'Instantaneous/Corrected Load (KW)', e: 'Instantaneous Load (KW)', v: (r) => r.instantaneous_load },
-  { h: 'Grid Availability', e: 'Grid Availability', v: (r) => r.grid_availability },
-  { h: 'Is All Three Phase Available In LTDB', e: '3 Phase in LTDB', v: (r) => r.three_phase_available },
+  { h: 'Grid Availability', e: 'Grid Availability', v: (r) => yn(r.grid_availability) },
+  { h: 'Is All Three Phase Available In LTDB', e: '3 Phase in LTDB', v: (r) => yn(r.three_phase_available) },
   { h: 'Missing Phase', e: 'Missing Phase', v: (r) => r.missing_phase },
-  { h: 'LTDB Present', e: 'LTDB Present', v: (r) => r.ltdb_status },
+  { h: 'LTDB Present', e: 'LTDB Present', v: (r) => yn(r.ltdb_status) },
   { h: 'Is Existing DG SET', e: 'Existing DG SET', v: (r) => isDgYes(r) },
   { h: 'Dg SET Capacity', e: 'DG SET Capacity', v: (r) => r.dg_set_capacity },
   { h: 'Dg SET Make', e: 'DG SET Make', v: (r) => r.dg_set_make },
-  { h: 'Roof Condition', e: 'Roof Condition', v: (r) => r.roof_condition },
+  { h: 'Roof Condition', e: 'Roof Condition', v: (r) => roofCondLabel(r.roof_condition) },
   { h: 'Total Roof Area (Sq.Feet)', e: 'Total Roof Area (Sq.Feet)', v: (r) => r.roof_area },
   { h: 'Free Space for Solar Installation (in Sq.Feet)', e: 'Free Space Solar (Sq.Feet)', v: (r) => r.solar_free_space },
   { h: 'Free Space for Control Room/Inverter (in Sq.Feet)', e: 'Free Space Control Room', v: (r) => r.control_room_free_space },
-  { h: 'Earth Pit Position', e: 'Earth Pit Position', v: (r) => r.earth_pit_position },
+  { h: 'Earth Pit Position', e: 'Earth Pit Position', v: (r) => earthPitLabel((r as any).earth_pit ?? r.earth_pit_position) },
   { h: 'Routing of AC Cable from System Area (mtr)', e: 'Routing AC Cable (mtr)', v: (r) => r.ac_cable_routing },
   { h: 'Type of Roof', e: 'Type of Roof', v: (r) => r.roof_type },
   { h: 'Type of Structure Required', e: 'Structure Required', v: (r) => r.structure_type },
   { h: 'Age Of Building', e: 'Age Of Building', v: (r) => r.building_age },
-  { h: 'Access To The Roof', e: 'Access To Roof', v: (r) => r.roof_access },
+  { h: 'Access To The Roof', e: 'Access To Roof', v: (r) => roofAccessLabel(r.roof_access) },
   { h: 'Rooftop Height (mtr)', e: 'Rooftop Height (mtr)', v: (r) => r.rooftop_height },
   { h: 'Parapet Height (mtr)', e: 'Parapet Height (mtr)', v: (r) => r.parapet_height },
   { h: 'No. of Floors (G+...)', e: 'No. of Floors', v: (r) => r.number_of_floors },
   { h: 'Access To Site', e: 'Access To Site', v: (r) => r.site_access },
   { h: 'Distance Of Site From Main Road(km)', e: 'Distance From Main Road (km)', v: (r) => r.site_distance },
+  { h: 'Survey Date', e: 'Survey Date', v: (r) => fmtDate((r as any).survey_date) },
 ];
 
 // Sr. No. + Unique ID + text cols + 4 images + PDF + Action
@@ -574,14 +634,17 @@ export function Kashmir_Survey_ViewData() {
     setCurrentPage(1);
   };
 
+  // Running serial number (same as shown in table) for export
+  const srMap = useMemo(() => new Map(filtered.map((r, i) => [r.id, i + 1])), [filtered]);
+
   // Export columns
   const exportColumns: ExportColumn<Row>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (r) => r.id },
-      { header: 'Unique ID', accessor: (r) => r.uid || `#${r.id}` },
+      { header: 'Sr. No.', accessor: (r) => srMap.get(r.id) ?? '' },
+      { header: 'Unique ID', accessor: (r) => r.uid || String(r.id) },
       ...TEXT_COLS.map((c) => ({ header: c.e, accessor: (r: Row) => String(c.v(r) ?? '') })),
     ],
-    []
+    [srMap]
   );
 
   return (
@@ -809,7 +872,7 @@ export function Kashmir_Survey_ViewData() {
                     return (
                       <tr key={r.id} className="ax-table__row">
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.uid || `#${r.id}`}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.uid || String(r.id)}</td>
                         {TEXT_COLS.map((c) => {
                           const val = c.v(r);
                           const display = val === null || val === undefined || val === '' ? DASH : val;

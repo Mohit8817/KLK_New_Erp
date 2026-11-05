@@ -363,9 +363,9 @@ export function Bihar_AMC_SRT_ComplaintRaised() {
                   return (
                     <tr key={r.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num" style={{ fontWeight: 600 }}>{srNo}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-primary)' }}>
-                        #{r.complaint_id}
-                      </td>
+                  <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' }}>
+  {txt(r.complaint_id)}
+</td>
                       <td className="ax-table__td">{r.start_date || r.complaint_date || DASH}</td>
                       <td className="ax-table__td" style={{ maxWidth: 260, whiteSpace: 'normal', fontSize: 12 }}>
                         {txt(r.complaint)}

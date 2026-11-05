@@ -839,7 +839,7 @@ export function Bihar_AMC_SSL_ViewData() {
                           </td>
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             <Link to={`/v/edit-biharssl?uid=${encodeURIComponent(r.unique_id || '')}`} className="ax-btn ax-btn--primary ax-btn--sm">
-                              AMC
+                             Update AMC
                             </Link>
                           </td>
                         </tr>

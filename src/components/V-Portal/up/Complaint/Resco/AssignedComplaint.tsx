@@ -17,10 +17,10 @@ const kw = (r: Row, keys: string[]) => {
 const COLUMNS: ComplaintColumn<Row>[] = [
   {
     header: 'Complaint ID',
-    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>{complaintId(r)}</b>,
-    exportValue: complaintId,
+    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>#{complaintId(r)}</b>,
+    exportValue: (r) => `#${complaintId(r)}`,
   },
-  T('Complaint Date', ['complaint_date']),
+  T('Complaint Date', ['start_date', 'complaint_date', 'created_at']),
   T('Complaint', ['complaint'], { clamp: true }),
   T('State', ['state'], { fallback: 'Uttar Pradesh' }),
   T('District', ['district'], { strong: true }),
@@ -34,12 +34,12 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   T('Contact Number', ['contact_number', 'contact_no']),
   T('Inverter No', ['inverter_no']),
   T('Solarmeter No', ['solarmeter_no', 'solar_meter_no']),
-  T('NM SM NO', ['nm_sm_no']),
-  T('Loger No', ['loger_no', 'logger_no']),
+  T('NM SM NO', ['nm_sm_no', 'nmsm_no']),
+  T('Logger No', ['loger_no', 'logger_no']),
   T('Panel No', ['panel_no']),
-  T('WO No', ['wo_no']),
+  T('WO No', ['wo_no', 'work_order_no']),
   T('Phase', ['phase']),
-  { ...documentCol<Row>(), exportValue: (r) => pick(r, ['document', 'file', 'file1']) },
+  documentCol<Row>(),
 ];
 
 export function UP_Complaint_Resco_AssignedComplaint() {
@@ -65,13 +65,20 @@ export function UP_Complaint_Resco_AssignedComplaint() {
       columns={COLUMNS}
       closeOnApproved
       searchFields={(r) => [
-        pick(r, ['complaint_id'], ''),
+        pick(r, ['complaint_id', 'id'], ''),
         pick(r, ['site_name'], ''),
         pick(r, ['district'], ''),
+        pick(r, ['dept_name', 'department'], ''),
         pick(r, ['contact_number', 'contact_no'], ''),
         pick(r, ['contact_person'], ''),
         pick(r, ['complaint'], ''),
         pick(r, ['ca_no'], ''),
+        pick(r, ['start_date', 'complaint_date'], ''),
+        pick(r, ['inverter_no'], ''),
+        pick(r, ['solarmeter_no', 'solar_meter_no'], ''),
+        pick(r, ['nm_sm_no', 'nmsm_no'], ''),
+        pick(r, ['loger_no', 'logger_no'], ''),
+        pick(r, ['wo_no', 'work_order_no'], ''),
       ]}
       exportName="UP_Resco_Assigned"
       exportTitle="UP Resco Assigned Complaints"
@@ -85,16 +92,16 @@ export function UP_Complaint_Resco_AssignedComplaint() {
           { label: 'Contact Person', value: pick(r, ['contact_person']) },
           { label: 'Contact Number', value: pick(r, ['contact_number', 'contact_no']) },
           { label: 'CA Number', value: pick(r, ['ca_no']) },
-          { label: 'Sanction Load', value: pick(r, ['sanction_load']) },
-          { label: 'Plant Capacity', value: pick(r, ['plant_sc', 'plant_capacity']) },
+          { label: 'Sanction Load', value: kw(r, ['sanction_load']) },
+          { label: 'Plant Capacity', value: kw(r, ['plant_sc', 'plant_capacity']) },
           { label: 'Inverter No', value: pick(r, ['inverter_no']) },
           { label: 'Solar Meter No', value: pick(r, ['solarmeter_no', 'solar_meter_no']) },
-          { label: 'NM/SM No', value: pick(r, ['nm_sm_no']) },
+          { label: 'NM/SM No', value: pick(r, ['nm_sm_no', 'nmsm_no']) },
           { label: 'Logger No', value: pick(r, ['loger_no', 'logger_no']) },
           { label: 'Panel No', value: pick(r, ['panel_no']) },
-          { label: 'Work Order No', value: pick(r, ['wo_no']) },
+          { label: 'Work Order No', value: pick(r, ['wo_no', 'work_order_no']) },
           { label: 'Phase', value: pick(r, ['phase']) },
-          { label: 'Complaint Date', value: pick(r, ['complaint_date']) },
+          { label: 'Complaint Date', value: pick(r, ['start_date', 'complaint_date', 'created_at']) },
         ],
       }}
       close={{

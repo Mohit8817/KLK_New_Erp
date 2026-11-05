@@ -301,7 +301,7 @@ export function Kashmir_Expenses_ViewExpenses() {
       { header: 'Invoice File', accessor: (r) => r.file || DASH },
       { header: 'Remarks', accessor: (r) => pick(r, 'remarks', 'remark') || DASH },
       { header: 'Claim Status', accessor: (r) => (isApproved(r) ? 'Approved' : 'Submitted') },
-      { header: 'Claim Status Remarks', accessor: (r) => pick(r, 'claim_remarks', 'claim_remark', 'claim_status_remarks') || DASH },
+      { header: 'Claim Status Remarks', accessor: (r) => pick(r, 'claim_remarks', 'approved_remarks') || DASH },
     ],
     []
   );
@@ -451,7 +451,7 @@ export function Kashmir_Expenses_ViewExpenses() {
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Invoice File</th>
                   <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Claim Status</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Claim Status Remarks</th>
+                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Claim Approved Remarks</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
@@ -488,7 +488,7 @@ export function Kashmir_Expenses_ViewExpenses() {
                       <td className="ax-table__td">{pick(r, 'project', 'project_name') || DASH}</td>
                       <td className="ax-table__td">{pick(r, 'type', 'expense_type') || DASH}</td>
                       <td className="ax-table__td">{pick(r, 'district') || DASH}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.site_name || `#${r.site_id}`}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600,  color: 'var(--ax-accent)' }}>{r.site_name || `${r.site_id}`}</td>
                       <td className="ax-table__td">{r.purpose || DASH}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>
                         ₹{Number(r.amount || 0).toLocaleString('en-IN')}
@@ -519,7 +519,7 @@ export function Kashmir_Expenses_ViewExpenses() {
                         )}
                       </td>
                       <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
-                        {pick(r, 'claim_remarks', 'claim_remark', 'claim_status_remarks') || DASH}
+                        {pick(r, 'approved_remarks', 'claim_remark') || DASH}
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <Link

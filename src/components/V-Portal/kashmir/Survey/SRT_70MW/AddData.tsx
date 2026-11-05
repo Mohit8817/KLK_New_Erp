@@ -125,14 +125,11 @@ export function Kashmir_Survey_AddData() {
   const location = useLocation();
   const params = useParams();
 
-  // Query parameter ?id=... or route param :id
+  // Query parameter ?id=... or route param :id (used only for edit mode)
   const searchParams = new URLSearchParams(location.search);
   const editId = params.id || searchParams.get('id');
   const isEditMode = Boolean(editId);
 
-  const [pendingSites, setPendingSites] = useState<{ id: number; site_name: string; district?: string }[]>([]);
-  const [loadingSites, setLoadingSites] = useState(false);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>(editId ? String(editId) : '');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -179,29 +176,13 @@ export function Kashmir_Survey_AddData() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // 1. Fetch pending survey sites (dropdown)
-  useEffect(() => {
-    (async () => {
-      setLoadingSites(true);
-      try {
-        const list = await kashmirSrtService.getSurveyAddSites();
-        setPendingSites(list);
-      } catch (err) {
-        console.warn('Failed to load survey pending sites:', err);
-      } finally {
-        setLoadingSites(false);
-      }
-    })();
-  }, []);
-
-  // 2. If in Edit Mode, fetch survey details
+  // If in Edit Mode, fetch survey details
   useEffect(() => {
     if (!editId) return;
     (async () => {
       try {
         const item = await kashmirSrtService.getSurveyEdit(editId);
         if (item) {
-          setSelectedSiteId(String(item.id));
           setFormData({
             district: item.district || '',
             department: item.dept_name || item.department || '',
@@ -258,33 +239,6 @@ export function Kashmir_Survey_AddData() {
     })();
   }, [editId]);
 
-  // Handle site selection from dropdown -> auto-fetch details
-  const handleSiteSelect = async (siteId: string) => {
-    setSelectedSiteId(siteId);
-    if (!siteId) return;
-
-    try {
-      const detail = await kashmirSrtService.getSurveySiteDetail(siteId);
-      if (detail) {
-        setFormData((prev) => ({
-          ...prev,
-          site_name: detail.site_name || prev.site_name,
-          district: detail.district || prev.district,
-          department: detail.dept_name || detail.department || prev.department,
-          ca_no: detail.ca_no || prev.ca_no,
-          survey_site_address: detail.site_address || detail.survey_site_address || prev.survey_site_address,
-          near_landmark: detail.near_landmark || prev.near_landmark,
-          contact_person: detail.contact_person || prev.contact_person,
-          contact_no: detail.contact_no || prev.contact_no,
-          proposed_capacity: detail.proposed_capacity ? String(detail.proposed_capacity) : prev.proposed_capacity,
-          sanction_load: detail.sanction_load || prev.sanction_load,
-        }));
-      }
-    } catch (err) {
-      console.warn('Could not fetch site detail for selected site:', err);
-    }
-  };
-
   // GPS Location fetch
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -318,7 +272,7 @@ export function Kashmir_Survey_AddData() {
 
     // Basic client checks
     const errs: Record<string, string[]> = {};
-    if (!formData.site_name.trim()) errs.site_name = ['Select or enter Site Name.'];
+    if (!formData.site_name.trim()) errs.site_name = ['Enter Site Name.'];
 
     if (!isEditMode) {
       if (!files.building_image) errs.building_image = ['Building image is required.'];
@@ -329,7 +283,7 @@ export function Kashmir_Survey_AddData() {
     if (Object.keys(errs).length > 0) {
       setValidationErrors(errs);
       setErrorMsg(
-        errs.site_name ? 'Please select or enter Site Name.' : 'Please upload required survey photos.'
+        errs.site_name ? 'Please enter Site Name.' : 'Please upload required survey photos.'
       );
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => {
@@ -339,9 +293,10 @@ export function Kashmir_Survey_AddData() {
     }
 
     const payload = new FormData();
-    if (selectedSiteId) {
-      payload.append('srt_id', selectedSiteId);
-      payload.append('id', selectedSiteId);
+    // Only in edit mode we need to send the record id
+    if (isEditMode && editId) {
+      payload.append('srt_id', String(editId));
+      payload.append('id', String(editId));
     }
 
     Object.entries(formData).forEach(([k, v]) => {
@@ -376,11 +331,6 @@ export function Kashmir_Survey_AddData() {
       setSubmitting(false);
     }
   };
-
-  const siteSelectOptions: Option[] = pendingSites.map((s) => ({
-    value: String(s.id),
-    label: `${s.site_name}${s.district ? ` (${s.district})` : ''}`,
-  }));
 
   const yesNo = opts(['Yes', 'No']);
   const mediaUrl = (path?: string) => (path ? getKashmirMediaUrl(path) : undefined);
@@ -466,15 +416,6 @@ export function Kashmir_Survey_AddData() {
             <div id="sec-1" className="kashmir-section-block">
               <SectionHeader num="1" title="General Information" desc="Site identification, contact person and proposed system capacity." />
               <div className="kashmir-form-grid kashmir-form-grid--3col">
-                <FloatingSelect
-                  id="kashmir-site"
-                  label="Select From Pending Sites"
-                  placeholder={loadingSites ? 'Loading pending sites…' : '-- Choose Assigned Pending Site --'}
-                  value={selectedSiteId}
-                  options={siteSelectOptions}
-                  disabled={loadingSites}
-                  onChange={handleSiteSelect}
-                />
                 <FloatingInput id="kashmir-district" label="District" required placeholder="Enter District" {...f('district')} />
                 <FloatingInput id="kashmir-dept" label="Department" required placeholder="Enter Department" {...f('department')} />
                 <FloatingInput id="kashmir-site-name" label="Site Name" required placeholder="Enter Site Name" {...f('site_name')} />

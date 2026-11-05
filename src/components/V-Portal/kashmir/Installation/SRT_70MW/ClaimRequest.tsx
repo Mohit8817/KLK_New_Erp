@@ -494,7 +494,7 @@ export function Kashmir_Installation_ClaimRequest() {
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                         <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{r.state || 'Kashmir'}</td>
                         <td className="ax-table__td">{r.district || DASH}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{r.site_name}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 , color: 'var(--ax-accent)' }}>{r.site_name}</td>
                         <td className="ax-table__td">{r.inst_claim_date || DASH}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {r.inst_claim_invoice ? (

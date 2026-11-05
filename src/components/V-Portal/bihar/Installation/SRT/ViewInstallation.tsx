@@ -37,8 +37,8 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
 
 const VerifyBadge = ({ value }: { value: number }) =>
   value === 1 ? <Badge tone="success">Approved</Badge>
-  : value === 2 ? <Badge tone="danger">Rejected</Badge>
-  : <Badge tone="warning">Pending</Badge>;
+    : value === 2 ? <Badge tone="danger">Rejected</Badge>
+      : <Badge tone="warning">Pending</Badge>;
 
 const txt = (row: SrtInstalledSiteItem, key: string): string => {
   const v = (row as Record<string, any>)[key];
@@ -847,8 +847,8 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                           hasFilters
                             ? 'No records match your filters or search. Try clearing your query.'
                             : isCompleted
-                            ? 'Completed sites will appear here once installation work is recorded.'
-                            : 'Payment sites will appear here once payments are processed.'
+                              ? 'Completed sites will appear here once installation work is recorded.'
+                              : 'Payment sites will appear here once payments are processed.'
                         }
                         onClear={hasFilters ? resetFilters : undefined}
                         clearLabel="Clear filters"
@@ -926,7 +926,35 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                             </td>
                             <td className="ax-table__td" style={{ textAlign: 'center' }}>
                               {Number(row.inst_verify_status) === 1 ? (
-                                <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
+                                <span
+                                  className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    opacity: 0.6,
+                                    cursor: 'not-allowed',
+                                    pointerEvents: 'none',
+                                    textDecoration: 'none',
+                                  }}
+                                  title="Approved — editing is locked"
+                                >
+                                  <svg
+                                    width="13"
+                                    height="13"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                  </svg>
+                                  <span>Locked</span>
+                                </span>
                               ) : (
                                 <Link
                                   to={`/v/srt/installationsite?id=${row.id}`}

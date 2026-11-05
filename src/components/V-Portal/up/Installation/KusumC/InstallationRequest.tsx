@@ -5,6 +5,7 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   upInstallationService,
+  resolveUpMediaUrl,
   type UpKusumCAssignmentItem,
 } from '../../up-services';
 import {
@@ -156,11 +157,14 @@ function Modal({
   );
 }
 
+const isAcceptedStatus = (s: any) => Number(s) === 2 || String(s) === '2';
+
 export function UP_Installation_KusumC_InstallationRequest() {
   const [batches, setBatches] = useState<UpKusumCAssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted'>('all');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -199,7 +203,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
       const res = await upInstallationService.acceptKusumCAssignment(id);
       if (res.status) {
         setFeedbackMsg({ type: 'success', text: res.message || 'Batch accepted successfully!' });
-        setBatches((prev) => prev.map((b) => (b.id === id ? { ...b, status: 2 } : b)));
+        setBatches((prev) => prev.map((b) => (b.id === id ? { ...b, status: '2' } : b)));
       } else {
         setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to accept batch.' });
       }
@@ -229,39 +233,71 @@ export function UP_Installation_KusumC_InstallationRequest() {
   // Summary counts
   const summary = useMemo(() => {
     const total = batches.length;
-    const accepted = batches.filter((b) => b.status === 2).length;
+    const accepted = batches.filter((b) => isAcceptedStatus(b.status)).length;
     const pending = total - accepted;
     return { total, accepted, pending };
+  }, [batches]);
+
+  // Distinct districts
+  const districtList = useMemo(() => {
+    const set = new Set<string>();
+    batches.forEach((b) => {
+      if (b.district && b.district.trim()) {
+        set.add(b.district.trim());
+      }
+    });
+    return Array.from(set).sort();
   }, [batches]);
 
   // Filtered
   const filtered = useMemo(() => {
     return batches.filter((b) => {
-      if (statusFilter === 'pending' && b.status === 2) return false;
-      if (statusFilter === 'accepted' && b.status !== 2) return false;
+      const isAccepted = isAcceptedStatus(b.status);
+      if (statusFilter === 'pending' && isAccepted) return false;
+      if (statusFilter === 'accepted' && !isAccepted) return false;
+
+      if (selectedDistrict !== 'all') {
+        const d = (b.district || '').trim().toLowerCase();
+        if (d !== selectedDistrict.toLowerCase()) return false;
+      }
 
       if (search.trim()) {
         const q = search.toLowerCase();
         const idStr = String(b.id);
         const siteIdStr = String(b.site_id || '').toLowerCase();
+        const distStr = String(b.district || '').toLowerCase();
+        const projStr = String(b.project || '').toLowerCase();
+        const remarksStr = String(b.remarks || '').toLowerCase();
+        const assignDateStr = String(b.assign_date || '').toLowerCase();
+        const deadlineDateStr = String(b.deadline_date || '').toLowerCase();
         const namesStr = (b.Names || []).map((n) => n.f_farmer_name).join(' ').toLowerCase();
-        if (!idStr.includes(q) && !siteIdStr.includes(q) && !namesStr.includes(q)) {
+        if (
+          !idStr.includes(q) &&
+          !siteIdStr.includes(q) &&
+          !distStr.includes(q) &&
+          !projStr.includes(q) &&
+          !remarksStr.includes(q) &&
+          !assignDateStr.includes(q) &&
+          !deadlineDateStr.includes(q) &&
+          !namesStr.includes(q)
+        ) {
           return false;
         }
       }
       return true;
     });
-  }, [batches, statusFilter, search]);
+  }, [batches, statusFilter, selectedDistrict, search]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, currentPage, pageSize]);
 
-  const hasFilters = search.trim() !== '' || statusFilter !== 'all';
+  const hasFilters = search.trim() !== '' || statusFilter !== 'all' || selectedDistrict !== 'all';
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('all');
+    setSelectedDistrict('all');
     setCurrentPage(1);
   };
 
@@ -270,8 +306,9 @@ export function UP_Installation_KusumC_InstallationRequest() {
       { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
       { header: 'Batch ID', accessor: (r) => String(r.id) },
       { header: 'Project', accessor: (r) => r.project || 'kusum-c' },
-      { header: 'Sites Count', accessor: (r) => String(r.Names?.length || 0) },
-      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending') },
+      { header: 'State', accessor: (r) => r.state || 'UP' },
+      { header: 'District', accessor: (r) => r.district || DASH },
+      { header: 'Sites Count', accessor: (r) => String(r.site_count || r.Names?.length || 0) },
       {
         header: 'Farmers & Deadlines',
         accessor: (r) =>
@@ -279,6 +316,10 @@ export function UP_Installation_KusumC_InstallationRequest() {
             .map((n) => `${n.f_farmer_name} (${n.inst_deadline || 'No deadline'})`)
             .join('; '),
       },
+      { header: 'Assign Date', accessor: (r) => r.assign_date || DASH },
+      { header: 'Deadline Date', accessor: (r) => r.deadline_date || DASH },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      { header: 'Status', accessor: (r) => (isAcceptedStatus(r.status) ? 'Accepted' : 'Pending') },
     ],
     []
   );
@@ -369,11 +410,26 @@ export function UP_Installation_KusumC_InstallationRequest() {
           </div>
           <div className="ax-card__actions">
             <div className="ax-cluster" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* District Filter */}
+              {districtList.length > 0 && (
+                <select
+                  className="ax-input ax-input--sm"
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  value={selectedDistrict}
+                  onChange={(e) => { setSelectedDistrict(e.target.value); setCurrentPage(1); }}
+                >
+                  <option value="all">All Districts</option>
+                  {districtList.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              )}
+
               <select
                 className="ax-input ax-input--sm"
                 style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
+                onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -389,7 +445,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
               <SearchInput
                 value={search}
                 onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                placeholder="Search batch ID, farmer…"
+                placeholder="Search batch ID, farmer, district…"
                 size="sm"
               />
 
@@ -404,30 +460,35 @@ export function UP_Installation_KusumC_InstallationRequest() {
         </div>
 
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ minWidth: 1000 }}>
+          <table className="ax-table ax-table--hover" style={{ minWidth: 1280 }}>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
-                <th className="ax-table__th" style={{ width: 90 }}>Batch ID</th>
-                <th className="ax-table__th">Project</th>
-                <th className="ax-table__th">State</th>
-                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Sites Count</th>
-                <th className="ax-table__th" style={{ minWidth: 320 }}>Farmers & Installation Deadlines</th>
-                <th className="ax-table__th" style={{ width: 100 }}>Status</th>
-                <th className="ax-table__th" style={{ width: 160, textAlign: 'center' }}>Action</th>
+                <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
+                <th className="ax-table__th" style={{ width: 85 }}>Batch ID</th>
+                <th className="ax-table__th" style={{ width: 95 }}>Project</th>
+                <th className="ax-table__th" style={{ width: 65 }}>State</th>
+                <th className="ax-table__th" style={{ width: 110 }}>District</th>
+                <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Sites Count</th>
+                <th className="ax-table__th" style={{ minWidth: 260 }}>Farmers & Installation Deadlines</th>
+                <th className="ax-table__th" style={{ width: 140 }}>Assign Date</th>
+                <th className="ax-table__th" style={{ width: 105 }}>Deadline</th>
+                <th className="ax-table__th" style={{ width: 95, textAlign: 'center' }}>Attachment</th>
+                <th className="ax-table__th" style={{ minWidth: 130 }}>Remarks</th>
+                <th className="ax-table__th" style={{ width: 95, textAlign: 'center' }}>Status</th>
+                <th className="ax-table__th" style={{ width: 165, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td className="ax-table__td" colSpan={8} style={{ textAlign: 'center', padding: 32 }}>
+                  <td className="ax-table__td" colSpan={13} style={{ textAlign: 'center', padding: 32 }}>
                     <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned batches…
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td className="ax-table__td" colSpan={8} style={{ padding: 0 }}>
+                  <td className="ax-table__td" colSpan={13} style={{ padding: 0 }}>
                     <TableEmptyState
                       title="No data available in table"
                       message="No assigned Kusum-C installation batches found."
@@ -438,13 +499,16 @@ export function UP_Installation_KusumC_InstallationRequest() {
               )}
               {!loading &&
                 paginatedData.map((item, index) => {
-                  const isAccepted = item.status === 2;
-                  const siteCount = item.Names?.length || 0;
+                  const isAccepted = isAcceptedStatus(item.status);
+                  const siteCount = item.site_count || item.Names?.length || 0;
+                  const fileUrl = item.file ? resolveUpMediaUrl(item.file) : null;
 
                   return (
                     <tr key={item.id} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                      <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>
+                        {(currentPage - 1) * pageSize + index + 1}
+                      </td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
                         #{item.id}
                       </td>
                       <td className="ax-table__td" style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 600 }}>
@@ -453,7 +517,10 @@ export function UP_Installation_KusumC_InstallationRequest() {
                       <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
                         {item.state || 'UP'}
                       </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 700 }}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {item.district || DASH}
+                      </td>
+                      <td className="ax-table__td ax-num" style={{ textAlign: 'center', fontWeight: 700 }}>
                         {siteCount}
                       </td>
                       <td className="ax-table__td">
@@ -470,7 +537,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
                               </div>
                             ))}
                             {item.Names.length > 3 && (
-                              <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)', cursor: 'pointer' }} onClick={() => handleOpenDetail(item)}>
+                              <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)', cursor: 'pointer', fontWeight: 600 }} onClick={() => handleOpenDetail(item)}>
                                 +{item.Names.length - 3} more farmers…
                               </span>
                             )}
@@ -479,7 +546,32 @@ export function UP_Installation_KusumC_InstallationRequest() {
                           <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                         )}
                       </td>
-                      <td className="ax-table__td">
+                      <td className="ax-table__td" style={{ fontSize: 12, color: 'var(--ax-text-muted)', fontFamily: 'var(--ax-font-mono)' }}>
+                        {item.assign_date || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
+                        {item.deadline_date || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ padding: '2px 8px', fontSize: 11, textDecoration: 'none' }}
+                            title="View / Download Assigned Site File"
+                          >
+                            View File ↗
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                        )}
+                      </td>
+                      <td className="ax-table__td" style={{ fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.remarks || DASH}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {isAccepted ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
                             Accepted
@@ -552,11 +644,11 @@ export function UP_Installation_KusumC_InstallationRequest() {
           open={!!detailModalItem}
           onClose={() => setDetailModalItem(null)}
           labelledBy="batch-detail-title"
-          dialogStyle={{ maxWidth: 680 }}
+          dialogStyle={{ maxWidth: 720 }}
         >
           <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
             <div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Batch Details
               </span>
               <h3 id="batch-detail-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
@@ -568,7 +660,47 @@ export function UP_Installation_KusumC_InstallationRequest() {
             </button>
           </div>
 
-          <div className="ax-modal__body" style={{ padding: 20 }}>
+          <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Batch summary card */}
+            <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Assignment Information</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Project: </span><strong>{detailModalItem.project || 'Kusum-C'}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Purpose: </span><strong>{detailModalItem.purpose || 'Installation'}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{detailModalItem.state || 'UP'}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{detailModalItem.district || DASH}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Sites Count: </span><strong>{detailModalItem.site_count || detailModalItem.Names?.length || 0}</strong></div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
+                  {isAcceptedStatus(detailModalItem.status) ? (
+                    <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Accepted</span>
+                  ) : (
+                    <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>
+                  )}
+                </div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{detailModalItem.assign_date || DASH}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>Deadline Date: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{detailModalItem.deadline_date || DASH}</strong></div>
+                {detailModalItem.remarks && (
+                  <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{detailModalItem.remarks}</strong></div>
+                )}
+                {detailModalItem.file && (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ color: 'var(--ax-text-muted)' }}>Assignment Document: </span>
+                    <a
+                      href={resolveUpMediaUrl(detailModalItem.file)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ax-btn ax-btn--secondary ax-btn--xs"
+                      style={{ marginLeft: 8, padding: '2px 10px', fontSize: 11 }}
+                    >
+                      View Assigned Document ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Farmers Table */}
             {loadingDetail ? (
               <div style={{ textAlign: 'center', padding: 20 }}>
                 <span className="ax-spinner" /> Loading farmer details…
@@ -594,9 +726,9 @@ export function UP_Installation_KusumC_InstallationRequest() {
                         <tr key={i}>
                           <td style={{ fontWeight: 600 }}>{d.f_farmer_name || DASH}</td>
                           <td>{d.f_father_name || DASH}</td>
-                          <td>{d.f_district || DASH}</td>
+                          <td>{d.f_district || detailModalItem.district || DASH}</td>
                           <td>{[d.f_village, d.f_post].filter(Boolean).join(', ') || DASH}</td>
-                          <td>{d.inst_deadline || DASH}</td>
+                          <td>{d.inst_deadline || detailModalItem.deadline_date || DASH}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -604,14 +736,31 @@ export function UP_Installation_KusumC_InstallationRequest() {
                 </div>
               </div>
             ) : detailModalItem.Names && detailModalItem.Names.length > 0 ? (
-              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
-                {detailModalItem.Names.map((n, i) => (
-                  <li key={i} style={{ marginBottom: 6 }}>
-                    <strong>{n.f_farmer_name}</strong>
-                    {n.inst_deadline && <span style={{ color: 'var(--ax-text-muted)' }}> — Deadline: {n.inst_deadline}</span>}
-                  </li>
-                ))}
-              </ul>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>
+                  Farmers in this Assignment ({detailModalItem.Names.length})
+                </h4>
+                <div className="ax-table-wrap" style={{ maxHeight: 300 }}>
+                  <table className="ax-table ax-table--sm" style={{ width: '100%', fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        <th>Sr. No.</th>
+                        <th>Farmer Name</th>
+                        <th>Deadline</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailModalItem.Names.map((n, i) => (
+                        <tr key={i}>
+                          <td style={{ width: 60 }}>{i + 1}</td>
+                          <td style={{ fontWeight: 600 }}>{n.f_farmer_name}</td>
+                          <td style={{ fontFamily: 'var(--ax-font-mono)' }}>{n.inst_deadline || detailModalItem.deadline_date || DASH}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             ) : (
               <p style={{ margin: 0, color: 'var(--ax-text-muted)' }}>No farmer records found in this batch.</p>
             )}
@@ -621,7 +770,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
             <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setDetailModalItem(null)}>
               Close
             </button>
-            {detailModalItem.status !== 2 && (
+            {!isAcceptedStatus(detailModalItem.status) && (
               <button
                 type="button"
                 className="ax-btn ax-btn--success"

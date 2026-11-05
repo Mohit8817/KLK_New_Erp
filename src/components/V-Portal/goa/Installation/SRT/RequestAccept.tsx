@@ -586,7 +586,7 @@ export function Goa_Installation_SRT_RequestAccept() {
   const exportCols: ExportColumn<GoaSrtAssignBatchItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (r: GoaSrtAssignBatchItem) => String(r.id || DASH) },
-      { header: 'Vendor', accessor: (r) => r.vendors?.name || (r as any).vendor_name || `Vendor #${r.vendor}` },
+      { header: 'Vendor', accessor: (r) => r.vendors?.name || (r as any).vendor_name || `Vendor ${r.vendor}` },
       { header: 'Assign Date', accessor: (r) => r.assign_date || r.created_at || DASH },
       { header: 'State', accessor: (r) => r.state || 'goa' },
       { header: 'District', accessor: (r) => r.district || DASH },
@@ -862,7 +862,7 @@ export function Goa_Installation_SRT_RequestAccept() {
                     return (
                       <tr key={item.id} className="ax-table__row">
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        <td className="ax-table__td" style={{ fontWeight: 600,  color: 'var(--ax-accent)'}}>
                           {item.vendors?.name || (item as any).vendor_name || `Vendor #${item.vendor}`}
                   
                         </td>
@@ -910,16 +910,45 @@ export function Goa_Installation_SRT_RequestAccept() {
                               Accepted
                             </span>
                           ) : (
-                            <button
-                              type="button"
-                              className="ax-badge ax-badge--soft ax-badge--warning"
-                              style={{ fontWeight: 600, cursor: 'pointer', border: 'none' }}
-                              onClick={() => handleAccept(item.id)}
-                              disabled={actionLoadingId !== null}
-                              title="Click to accept assignment"
-                            >
-                              {actionLoadingId === item.id ? 'Accepting…' : 'Pending'}
-                            </button>
+                           <button
+  type="button"
+  className="ax-btn"
+  style={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 100,
+    height: 30,
+    padding: '0 14px',
+    borderRadius: 5,
+    background: '#fff7ed',
+
+  color: '#c29b00',
+    border: '1px solid #fdba74',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.2px',
+    cursor: actionLoadingId !== null ? 'not-allowed' : 'pointer',
+    transition: 'all 0.2s ease',
+    opacity: actionLoadingId !== null ? 0.7 : 1,
+  }}
+  onClick={() => handleAccept(item.id)}
+  disabled={actionLoadingId !== null}
+  title="Click to accept assignment"
+>
+  {actionLoadingId === item.id ? (
+    <>
+      <span className="ax-spinner" />
+      Accepting...
+    </>
+  ) : (
+    <>
+      <span style={{ fontSize: 14 }}>◷</span>
+      Pending
+    </>
+  )}
+</button>
                           )}
                         </td>
                       </tr>
@@ -959,7 +988,7 @@ export function Goa_Installation_SRT_RequestAccept() {
           <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
             <div>
               <h3 id="view-batch-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                Batch #{viewBatch.id} Sites List
+                Batch{viewBatch.id} Sites List
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
                 District: <b>{viewBatch.district || 'Goa'}</b> · Total: <b>{getSiteCount(viewBatch)} sites</b>

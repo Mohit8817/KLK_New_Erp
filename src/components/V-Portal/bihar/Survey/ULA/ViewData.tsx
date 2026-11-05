@@ -996,13 +996,46 @@ export function Bihar_Survey_ULA_ViewData() {
                         {isVisible('Verify By') && <td className="ax-table__td">{getVerifierName(item) || DASH}</td>}
 
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--secondary ax-btn--xs"
-                            onClick={() => navigate(`/v/bihar/ula-surveys/create?id=${item.id}`)}
-                          >
-                            Edit
-                          </button>
+                          {Number(item.verify_status ?? (item as any).survey_verify_status) === 1 ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              disabled
+                              title="Survey is approved and locked"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: 'not-allowed',
+                                pointerEvents: 'auto',
+                                opacity: 0.7,
+                              }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width={12}
+                                height={12}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <rect x="5" y="11" width="14" height="10" rx="2" />
+                                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                              </svg>
+                              Locked
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              onClick={() => navigate(`/v/bihar/ula-surveys/create?id=${item.id}`)}
+                            >
+                              Edit
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

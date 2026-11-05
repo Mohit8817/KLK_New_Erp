@@ -200,7 +200,7 @@ const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : 
 interface Col { key: string; th: string; get: (r: Row) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
 
 const COLS: Col[] = [
-  { key: 'Complaint ID', th: 'Complaint ID', get: (r) => `#${r.complaint_id}`, exp: (r) => r.complaint_id ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' } },
+  { key: 'Complaint ID', th: 'Complaint ID', get: (r) => `${r.complaint_id}`, exp: (r) => r.complaint_id ?? '', style: { fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' } },
   { key: 'Date', th: 'Date', get: (r) => txt(r.start_date), exp: (r) => r.start_date ?? '' },
   { key: 'Site / Building Name', th: 'Site / Building Name', get: (r) => r.site_name || 'Rooftop Site', exp: (r) => r.site_name ?? '', style: { fontWeight: 'var(--ax-weight-medium)' as any } },
   { key: 'Department', th: 'Department', get: (r) => txt(r.dept_name), exp: (r) => r.dept_name ?? '' },

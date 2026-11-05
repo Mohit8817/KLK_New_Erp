@@ -205,6 +205,18 @@ export function UPComplaintKBAdd() {
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
       });
+      if (form.beneficiary_name) {
+        fd.append('f_name', form.beneficiary_name);
+        fd.append('farmer_name', form.beneficiary_name);
+      }
+      if (form.beneficiary_id) {
+        fd.append('farmer_id', form.beneficiary_id);
+        fd.append('id', form.beneficiary_id);
+      }
+      if (form.contact_no) {
+        fd.append('contact_number', form.contact_no);
+        fd.append('f_mobile', form.contact_no);
+      }
       if (file) {
         fd.append('document', file);
         fd.append('file', file);

@@ -123,8 +123,14 @@ export const getMediaUrl = (path?: string | null): string => {
    ───────────────────────────────────────────────────────────── */
 export interface UpRescoComplaintItem {
   id: number;
+  company_id?: string | null;
+  resco_id?: number | string | null;
   complaint_id?: string | number | null;
   complaint_date?: string | null;
+  start_date?: string | null;
+  close_date?: string | null;
+  manual_close_date?: string | null;
+  close_status?: string | number | null;
   complaint?: string | null;
   state?: string | null;
   district?: string | null;
@@ -133,6 +139,8 @@ export interface UpRescoComplaintItem {
   site_name?: string | null;
   site_id?: number | string | null;
   address?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   ca_no?: string | null;
   sanction_load?: string | number | null;
   plant_sc?: string | number | null;
@@ -149,12 +157,23 @@ export interface UpRescoComplaintItem {
   panel_no?: string | null;
   wo_no?: string | null;
   phase?: string | null;
+  vendor?: number | string | null;
+  raised_complaint?: number | string | null;
+  assigned_to?: string | number | null;
+  resolved_by?: string | null;
+  r_mobile?: string | null;
+  r_email?: string | null;
+  sms?: string | number | null;
+  close_sms?: string | null;
   file?: string | null;
   file1?: string | null;
   file2?: string | null;
+  r_file1?: string | null;
+  r_file2?: string | null;
   document?: string | null;
   status?: number | string | null;
   complaint_status?: string | null;
+  remarks?: string | null;
   created_by?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -652,21 +671,301 @@ async function apiRequest<T = any>(
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Universal Response Parsers (Districts, Dependent Lists, Details)
+   Handles all backend shape variations:
+   - Root-level arrays: res.district, res.districts, res.posts, etc.
+   - Nested arrays: res.data.district, res.data.districts, etc.
+   - Object item field variations: f_district, district, name, f_post, post, etc.
+   - Filtering empty entries and deduplication
+   ───────────────────────────────────────────────────────────── */
+export function extractStringList(res: any, preferredKeys: string[] = []): string[] {
+  if (!res) return [];
+
+  const checkKeys = Array.from(
+    new Set([
+      ...preferredKeys,
+      'districts',
+      'district',
+      'f_district',
+      'posts',
+      'post',
+      'f_post',
+      'villages',
+      'village',
+      'f_village',
+      'blocks',
+      'block',
+      'f_block',
+      'panchayats',
+      'panchyats',
+      'panchayat',
+      'panchyat',
+      'beneficiary_village',
+      'data',
+      'list',
+      'items',
+    ])
+  );
+
+  const searchCandidates: any[] = [];
+
+  if (Array.isArray(res)) {
+    searchCandidates.push(res);
+  }
+
+  if (typeof res === 'object') {
+    for (const k of checkKeys) {
+      if (Array.isArray(res[k])) searchCandidates.push(res[k]);
+    }
+
+    if (res.data && typeof res.data === 'object') {
+      if (Array.isArray(res.data)) {
+        searchCandidates.push(res.data);
+      } else {
+        for (const k of checkKeys) {
+          if (Array.isArray(res.data[k])) searchCandidates.push(res.data[k]);
+        }
+        if (res.data.data && Array.isArray(res.data.data)) {
+          searchCandidates.push(res.data.data);
+        }
+      }
+    }
+  }
+
+  if (searchCandidates.length === 0 && typeof res === 'object') {
+    for (const val of Object.values(res)) {
+      if (Array.isArray(val) && val.length > 0) {
+        searchCandidates.push(val);
+        break;
+      }
+    }
+  }
+
+  for (const arr of searchCandidates) {
+    if (Array.isArray(arr) && arr.length > 0) {
+      const extracted = arr
+        .map((item: any) => {
+          if (item === null || item === undefined) return '';
+          if (typeof item === 'string') return item.trim();
+          if (typeof item === 'number') return String(item);
+          if (typeof item === 'object') {
+            const val =
+              item.district ??
+              item.f_district ??
+              item.district_name ??
+              item.dist_name ??
+              item.post ??
+              item.f_post ??
+              item.post_office ??
+              item.post_name ??
+              item.village ??
+              item.f_village ??
+              item.village_name ??
+              item.block ??
+              item.f_block ??
+              item.block_name ??
+              item.panchayat ??
+              item.panchyat ??
+              item.f_panchayat ??
+              item.panchayat_name ??
+              item.panchyat_name ??
+              item.name ??
+              item.title ??
+              item.val ??
+              item.value ??
+              '';
+            return String(val ?? '').trim();
+          }
+          return '';
+        })
+        .filter((s: string) => s.length > 0 && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined');
+
+      if (extracted.length > 0) {
+        return Array.from(new Set(extracted));
+      }
+    }
+  }
+
+  return [];
+}
+
+export function extractNamedItems(
+  res: any,
+  preferredKeys: string[] = []
+): { id: string | number; name: string; site_name?: string; [key: string]: any }[] {
+  if (!res) return [];
+
+  const checkKeys = Array.from(
+    new Set([
+      ...preferredKeys,
+      'beneficiaries',
+      'beneficiary',
+      'beneficiary_names',
+      'farmers',
+      'farmer',
+      'sites',
+      'site',
+      'data',
+      'items',
+      'list',
+    ])
+  );
+
+  const searchCandidates: any[] = [];
+
+  if (Array.isArray(res)) searchCandidates.push(res);
+
+  if (typeof res === 'object') {
+    for (const k of checkKeys) {
+      if (Array.isArray(res[k])) searchCandidates.push(res[k]);
+    }
+    if (res.data && typeof res.data === 'object') {
+      if (Array.isArray(res.data)) {
+        searchCandidates.push(res.data);
+      } else {
+        for (const k of checkKeys) {
+          if (Array.isArray(res.data[k])) searchCandidates.push(res.data[k]);
+        }
+        if (res.data.data && Array.isArray(res.data.data)) {
+          searchCandidates.push(res.data.data);
+        }
+      }
+    }
+  }
+
+  if (searchCandidates.length === 0 && typeof res === 'object') {
+    for (const val of Object.values(res)) {
+      if (Array.isArray(val) && val.length > 0) {
+        searchCandidates.push(val);
+        break;
+      }
+    }
+  }
+
+  for (const arr of searchCandidates) {
+    if (Array.isArray(arr) && arr.length > 0) {
+      const items = arr
+        .map((item: any) => {
+          if (!item && item !== 0) return null;
+          if (typeof item === 'string' || typeof item === 'number') {
+            const str = String(item).trim();
+            if (!str) return null;
+            return { id: str, name: str, site_name: str };
+          }
+          if (typeof item === 'object') {
+            const name =
+              item.name ??
+              item.beneficiary_name ??
+              item.farmer_name ??
+              item.f_name ??
+              item.site_name ??
+              item.dept_name ??
+              item.customer_name ??
+              item.title ??
+              item.label ??
+              '';
+            const id =
+              item.id ??
+              item.beneficiary_id ??
+              item.farmer_id ??
+              item.f_id ??
+              item.site_id ??
+              item.ogid ??
+              item.uid ??
+              item.ca_no ??
+              name ??
+              '';
+
+            const cleanName = String(name || id || '').trim();
+            const cleanId = id !== undefined && id !== null && String(id).trim() !== '' ? id : cleanName;
+
+            if (!cleanName && !cleanId) return null;
+            return {
+              ...item,
+              id: cleanId,
+              name: cleanName || String(cleanId),
+              site_name: item.site_name || cleanName || String(cleanId),
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as { id: string | number; name: string; site_name?: string; [key: string]: any }[];
+
+      if (items.length > 0) {
+        return items;
+      }
+    }
+  }
+
+  return [];
+}
+
+export function extractDetailObject<T = any>(res: any, preferredKeys: string[] = []): T | null {
+  if (!res) return null;
+
+  const checkKeys = Array.from(
+    new Set([
+      ...preferredKeys,
+      'detail',
+      'details',
+      'beneficiary',
+      'farmer',
+      'site',
+      'data',
+    ])
+  );
+
+  if (res.data) {
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      return res.data[0] as T;
+    }
+    if (typeof res.data === 'object' && Object.keys(res.data).length > 0) {
+      for (const k of checkKeys) {
+        if (res.data[k] && typeof res.data[k] === 'object') {
+          if (Array.isArray(res.data[k])) {
+            if (res.data[k].length > 0) return res.data[k][0] as T;
+          } else {
+            return res.data[k] as T;
+          }
+        }
+      }
+      return res.data as T;
+    }
+  }
+
+  for (const k of checkKeys) {
+    if (res[k] && typeof res[k] === 'object') {
+      if (Array.isArray(res[k])) {
+        if (res[k].length > 0) return res[k][0] as T;
+      } else {
+        return res[k] as T;
+      }
+    }
+  }
+
+  if (Array.isArray(res) && res.length > 0) {
+    return res[0] as T;
+  }
+
+  if (typeof res === 'object') {
+    const keys = Object.keys(res).filter((k) => k !== 'status' && k !== 'message' && k !== 'success');
+    if (keys.length > 0) {
+      return res as T;
+    }
+  }
+
+  return null;
+}
+
+/* ─────────────────────────────────────────────────────────────
    UP Complaint Service Implementation
    ───────────────────────────────────────────────────────────── */
 export const upComplaintService = {
   /* ------------------- RESCO APIS ------------------- */
   async getRescoAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.ADD_COMPLAINT_PAGE);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['districts', 'district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async storeRescoComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -675,26 +974,16 @@ export const upComplaintService = {
 
   async getRescoSiteNames(district: string): Promise<{ id: string | number; site_name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.GET_SITE_NAMES(district));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((item: any) => ({
-          id: item.id || item.site_name || item.name,
-          site_name: item.site_name || item.name || String(item),
-        }));
-      }
-    }
-    return [];
+    const items = extractNamedItems(res, ['sites', 'site']);
+    return items.map((item) => ({
+      id: item.id,
+      site_name: item.site_name || item.name || String(item.id),
+    }));
   },
 
   async getRescoSiteDetails(siteIdOrName: string | number): Promise<UpRescoSiteDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.GET_SITE_DETAILS(siteIdOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        return res.data[0] as UpRescoSiteDetails;
-      }
-      return res.data as UpRescoSiteDetails;
-    }
-    return null;
+    return extractDetailObject<UpRescoSiteDetails>(res, ['site', 'details', 'detail']);
   },
 
   async saveRescoComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -796,61 +1085,32 @@ export const upComplaintService = {
     return { status: true, districts, data: districts };
   },
 
-  async getSslDistricts(): Promise<string[]> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_DISTRICTS);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || '')).filter(Boolean);
-      }
-      if (Array.isArray(res.data.districts)) {
-        return res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || '')).filter(Boolean);
-      }
-    }
-    return [];
+  async getSslDistricts(type?: string): Promise<string[]> {
+    const url = type
+      ? `${UP_COMPLAINT_API.SSL.GET_DISTRICTS}?type=${encodeURIComponent(type)}`
+      : UP_COMPLAINT_API.SSL.GET_DISTRICTS;
+    const res = await apiRequest(url);
+    return extractStringList(res, ['districts', 'district']);
   },
 
   async getSslBlocks(district: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BLOCKS(district));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((b: any) => (typeof b === 'string' ? b : b.block || b.name || '')).filter(Boolean);
-      }
-    }
-    return [];
+    return extractStringList(res, ['blocks', 'block']);
   },
 
   async getSslPanchayats(district: string, block: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_PANCHAYATS(district, block));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((p: any) => (typeof p === 'string' ? p : p.panchayat || p.name || '')).filter(Boolean);
-      }
-    }
-    return [];
+    return extractStringList(res, ['panchayats', 'panchyats', 'panchayat', 'panchyat']);
   },
 
   async getSslBeneficiaryNames(district: string, block: string, panchayat: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_NAMES(district, block, panchayat));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((b: any) => ({
-          id: b.id || b.beneficiary_name || b.name,
-          name: b.beneficiary_name || b.name || String(b),
-        }));
-      }
-    }
-    return [];
+    return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'sites', 'site']);
   },
 
   async getSslBeneficiaryDetails(idOrName: string | number): Promise<UpSslBeneficiaryDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_DETAILS(idOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        return res.data[0] as UpSslBeneficiaryDetails;
-      }
-      return res.data as UpSslBeneficiaryDetails;
-    }
-    return null;
+    return extractDetailObject<UpSslBeneficiaryDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
   async storeSslComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -953,51 +1213,28 @@ export const upComplaintService = {
   /* ------------------- KUSUM C (SWP) APIS ------------------- */
   async getKusumCAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['district', 'districts', 'f_district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getKusumCPosts(district: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_POST(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((p: any) => (typeof p === 'string' ? p : p.post || p.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['post', 'posts', 'f_post']);
   },
 
   async getKusumCVillages(district: string, post: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_VILLAGE(district, post));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((v: any) => (typeof v === 'string' ? v : v.village || v.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['village', 'villages', 'f_village']);
   },
 
   async getKusumCFarmerNames(district: string, post: string, village: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_BENEFICIARY_NAMES(district, post, village));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((f: any) => ({
-        id: f.id || f.farmer_name || f.name,
-        name: f.farmer_name || f.name || String(f),
-      }));
-    }
-    return [];
+    return extractNamedItems(res, ['farmers', 'farmer', 'beneficiaries', 'beneficiary']);
   },
 
   async getKusumCDetails(farmerIdOrName: string | number): Promise<UpKusumCDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_BENEFICIARY_DETAILS(farmerIdOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpKusumCDetails;
-      return res.data as UpKusumCDetails;
-    }
-    return null;
+    return extractDetailObject<UpKusumCDetails>(res, ['farmer', 'details', 'detail', 'beneficiary']);
   },
 
   async storeKusumCComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1078,43 +1315,23 @@ export const upComplaintService = {
   /* ------------------- KUSUM B APIS ------------------- */
   async getKusumBAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['districts', 'district', 'f_district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getKusumBVillages(district: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.GET_BENEFICIARY_VILLAGE(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((v: any) => (typeof v === 'string' ? v : v.village || v.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['villages', 'village', 'beneficiary_village', 'f_village']);
   },
 
   async getKusumBBeneficiaryNames(district: string, village: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.GET_BENEFICIARY_NAMES(district, village));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => ({
-        id: b.id || b.beneficiary_name || b.name,
-        name: b.beneficiary_name || b.name || String(b),
-      }));
-    }
-    return [];
+    return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'farmers', 'farmer']);
   },
 
   async getKusumBDetails(beneficiaryIdOrName: string | number): Promise<UpKusumBDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpKusumBDetails;
-      return res.data as UpKusumBDetails;
-    }
-    return null;
+    return extractDetailObject<UpKusumBDetails>(res, ['beneficiary', 'details', 'detail', 'farmer']);
   },
 
   async storeKusumBComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1195,35 +1412,18 @@ export const upComplaintService = {
   /* ------------------- ONGRID APIS ------------------- */
   async getOngridAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.ONGRID.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['district', 'districts']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getOngridBeneficiaryNames(district: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.ONGRID.GET_BENEFICIARY_NAMES(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => ({
-        id: b.id || b.beneficiary_name || b.name,
-        name: b.beneficiary_name || b.name || String(b),
-      }));
-    }
-    return [];
+    return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
   async getOngridDetails(beneficiaryIdOrName: string | number): Promise<UpOngridDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.ONGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpOngridDetails;
-      return res.data as UpOngridDetails;
-    }
-    return null;
+    return extractDetailObject<UpOngridDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
   async saveOngridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1300,35 +1500,18 @@ export const upComplaintService = {
   /* ------------------- OFFGRID APIS ------------------- */
   async getOffgridAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['districts', 'district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getOffgridBeneficiaryNames(district: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.GET_BENEFICIARY_NAMES(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => ({
-        id: b.id || b.ogid || b.beneficiary_name || b.name,
-        name: b.beneficiary_name || b.name || String(b),
-      }));
-    }
-    return [];
+    return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
   async getOffgridDetails(beneficiaryIdOrName: string | number): Promise<UpOffgridDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpOffgridDetails;
-      return res.data as UpOffgridDetails;
-    }
-    return null;
+    return extractDetailObject<UpOffgridDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
   async storeOffgridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1409,51 +1592,28 @@ export const upComplaintService = {
   /* ------------------- POWERPACK APIS ------------------- */
   async getPowerpackAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['districts', 'district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getPowerpackBlocks(district: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_BLOCK(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => (typeof b === 'string' ? b : b.block || b.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['blocks', 'block']);
   },
 
   async getPowerpackVillages(district: string, block: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_VILLAGE(district, block));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((v: any) => (typeof v === 'string' ? v : v.village || v.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['villages', 'village']);
   },
 
   async getPowerpackBeneficiaryNames(district: string, block: string, village: string): Promise<{ id: string | number; name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_BENEFICIARY_NAMES(district, block, village));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => ({
-        id: b.id || b.beneficiary_name || b.name,
-        name: b.beneficiary_name || b.name || String(b),
-      }));
-    }
-    return [];
+    return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
   async getPowerpackDetails(idOrName: string | number): Promise<UpPowerpackDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_BENEFICIARY_DETAILS(idOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpPowerpackDetails;
-      return res.data as UpPowerpackDetails;
-    }
-    return null;
+    return extractDetailObject<UpPowerpackDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
   async savePowerpackComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1530,43 +1690,27 @@ export const upComplaintService = {
   /* ------------------- SRLMSRT APIS ------------------- */
   async getSrlmsrtAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.ADD_COMPLAINT);
-    let districts: string[] = [];
-    if (res.status && res.data) {
-      if (Array.isArray(res.data.districts)) {
-        districts = res.data.districts.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      } else if (Array.isArray(res.data)) {
-        districts = res.data.map((d: any) => (typeof d === 'string' ? d : d.district || d.name || ''));
-      }
-    }
-    return { status: res.status, districts: districts.filter(Boolean), data: res.data };
+    const districts = extractStringList(res, ['districts', 'district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? res };
   },
 
   async getSrlmsrtBlocks(district: string): Promise<string[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.GET_BLOCK_NAME(district));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((b: any) => (typeof b === 'string' ? b : b.block || b.name || '')).filter(Boolean);
-    }
-    return [];
+    return extractStringList(res, ['blocks', 'block', 'block_name']);
   },
 
   async getSrlmsrtSiteNames(district: string, block: string): Promise<{ id: string | number; site_name: string }[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.GET_SITE_NAME(district, block));
-    if (res.status && res.data && Array.isArray(res.data)) {
-      return res.data.map((s: any) => ({
-        id: s.id || s.site_name || s.name,
-        site_name: s.site_name || s.name || String(s),
-      }));
-    }
-    return [];
+    const items = extractNamedItems(res, ['sites', 'site', 'site_name']);
+    return items.map((s) => ({
+      id: s.id,
+      site_name: s.site_name || s.name || String(s.id),
+    }));
   },
 
   async getSrlmsrtSiteDetails(idOrName: string | number): Promise<UpSrlmsrtDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.GET_SITE_DETAILS(idOrName));
-    if (res.status && res.data) {
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data[0] as UpSrlmsrtDetails;
-      return res.data as UpSrlmsrtDetails;
-    }
-    return null;
+    return extractDetailObject<UpSrlmsrtDetails>(res, ['site', 'details', 'detail']);
   },
 
   async saveSrlmsrtComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {

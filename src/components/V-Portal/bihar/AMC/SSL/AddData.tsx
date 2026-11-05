@@ -482,10 +482,10 @@ export function Bihar_AMC_SSL_AddData() {
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
-        title="UPDATE BIHAR SSL SURVEY STATUS"
+        title="UPDATE BIHAR SSL"
         subtitle={
           <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Welcome to, UPDATE BIHAR SSL SURVEY STATUS (Record Periodic SSL AMC)
+            Welcome to, Update Bihar SSL AMC (Record Periodic SSL AMC)
           </span>
         }
         breadcrumbs={[
@@ -533,7 +533,7 @@ export function Bihar_AMC_SSL_AddData() {
             <div>
               <span className="ax-card__eyebrow">Bihar Solar Street Light (SSL)</span>
               <h2 className="ax-card__title" style={{ margin: 0 }}>
-                UPDATE BIHAR SSL SURVEY STATUS
+              Bihar SSL Survey Form
               </h2>
               <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
                 Select UID to load street light technical data, capture photographs, and record AMC performance checks.

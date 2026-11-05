@@ -152,6 +152,13 @@ export function UPComplaintOffgridAdd() {
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
       });
+      if (form.ogid) {
+        fd.append('beneficiary_id', form.ogid);
+        fd.append('id', form.ogid);
+      }
+      if (form.wo_no) fd.append('work_order_no', form.wo_no);
+      if (form.wo_date) fd.append('work_order_date', form.wo_date);
+      if (form.contact_no) fd.append('contact_number', form.contact_no);
       if (file) {
         fd.append('document', file);
         fd.append('file', file);

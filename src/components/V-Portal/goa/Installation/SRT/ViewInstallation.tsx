@@ -742,8 +742,8 @@ export function Goa_Installation_SRT_ViewInstallation() {
                         <td className="ax-table__td ax-num" style={{ fontWeight: 600 }}>{srNo}</td>
                         <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{item.state || 'goa'}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{item.district || DASH}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          {item.site_name || `Site #${item.id}`}
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-accent)' }}>
+                          {item.site_name || `Site ${item.id}`}
                         </td>
                         <td className="ax-table__td">{item.contact_person || DASH}</td>
                         <td className="ax-table__td">{item.contact_number || DASH}</td>

@@ -92,7 +92,13 @@ export function getTodayFormatted(): string {
 }
 
 export function opts(list: string[]): { value: string; label: string }[] {
-  return list.map((item) => ({ value: item, label: item }));
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((item) => item !== null && item !== undefined && String(item).trim() !== '')
+    .map((item) => {
+      const s = String(item).trim();
+      return { value: s, label: s };
+    });
 }
 
 export const BackArrowIcon = () => (
@@ -301,20 +307,27 @@ export function FloatingSelect({
   className,
   style,
 }: FloatingSelectProps) {
+  const strVal = value !== undefined && value !== null ? String(value) : '';
+  const hasMatchingOption = options.some((o) => String(o.value) === strVal);
+
   return (
     <div className={className} style={style}>
       <div className="ax-float ax-float--select">
         <select
           id={id}
           className={`ax-select ax-float__input ${error ? 'is-invalid' : ''}`}
-          value={value}
+          value={strVal}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={Boolean(error)}
         >
           <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
+          {/* Ensure selected/prefilled value is displayed even if options are delayed or value is custom */}
+          {strVal !== '' && !hasMatchingOption && (
+            <option value={strVal}>{strVal}</option>
+          )}
+          {options.map((o, idx) => (
+            <option key={`${o.value}-${idx}`} value={o.value}>
               {o.label}
             </option>
           ))}

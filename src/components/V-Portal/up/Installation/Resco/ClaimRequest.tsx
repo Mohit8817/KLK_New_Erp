@@ -6,6 +6,7 @@ import {
   upInstallationService,
   resolveUpMediaUrl,
   type UpRescoClaimItem,
+  type UpRescoVerifiedSite,
 } from '../../up-services';
 import {
   Pagination,
@@ -461,26 +462,39 @@ function ViewDetailModal({
   );
 }
 
-/* ───────── Claim Submission Modal (Jammu ax-modern-field pattern) ───────── */
+/* ───────── Claim Submission Modal ───────── */
 function ClaimModal({
   open,
+  title,
   claimType,
+  milestone,
   onClose,
   onSubmit,
   submitting,
+  verifiedSites,
+  loadingSites,
 }: {
   open: boolean;
+  title: string;
   claimType: string;
+  milestone: number;
   onClose: () => void;
-  onSubmit: (e: FormEvent, amount: string, invoice: File | null, remarks: string) => void;
+  onSubmit: (
+    e: FormEvent,
+    data: { siteId: string; siteName: string; amount: string; invoice: File | null; remarks: string }
+  ) => void;
   submitting: boolean;
+  verifiedSites: UpRescoVerifiedSite[];
+  loadingSites: boolean;
 }) {
+  const [selectedSiteId, setSelectedSiteId] = useState('');
   const [amount, setAmount] = useState('');
   const [invoice, setInvoice] = useState<File | null>(null);
   const [remarks, setRemarks] = useState('');
 
   useEffect(() => {
     if (open) {
+      setSelectedSiteId('');
       setAmount('');
       setInvoice(null);
       setRemarks('');
@@ -489,99 +503,120 @@ function ClaimModal({
 
   if (!open) return null;
 
+  const selectedSite = verifiedSites.find((s) => String(s.id) === selectedSiteId);
+  const siteName = selectedSite ? selectedSite.site_name : selectedSiteId === 'dummy' ? 'Dummy Site' : '';
+
   return (
     <Modal open={open} onClose={onClose} labelledBy="resco-claim-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 540 }}>
-      <form onSubmit={(e) => onSubmit(e, amount, invoice, remarks)}>
+      <form onSubmit={(e) => onSubmit(e, { siteId: selectedSiteId, siteName, amount, invoice, remarks })}>
         <div className="ax-modal__header">
           <div>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Resco Installation
+              Resco Installation Claim
             </span>
             <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="resco-claim-title">
-              Raise {claimType} Claim
+              {title}
             </h4>
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} disabled={submitting} aria-label="Close dialog">{X_ICON}</button>
         </div>
 
         <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Claim Type (read-only, pre-filled from button) */}
+          {/* Select Site */}
           <div className="ax-modern-field">
-            <label className="ax-modern-label">
-              <span>Claim Type</span>
+            <label className="ax-modern-label" htmlFor="claim_site_select">
+              <span>Select Site</span>
+              <span className="ax-modern-req">*</span>
             </label>
-            <input type="text" readOnly className="ax-input" value={claimType} style={{ background: 'var(--ax-surface-subtle, #f8fafc)' }} />
+            <select
+              id="claim_site_select"
+              required
+              className="ax-input"
+              value={selectedSiteId}
+              onChange={(e) => setSelectedSiteId(e.target.value)}
+              disabled={submitting}
+              style={{ width: '100%', height: 42 }}
+            >
+              <option value="">-- Select Site --</option>
+              {verifiedSites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.site_name || `Site #${s.id}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
+                </option>
+              ))}
+              <option value="dummy">Dummy Site</option>
+            </select>
+            {loadingSites && (
+              <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)' }}>
+                Loading verified sites…
+              </span>
+            )}
           </div>
 
-          {/* Claim Amount */}
+          {/* Invoice */}
           <div className="ax-modern-field">
-            <label className="ax-modern-label">
-              <span>Claim Amount (₹)</span>
+            <label className="ax-modern-label" htmlFor="claim_invoice_file">
+              <span>Invoice</span>
               <span className="ax-modern-req">*</span>
             </label>
             <input
-              type="number"
+              id="claim_invoice_file"
+              type="file"
               required
+              accept=".pdf,image/*"
               className="ax-input"
-              placeholder="e.g. 250000"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              style={{ padding: '8px 12px', height: 'auto', width: '100%' }}
+              onChange={(e) => setInvoice(e.target.files?.[0] || null)}
+              disabled={submitting}
             />
+            {invoice && (
+              <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 4 }}>
+                Selected: {invoice.name} ({(invoice.size / 1024).toFixed(1)} KB)
+              </div>
+            )}
           </div>
 
-          {/* Invoice Document (Jammu dropzone pattern) */}
+          {/* Amount */}
           <div className="ax-modern-field">
-            <label className="ax-modern-label">
-              <span>Invoice Document</span>
+            <label className="ax-modern-label" htmlFor="claim_amount">
+              <span>Amount</span>
               <span className="ax-modern-req">*</span>
             </label>
-            {invoice ? (
-              <div className="ax-modern-file-chip">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="ax-modern-file-chip__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>{invoice.name}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{(invoice.size / 1024).toFixed(1)} KB</div>
-                  </div>
-                </div>
-                <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" style={{ color: '#ef4444' }} onClick={() => setInvoice(null)}>{X_ICON}</button>
-              </div>
-            ) : (
-              <label className="ax-modern-dropzone">
-                <div className="ax-modern-dropzone__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)' }}>Click to upload invoice</div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Accepts PDF and image files</div>
-                <input type="file" required accept=".pdf,image/*" onChange={(e) => setInvoice(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-              </label>
-            )}
+            <input
+              id="claim_amount"
+              type="number"
+              required
+              min="1"
+              step="any"
+              className="ax-input"
+              placeholder="Enter Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={submitting}
+              style={{ width: '100%', height: 42 }}
+            />
           </div>
 
           {/* Remarks */}
           <div className="ax-modern-field">
-            <label className="ax-modern-label"><span>Remarks</span></label>
-            <input
-              type="text"
+            <label className="ax-modern-label" htmlFor="claim_remarks">
+              <span>Remarks</span>
+            </label>
+            <textarea
+              id="claim_remarks"
               className="ax-input"
-              placeholder="Enter remarks..."
+              placeholder="Enter Remarks..."
+              rows={3}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
+              disabled={submitting}
+              style={{ width: '100%', padding: '10px 12px' }}
             />
           </div>
         </div>
 
         <div className="ax-modal__footer">
           <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting || !invoice}>
+          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting || !selectedSiteId || !amount.trim() || !invoice}>
             {submitting ? 'Submitting…' : 'Submit Claim'}
           </button>
         </div>
@@ -622,19 +657,50 @@ export function UP_Installation_Resco_ClaimRequest() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
-  // Claim Modal — opens with pre-filled claim type from button
+  // Claim Modal — opens with pre-filled claim type and milestone from button
   const [claimModalOpen, setClaimModalOpen] = useState(false);
-  const [claimType, setClaimType] = useState('Payment 40 %');
+  const [claimModalInfo, setClaimModalInfo] = useState<{
+    milestone: number;
+    percentage: string;
+    claimType: string;
+    title: string;
+  }>({
+    milestone: 1,
+    percentage: '40%',
+    claimType: 'Payment 40 %',
+    title: 'Add 1st Payment 40%',
+  });
   const [submitting, setSubmitting] = useState(false);
+  const [verifiedSites, setVerifiedSites] = useState<UpRescoVerifiedSite[]>([]);
+  const [loadingSites, setLoadingSites] = useState(false);
 
-  // Open claim modal with specific type
-  const handleOpenClaimModal = (type: string) => {
-    setClaimType(type);
+  // Open claim modal with specific type and milestone
+  const handleOpenClaimModal = (milestone: number, percentage: string) => {
+    const ordinal = milestone === 1 ? '1st' : milestone === 2 ? '2nd' : '3rd';
+    setClaimModalInfo({
+      milestone,
+      percentage,
+      claimType: `Payment ${percentage.replace('%', ' %')}`,
+      title: `Add ${ordinal} Payment ${percentage}`,
+    });
     setClaimModalOpen(true);
   };
 
   // View Detail Modal
   const [viewItem, setViewItem] = useState<Row | null>(null);
+
+  // ── Load Verified Sites for Dropdown ──
+  const loadVerifiedSites = useCallback(async () => {
+    setLoadingSites(true);
+    try {
+      const sites = await upInstallationService.getRescoVerifiedSites();
+      setVerifiedSites(Array.isArray(sites) ? sites : []);
+    } catch (e) {
+      console.warn('[ClaimRequest] Failed to load verified sites:', e);
+    } finally {
+      setLoadingSites(false);
+    }
+  }, []);
 
   // ── Load Data ──
   const loadData = useCallback(async () => {
@@ -650,7 +716,10 @@ export function UP_Installation_Resco_ClaimRequest() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+    loadVerifiedSites();
+  }, [loadData, loadVerifiedSites]);
 
   // Toast auto-dismiss
   useEffect(() => {
@@ -660,17 +729,27 @@ export function UP_Installation_Resco_ClaimRequest() {
   }, [toastMsg]);
 
   // ── Submit Claim ──
-  const handleSubmitClaim = async (e: FormEvent, amount: string, invoice: File | null, remarks: string) => {
+  const handleSubmitClaim = async (
+    e: FormEvent,
+    data: { siteId: string; siteName: string; amount: string; invoice: File | null; remarks: string }
+  ) => {
     e.preventDefault();
-    if (!amount.trim() || !invoice) return;
+    if (!data.siteId || !data.amount.trim() || !data.invoice) return;
 
     setSubmitting(true);
     const fd = new FormData();
-    fd.append('claim', claimType);
-    fd.append('amount', amount);
-    fd.append('claim_amount', amount);
-    fd.append('invoice', invoice);
-    if (remarks) fd.append('remarks', remarks);
+    fd.append('site_id', data.siteId);
+    fd.append('resco_id', data.siteId);
+    if (data.siteName) fd.append('site_name', data.siteName);
+    fd.append('claim', claimModalInfo.claimType);
+    fd.append('claim_type', claimModalInfo.claimType);
+    fd.append('pay_type', String(claimModalInfo.milestone));
+    fd.append('amount', data.amount);
+    fd.append('claim_amount', data.amount);
+    fd.append('invoice', data.invoice);
+    fd.append('file', data.invoice);
+    fd.append('claim_invoice', data.invoice);
+    if (data.remarks) fd.append('remarks', data.remarks);
 
     try {
       const res = await upInstallationService.storeRescoClaim(fd);
@@ -746,13 +825,13 @@ export function UP_Installation_Resco_ClaimRequest() {
               </svg>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal('Payment 40 %')}>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(1, '40%')}>
               <span className="ax-btn__label">+ Payment 40%</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal('Payment 30 %')}>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(2, '30%')}>
               <span className="ax-btn__label">+ Payment 30%</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal('Payment 30 %')}>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => handleOpenClaimModal(3, '30%')}>
               <span className="ax-btn__label">+ Payment 30%</span>
             </button>
           </div>
@@ -983,13 +1062,17 @@ export function UP_Installation_Resco_ClaimRequest() {
         </section>
       </div>
 
-      {/* ── Claim Submission Modal (type pre-filled from button click) ── */}
+      {/* ── Claim Submission Modal (Add 1st Payment 40%, Add 2nd Payment 30%, Add 3rd Payment 30%) ── */}
       <ClaimModal
         open={claimModalOpen}
-        claimType={claimType}
+        title={claimModalInfo.title}
+        claimType={claimModalInfo.claimType}
+        milestone={claimModalInfo.milestone}
         onClose={() => setClaimModalOpen(false)}
         onSubmit={handleSubmitClaim}
         submitting={submitting}
+        verifiedSites={verifiedSites}
+        loadingSites={loadingSites}
       />
 
       {/* ── View Detail Modal ── */}

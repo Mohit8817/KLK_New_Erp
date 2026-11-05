@@ -49,6 +49,28 @@ const PAGE_CSS = `
     border-radius: 0 !important;
   }
 
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--ax-space-3, 12px);
+    margin-bottom: var(--ax-space-4, 16px);
+  }
+  @media (max-width: 1200px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 768px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 500px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .solar-erp-page .ax-card__header {
     display: flex;
     flex-wrap: nowrap;
@@ -210,38 +232,166 @@ const PAGE_CSS = `
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 
 /* ───────── KPI card ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: 'var(--ax-viz-cyan, #0891b2)' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: 'var(--ax-viz-emerald, #16a34a)' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: 'var(--ax-viz-amber, #d97706)' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: 'var(--ax-viz-violet, #7c3aed)' },
 };
 
 const svgIcon = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 15, height: 15 }}>{children}</svg>
 );
 
+interface KpiPart {
+  label: string;
+  value: number | string;
+  onClick?: () => void;
+}
+
 function KpiCard({
-  icon, tone, label, value, sub,
+  icon,
+  tone,
+  label,
+  parts,
+  sub,
 }: {
-  icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; sub: string;
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  parts: KpiPart[];
+  sub: string;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-          {label}
-        </span>
+    <div
+      className="ax-card"
+      style={{
+        padding: '14px 16px',
+        borderRadius: 12,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      }}
+    >
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: t.bg,
+              color: t.fg,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--ax-text-muted, #64748b)',
+              letterSpacing: '0.04em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={label}
+          >
+            {label}
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontSize: parts.length > 2 ? '1.25rem' : '1.4rem',
+            fontWeight: 800,
+            color: t.fg,
+            fontFamily: 'var(--ax-font-display, inherit)',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.15,
+            display: 'flex',
+            alignItems: 'baseline',
+            flexWrap: 'nowrap',
+          }}
+        >
+          {parts.map((p, idx) => (
+            <span key={p.label || idx} style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+              {idx > 0 && (
+                <span
+                  style={{
+                    color: 'var(--ax-text-muted, #94a3b8)',
+                    fontWeight: 500,
+                    margin: '0 4px',
+                    fontSize: '0.9em',
+                  }}
+                >
+                  /
+                </span>
+              )}
+              {p.onClick ? (
+                <button
+                  type="button"
+                  onClick={p.onClick}
+                  title={`Click to filter by ${p.label}: ${p.value}`}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    margin: 0,
+                    font: 'inherit',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    borderBottom: '1.5px dotted transparent',
+                    transition: 'border-color 0.15s, opacity 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderBottomColor = t.fg;
+                    e.currentTarget.style.opacity = '0.85';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderBottomColor = 'transparent';
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                >
+                  {typeof p.value === 'number' ? p.value.toLocaleString('en-IN') : p.value}
+                </button>
+              ) : (
+                <span title={`${p.label}: ${p.value}`}>
+                  {typeof p.value === 'number' ? p.value.toLocaleString('en-IN') : p.value}
+                </span>
+              )}
+            </span>
+          ))}
+        </div>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+
+      <div
+        style={{
+          fontSize: '11px',
+          color: 'var(--ax-text-muted, #64748b)',
+          marginTop: 6,
+          fontWeight: 500,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={sub}
+      >
+        {sub}
+      </div>
     </div>
   );
 }
@@ -436,6 +586,7 @@ export function UP_Installation_SSL_InstallationDetail() {
     verify_reject: 0,
     claim_applicable: 0,
     claim_raised: 0,
+    claim_submit: 0,
     claim_not_applicable: 0,
     claim_verify_approved: 0,
     claim_verify_pending: 0,
@@ -676,75 +827,183 @@ export function UP_Installation_SSL_InstallationDetail() {
         </div>
       )}
 
-      <div className="ax-dash-grid">
-        {/* ── KPI Row (5 Cards) ── */}
-        {loading ? (
+      {/* ── KPI Row (5 Cards) ── */}
+      {loading ? (
+        <div style={{ marginBottom: 16 }}>
           <KpiSkeleton count={5} />
-        ) : (
-          <>
-            <KpiCard
-              tone="accent"
-              label="Lights"
-              value={(counts.total ?? 0).toLocaleString('en-IN')}
-              sub={`${counts.complete ?? 0} installed · ${counts.pending ?? 0} pending`}
-              icon={svgIcon(
-                <>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                  <path d="M9 15l2 2 4-4" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="emerald"
-              label="Verification Status"
-              value={(counts.verify_approved ?? 0).toLocaleString('en-IN')}
-              sub={`${counts.verify_pending ?? 0} pending · ${counts.verify_reject ?? 0} rejected`}
-              icon={svgIcon(
-                <>
-                  <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-                  <path d="M9 12l2 2 4-4" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="cyan"
-              label="Claim Status"
-              value={(counts.claim_applicable ?? 0).toLocaleString('en-IN')}
-              sub={`${counts.claim_raised ?? 0} raised · ${counts.claim_not_applicable ?? 0} not applicable`}
-              icon={svgIcon(
-                <>
-                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="amber"
-              label="Claim Verify"
-              value={(counts.claim_verify_approved ?? 0).toLocaleString('en-IN')}
-              sub={`${counts.claim_verify_pending ?? 0} pending · ${counts.claim_verify_reject ?? 0} rejected`}
-              icon={svgIcon(
-                <>
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                  <rect x="9" y="3" width="6" height="4" rx="2" />
-                  <path d="M9 14l2 2 4-4" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="emerald"
-              label="Payment Status"
-              value={(counts.payment_complete ?? 0).toLocaleString('en-IN')}
-              sub={`${counts.payment_pending ?? 0} payment pending`}
-              icon={svgIcon(
-                <>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </>
-              )}
-            />
-          </>
-        )}
+        </div>
+      ) : (
+        <div className="asw-cards-row">
+          <KpiCard
+            tone="accent"
+            label="Lights"
+            parts={[
+              {
+                label: 'Total',
+                value: counts.total ?? 0,
+                onClick: () => {
+                  setActiveTab('completed');
+                  setStatusFilter('all');
+                  setSelectedDistrict('all');
+                  setSearch('');
+                  setCurrentPage(1);
+                },
+              },
+              {
+                label: 'Installed',
+                value: counts.complete ?? 0,
+                onClick: () => {
+                  setActiveTab('completed');
+                  setStatusFilter('all');
+                  setSelectedDistrict('all');
+                  setSearch('');
+                  setCurrentPage(1);
+                },
+              },
+              {
+                label: 'Pending',
+                value: counts.pending ?? 0,
+              },
+            ]}
+            sub="Total / Installed / Pending"
+            icon={svgIcon(
+              <>
+                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                <circle cx="12" cy="12" r="4" />
+              </>
+            )}
+          />
+
+          <KpiCard
+            tone="emerald"
+            label="Verification Status"
+            parts={[
+              {
+                label: 'Approved',
+                value: counts.verify_approved ?? 0,
+                onClick: () => {
+                  setActiveTab('completed');
+                  setStatusFilter('approved');
+                  setCurrentPage(1);
+                },
+              },
+              {
+                label: 'Pending',
+                value: counts.verify_pending ?? 0,
+                onClick: () => {
+                  setActiveTab('completed');
+                  setStatusFilter('pending');
+                  setCurrentPage(1);
+                },
+              },
+              {
+                label: 'Rejected',
+                value: counts.verify_reject ?? 0,
+                onClick: () => {
+                  setActiveTab('completed');
+                  setStatusFilter('rejected');
+                  setCurrentPage(1);
+                },
+              },
+            ]}
+            sub="Approved / Pending / Rejected"
+            icon={svgIcon(
+              <>
+                <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+                <path d="M9 12l2 2 4-4" />
+              </>
+            )}
+          />
+
+          <KpiCard
+            tone="cyan"
+            label="Claim Status"
+            parts={[
+              {
+                label: 'Applicable',
+                value: counts.claim_applicable ?? 0,
+              },
+              {
+                label: 'Submit',
+                value: counts.claim_submit ?? counts.claim_raised ?? 0,
+              },
+              {
+                label: 'Not Applicable',
+                value: counts.claim_not_applicable ?? 0,
+              },
+            ]}
+            sub="Applicable / Submit / Not Applicable"
+            icon={svgIcon(
+              <>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </>
+            )}
+          />
+
+          <KpiCard
+            tone="amber"
+            label="Claim Verify Status"
+            parts={[
+              {
+                label: 'Approved',
+                value: counts.claim_verify_approved ?? 0,
+              },
+              {
+                label: 'Pending',
+                value: counts.claim_verify_pending ?? 0,
+              },
+              {
+                label: 'Rejected',
+                value: counts.claim_verify_reject ?? 0,
+              },
+            ]}
+            sub="Approved / Pending / Rejected"
+            icon={svgIcon(
+              <>
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                <rect x="9" y="3" width="6" height="4" rx="2" />
+                <path d="M9 14l2 2 4-4" />
+              </>
+            )}
+          />
+
+          <KpiCard
+            tone="violet"
+            label="Payment Status"
+            parts={[
+              {
+                label: 'Complete',
+                value: counts.payment_complete ?? 0,
+                onClick: () => {
+                  setActiveTab('payment');
+                  setCurrentPage(1);
+                },
+              },
+              {
+                label: 'Pending',
+                value: counts.payment_pending ?? 0,
+                onClick: () => {
+                  setActiveTab('payment');
+                  setCurrentPage(1);
+                },
+              },
+            ]}
+            sub="Complete / Pending"
+            icon={svgIcon(
+              <>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </>
+            )}
+          />
+        </div>
+      )}
+
+      <div className="ax-dash-grid">
 
         {/* ── Filter Tabs ── */}
         <div className="ax-col--12">
