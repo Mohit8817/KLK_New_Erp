@@ -32,12 +32,6 @@ export function UP_AMC_Resco_PendingAMC() {
         list = res.data.months;
       } else if (Array.isArray(res?.data)) {
         list = res.data;
-      } else if (res?.data && typeof res.data === 'object') {
-        const firstArr = Object.values(res.data).find(Array.isArray);
-        if (firstArr) list = firstArr as any[];
-      } else if (res && typeof res === 'object') {
-        const firstArr = Object.values(res).find(Array.isArray);
-        if (firstArr) list = firstArr as any[];
       }
 
       return list
@@ -50,9 +44,9 @@ export function UP_AMC_Resco_PendingAMC() {
   };
 
   const fetchSites = async (year: number, months?: number | string) => {
-    if (!months) return [];
     try {
-      const res: any = await upRescoAmcApi.getSiteName(year, months);
+      const m = months || new Date().getMonth() + 1;
+      const res: any = await upRescoAmcApi.getSiteName(year, m);
       let list: any[] = [];
       if (Array.isArray(res)) {
         list = res;
@@ -66,12 +60,6 @@ export function UP_AMC_Resco_PendingAMC() {
         list = res.site_name;
       } else if (Array.isArray(res?.sites)) {
         list = res.sites;
-      } else if (res?.data && typeof res.data === 'object') {
-        const firstArr = Object.values(res.data).find(Array.isArray);
-        if (firstArr) list = firstArr as any[];
-      } else if (res && typeof res === 'object') {
-        const firstArr = Object.values(res).find(Array.isArray);
-        if (firstArr) list = firstArr as any[];
       }
 
       return list.map((s: any) => {
@@ -93,16 +81,26 @@ export function UP_AMC_Resco_PendingAMC() {
   const fetchSiteDetails = async (id: number | string) => {
     try {
       const res: any = await upRescoAmcApi.getSiteDetails(id);
-      const d =
-        res?.data?.site_details ||
-        res?.data?.site ||
-        res?.site_details ||
-        res?.site ||
-        res?.data ||
-        res ||
-        null;
-      if (Array.isArray(d)) return d[0] || null;
-      return d;
+      const r = res?.data?.site_details || res?.data?.site || res?.site_details || res?.site || res?.data || res;
+      const d = Array.isArray(r) ? r[0] : r;
+      if (d) {
+        return {
+          ...d,
+          state: d.state || 'UP',
+          district: d.district || '',
+          village: d.village || d.location || '',
+          beneficiary_name: d.beneficiary_name || d.site_name || d.name || '',
+          contact: d.contact || d.mobile || d.contact_person_number || '',
+          gender: d.gender || '',
+          phase: d.phase || '',
+          serial_number: d.serial_number || d.ca_no || d.consumer_no || '',
+          address: d.address || d.location || '',
+          volume: d.volume || d.sanction_load || d.plant_sc || d.capacity || '',
+          contractor_name: d.contractor_name || d.vendor_name || '',
+          amc_type: d.amc_type || 'Monthly',
+        };
+      }
+      return null;
     } catch (err) {
       console.error('Error fetching Resco AMC site details:', err);
       return null;
@@ -126,10 +124,7 @@ export function UP_AMC_Resco_PendingAMC() {
       ]}
       viewLink="/v/up-resco-amc-view-site"
       viewLabel="View Completed AMC"
-      mode="resco"
-      photoMode="beforeAfter"
-      hasJmrReport={true}
-      hasDigitalSignature={true}
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchMonths={fetchMonths}
       onFetchSites={fetchSites}

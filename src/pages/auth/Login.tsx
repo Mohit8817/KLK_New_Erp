@@ -851,7 +851,7 @@ const LOGIN_CSS = `
 export function SolarLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { loginUser, loginVendor, isAuthenticated } = useAuth();
+  const { loginUser, loginVendor, isAuthenticated, user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'user' | 'vendor'>('user');
   const [email, setEmail] = useState('');
@@ -869,10 +869,18 @@ export function SolarLoginPage() {
   // Auto redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(redirectTo(), { replace: true });
+      const isVendor =
+        user?.role === 'vendor' ||
+        !!user?.vendor_id ||
+        (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
+      if (isVendor) {
+        navigate('/v-dashboard', { replace: true });
+      } else {
+        navigate(redirectTo(), { replace: true });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, user, navigate, location]);
 
   const handleTabChange = (tab: 'user' | 'vendor') => {
     setActiveTab(tab);
@@ -911,8 +919,8 @@ export function SolarLoginPage() {
       try {
         const res = await loginVendor(vendorId, password, rememberMe);
         if (res.success) {
-          setSuccessMessage(res.message || 'Vendor login successful! Redirecting to ERP...');
-          setTimeout(() => navigate(redirectTo(), { replace: true }), 600);
+          setSuccessMessage(res.message || 'Vendor login successful! Redirecting to V-Portal...');
+          setTimeout(() => navigate('/v-dashboard', { replace: true }), 600);
         } else {
           setErrorMessage(res.message || 'Invalid Vendor ID or password.');
         }

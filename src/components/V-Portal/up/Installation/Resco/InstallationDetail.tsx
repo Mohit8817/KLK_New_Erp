@@ -1056,8 +1056,10 @@ export function UP_Installation_Resco_InstallationDetail() {
     setImportResult(null);
 
     const fd = new FormData();
+    fd.append('id', String(importModalSite.id));
     fd.append('resco_id', String(importModalSite.id));
     fd.append('site_id', String(importModalSite.id));
+    fd.append('import_file', importFile);
     fd.append('file', importFile);
     fd.append('panel_file', importFile);
 
@@ -1071,9 +1073,12 @@ export function UP_Installation_Resco_InstallationDetail() {
         });
         setToastMsg({ type: 'success', text: res.message || 'Panels imported successfully!' });
       } else {
+        const errText = res.errors
+          ? Object.values(res.errors).flat().join(' ')
+          : res.message || 'Failed to import panels.';
         setImportResult({
           success: false,
-          text: res.message || 'Failed to import panels.',
+          text: errText,
           duplicates: res.duplicates,
         });
       }

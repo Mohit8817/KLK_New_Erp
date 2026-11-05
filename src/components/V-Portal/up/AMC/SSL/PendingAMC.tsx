@@ -3,7 +3,6 @@ import { upSslAmcApi } from '../../up-services';
 
 export function UP_AMC_SSL_PendingAMC() {
   const fetchYears = async () => {
-    // SSL has pending months formatted MM-YYYY returned from light details
     return [new Date().getFullYear(), new Date().getFullYear() - 1];
   };
 
@@ -21,11 +20,22 @@ export function UP_AMC_SSL_PendingAMC() {
 
   const fetchSiteDetails = async (id: number | string) => {
     const res = await upSslAmcApi.fetchLightDetails(id);
-    if (res?.status && res.ssl_details) {
+    const s = res?.ssl_details || res?.data || res;
+    if (s) {
       return {
-        ...res.ssl_details,
-        pending_months: res.pending_months,
-        amc_type_name: res.amc_type_name,
+        ...s,
+        state: s.state || 'UP',
+        district: s.district || '',
+        village: s.village || s.block || '',
+        beneficiary_name: s.beneficiary_name || '',
+        contact: s.contact || s.mobile || '',
+        gender: s.gender || '',
+        phase: s.phase || '',
+        serial_number: s.serial_number || s.light_no || s.pole_no || s.id || '',
+        address: s.address || s.location || '',
+        volume: s.volume || s.wattage || s.capacity || 'SSL',
+        contractor_name: s.contractor_name || '',
+        amc_type: res?.amc_type_name || s.amc_type || 'Monthly',
       };
     }
     return null;
@@ -48,8 +58,7 @@ export function UP_AMC_SSL_PendingAMC() {
       ]}
       viewLink="/v/up-ssl-amc-view-light"
       viewLabel="View Completed AMC"
-      mode="ssl"
-      photoMode="fourImages"
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchSites={fetchSites}
       onFetchSiteDetails={fetchSiteDetails}

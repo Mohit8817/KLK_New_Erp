@@ -79,7 +79,7 @@ export function MainErpSidebar({ filter = '' }: { filter?: string }) {
         },
         {
           title: 'Vendor',
-          to: '/vendor/dashboard',
+          to: '/vendor-management',
           icon: (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -87,7 +87,7 @@ export function MainErpSidebar({ filter = '' }: { filter?: string }) {
             </svg>
           ),
           hasChevron: true,
-          active: currentPath.startsWith('/vendor') || currentPath.startsWith('/assam') || currentPath.startsWith('/jammu') || currentPath.startsWith('/up'),
+          active: currentPath.startsWith('/vendor-management'),
         },
         {
           title: 'Gallery',

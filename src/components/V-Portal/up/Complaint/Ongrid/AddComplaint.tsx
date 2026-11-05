@@ -30,6 +30,7 @@ export function UPComplaintOngridAdd() {
   const [complaintDate, setComplaintDate] = useState(getTodayFormatted());
   const [district, setDistrict] = useState('');
   const [beneficiaryId, setBeneficiaryId] = useState('');
+  const [ogid, setOgid] = useState('');
   const [beneficiaryName, setBeneficiaryName] = useState('');
 
   // Auto-populated fields
@@ -104,6 +105,7 @@ export function UPComplaintOngridAdd() {
     clearErr('district');
     setBeneficiaryId('');
     setBeneficiaryName('');
+    setOgid('');
     setBeneficiaries([]);
     resetAutoPopulatedFields();
 
@@ -124,8 +126,11 @@ export function UPComplaintOngridAdd() {
   const handleBeneficiaryChange = async (bId: string) => {
     setBeneficiaryId(bId);
     clearErr('beneficiary_name');
-    const chosen = beneficiaries.find((b) => String(b.id) === bId);
+    clearErr('ogid');
+    const chosen = beneficiaries.find((b) => String(b.id) === bId) as any;
     setBeneficiaryName(chosen ? chosen.name : bId);
+    const resolvedOgid = String(chosen?.ogid || chosen?.id || bId || '');
+    setOgid(resolvedOgid);
     resetAutoPopulatedFields();
 
     if (!bId) return;
@@ -135,6 +140,9 @@ export function UPComplaintOngridAdd() {
       const details = await upComplaintService.getOngridDetails(bId);
       if (details) {
         populateDetails(details);
+        if (details.ogid || details.id) {
+          setOgid(String(details.ogid || details.id));
+        }
       }
     } catch (e) {
       console.error('Error fetching ongrid beneficiary details:', e);
@@ -174,6 +182,7 @@ export function UPComplaintOngridAdd() {
     setDistrict('');
     setBeneficiaryId('');
     setBeneficiaryName('');
+    setOgid('');
     setBeneficiaries([]);
     resetAutoPopulatedFields();
     setComplaintText('');
@@ -187,7 +196,7 @@ export function UPComplaintOngridAdd() {
     const errs: Record<string, string> = {};
     if (!complaintDate) errs.complaint_date = 'Complaint Date is required.';
     if (!district) errs.district = 'District is required.';
-    if (!beneficiaryId && !beneficiaryName) errs.beneficiary_name = 'Beneficiary Name is required.';
+    if (!beneficiaryId && !beneficiaryName && !ogid) errs.beneficiary_name = 'Beneficiary Name is required.';
     if (!contactNo.trim()) errs.contact_no = 'Contact Number is required.';
     if (!selectedFile) errs.document = 'Document / Photo is required.';
     if (!complaintText.trim()) errs.complaint = 'Complaint description is required.';
@@ -209,10 +218,13 @@ export function UPComplaintOngridAdd() {
 
     setSubmitting(true);
     const fd = new FormData();
+    const resolvedOgid = ogid || beneficiaryId || '';
+    fd.append('ogid', resolvedOgid);
+    fd.append('id', resolvedOgid);
+    if (beneficiaryId) fd.append('beneficiary_id', beneficiaryId);
     fd.append('complaint_date', complaintDate);
     fd.append('district', district);
     fd.append('beneficiary_name', beneficiaryName);
-    if (beneficiaryId) fd.append('beneficiary_id', beneficiaryId);
     fd.append('contact_no', contactNo);
     fd.append('contact_number', contactNo);
     fd.append('work_order_no', workOrderNo);
@@ -223,6 +235,10 @@ export function UPComplaintOngridAdd() {
     fd.append('contractor_no', contractorNo);
     fd.append('contractor_number', contractorNo);
     fd.append('complaint', complaintText);
+
+    // Backend requires `sms` ('Yes' / 'No') as well as `send_sms` ('1' / '0')
+    const smsVal = sendSms === 'yes' ? 'Yes' : 'No';
+    fd.append('sms', smsVal);
     fd.append('send_sms', sendSms === 'yes' ? '1' : '0');
 
     if (selectedFile) {
@@ -245,6 +261,12 @@ export function UPComplaintOngridAdd() {
           Object.entries(res.errors).forEach(([k, v]) => {
             mapped[k] = Array.isArray(v) ? v[0] : String(v);
           });
+          if (mapped.ogid && !mapped.beneficiary_name) {
+            mapped.beneficiary_name = mapped.ogid;
+          }
+          if (mapped.sms && !mapped.send_sms) {
+            mapped.send_sms = mapped.sms;
+          }
           setFieldErrors(mapped);
         }
         setToast({ type: 'error', message: res.message || 'Submission failed. Please check form data.' });
@@ -321,7 +343,7 @@ export function UPComplaintOngridAdd() {
             value={beneficiaryId}
             options={beneficiaries.map((b) => ({ value: String(b.id), label: b.name }))}
             onChange={handleBeneficiaryChange}
-            error={err('beneficiary_name')}
+            error={err('beneficiary_name') || err('ogid')}
           />
           <FloatingInput
             id="ong-contact"
@@ -397,8 +419,17 @@ export function UPComplaintOngridAdd() {
               value={sendSms}
               yesValue="yes"
               noValue="no"
-              onChange={(v) => setSendSms(v as typeof sendSms)}
+              onChange={(v) => {
+                setSendSms(v as typeof sendSms);
+                clearErr('sms');
+                clearErr('send_sms');
+              }}
             />
+            {(err('sms') || err('send_sms')) && (
+              <span style={{ fontSize: 11.5, color: 'var(--ax-danger-500, #ef4444)', marginTop: 4, display: 'block' }}>
+                {err('sms') || err('send_sms')}
+              </span>
+            )}
           </div>
         </div>
       </div>

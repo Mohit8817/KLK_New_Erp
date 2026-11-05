@@ -26,6 +26,7 @@ const INITIAL_FORM = {
   post: '',
   village: '',
   farmer_id: '',
+  kcid: '',
   farmer_name: '',
   father_name: '',
   contact_no: '',
@@ -43,7 +44,7 @@ const INITIAL_FORM = {
   spv_capacity: '',
   installation_date: '',
   complaint: '',
-  sms: 'no',
+  sms: 'No',
 };
 
 type FormKey = keyof typeof INITIAL_FORM;
@@ -156,7 +157,13 @@ export function UPComplaintKCAdd() {
 
   const handleFarmerChange = async (fId: string) => {
     const chosen = farmers.find((f) => String(f.id) === fId);
-    setForm((p) => ({ ...p, farmer_id: fId, farmer_name: chosen ? chosen.name : fId }));
+    const resolvedKcid = (chosen as any)?.kcid || (chosen as any)?.kc_id || (chosen as any)?.id || fId;
+    setForm((p) => ({
+      ...p,
+      farmer_id: fId,
+      kcid: String(resolvedKcid),
+      farmer_name: chosen ? chosen.name : fId,
+    }));
     clearErr('farmer_name');
 
     if (!fId) return;
@@ -164,17 +171,24 @@ export function UPComplaintKCAdd() {
     try {
       const det: UpKusumCDetails | null = await upComplaintService.getKusumCDetails(fId);
       if (det) {
+        const finalKcid = det.kcid || det.kc_id || det.id || resolvedKcid;
         setForm((p) => ({
           ...p,
+          kcid: String(finalKcid),
+          farmer_id: String(det.farmer_id || det.id || fId),
+          farmer_name: det.farmer_name || det.f_name || det.beneficiary_name || det.name || p.farmer_name,
           father_name: det.father_name || det.f_father_name ? String(det.father_name || det.f_father_name) : p.father_name,
-          contact_no: det.contact_no || det.f_mobile ? String(det.contact_no || det.f_mobile) : p.contact_no,
+          contact_no: det.contact_no || det.f_mobile || det.contact_number ? String(det.contact_no || det.f_mobile || det.contact_number) : p.contact_no,
           gender: det.gender ? String(det.gender) : p.gender,
           category: det.category ? String(det.category) : p.category,
           aadhar_status: det.aadhar_status ? String(det.aadhar_status) : p.aadhar_status,
           location: det.location ? String(det.location) : p.location,
           application_no: det.application_no ? String(det.application_no) : p.application_no,
           saral_id: det.saral_id ? String(det.saral_id) : p.saral_id,
-          pump_capacity: det.pump_capacity ? String(det.pump_capacity) : p.pump_capacity,
+          lot_no: det.lot_no ? String(det.lot_no) : p.lot_no,
+          contractor_name: det.contractor_name ? String(det.contractor_name) : p.contractor_name,
+          contractor_no: det.contractor_no || det.contractor_mo_no || det.contractor_mobile_no ? String(det.contractor_no || det.contractor_mo_no || det.contractor_mobile_no) : p.contractor_no,
+          pump_capacity: det.pump_capacity || det.pump_capicity ? String(det.pump_capacity || det.pump_capicity) : p.pump_capacity,
           pump_type: det.pump_type ? String(det.pump_type) : p.pump_type,
           pump_make: det.pump_make ? String(det.pump_make) : p.pump_make,
           controller_make: det.controller_make ? String(det.controller_make) : p.controller_make,
@@ -224,6 +238,19 @@ export function UPComplaintKCAdd() {
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
       });
+
+      const kcidVal = form.kcid || form.farmer_id;
+      if (kcidVal) {
+        fd.set('kcid', String(kcidVal));
+        fd.set('kc_id', String(kcidVal));
+        fd.set('farmer_id', String(kcidVal));
+        fd.set('beneficiary_id', String(kcidVal));
+      }
+
+      const smsVal = form.sms && String(form.sms).toLowerCase() === 'yes' ? 'Yes' : 'No';
+      fd.set('sms', smsVal);
+      fd.set('send_sms', smsVal === 'Yes' ? '1' : '0');
+
       if (form.farmer_name) {
         fd.append('f_name', form.farmer_name);
         fd.append('beneficiary_name', form.farmer_name);
@@ -235,6 +262,13 @@ export function UPComplaintKCAdd() {
         fd.append('f_mobile', form.contact_no);
         fd.append('contact_number', form.contact_no);
       }
+      if (form.pump_capacity) {
+        fd.append('pump_capicity', form.pump_capacity);
+      }
+      if (form.contractor_no) {
+        fd.append('contractor_mo_no', form.contractor_no);
+        fd.append('contractor_mobile_no', form.contractor_no);
+      }
       if (file) {
         fd.append('document', file);
         fd.append('file', file);
@@ -245,10 +279,20 @@ export function UPComplaintKCAdd() {
         setToast({ type: 'success', message: res.message || 'Complaint submitted successfully!' });
         handleReset();
         setTimeout(() => {
-          navigate('/v/complaint/up/kusumc-view-complaint');
+          navigate('/v/complaint/up/swp-view-complaint');
         }, 1500);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        if (res.errors) {
+          const mapped: Record<string, string> = {};
+          Object.entries(res.errors).forEach(([k, v]) => {
+            mapped[k] = Array.isArray(v) ? v[0] : String(v);
+          });
+          setErrors(mapped);
+          const firstErr = Object.values(mapped)[0];
+          setToast({ type: 'error', message: firstErr || res.message || 'Validation failed.' });
+        } else {
+          setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        }
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred.' });
@@ -263,10 +307,10 @@ export function UPComplaintKCAdd() {
       subtitle="Register PM Kusum Component-C solar agriculture pump breakdown complaints"
       breadcrumbs={[
         { label: 'Home', href: '/v' },
-        { label: 'View Vendor UP Kusum C Complaints', href: '/v/complaint/up/kusumc-view-complaint' },
+        { label: 'View Vendor UP Kusum C Complaints', href: '/v/complaint/up/swp-view-complaint' },
         { label: 'Add UP Kusum C Complaint' },
       ]}
-      viewLink="/v/complaint/up/kusumc-view-complaint"
+      viewLink="/v/complaint/up/swp-view-complaint"
       eyebrow="Kusum Component-C"
       formTitle="Add UP Kusum C Complaint"
       formSubtitle="Enter complaint information, select beneficiary farmer, and submit pump repair ticket across 4 sections."
@@ -337,7 +381,7 @@ export function UPComplaintKCAdd() {
         <SectionHeader num="4" total={4} title="Complaint Description & Attachment" desc="Describe the fault and attach photo/document." />
         <div className="up-form-grid up-form-grid--3col">
           <FloatingFileInput id="kc-file" label="Upload Document / Photo" required file={file} onChange={setFile} error={errors.document} />
-          <FloatingSelect id="kc-sms" label="Send SMS" value={form.sms} options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
+          <FloatingSelect id="kc-sms" label="Send SMS" value={form.sms} options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
           <FloatingTextarea id="kc-text" label="Complaint" required className="ax-col--span-3" value={form.complaint} onChange={(v) => setVal('complaint', v)} error={errors.complaint} />
         </div>
       </div>

@@ -22,7 +22,7 @@ export function UP_AMC_Ongrid_PendingAMC() {
     if (Array.isArray(arr)) {
       return arr.map((s: any) => ({
         id: s.site_id,
-        label: `${s.beneficiary_name || 'Beneficiary'} [Site #${s.site_id}]`,
+        label: `${s.beneficiary_name || s.farmer_name || 'Beneficiary'} [Site #${s.site_id}]`,
         ...s,
       }));
     }
@@ -31,15 +31,22 @@ export function UP_AMC_Ongrid_PendingAMC() {
 
   const fetchSiteDetails = async (id: number | string, year?: number, month?: number | string) => {
     const res = await upOngridAmcApi.fetchSiteName(id, year, month);
-    if (res?.ongrid) {
-      const o = res.ongrid;
+    const o = res?.ongrid || res?.data || res;
+    if (o) {
       return {
         ...o,
-        beneficiary_name: o.beneficiary_name,
-        district: o.district,
-        plant_capacity: o.plant_capacity,
-        contractor_name: o.contractor_name,
-        contractor_number: o.contractor_number,
+        state: o.state || 'UP',
+        district: o.district || '',
+        village: o.village || o.block || '',
+        beneficiary_name: o.beneficiary_name || '',
+        contact: o.contact || o.mobile || o.contractor_number || '',
+        gender: o.gender || '',
+        phase: o.phase || '',
+        serial_number: o.serial_number || o.application_no || o.ca_no || '',
+        address: o.address || o.location || '',
+        volume: o.plant_capacity || o.sanction_load || o.volume || '',
+        contractor_name: o.contractor_name || '',
+        amc_type: o.amc_type || 'Monthly',
       };
     }
     return null;
@@ -62,8 +69,7 @@ export function UP_AMC_Ongrid_PendingAMC() {
       ]}
       viewLink="/v/up/ongrid/amc/completed-details"
       viewLabel="View Completed AMC"
-      mode="schedule"
-      photoMode="fourImages"
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchMonths={fetchMonths}
       onFetchSites={fetchSites}

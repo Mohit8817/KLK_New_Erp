@@ -56,15 +56,21 @@ class AuthService {
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    // Attach active Bearer token if present
+    // Attach active Bearer token if present (skip synthetic client-side fallback tokens)
     const token = this.getToken();
 
     if (token && !headers['Authorization']) {
-      headers['Authorization'] = `Bearer ${token}`;
+      const isSyntheticDummy =
+        token.startsWith('klk_user_session_token_') ||
+        token.startsWith('klk_vendor_session_token_');
+      if (!isSyntheticDummy) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     try {
       const response = await fetch(url, {
+        credentials: 'include',
         ...options,
         headers,
       });
@@ -276,27 +282,34 @@ class AuthService {
   }
 
   /**
-   * POST API user/logout
+   * POST API user/logout or vendor-logout
    */
   async logout(): Promise<{
     success: boolean;
     message: string;
   }> {
-    const token = this.getToken();
+    const session = this.getSession();
+    const isVendor =
+      session?.role === 'vendor' ||
+      !!session?.vendor_id ||
+      (session?.user_type && String(session.user_type).toLowerCase() === 'vendor');
 
     try {
-      if (token) {
-        await this.request('/user/logout', {
-          method: 'POST',
-        }).catch(() => {
-          // Ignore expired token
-        });
-      }
-    } catch (e) {
-      console.warn(
-        'Logout API error:',
-        e
-      );
+      // Choose primary logout endpoint based on role
+      const endpoint = isVendor ? '/vendor-logout' : '/user/logout';
+
+      await this.request(endpoint, {
+        method: 'POST',
+      }).catch(async (err: any) => {
+        // If /user/logout returned 401 or 404, attempt fallback /logout silently
+        if (!isVendor && (err?.status === 401 || err?.status === 404)) {
+          await this.request('/logout', {
+            method: 'POST',
+          }).catch(() => {});
+        }
+      });
+    } catch {
+      // Ignore network or authorization errors - client cleanup will always succeed
     } finally {
       this.clearSession();
     }
@@ -474,25 +487,17 @@ class AuthService {
 
   clearSession(): void {
     try {
-      sessionStorage.removeItem(
-        'klk_user_session'
-      );
-
-      sessionStorage.removeItem(
-        'klk_raw_login_response'
-      );
-
-      localStorage.removeItem(
-        'klk_user_session'
-      );
-
-      localStorage.removeItem(
-        'klk_raw_login_response'
-      );
-
-      localStorage.removeItem(
-        'klk_auth_token'
-      );
+      const keys = [
+        'klk_user_session',
+        'klk_raw_login_response',
+        'klk_auth_token',
+        'access_token',
+        'token',
+      ];
+      for (const k of keys) {
+        sessionStorage.removeItem(k);
+        localStorage.removeItem(k);
+      }
     } catch (e) {
       console.error(
         'Failed to clear session:',

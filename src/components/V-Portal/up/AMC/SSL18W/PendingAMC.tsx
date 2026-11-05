@@ -20,11 +20,22 @@ export function UP_AMC_SSL18W_PendingAMC() {
 
   const fetchSiteDetails = async (id: number | string) => {
     const res = await upSsl18wAmcApi.fetchLightDetails(id);
-    if (res?.status && res.ssl_details) {
+    const s = res?.ssl_details || res?.data || res;
+    if (s) {
       return {
-        ...res.ssl_details,
-        pending_months: res.pending_months,
-        amc_type_name: res.amc_type_name,
+        ...s,
+        state: s.state || 'UP',
+        district: s.district || '',
+        village: s.village || s.block || '',
+        beneficiary_name: s.beneficiary_name || '',
+        contact: s.contact || s.mobile || '',
+        gender: s.gender || '',
+        phase: s.phase || '',
+        serial_number: s.serial_number || s.light_no || s.pole_no || s.id || '',
+        address: s.address || s.location || '',
+        volume: s.volume || s.wattage || '18W',
+        contractor_name: s.contractor_name || '',
+        amc_type: res?.amc_type_name || s.amc_type || 'Monthly',
       };
     }
     return null;
@@ -47,8 +58,7 @@ export function UP_AMC_SSL18W_PendingAMC() {
       ]}
       viewLink="/v/up-ssl18w-amc-view-light"
       viewLabel="View Completed AMC"
-      mode="ssl18w"
-      photoMode="fourImages"
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchSites={fetchSites}
       onFetchSiteDetails={fetchSiteDetails}

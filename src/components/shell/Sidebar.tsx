@@ -11,6 +11,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useAuth } from '../../context/AuthContext';
 import { DLESidebar } from '../DLE/DLESidebar';
 import { VPortalSidebar } from '../V-Portal/VPortalSidebar';
+import { VendorManagementSidebar } from '../Vendor-Management/VendorManagementSidebar';
 import { MainErpSidebar } from './MainErpSidebar';
 
 export function Sidebar({
@@ -36,16 +37,19 @@ export function Sidebar({
   };
 
   const pathname = location.pathname;
+  const isVendor =
+    user?.role === 'vendor' ||
+    !!user?.vendor_id ||
+    (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
+
+  const isVendorManagement = pathname.startsWith('/vendor-management');
   const isDlePortal = pathname.startsWith('/dle');
   const isVPortal =
-    pathname.startsWith('/vendor') ||
     pathname.startsWith('/v-portal') ||
     pathname.startsWith('/v-dashboard') ||
     pathname.startsWith('/v/') ||
     pathname === '/v' ||
-    pathname.startsWith('/assam') ||
-    pathname.startsWith('/jammu') ||
-    pathname.startsWith('/up');
+    (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up')));
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>
@@ -149,9 +153,11 @@ export function Sidebar({
 
       {/* ===== NAV TREE ===== */}
       <nav className="ax-sidebar__nav" role="tree" aria-label="Main menu">
-        {isDlePortal ? (
+        {isVendorManagement ? (
+          <VendorManagementSidebar filter={filter} onNavigate={onCloseDrawer} />
+        ) : isDlePortal ? (
           <DLESidebar filter={filter} onNavigate={onCloseDrawer} />
-        ) : isVPortal ? (
+        ) : isVPortal && isVendor ? (
           <VPortalSidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : (
           <MainErpSidebar filter={filter} />

@@ -344,6 +344,20 @@ const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers
 
 
 
+// ── SUPER ADMIN: VENDOR MANAGEMENT ──
+const VendorManagementDashboard = lazy(() => import('./components/Vendor-Management/VendorManagementDashboard'));
+const AdminVendorUsersDashboard = lazy(() => import('./components/Vendor-Management/users/AdminVendorUsersDashboard'));
+
+// ── SUPER ADMIN: ASSAM SWP ──
+const AssamSwpDashboard = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/AssamSwpDashboard'));
+const AssignInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/AssignInstallation'));
+const ViewAssignInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewAssignInstallation'));
+const VerifyInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyInstallation'));
+const VerifyDocument = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyDocument'));
+const VerifyClaim = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyClaim'));
+const ViewPayment = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewPayment'));
+const StatusView = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/StatusView'));
+
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 // const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
 // const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
@@ -815,6 +829,12 @@ const shell: Record<string, PageComponent> = {
   'v/complaint/up/swp-add-complaint': UPComplaintKCAdd,
   'v/complaint/up/swp-view-complaint': UPComplaintKCView,
   'v/complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
+  'v/complaint/up/kusumc-add-complaint': UPComplaintKCAdd,
+  'v/complaint/up/kusumc-view-complaint': UPComplaintKCView,
+  'v/complaint/up/kusumc-assign-complaint': UPComplaintKCAssigned,
+  'complaint/up/kusumc-add-complaint': UPComplaintKCAdd,
+  'complaint/up/kusumc-view-complaint': UPComplaintKCView,
+  'complaint/up/kusumc-assign-complaint': UPComplaintKCAssigned,
   'complaint/up/swp-add-complaint': UPComplaintKCAdd,
   'complaint/up/swp-view-complaint': UPComplaintKCView,
   'complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
@@ -1562,6 +1582,25 @@ export function App() {
               <Route path="vendor" element={wrap(VPortalDashboard)} />
               <Route path="v-dashboard" element={wrap(VPortalDashboard)} />
               <Route path="v-portal" element={wrap(VPortalDashboard)} />
+
+{/* supper  admin */}
+              <Route path="vendor-management" element={wrap(VendorManagementDashboard)} />
+              <Route path="vendor-management/users" element={wrap(AdminVendorUsersDashboard)} />
+              <Route path="vendor-management/assam/swp/dashboard" element={wrap(AssamSwpDashboard)} />
+              <Route path="vendor-management/assam/swp/assign-installation" element={wrap(AssignInstallation)} />
+              <Route path="vendor-management/assam/swp/view-assign-installation" element={wrap(ViewAssignInstallation)} />
+              <Route path="vendor-management/assam/swp/verify-installation" element={wrap(VerifyInstallation)} />
+              <Route path="vendor-management/assam/swp/verify-document" element={wrap(VerifyDocument)} />
+              <Route path="vendor-management/assam/swp/verify-claim" element={wrap(VerifyClaim)} />
+              <Route path="vendor-management/assam/swp/view-payment" element={wrap(ViewPayment)} />
+              <Route path="vendor-management/assam/swp/status-view" element={wrap(StatusView)} />
+              <Route path="vendor-management/assam/swp/request" element={wrap(ViewAssignInstallation)} />
+              <Route path="vendor-management/assam/swp/site" element={wrap(AssignInstallation)} />
+              <Route path="vendor-management/assam/swp/view" element={wrap(VerifyInstallation)} />
+              <Route path="vendor-management/assam/swp/payment" element={wrap(ViewPayment)} />
+
+
+
               <Route path="gallery" element={wrap(AppsGallery)} />
               <Route path="complaints" element={wrap(ModulePlaceholder)} />
               <Route path="reports/analytics" element={wrap(DashboardsAnalytics)} />

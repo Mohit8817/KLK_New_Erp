@@ -22,7 +22,7 @@ export function UP_AMC_Offgrid_PendingAMC() {
     if (Array.isArray(arr)) {
       return arr.map((s: any) => ({
         id: s.site_id,
-        label: `${s.beneficiary_name || 'Beneficiary'} [Site #${s.site_id}]`,
+        label: `${s.beneficiary_name || s.farmer_name || 'Beneficiary'} [Site #${s.site_id}]`,
         ...s,
       }));
     }
@@ -31,15 +31,22 @@ export function UP_AMC_Offgrid_PendingAMC() {
 
   const fetchSiteDetails = async (id: number | string, year?: number, month?: number | string) => {
     const res = await upOffgridAmcApi.fetchSiteName(id, year, month);
-    if (res?.data) {
-      const d = res.data;
+    const d = res?.offgrid || res?.data || res;
+    if (d) {
       return {
         ...d,
-        beneficiary_name: d.beneficiary_name,
-        district: d.district,
-        plant_capacity: d.plant_capacity,
-        work_order_no: d.work_order_no,
-        contractor_name: d.contractor_name,
+        state: d.state || 'UP',
+        district: d.district || '',
+        village: d.village || d.block || '',
+        beneficiary_name: d.beneficiary_name || '',
+        contact: d.contact || d.mobile || '',
+        gender: d.gender || '',
+        phase: d.phase || '',
+        serial_number: d.serial_number || d.work_order_no || '',
+        address: d.address || d.location || '',
+        volume: d.plant_capacity || d.volume || '',
+        contractor_name: d.contractor_name || '',
+        amc_type: d.amc_type || 'Monthly',
       };
     }
     return null;
@@ -62,8 +69,7 @@ export function UP_AMC_Offgrid_PendingAMC() {
       ]}
       viewLink="/v/up/offgrid/amc/completed-details"
       viewLabel="View Completed AMC"
-      mode="schedule"
-      photoMode="fourImages"
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchMonths={fetchMonths}
       onFetchSites={fetchSites}

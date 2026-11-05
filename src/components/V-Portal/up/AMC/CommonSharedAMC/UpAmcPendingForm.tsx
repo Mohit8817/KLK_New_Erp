@@ -25,15 +25,15 @@ export const SINGLE_CARD_FORM_CSS = `
 .ax-float__input:focus { border-color: var(--ax-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 20%, transparent); }
 .ax-float__input[readonly] { background: var(--ax-surface-subtle); cursor: default; }
 .ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
-.ax-float--readonly .ax-float__input { background: var(--ax-surface-subtle); cursor: default; color: var(--ax-text-strong); font-weight: 500; }
-.ax-float--readonly .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs, 11px); font-weight: 500; color: var(--ax-text-muted); }
+.ax-float--readonly .ax-float__input { background: #f8fafc; cursor: default; color: #0f172a; font-weight: 500; }
+.ax-float--readonly .ax-float__label { top: 0; transform: translateY(-50%); font-size: 11px; font-weight: 500; color: #64748b; }
 
 .ax-float__label { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); margin: 0; padding: 0 4px; font-size: var(--ax-text-sm); color: var(--ax-text-subtle); background: var(--ax-surface-solid); border-radius: var(--ax-radius-xs); pointer-events: none; transition: top var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease), font-size var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease), color var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease); z-index: 2; white-space: nowrap; max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; }
 
 .ax-float__input:focus + .ax-float__label,
 .ax-float__input:not(:placeholder-shown) + .ax-float__label,
 .ax-float--select .ax-float__label,
-.ax-float--file .ax-float__label { top: 0; transform: translateY(-50%); font-size: var(--ax-text-2xs, 11px); font-weight: 500; color: var(--ax-text-muted); }
+.ax-float--file .ax-float__label { top: 0; transform: translateY(-50%); font-size: 11px; font-weight: 500; color: var(--ax-text-muted); }
 .ax-float__input:focus + .ax-float__label { color: var(--ax-accent); }
 
 .ax-float__input.is-invalid { border-color: var(--ax-danger-500, #ef4444) !important; }
@@ -56,44 +56,102 @@ export const SINGLE_CARD_FORM_CSS = `
 .up-form-col-span-full { grid-column: 1 / -1; }
 .up-form-col-span-2 { grid-column: span 2; }
 
+/* Clean file upload controls */
+.ax-file-box-wrap { display: flex; flex-direction: column; gap: 6px; }
+.ax-file-box-label { font-size: 13px; font-weight: 500; color: var(--ax-text-strong); display: flex; align-items: center; gap: 4px; }
+.ax-file-box-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 6px 12px;
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-md);
+  transition: all 0.15s ease;
+}
+.ax-file-box-control:hover { border-color: var(--ax-accent); }
+.ax-file-box-control.is-invalid { border-color: var(--ax-danger-500, #ef4444) !important; background: #fef2f2; }
+.ax-file-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.ax-file-btn:hover { background: #e2e8f0; }
+.ax-file-status-text {
+  font-size: 13px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.ax-file-status-text.has-file {
+  color: #0f172a;
+  font-weight: 500;
+}
+.ax-file-clear-btn {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.ax-file-clear-btn:hover { background: #fee2e2; }
+.ax-file-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
+}
+
 /* Sticky footer bar */
 .up-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
 
 @keyframes up-spin { to { transform: rotate(360deg); } }
 `;
 
-// ── Section pill definitions ──
+// ── 4 Main Sections Matching Requested ERP Structure ──
 const SECTIONS = [
-  { id: 'sec-1', num: '1', title: 'Period & Site' },
-  { id: 'sec-2', num: '2', title: 'Site Info' },
-  { id: 'sec-3', num: '3', title: 'Beneficiary & Inspection' },
-  { id: 'sec-4', num: '4', title: 'Photos' },
-  { id: 'sec-5', num: '5', title: 'Complaint' },
+  { id: 'sec-site', num: '1', title: 'Site Selection' },
+  { id: 'sec-info', num: '2', title: 'Information' },
+  { id: 'sec-form', num: '3', title: 'Fill this Form' },
+  { id: 'sec-complaint', num: '4', title: 'Raised Complaint' },
 ];
 
-const MONTH_NAMES = [
-  '',
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+const MONTH_OPTIONS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
 ];
 
-const formatMonthLabel = (m: string | number) => {
-  const num = Number(m);
-  if (!isNaN(num) && num >= 1 && num <= 12) {
-    return MONTH_NAMES[num];
-  }
-  return String(m);
-};
+const AMC_TYPE_OPTIONS = [
+  { value: 'Monthly', label: 'Monthly' },
+  { value: 'Quarterly', label: 'Quarterly' },
+  { value: 'Half-Yearly', label: 'Half-Yearly' },
+  { value: 'Yearly', label: 'Yearly' },
+];
 
 export interface UpAmcPendingFormProps {
   title: string;
@@ -102,7 +160,7 @@ export interface UpAmcPendingFormProps {
   breadcrumbs: { label: string; href?: string }[];
   viewLink: string;
   viewLabel: string;
-  mode: 'resco' | 'ssl' | 'ssl18w' | 'schedule';
+  mode?: 'resco' | 'ssl' | 'ssl18w' | 'schedule';
   onFetchYears: () => Promise<number[]>;
   onFetchMonths?: (year: number) => Promise<(number | string)[]>;
   onFetchSites: (year: number, month?: number | string) => Promise<{ id: number | string; label: string; [key: string]: any }[]>;
@@ -128,58 +186,84 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     onFetchSites,
     onFetchSiteDetails,
     onSubmit,
-    photoMode = 'fourImages',
-    hasDigitalSignature = false,
-    hasJmrReport = false,
+    defaultAmcType = 'Monthly',
   } = props;
 
   const navigate = useNavigate();
 
-  // Selection states
+  // ── Section 1: Site Selection States ──
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
-  const [months, setMonths] = useState<(number | string)[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [sites, setSites] = useState<{ id: number | string; label: string; [key: string]: any }[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
 
-  // Form inputs
-  const [siteDetails, setSiteDetails] = useState<Record<string, any>>({});
-  const [beneficiaryName, setBeneficiaryName] = useState('');
-  const [beneficiaryContact, setBeneficiaryContact] = useState('');
+  // ── Section 2: Information (Auto-populated 11 fields) ──
+  const [siteInfo, setSiteInfo] = useState({
+    state: '',
+    district: '',
+    village: '',
+    beneficiaryName: '',
+    contact: '',
+    gender: '',
+    phase: '',
+    serialNumber: '',
+    address: '',
+    volume: '',
+    contractorName: '',
+  });
+
+  // ── Section 3: Fill this Form Inputs ──
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [meterReading, setMeterReading] = useState('');
-  const [nextDueDate, setNextDueDate] = useState('');
-  const [visitTime, setVisitTime] = useState(() => {
-    const d = new Date();
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  });
-  const [amcDate, setAmcDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [remark, setRemark] = useState('');
-
-  // Complaint
-  const [raisedComplaint, setRaisedComplaint] = useState(false);
-  const [complaintText, setComplaintText] = useState('');
-  const [complaintFile, setComplaintFile] = useState<File | null>(null);
-
-  // Photos
-  const [beforePhotos, setBeforePhotos] = useState<File[]>([]);
-  const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'fetching' | 'success' | 'unable'>('idle');
+  const [amcType, setAmcType] = useState(defaultAmcType);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [beneficiaryName, setBeneficiaryName] = useState('');
+  const [beneficiaryContact, setBeneficiaryContact] = useState('');
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [image1, setImage1] = useState<File | null>(null);
   const [image2, setImage2] = useState<File | null>(null);
   const [image3, setImage3] = useState<File | null>(null);
-  const [image4, setImage4] = useState<File | null>(null);
-  const [jmrReport, setJmrReport] = useState<File | null>(null);
-  const [digitalSignature, setDigitalSignature] = useState<File | null>(null);
+  const [remarks, setRemarks] = useState('');
+
+  // ── Section 4: Raised Complaint Inputs ──
+  const [complaintText, setComplaintText] = useState('');
+  const [complaintImage, setComplaintImage] = useState<File | null>(null);
 
   // States
   const [loading, setLoading] = useState(false);
   const [loadingYears, setLoadingYears] = useState(false);
-  const [loadingMonths, setLoadingMonths] = useState(false);
   const [loadingSites, setLoadingSites] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Auto-detect GPS coordinates on mount
+  useEffect(() => {
+    handleDetectGps(true);
+  }, []);
+
+  const handleDetectGps = (silent = false) => {
+    if (!navigator.geolocation) {
+      setGpsStatus('unable');
+      if (!silent) setToast({ type: 'error', message: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+    setGpsStatus('fetching');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setGpsStatus('success');
+        if (!silent) setToast({ type: 'success', message: 'Current GPS coordinates detected successfully!' });
+      },
+      (err) => {
+        setGpsStatus('unable');
+        if (!silent) setToast({ type: 'error', message: `GPS error: ${err.message}` });
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   // Load Years on mount
   useEffect(() => {
@@ -204,63 +288,16 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     return () => { active = false; };
   }, [onFetchYears]);
 
-  // Load Months or Sites when Year changes
+  // Load Sites when Year changes
   useEffect(() => {
     if (!selectedYear) return;
     let active = true;
+    setSites([]);
+    setSelectedSiteId('');
+    clearSiteInfo();
 
-    if (onFetchMonths) {
-      // FIX: Clear stale month & sites immediately so effect 2 won't fire with wrong month
-      setSelectedMonth('');
-      setSites([]);
-      setSelectedSiteId('');
-      setSiteDetails({});
-
-      setLoadingMonths(true);
-      onFetchMonths(Number(selectedYear))
-        .then((mList) => {
-          if (!active) return;
-          setMonths(mList);
-          if (mList.length > 0) {
-            setSelectedMonth(String(mList[0]));
-          } else {
-            setSelectedMonth('');
-          }
-        })
-        .catch(() => { if (active) setMonths([]); })
-        .finally(() => { if (active) setLoadingMonths(false); });
-    } else {
-      // No month-based flow — directly fetch sites for the year
-      setSites([]);
-      setSelectedSiteId('');
-      setSiteDetails({});
-
-      setLoadingSites(true);
-      onFetchSites(Number(selectedYear))
-        .then((sList) => {
-          if (!active) return;
-          setSites(sList);
-          if (sList.length > 0) {
-            setSelectedSiteId(String(sList[0].id));
-          } else {
-            setSelectedSiteId('');
-          }
-        })
-        .catch(() => { if (active) setSites([]); })
-        .finally(() => { if (active) setLoadingSites(false); });
-    }
-    return () => { active = false; };
-  }, [selectedYear, onFetchMonths, onFetchSites]);
-
-  // Load Sites when Month changes (only when onFetchMonths exists)
-  useEffect(() => {
-    if (!selectedYear || !onFetchMonths) return;
-    // FIX: Don't fetch sites until a valid month is actually selected
-    if (!selectedMonth) return;
-
-    let active = true;
     setLoadingSites(true);
-    onFetchSites(Number(selectedYear), selectedMonth)
+    onFetchSites(Number(selectedYear), selectedMonth || undefined)
       .then((sList) => {
         if (!active) return;
         setSites(sList);
@@ -272,88 +309,147 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       })
       .catch(() => { if (active) setSites([]); })
       .finally(() => { if (active) setLoadingSites(false); });
+
     return () => { active = false; };
-  }, [selectedYear, selectedMonth, onFetchMonths, onFetchSites]);
+  }, [selectedYear, onFetchSites]);
+
+  // Clear site info helper
+  const clearSiteInfo = () => {
+    setSiteInfo({
+      state: '',
+      district: '',
+      village: '',
+      beneficiaryName: '',
+      contact: '',
+      gender: '',
+      phase: '',
+      serialNumber: '',
+      address: '',
+      volume: '',
+      contractorName: '',
+    });
+  };
+
+  // Normalize site details into the exact 11 requested Information fields
+  const normalizeSite = (det: any) => {
+    if (!det) return null;
+    const d = det.data || det.kusumb || det.ongrid || det.offgrid || det.powerpack || det.ssl_details || det.site_details || det;
+
+    const bName = d.beneficiary_name || d.beneficiary || d.farmer_name || d.f_farmer_name || d.applicant_name || d.site_name || d.name || '';
+    const bContact = d.contact || d.mobile || d.f_mobile || d.beneficiary_contact || d.f_contact || d.contact_number || d.contact_no || d.contractor_number || '';
+    const st = d.state || 'UP';
+    const dist = d.district || d.f_district || d.installation_dsitrict || '';
+    const vill = d.village || d.f_village || d.installation_village || d.block || '';
+    const gdr = d.gender || d.f_gender || d.farmer_gender || '';
+    const ph = d.phase || d.f_phase || d.installation_phase || '';
+    const srNo = d.serial_number || d.serial_no || d.f_sr_no || d.saral_id || d.application_no || d.ca_no || d.pole_no || d.light_no || d.system_id || d.wo_no || '';
+    const addr = d.address || d.f_address || d.location || d.village_address || '';
+    const vol = d.volume || d.pump_capacity || d.plant_capacity || d.capacity || d.sanction_load || d.wattage || d.plant_sc || '';
+    const cName = d.contractor_name || d.contractor || d.vendor_name || d.vendor || '';
+
+    let aType = d.amc_type || det.amc_type_name || d.amc_type_name || defaultAmcType;
+    if (aType === 'M') aType = 'Monthly';
+    else if (aType === 'Q') aType = 'Quarterly';
+    else if (aType === 'H') aType = 'Half-Yearly';
+    else if (aType === 'Y') aType = 'Yearly';
+
+    return {
+      state: st,
+      district: dist,
+      village: vill,
+      beneficiaryName: String(bName),
+      contact: String(bContact),
+      gender: String(gdr),
+      phase: String(ph),
+      serialNumber: String(srNo),
+      address: String(addr),
+      volume: String(vol),
+      contractorName: String(cName),
+      amcType: aType,
+      latitude: d.latitude || d.lat || '',
+      longitude: d.longitude || d.long || d.lng || '',
+      month: d.month || d.report_month || '',
+    };
+  };
 
   // Load Site Details when selectedSiteId changes
   useEffect(() => {
     if (!selectedSiteId) {
-      setSiteDetails({});
+      clearSiteInfo();
       return;
     }
     let active = true;
+    setLoadingDetails(true);
     onFetchSiteDetails(selectedSiteId, selectedYear ? Number(selectedYear) : undefined, selectedMonth || undefined)
       .then((det) => {
         if (!active || !det) return;
-        setSiteDetails(det);
-        const bName = det.beneficiary_name || det.beneficiary || det.farmer_name || det.f_farmer_name || det.contact_person || det.contact_name || '';
-        const bContact = det.beneficiary_contact || det.contact || det.mobile || det.f_mobile || det.contact_number || det.contact_no || '';
-        if (bName) setBeneficiaryName(String(bName));
-        if (bContact) setBeneficiaryContact(String(bContact));
-        if (det.latitude) setLatitude(String(det.latitude));
-        if (det.longitude) setLongitude(String(det.longitude));
+        const norm = normalizeSite(det);
+        if (norm) {
+          setSiteInfo({
+            state: norm.state,
+            district: norm.district,
+            village: norm.village,
+            beneficiaryName: norm.beneficiaryName,
+            contact: norm.contact,
+            gender: norm.gender,
+            phase: norm.phase,
+            serialNumber: norm.serialNumber,
+            address: norm.address,
+            volume: norm.volume,
+            contractorName: norm.contractorName,
+          });
+          if (norm.beneficiaryName) setBeneficiaryName(norm.beneficiaryName);
+          if (norm.contact) setBeneficiaryContact(norm.contact);
+          if (norm.amcType) setAmcType(norm.amcType);
+          if (norm.latitude && !latitude) setLatitude(String(norm.latitude));
+          if (norm.longitude && !longitude) setLongitude(String(norm.longitude));
+          if (norm.month && !selectedMonth) setSelectedMonth(String(norm.month));
+        }
       })
-      .catch((err) => { console.error('Error fetching site details:', err); });
+      .catch((err) => { console.error('Error fetching site details:', err); })
+      .finally(() => { if (active) setLoadingDetails(false); });
+
     return () => { active = false; };
   }, [selectedSiteId, selectedYear, selectedMonth, onFetchSiteDetails]);
 
-  // GPS Auto-detect
-  const handleDetectGps = () => {
-    if (!navigator.geolocation) {
-      setToast({ type: 'error', message: 'Geolocation is not supported by your browser.' });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toFixed(6));
-        setLongitude(pos.coords.longitude.toFixed(6));
-        setToast({ type: 'success', message: 'Current GPS coordinates detected!' });
-      },
-      (err) => { setToast({ type: 'error', message: `GPS error: ${err.message}` }); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
   const handleReset = () => {
+    setSelectedSiteId('');
+    clearSiteInfo();
     setBeneficiaryName('');
     setBeneficiaryContact('');
     setLatitude('');
     setLongitude('');
-    setMeterReading('');
-    setNextDueDate('');
-    setVisitTime('');
-    setRemark('');
-    setRaisedComplaint(false);
-    setComplaintText('');
-    setComplaintFile(null);
-    setBeforePhotos([]);
-    setAfterPhotos([]);
+    setAmcType(defaultAmcType);
+    setSelectedMonth('');
+    setDocumentFile(null);
     setImage1(null);
     setImage2(null);
     setImage3(null);
-    setImage4(null);
-    setJmrReport(null);
-    setDigitalSignature(null);
+    setRemarks('');
+    setComplaintText('');
+    setComplaintImage(null);
     setErrors({});
   };
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!selectedSiteId) errs.site = 'Please select a site';
+    if (!latitude.trim()) errs.latitude = 'AMC Latitude is required';
+    if (!longitude.trim()) errs.longitude = 'AMC Longitude is required';
+    if (!amcType) errs.amcType = 'AMC Type is required';
+    if (!selectedMonth) errs.month = 'Month is required';
     if (!beneficiaryName.trim()) errs.beneficiaryName = 'Beneficiary Name is required';
     if (!beneficiaryContact.trim()) {
-      errs.beneficiaryContact = 'Contact Number is required';
-    } else if (!/^\d{10,15}$/.test(beneficiaryContact.trim())) {
+      errs.beneficiaryContact = 'Beneficiary Contact is required';
+    } else if (!/^\d{10,15}$/.test(beneficiaryContact.trim().replace(/[- ]/g, ''))) {
       errs.beneficiaryContact = 'Must be 10 to 15 digits';
     }
-    if (photoMode === 'beforeAfter') {
-      if (beforePhotos.length === 0) errs.beforePhotos = 'At least 1 Before Cleaning photo is required';
-      if (afterPhotos.length === 0) errs.afterPhotos = 'At least 1 After Cleaning photo is required';
-    } else {
-      if (!image1) errs.image1 = 'Image 1 is required';
-    }
-    if (raisedComplaint && !complaintText.trim()) {
-      errs.complaint = 'Please describe the complaint';
+    if (!documentFile) errs.documentFile = 'Document Upload is required';
+    if (!image1) errs.image1 = 'AMC Image 1 is required';
+    if (!image2) errs.image2 = 'AMC Image 2 is required';
+    if (!image3) errs.image3 = 'AMC Image 3 is required';
+    if (complaintImage && !complaintText.trim()) {
+      errs.complaint = 'Please enter complaint description if uploading complaint image';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -371,44 +467,101 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       const fd = new FormData();
       fd.append('id', selectedSiteId);
       fd.append('site_id', selectedSiteId);
+
       if (selectedYear) {
         fd.append('amc_years', String(selectedYear));
+        fd.append('year', String(selectedYear));
         fd.append('report_year', String(selectedYear));
       }
+
       if (selectedMonth) {
-        fd.append('amc_months', String(selectedMonth));
+        fd.append('month', String(selectedMonth));
         fd.append('months', String(selectedMonth));
+        fd.append('amc_months', String(selectedMonth));
         fd.append('report_month', String(selectedMonth));
-        fd.append('month_year', `${String(selectedMonth).padStart(2, '0')}-${selectedYear}`);
+        if (selectedYear) {
+          fd.append('month_year', `${String(selectedMonth).padStart(2, '0')}-${selectedYear}`);
+        }
       }
+
+      fd.append('amc_type', amcType);
+      if (amcType === 'Monthly') fd.append('amc_type_code', 'M');
+      else if (amcType === 'Quarterly') fd.append('amc_type_code', 'Q');
+      else if (amcType === 'Half-Yearly') fd.append('amc_type_code', 'H');
+      else if (amcType === 'Yearly') fd.append('amc_type_code', 'Y');
+
       fd.append('beneficiary_name', beneficiaryName.trim());
+      fd.append('farmer_name', beneficiaryName.trim());
+      fd.append('f_farmer_name', beneficiaryName.trim());
+
       fd.append('beneficiary_contact', beneficiaryContact.trim());
+      fd.append('contact', beneficiaryContact.trim());
+      fd.append('mobile', beneficiaryContact.trim());
+      fd.append('f_mobile', beneficiaryContact.trim());
       fd.append('amc_beneficiary_contact', beneficiaryContact.trim());
-      if (latitude) { fd.append('latitude', latitude); fd.append('amc_latitude', latitude); }
-      if (longitude) { fd.append('longitude', longitude); fd.append('amc_longitude', longitude); }
-      if (meterReading) fd.append('meter_reading', meterReading);
-      if (nextDueDate) fd.append('next_due_date', nextDueDate);
-      if (visitTime) fd.append('visit_time', visitTime);
-      if (amcDate) fd.append('amc_date', amcDate);
-      if (remark) { fd.append('remark', remark); fd.append('amc_remark', remark); fd.append('remarks', remark); }
-      if (raisedComplaint) {
+
+      if (latitude) {
+        fd.append('latitude', latitude);
+        fd.append('amc_latitude', latitude);
+      }
+      if (longitude) {
+        fd.append('longitude', longitude);
+        fd.append('amc_longitude', longitude);
+      }
+
+      if (remarks) {
+        fd.append('remarks', remarks.trim());
+        fd.append('remark', remarks.trim());
+        fd.append('amc_remark', remarks.trim());
+      }
+
+      // Append 11 Information fields
+      fd.append('state', siteInfo.state || 'UP');
+      fd.append('district', siteInfo.district || '');
+      fd.append('village', siteInfo.village || '');
+      fd.append('gender', siteInfo.gender || '');
+      fd.append('phase', siteInfo.phase || '');
+      fd.append('serial_number', siteInfo.serialNumber || '');
+      fd.append('address', siteInfo.address || '');
+      fd.append('volume', siteInfo.volume || '');
+      fd.append('contractor_name', siteInfo.contractorName || '');
+
+      // Append Files
+      if (documentFile) {
+        fd.append('document', documentFile);
+        fd.append('file', documentFile);
+        fd.append('document_file', documentFile);
+        fd.append('upload_file', documentFile);
+      }
+      if (image1) {
+        fd.append('image1', image1);
+        fd.append('amc_image1', image1);
+        fd.append('before_cleaning_photo[]', image1);
+      }
+      if (image2) {
+        fd.append('image2', image2);
+        fd.append('amc_image2', image2);
+        fd.append('after_cleaning_photo[]', image2);
+      }
+      if (image3) {
+        fd.append('image3', image3);
+        fd.append('amc_image3', image3);
+      }
+
+      // Complaint Section
+      if (complaintText.trim()) {
         fd.append('raised_complaint', '1');
         fd.append('complaint', complaintText.trim());
-        if (complaintFile) { fd.append('file', complaintFile); fd.append('file1', complaintFile); fd.append('complaint_image', complaintFile); }
+        if (complaintImage) {
+          fd.append('complaint_image', complaintImage);
+          fd.append('complaint_file', complaintImage);
+          fd.append('file1', complaintImage);
+        }
       } else {
         fd.append('raised_complaint', '0');
+        fd.append('complaint', '');
       }
-      if (photoMode === 'beforeAfter') {
-        beforePhotos.forEach((f) => fd.append('before_cleaning_photo[]', f));
-        afterPhotos.forEach((f) => fd.append('after_cleaning_photo[]', f));
-        if (jmrReport) fd.append('jmr_report', jmrReport);
-        if (digitalSignature) fd.append('digital_signature', digitalSignature);
-      } else {
-        if (image1) fd.append('image1', image1);
-        if (image2) fd.append('image2', image2);
-        if (image3) fd.append('image3', image3);
-        if (image4) fd.append('image4', image4);
-      }
+
       const res = await onSubmit(fd);
       if (res.status) {
         setToast({ type: 'success', message: res.message || 'AMC report submitted successfully!' });
@@ -427,8 +580,6 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
-  const totalSections = 5;
 
   return (
     <div className="solar-erp-page up-single-card-form">
@@ -484,7 +635,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 Fill all sections below to submit your AMC report
               </h3>
               <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs, 12px)', color: 'var(--ax-text-muted)' }}>
-                All fields organized inside one card across {SECTIONS.length} dedicated sections.
+                Complete the site details, inspection parameters, photos, and optional complaint.
               </p>
             </div>
             <div className="up-section-pills" role="navigation" aria-label="Jump to section">
@@ -498,55 +649,38 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
           </div>
 
           <div className="ax-card__body">
-            {/* ── Section 1: Period & Site ── */}
-            <div id="sec-1" className="up-section-block">
-              <SectionHeader num="1" total={totalSections} title="Select AMC Period & Assigned Site" desc="Select the pending AMC year and month to display your eligible assigned sites" />
+            {/* ── Section 1: Site Selection ── */}
+            <div id="sec-site" className="up-section-block">
+              <SectionHeader
+                num="1"
+                total={4}
+                title="Site Selection"
+                desc="Choose the assigned site for which AMC is being submitted"
+              />
               <div className="up-form-grid up-form-grid--3col">
-                {/* Year Select */}
-                <FloatingSelect
-                  id="up-amc-year"
-                  label="AMC Year"
-                  required
-                  placeholder={loadingYears ? 'Loading years…' : '— Select Year —'}
-                  value={selectedYear ? String(selectedYear) : ''}
-                  options={years.map((y) => ({ value: String(y), label: String(y) }))}
-                  disabled={loadingYears}
-                  onChange={(v) => setSelectedYear(v ? Number(v) : '')}
-                />
-
-                {/* Month Select */}
-                {onFetchMonths && (
+                {years.length > 0 && (
                   <FloatingSelect
-                    id="up-amc-month"
-                    label="AMC Month"
-                    required
-                    placeholder={loadingMonths ? 'Loading months…' : '— Select Month —'}
-                    value={selectedMonth}
-                    options={months.map((m) => ({ value: String(m), label: formatMonthLabel(m) }))}
-                    disabled={loadingMonths || !selectedYear}
-                    onChange={(v) => setSelectedMonth(v)}
+                    id="up-amc-year"
+                    label="AMC Year"
+                    value={selectedYear ? String(selectedYear) : ''}
+                    options={years.map((y) => ({ value: String(y), label: String(y) }))}
+                    disabled={loadingYears}
+                    onChange={(v) => setSelectedYear(v ? Number(v) : '')}
                   />
                 )}
 
-                {/* Site Select */}
-                <div className="up-form-col-span-2">
+                <div className={years.length > 0 ? 'up-form-col-span-2' : 'up-form-col-span-full'}>
                   <FloatingSelect
-                    id="up-amc-site"
-                    label="Assigned Site / Beneficiary"
+                    id="up-amc-site-name"
+                    label="Site Name"
                     required
-                    placeholder={
-                      loadingSites
-                        ? 'Loading sites…'
-                        : sites.length === 0
-                        ? 'No pending sites found for selected period'
-                        : '— Select Site —'
-                    }
+                    placeholder="Select Site"
                     value={selectedSiteId}
                     options={sites.map((s) => ({
                       value: String(s.id),
                       label: s.label || s.site_name || s.farmer_name || s.beneficiary_name || `Site #${s.id}`,
                     }))}
-                    disabled={loadingSites || (!selectedMonth && !!onFetchMonths)}
+                    disabled={loadingSites}
                     onChange={(v) => setSelectedSiteId(v)}
                     error={errors.site}
                   />
@@ -556,116 +690,156 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
             <hr className="up-section-divider" />
 
-            {/* ── Section 2: Site Information (Read-only) ── */}
-            <div id="sec-2" className="up-section-block">
-              <SectionHeader num="2" total={totalSections} title="Site & Installation Details" desc="Auto-populated from system records for the selected site (Read-only)." />
-              <div className="up-form-grid up-form-grid--3col">
-                <FloatingInput id="up-ro-state" label="State" readOnly value={siteDetails.state || 'UP'} />
-                <FloatingInput id="up-ro-district" label="District" readOnly value={siteDetails.district || siteDetails.f_district || siteDetails.installation_dsitrict || '—'} />
-                <FloatingInput id="up-ro-sitename" label="Site Name" readOnly value={siteDetails.site_name || siteDetails.name || '—'} />
-                <FloatingInput id="up-ro-location" label="Location" readOnly value={siteDetails.location || siteDetails.address || siteDetails.village || siteDetails.f_village || '—'} />
-                <FloatingInput id="up-ro-ca" label="CA / Application No" readOnly value={siteDetails.ca_no || siteDetails.saral_id || siteDetails.application_no || '—'} />
-                <FloatingInput id="up-ro-capacity" label="Sanction Load (kVA / kW)" readOnly value={siteDetails.sanction_load || siteDetails.pump_capacity || siteDetails.plant_capacity || siteDetails.volume || '—'} />
-                <FloatingInput id="up-ro-plantsc" label="Plan SC (kVA / kW)" readOnly value={siteDetails.plant_sc || siteDetails.plan_sc || siteDetails.capacity || '—'} />
-                <FloatingInput id="up-ro-dept" label="Department / Block" readOnly value={siteDetails.dept_name || siteDetails.department || siteDetails.block || '—'} />
-                <FloatingInput id="up-ro-wo" label="Work Order / Lot No" readOnly value={siteDetails.wo_no || siteDetails.work_order_no || siteDetails.lot_no || '—'} />
+            {/* ── Section 2: Information (Auto-populated from site) ── */}
+            <div id="sec-info" className="up-section-block">
+              <SectionHeader
+                num="2"
+                total={4}
+                title="Information"
+                desc="Auto-populated site parameters, specifications, and contact records (Read-only)"
+              />
+              <div className="up-form-grid up-form-grid--4col">
+                <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || 'UP'} />
+                <FloatingInput id="up-info-district" label="District" readOnly value={siteInfo.district || '—'} />
+                <FloatingInput id="up-info-village" label="Village" readOnly value={siteInfo.village || '—'} />
+                <FloatingInput id="up-info-beneficiary" label="Beneficiary Name" readOnly value={siteInfo.beneficiaryName || '—'} />
+                <FloatingInput id="up-info-contact" label="Contact" readOnly value={siteInfo.contact || '—'} />
+                <FloatingInput id="up-info-gender" label="Gender" readOnly value={siteInfo.gender || '—'} />
+                <FloatingInput id="up-info-phase" label="Phase" readOnly value={siteInfo.phase || '—'} />
+                <FloatingInput id="up-info-serial" label="Serial Number" readOnly value={siteInfo.serialNumber || '—'} />
+                <FloatingInput id="up-info-address" label="Address" readOnly value={siteInfo.address || '—'} />
+                <FloatingInput id="up-info-volume" label="Volume" readOnly value={siteInfo.volume || '—'} />
+                <FloatingInput id="up-info-contractor" label="Contractor Name" readOnly value={siteInfo.contractorName || '—'} />
               </div>
             </div>
 
             <hr className="up-section-divider" />
 
-            {/* ── Section 3: Beneficiary & Inspection ── */}
-            <div id="sec-3" className="up-section-block">
+            {/* ── Section 3: Fill this Form ── */}
+            <div id="sec-form" className="up-section-block">
               <SectionHeader
                 num="3"
-                total={totalSections}
-                title="Beneficiary & Inspection Details"
-                desc="Enter contact details, GPS coordinates, and inspection metrics"
+                total={4}
+                title="Fill this Form"
+                desc="Enter inspection parameters, GPS coordinates, period, images, and maintenance remarks"
                 action={
-                  <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={handleDetectGps}>
-                    <span className="ax-btn__label">📍 Detect Current GPS</span>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary ax-btn--sm"
+                    onClick={() => handleDetectGps(false)}
+                    disabled={gpsStatus === 'fetching'}
+                  >
+                    <span className="ax-btn__label">
+                      {gpsStatus === 'fetching' ? 'Detecting GPS…' : '📍 Detect Current GPS'}
+                    </span>
                   </button>
                 }
               />
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput
-                  id="up-beneficiary-name"
+                  id="up-amc-latitude"
+                  label="AMC Latitude"
+                  required
+                  placeholder={gpsStatus === 'unable' && !latitude ? 'Unable to fetch' : 'e.g. 26.846700'}
+                  value={latitude}
+                  onChange={(v) => setLatitude(v)}
+                  error={errors.latitude}
+                />
+                <FloatingInput
+                  id="up-amc-longitude"
+                  label="AMC Longitude"
+                  required
+                  placeholder={gpsStatus === 'unable' && !longitude ? 'Unable to fetch' : 'e.g. 80.946200'}
+                  value={longitude}
+                  onChange={(v) => setLongitude(v)}
+                  error={errors.longitude}
+                />
+                <FloatingSelect
+                  id="up-amc-type"
+                  label="AMC Type"
+                  required
+                  value={amcType}
+                  options={AMC_TYPE_OPTIONS}
+                  onChange={(v) => setAmcType(v)}
+                  error={errors.amcType}
+                />
+                <FloatingSelect
+                  id="up-amc-month"
+                  label="Month"
+                  required
+                  placeholder="Select Month"
+                  value={selectedMonth}
+                  options={MONTH_OPTIONS}
+                  onChange={(v) => setSelectedMonth(v)}
+                  error={errors.month}
+                />
+                <FloatingInput
+                  id="up-beneficiary-name-form"
                   label="Beneficiary Name"
                   required
-                  placeholder="Enter beneficiary name"
+                  placeholder="Enter Beneficiary Name"
                   value={beneficiaryName}
                   onChange={(v) => setBeneficiaryName(v)}
                   error={errors.beneficiaryName}
                 />
                 <FloatingInput
-                  id="up-beneficiary-contact"
-                  label="Beneficiary Contact Number"
-                  type="tel"
+                  id="up-beneficiary-contact-form"
+                  label="Beneficiary Contact"
                   required
-                  placeholder="Enter contact number"
+                  placeholder="Enter Contact Number"
                   value={beneficiaryContact}
                   onChange={(v) => setBeneficiaryContact(v)}
                   error={errors.beneficiaryContact}
                 />
-                <FloatingInput
-                  id="up-latitude"
-                  label="Latitude"
-                  type="number"
-                  placeholder="e.g. 26.8467"
-                  value={latitude}
-                  onChange={(v) => setLatitude(v)}
-                />
-                <FloatingInput
-                  id="up-longitude"
-                  label="Longitude"
-                  type="number"
-                  placeholder="e.g. 80.9462"
-                  value={longitude}
-                  onChange={(v) => setLongitude(v)}
-                />
 
-                {mode === 'resco' && (
-                  <>
-                    <FloatingInput
-                      id="up-meter-reading"
-                      label="Meter Reading (kWh)"
-                      type="number"
-                      placeholder="Enter meter reading"
-                      value={meterReading}
-                      onChange={(v) => setMeterReading(v)}
-                    />
-                    <FloatingInput
-                      id="up-next-due"
-                      label="Next Due Date"
-                      type="date"
-                      value={nextDueDate}
-                      onChange={(v) => setNextDueDate(v)}
-                    />
-                    <FloatingInput
-                      id="up-visit-time"
-                      label="Visit Time"
-                      type="time"
-                      value={visitTime}
-                      onChange={(v) => setVisitTime(v)}
-                    />
-                  </>
-                )}
-
-                <FloatingInput
-                  id="up-amc-date"
-                  label="AMC Date"
-                  type="date"
-                  value={amcDate}
-                  onChange={(v) => setAmcDate(v)}
+                {/* Upload Fields */}
+                <NativeStyleFileInput
+                  id="up-doc-upload"
+                  label="Document Upload"
+                  required
+                  accept=".pdf,.doc,.docx,image/*"
+                  file={documentFile}
+                  onChange={(f) => setDocumentFile(f)}
+                  error={errors.documentFile}
+                />
+                <NativeStyleFileInput
+                  id="up-amc-image1"
+                  label="AMC Image 1"
+                  required
+                  accept="image/*"
+                  file={image1}
+                  onChange={(f) => setImage1(f)}
+                  error={errors.image1}
+                  showPreview
+                />
+                <NativeStyleFileInput
+                  id="up-amc-image2"
+                  label="AMC Image 2"
+                  required
+                  accept="image/*"
+                  file={image2}
+                  onChange={(f) => setImage2(f)}
+                  error={errors.image2}
+                  showPreview
+                />
+                <NativeStyleFileInput
+                  id="up-amc-image3"
+                  label="AMC Image 3"
+                  required
+                  accept="image/*"
+                  file={image3}
+                  onChange={(f) => setImage3(f)}
+                  error={errors.image3}
+                  showPreview
                 />
 
                 <div className="up-form-col-span-full">
                   <FloatingTextarea
-                    id="up-remark"
-                    label="Maintenance Remark (optional)"
-                    placeholder="Describe maintenance / cleaning work completed…"
-                    value={remark}
-                    onChange={(v) => setRemark(v)}
+                    id="up-amc-remarks"
+                    label="Remarks"
+                    placeholder="Enter Remarks..."
+                    value={remarks}
+                    onChange={(v) => setRemarks(v)}
                   />
                 </div>
               </div>
@@ -673,126 +847,37 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
             <hr className="up-section-divider" />
 
-            {/* ── Section 4: Photos ── */}
-            <div id="sec-4" className="up-section-block">
-              <SectionHeader num="4" total={totalSections} title="Cleaning & Inspection Photos" desc="Upload geotagged photos of the site maintenance and equipment" />
-
-              {photoMode === 'beforeAfter' ? (
-                <div className="up-form-grid up-form-grid--3col">
-                  <FloatingFileInput
-                    id="up-before-photos"
-                    label="Before Cleaning Photos (Max 5)"
-                    required
-                    accept="image/*"
-                    multiple
-                    files={beforePhotos}
-                    onChange={(fileList) => setBeforePhotos(fileList.slice(0, 5))}
-                    error={errors.beforePhotos}
-                  />
-                  <FloatingFileInput
-                    id="up-after-photos"
-                    label="After Cleaning Photos (Max 5)"
-                    required
-                    accept="image/*"
-                    multiple
-                    files={afterPhotos}
-                    onChange={(fileList) => setAfterPhotos(fileList.slice(0, 5))}
-                    error={errors.afterPhotos}
-                  />
-                  {hasJmrReport && (
-                    <FloatingFileInputSingle
-                      id="up-jmr-report"
-                      label="JMR Report (PDF/Image)"
-                      accept="image/*,.pdf"
-                      file={jmrReport}
-                      onChange={(f) => setJmrReport(f)}
-                    />
-                  )}
-                  {hasDigitalSignature && (
-                    <FloatingFileInputSingle
-                      id="up-digital-sig"
-                      label="Digital Signature"
-                      accept="image/*"
-                      file={digitalSignature}
-                      onChange={(f) => setDigitalSignature(f)}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="up-form-grid up-form-grid--4col">
-                  <FloatingFileInputSingle
-                    id="up-image1"
-                    label="Photo 1 (Mandatory)"
-                    required
-                    accept="image/*"
-                    file={image1}
-                    onChange={(f) => setImage1(f)}
-                    error={errors.image1}
-                  />
-                  <FloatingFileInputSingle
-                    id="up-image2"
-                    label="Photo 2 (Optional)"
-                    accept="image/*"
-                    file={image2}
-                    onChange={(f) => setImage2(f)}
-                  />
-                  <FloatingFileInputSingle
-                    id="up-image3"
-                    label="Photo 3 (Optional)"
-                    accept="image/*"
-                    file={image3}
-                    onChange={(f) => setImage3(f)}
-                  />
-                  <FloatingFileInputSingle
-                    id="up-image4"
-                    label="Photo 4 (Optional)"
-                    accept="image/*"
-                    file={image4}
-                    onChange={(f) => setImage4(f)}
+            {/* ── Section 4: Raised Complaint ── */}
+            <div id="sec-complaint" className="up-section-block">
+              <SectionHeader
+                num="4"
+                total={4}
+                title="Raised Complaint"
+                desc="Log breakdown notice or site defect if observed during AMC visit"
+              />
+              <div className="up-form-grid up-form-grid--3col">
+                <div className="up-form-col-span-2">
+                  <FloatingTextarea
+                    id="up-complaint-text"
+                    label="Complaint"
+                    required={Boolean(complaintImage)}
+                    placeholder="Enter Complaint..."
+                    value={complaintText}
+                    onChange={(v) => setComplaintText(v)}
+                    error={errors.complaint}
                   />
                 </div>
-              )}
-            </div>
-
-            <hr className="up-section-divider" />
-
-            {/* ── Section 5: Complaint (Optional) ── */}
-            <div id="sec-5" className="up-section-block">
-              <SectionHeader num="5" total={totalSections} title="Complaint Raise (Optional)" desc="If any breakdown or issue was observed during AMC, raise a complaint directly here" />
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={raisedComplaint}
-                    onChange={(e) => setRaisedComplaint(e.target.checked)}
+                <div>
+                  <NativeStyleFileInput
+                    id="up-complaint-image"
+                    label="Complaint Image"
+                    accept="image/*"
+                    file={complaintImage}
+                    onChange={(f) => setComplaintImage(f)}
+                    showPreview
                   />
-                  <span><b>Raise Complaint for this Site</b> (Sends notification to maintenance desk)</span>
-                </label>
+                </div>
               </div>
-
-              {raisedComplaint && (
-                <div className="up-form-grid up-form-grid--3col">
-                  <div className="up-form-col-span-full" style={{ maxWidth: 700 }}>
-                    <FloatingTextarea
-                      id="up-complaint-desc"
-                      label="Complaint Description"
-                      required
-                      placeholder="Detail the defect, inverter fault, broken panel, missing cable, etc.…"
-                      value={complaintText}
-                      onChange={(v) => setComplaintText(v)}
-                      error={errors.complaint}
-                    />
-                  </div>
-                  <FloatingFileInputSingle
-                    id="up-complaint-file"
-                    label="Complaint Attachment / Photo"
-                    accept="image/*,.pdf"
-                    file={complaintFile}
-                    onChange={(f) => setComplaintFile(f)}
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -800,7 +885,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
         {/* ── Sticky Action Footer ── */}
         <div className="up-form-sticky-bar">
           <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
-            AMC Report
+            AMC Report Submission
           </span>
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
             <button type="button" className="ax-btn ax-btn--secondary" onClick={handleReset} disabled={loading}>
@@ -827,7 +912,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 }
 
 /* =========================================================================
- * Reusable Floating Components (Goa-style)
+ * Reusable Floating & Clean Form Controls
  * ========================================================================= */
 
 const Asterisk = () => <span style={{ color: 'var(--ax-danger-500, #ef4444)', marginLeft: 3 }}>*</span>;
@@ -976,8 +1061,8 @@ function FloatingTextarea({ id, label, required, placeholder = ' ', value, rows 
   );
 }
 
-/* ── Drag & drop single file input (Goa style) ── */
-interface FloatingFileInputSingleProps {
+/* ── Clean file upload component: [ Choose File ] No file chosen ── */
+interface NativeStyleFileInputProps {
   id: string;
   label: string;
   required?: boolean;
@@ -985,12 +1070,21 @@ interface FloatingFileInputSingleProps {
   file: File | null;
   onChange: (file: File | null) => void;
   error?: string;
+  showPreview?: boolean;
 }
 
-function FloatingFileInputSingle({ id, label, required, accept, file, onChange, error }: FloatingFileInputSingleProps) {
+function NativeStyleFileInput({ id, label, required, accept, file, onChange, error, showPreview }: NativeStyleFileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file && showPreview && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setThumbUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setThumbUrl(null);
+  }, [file, showPreview]);
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -998,26 +1092,9 @@ function FloatingFileInputSingle({ id, label, required, accept, file, onChange, 
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const chosen = e.dataTransfer.files?.[0];
-    if (chosen) onChange(chosen);
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label
-        htmlFor={id}
-        style={{
-          fontSize: '12px',
-          fontWeight: 600,
-          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-        }}
-      >
+    <div className="ax-file-box-wrap">
+      <label htmlFor={id} className="ax-file-box-label">
         <span>{label}</span>
         {required && <Asterisk />}
       </label>
@@ -1031,58 +1108,32 @@ function FloatingFileInputSingle({ id, label, required, accept, file, onChange, 
         onChange={(e) => onChange(e.target.files?.[0] || null)}
       />
 
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); }
-        }}
-        style={{
-          border: isDragging ? '1.5px dashed #2563eb' : error ? '1.5px dashed var(--ax-danger-500, #ef4444)' : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
-          borderRadius: 8,
-          background: isDragging ? '#eff6ff' : error ? '#fef2f2' : isHovered ? '#fbfcfd' : '#ffffff',
-          padding: file ? '12px 16px' : '22px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          minHeight: 110,
-        }}
-      >
-        {file ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>{(file.size / 1024).toFixed(0)} KB · Ready to upload</div>
-              </div>
-            </div>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={handleClear} style={{ color: '#ef4444', flexShrink: 0 }} title="Remove file">Remove</button>
-          </div>
-        ) : (
-          <>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                <path d="M12 12v9" />
-                <path d="m8 16 4-4 4 4" />
-              </svg>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>Click to upload or drag & drop</div>
-            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>JPG, PNG or WEBP up to 5MB</div>
-          </>
+      <div className={`ax-file-box-control${error ? ' is-invalid' : ''}`}>
+        <button
+          type="button"
+          className="ax-file-btn"
+          onClick={() => inputRef.current?.click()}
+        >
+          Choose File
+        </button>
+
+        {thumbUrl && (
+          <img src={thumbUrl} alt="Preview" className="ax-file-thumb" />
+        )}
+
+        <span className={`ax-file-status-text${file ? ' has-file' : ''}`}>
+          {file ? `${file.name} (${(file.size / 1024).toFixed(0)} KB)` : 'No file chosen'}
+        </span>
+
+        {file && (
+          <button
+            type="button"
+            className="ax-file-clear-btn"
+            onClick={handleClear}
+            title="Remove chosen file"
+          >
+            ×
+          </button>
         )}
       </div>
       <FieldFeedback error={error} />
@@ -1090,121 +1141,4 @@ function FloatingFileInputSingle({ id, label, required, accept, file, onChange, 
   );
 }
 
-/* ── Drag & drop multi-file input (for before/after photos) ── */
-interface FloatingFileInputProps {
-  id: string;
-  label: string;
-  required?: boolean;
-  accept?: string;
-  multiple?: boolean;
-  files: File[];
-  onChange: (files: File[]) => void;
-  error?: string;
-}
-
-function FloatingFileInput({ id, label, required, accept, multiple, files: selectedFiles, onChange, error }: FloatingFileInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onChange([]);
-    if (inputRef.current) inputRef.current.value = '';
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const chosen = Array.from(e.dataTransfer.files || []);
-    if (chosen.length > 0) onChange(chosen);
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label
-        htmlFor={id}
-        style={{
-          fontSize: '12px',
-          fontWeight: 600,
-          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-        }}
-      >
-        <span>{label}</span>
-        {required && <Asterisk />}
-      </label>
-
-      <input
-        ref={inputRef}
-        id={id}
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const fl = Array.from(e.target.files || []);
-          onChange(fl);
-        }}
-      />
-
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click(); }
-        }}
-        style={{
-          border: isDragging ? '1.5px dashed #2563eb' : error ? '1.5px dashed var(--ax-danger-500, #ef4444)' : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
-          borderRadius: 8,
-          background: isDragging ? '#eff6ff' : error ? '#fef2f2' : isHovered ? '#fbfcfd' : '#ffffff',
-          padding: selectedFiles.length > 0 ? '12px 16px' : '22px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          minHeight: 110,
-        }}
-      >
-        {selectedFiles.length > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)' }}>{selectedFiles.length} file(s) selected</div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>Click to change · Ready to upload</div>
-              </div>
-            </div>
-            <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={handleClear} style={{ color: '#ef4444', flexShrink: 0 }} title="Remove files">Remove</button>
-          </div>
-        ) : (
-          <>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                <path d="M12 12v9" />
-                <path d="m8 16 4-4 4 4" />
-              </svg>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>Click to upload or drag & drop</div>
-            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>Select multiple images up to 5MB each</div>
-          </>
-        )}
-      </div>
-      <FieldFeedback error={error} />
-    </div>
-  );
-}
+export default UpAmcPendingForm;

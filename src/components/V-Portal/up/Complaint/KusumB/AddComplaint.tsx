@@ -42,7 +42,7 @@ const INITIAL_FORM = {
   sys_installed_date: '',
   total_pump_cost: '',
   complaint: '',
-  sms: 'no',
+  sms: 'No',
 };
 
 type FormKey = keyof typeof INITIAL_FORM;
@@ -205,13 +205,20 @@ export function UPComplaintKBAdd() {
       Object.entries(form).forEach(([k, v]) => {
         if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
       });
+      if (form.beneficiary_id) {
+        fd.set('kbid', form.beneficiary_id);
+        fd.set('kb_id', form.beneficiary_id);
+        fd.set('beneficiary_id', form.beneficiary_id);
+        fd.set('farmer_id', form.beneficiary_id);
+        fd.set('id', form.beneficiary_id);
+      }
+      const smsVal = form.sms && String(form.sms).toLowerCase() === 'yes' ? 'Yes' : 'No';
+      fd.set('sms', smsVal);
+      fd.set('send_sms', smsVal === 'Yes' ? '1' : '0');
+
       if (form.beneficiary_name) {
         fd.append('f_name', form.beneficiary_name);
         fd.append('farmer_name', form.beneficiary_name);
-      }
-      if (form.beneficiary_id) {
-        fd.append('farmer_id', form.beneficiary_id);
-        fd.append('id', form.beneficiary_id);
       }
       if (form.contact_no) {
         fd.append('contact_number', form.contact_no);
@@ -230,7 +237,17 @@ export function UPComplaintKBAdd() {
           navigate('/v/complaint/up/kusumb-view-complaint');
         }, 1500);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        if (res.errors) {
+          const mapped: Record<string, string> = {};
+          Object.entries(res.errors).forEach(([k, v]) => {
+            mapped[k] = Array.isArray(v) ? v[0] : String(v);
+          });
+          setErrors(mapped);
+          const firstErr = Object.values(mapped)[0];
+          setToast({ type: 'error', message: firstErr || res.message || 'Validation failed.' });
+        } else {
+          setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        }
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred.' });
@@ -318,7 +335,7 @@ export function UPComplaintKBAdd() {
         <SectionHeader num="4" total={4} title="Complaint Description & Attachment" desc="Describe the problem and attach a document or site photo." />
         <div className="up-form-grid up-form-grid--3col">
           <FloatingFileInput id="kb-file" label="Upload Document / Photo" required file={file} onChange={setFile} error={errors.document} />
-          <FloatingSelect id="kb-sms" label="Send SMS" value={form.sms} options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
+          <FloatingSelect id="kb-sms" label="Send SMS" value={form.sms} options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
           <FloatingTextarea id="kb-text" label="Complaint" required className="ax-col--span-3" value={form.complaint} onChange={(v) => setVal('complaint', v)} error={errors.complaint} />
         </div>
       </div>

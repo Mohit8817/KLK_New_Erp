@@ -15,23 +15,31 @@ export function UP_AMC_KusumC_PendingAMC() {
     if (Array.isArray(arr)) {
       return arr.map((s: any) => ({
         id: s.site_id,
-        label: `${s.farmer_name || 'Farmer'} (Father: ${s.father_name || '—'}) [ID: ${s.site_id}]`,
+        label: `${s.farmer_name || s.f_farmer_name || 'Farmer'} (Father: ${s.father_name || s.f_father_name || '—'}) [ID: ${s.site_id}]`,
         ...s,
       }));
     }
     return [];
   };
 
-  const fetchSiteDetails = async (id: number | string, year?: number) => {
-    const res = await upKusumCAmcApi.fetchSiteName(id, year);
-    if (res?.status && res.data) {
+  const fetchSiteDetails = async (id: number | string, year?: number, month?: number | string) => {
+    const res = await upKusumCAmcApi.fetchSiteName(id, year, month);
+    const d = res?.data || res;
+    if (d) {
       return {
-        ...res.data,
-        beneficiary_name: res.data.f_farmer_name,
-        beneficiary_contact: res.data.f_mobile,
-        district: res.data.f_district,
-        village: res.data.f_village,
-        pump_capacity: res.data.pump_capacity,
+        ...d,
+        state: d.state || 'UP',
+        district: d.f_district || d.district || '',
+        village: d.f_village || d.village || '',
+        beneficiary_name: d.f_farmer_name || d.farmer_name || d.beneficiary_name || '',
+        contact: d.f_mobile || d.mobile || d.beneficiary_contact || '',
+        gender: d.f_gender || d.gender || '',
+        phase: d.f_phase || d.phase || '',
+        serial_number: d.f_sr_no || d.serial_number || d.serial_no || d.saral_id || '',
+        address: d.f_address || d.address || d.location || '',
+        volume: d.pump_capacity || d.volume || d.capacity || '',
+        contractor_name: d.contractor_name || d.contractor || '',
+        amc_type: d.amc_type || 'Monthly',
       };
     }
     return null;
@@ -54,8 +62,7 @@ export function UP_AMC_KusumC_PendingAMC() {
       ]}
       viewLink="/v/up/kusumc/amc/completed-details"
       viewLabel="View Completed AMC"
-      mode="schedule"
-      photoMode="fourImages"
+      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchSites={fetchSites}
       onFetchSiteDetails={fetchSiteDetails}

@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, GeoJSON, Marker } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import type { Feature, FeatureCollection } from 'geojson';
-import type { Layer, Map as LeafletMap, Path, PathOptions } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PageHead } from '../../components/shell/PageHead';
 import { SearchInput } from '../../common/search/SearchInput';
 import { ApexChart } from '../../components/charts/ApexChart';
 import { dleService } from '../../components/DLE/dle-services/dleServices';
+
+const AnyMapContainer = MapContainer as any;
+const AnyTileLayer = TileLayer as any;
+const AnyGeoJSON = GeoJSON as any;
+const AnyMarker = Marker as any;
 
 const num = (x: number) => x.toLocaleString('en-IN');
 const dash = (v: number) => num(v);
@@ -74,31 +78,10 @@ const COMPLAINTS_BY_STATE: Record<string, number> = {
   assam: 38, tripura: 7, arunachal: 6,
 };
 
-/* TODO: replace with real monthly complaint data from API */
-/* months: Jan–Oct 2026 */
-const MONTHLY_COMPLAINTS: Record<string, number[]> = {
-  kashmir:    [2, 1, 2, 1, 1, 2, 1, 1, 1, 0],
-  jammu:      [3, 4, 3, 2, 3, 3, 2, 3, 3, 1],
-  himachal:   [1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
-  haryana:    [4, 3, 4, 3, 3, 4, 3, 3, 3, 1],
-  punjab:     [2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-  up:         [10,12, 9,11,10,10, 9,10, 9, 5],
-  bihar:      [8, 9, 8, 8, 7, 8, 8, 7, 7, 2],
-  jharkhand:  [1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
-  goa:        [0, 0, 1, 0, 0, 1, 0, 1, 0, 1],
-  karnataka:  [2, 2, 2, 1, 2, 2, 1, 2, 2, 1],
-  assam:      [4, 5, 4, 4, 4, 4, 4, 4, 5, 0],
-  tripura:    [1, 1, 0, 1, 1, 1, 0, 1, 1, 0],
-  arunachal:  [1, 0, 1, 1, 0, 1, 1, 0, 1, 0],
-};
-
-const COMPLAINT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
-
 const REGIONS: Array<'All' | Region> = ['All', 'North', 'East', 'West', 'South', 'North-East'];
 const RECENT_KEY = 'klk_erp_recent_states';
 const GALLERY_COUNT = 246;
 const OPEN_COMPLAINTS = 18;
-const MAP_HEIGHT = 640;
 
 type ModuleKey = 'dle' | 'vendor' | 'gallery' | 'complaints';
 
@@ -429,15 +412,15 @@ export function ErpMainDashboard() {
 
   /* total users (from /api/admin/users) */
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [, setAdminUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState(false);
 
   /* hover link: state cards/rows <-> map */
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [map, setMap] = useState<LeafletMap | null>(null);
+  const [map, setMap] = useState<any | null>(null);
   const [tick, setTick] = useState(0);
-  const layersRef = useRef<Map<string, Path[]>>(new Map());
+  const layersRef = useRef<Map<string, any[]>>(new Map());
 
   const notify = useCallback((msg: string) => {
     setNotice(msg);
@@ -574,7 +557,7 @@ export function ErpMainDashboard() {
   openRef.current = openState;
 
   // Map polygon style - Clean subtle borders
-  const styleOfWork = useCallback((w?: GeoWork): PathOptions => {
+  const styleOfWork = useCallback((w?: GeoWork): any => {
     if (!w) return { color: 'rgba(148, 163, 184, 0.4)', weight: 0.8, fillColor: 'transparent', fillOpacity: 0 };
     return w.open
       ? { color: w.color, weight: 1.2, fillColor: w.color, fillOpacity: 0.38 }
@@ -583,16 +566,16 @@ export function ErpMainDashboard() {
   }, [borderCol]);
 
   const geoStyle = useCallback(
-    (f?: Feature): PathOptions => styleOfWork(f ? workByGeo.get(featName(f)) : undefined),
+    (f?: Feature): any => styleOfWork(f ? workByGeo.get(featName(f)) : undefined),
     [workByGeo, styleOfWork]
   );
 
-  const onEachFeature = useCallback((f: Feature, layer: Layer) => {
+  const onEachFeature = useCallback((f: Feature, layer: any) => {
     const key = featName(f);
     const w = workByGeo.get(key);
     if (!w) return;
     const list = layersRef.current.get(key) ?? [];
-    list.push(layer as Path);
+    list.push(layer);
     layersRef.current.set(key, list);
     layer.on({
       mouseover: () => setHoverId(w.ids[0]),
@@ -689,48 +672,7 @@ export function ErpMainDashboard() {
     () => sortedChartStates.map((s) => USERS_BY_STATE[s.id] ?? 0),
     [sortedChartStates]
   );
-  const chartSeries = useMemo(
-    () => [
-      { name: 'DLE Partners', type: 'column' as const, data: chartDleSeries },
-      { name: 'Vendors', type: 'column' as const, data: chartVendorSeries },
-      { name: 'Users', type: 'column' as const, data: chartUserSeries },
-    ],
-    [chartDleSeries, chartVendorSeries, chartUserSeries]
-  );
-
-  const stateStats = useMemo(() => {
-    if (adminUsers.length > 0) {
-      const cutoff = Date.now() - 30 * 86400000;
-      const stateMap = new Map<string, { state: string; dles: number; activeDles: number }>();
-
-      adminUsers.forEach((u: any) => {
-        const rawState = (u.state || '').trim();
-        const stateName = rawState ? (rawState.charAt(0).toUpperCase() + rawState.slice(1).toLowerCase()) : 'Unknown';
-        let s = stateMap.get(stateName);
-        if (!s) {
-          s = { state: stateName, dles: 0, activeDles: 0 };
-          stateMap.set(stateName, s);
-        }
-        s.dles += 1;
-        const t = Date.parse(u.updated_at || u.created_at);
-        if (!Number.isNaN(t) && t >= cutoff) {
-          s.activeDles += 1;
-        }
-      });
-
-      const list = [...stateMap.values()].sort((a, b) => b.dles - a.dles);
-      if (list.length > 0) return list;
-    }
-
-    // Fallback: derived from STATES_DATA
-    return [...STATES_DATA]
-      .sort((a, b) => b.dles - a.dles)
-      .map((s) => ({
-        state: s.name,
-        dles: s.dles,
-        activeDles: Math.max(1, Math.round(s.dles * 0.75)),
-      }));
-  }, [adminUsers]);
+  // Removed unused chartSeries and stateStats
 
 const kpis = useMemo(() => ({
   states: sortedChartStates.length,
@@ -874,8 +816,8 @@ const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sort
           className="ax-card ax-col--3 ax-erp-module-tile"
           role="button"
           tabIndex={0}
-          onClick={() => openModule('vendor', 'Vendor Portal', '/vendor/dashboard')}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModule('vendor', 'Vendor Portal', '/vendor/dashboard'); } }}
+          onClick={() => openModule('vendor', 'Vendor Management', '/vendor-management')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModule('vendor', 'Vendor Management', '/vendor-management'); } }}
           style={{
             cursor: ACCESS.modules.vendor ? 'pointer' : 'not-allowed',
             border: ACCESS.modules.vendor ? '1px solid var(--ax-border)' : '1px dashed var(--ax-border)',
@@ -1082,7 +1024,7 @@ const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sort
               {/* Left: Leaflet India Interactive Map */}
               <div style={{ minWidth: 0 }}>
                 <div style={{ position: 'relative', isolation: 'isolate', borderRadius: 'var(--ax-radius-xl)', overflow: 'hidden', border: '1px solid var(--ax-border)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-                  <MapContainer
+                  <AnyMapContainer
                     ref={setMap}
                     center={[22.5, 80.5]}
                     zoom={4.3}
@@ -1092,17 +1034,17 @@ const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sort
                     scrollWheelZoom={false}
                     className="ax-erp-leaflet-container"
                   >
-                    <TileLayer
+                    <AnyTileLayer
                       attribution="&copy; OpenStreetMap contributors"
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    {geo && <GeoJSON data={geo} style={geoStyle} onEachFeature={onEachFeature} />}
+                    {geo && <AnyGeoJSON data={geo} style={geoStyle} onEachFeature={onEachFeature} />}
 
                     {/* KLK Logo Markers for every state */}
                     {STATES_DATA.map((s) => {
                       const isHot = hoverId === s.id;
                       return (
-                        <Marker
+                        <AnyMarker
                           key={s.id}
                           position={[s.lat, s.lng]}
                           icon={createKlkMarkerIcon(s, isHot)}
@@ -1114,7 +1056,7 @@ const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sort
                         />
                       );
                     })}
-                  </MapContainer>
+                  </AnyMapContainer>
 
                   {/* Interactive Map Detail Modal on Hover */}
                   {hoverState && popPos && (() => {
@@ -1448,7 +1390,7 @@ const areaStateNames = useMemo(() => sortedChartStates.map((s) => s.name), [sort
               type="button"
               className="ax-btn ax-btn--secondary ax-btn--block"
               style={{ justifyContent: 'space-between', padding: 'var(--ax-space-3) var(--ax-space-4)', height: 'auto', borderRadius: 'var(--ax-radius-lg)' }}
-              onClick={() => navigate('/vendor/dashboard')}
+              onClick={() => navigate('/vendor-management')}
             >
               <span className="ax-cluster" style={{ gap: 10 }}>
                 <span style={{ width: 32, height: 32, borderRadius: 'var(--ax-radius-md)', background: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', color: 'var(--ax-viz-violet)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
