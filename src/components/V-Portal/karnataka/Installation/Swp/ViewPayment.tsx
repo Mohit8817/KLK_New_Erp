@@ -896,7 +896,15 @@ export function KarnatakaViewPayment() {
   }, [claims, search, statusFilter, payFilter, sitesMap]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+<<<<<<< HEAD
     usePagination({ data: filtered, initialPageSize: 100 });
+=======
+<<<<<<< HEAD
+    usePagination({ data: filtered, initialPageSize: 100 });
+=======
+    usePagination({ data: filtered, initialPageSize: 25 });
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
   useEffect(() => {
     setPage(1);
@@ -936,7 +944,15 @@ export function KarnatakaViewPayment() {
         return sids
           .map((sid) => {
             const sObj = sitesMap[String(sid)];
+<<<<<<< HEAD
             return sObj?.f_farmer_name ? `${sid} (${sObj.f_farmer_name})` : `${sid}`;
+=======
+<<<<<<< HEAD
+            return sObj?.f_farmer_name ? `${sid} (${sObj.f_farmer_name})` : `${sid}`;
+=======
+            return sObj?.f_farmer_name ? `${sid} (${sObj.f_farmer_name})` : `#${sid}`;
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
           })
           .join(', ');
       },
@@ -1322,7 +1338,15 @@ export function KarnatakaViewPayment() {
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
                                     <span className="ax-badge ax-badge--soft ax-badge--primary" style={{ fontWeight: 700, fontSize: 10.5 }}>
+<<<<<<< HEAD
                                       Site {sid}
+=======
+<<<<<<< HEAD
+                                      Site {sid}
+=======
+                                      Site #{sid}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                                     </span>
                                     {pump && (
                                       <span style={{ fontSize: 10, color: 'var(--ax-text-muted)', fontWeight: 600 }}>
@@ -1381,7 +1405,15 @@ export function KarnatakaViewPayment() {
                               type="button"
                               className="ax-btn ax-btn--ghost ax-btn--xs"
                               style={{ color: 'var(--asw-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+<<<<<<< HEAD
                               onClick={() => setPreviewImage({ url: invoiceUrl, title: `Invoice Document - Claim ${c.id}` })}
+=======
+<<<<<<< HEAD
+                              onClick={() => setPreviewImage({ url: invoiceUrl, title: `Invoice Document - Claim ${c.id}` })}
+=======
+                              onClick={() => setPreviewImage({ url: invoiceUrl, title: `Invoice Document - Claim #${c.id}` })}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                             >
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 13, height: 13 }}>
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -1504,7 +1536,15 @@ export function KarnatakaViewPayment() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
+<<<<<<< HEAD
               pageSizeOptions={[25, 50, 100, 200]}
+=======
+<<<<<<< HEAD
+              pageSizeOptions={[25, 50, 100, 200]}
+=======
+              pageSizeOptions={[10, 25, 50, 100]}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
             />
           </div>
         </div>

@@ -1033,7 +1033,15 @@ export function Arunachal_Installation_SHL_InstallLight() {
                       <option value="">-- Choose Assigned Light / Unique ID --</option>
                       {lightsList.map((l) => (
                         <option key={l.id} value={String(l.id)}>
+<<<<<<< HEAD
                           {l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
+=======
+<<<<<<< HEAD
+                          {l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
+=======
+                          #{l.id} - {l.unique_id} {l.panchayat ? `· ${l.panchayat}` : ''}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         </option>
                       ))}
                     </select>

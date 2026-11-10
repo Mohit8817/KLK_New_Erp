@@ -7,6 +7,12 @@
 
 import { authService } from '../../../services/authService';
 
+export const KLKERP_API_BASE_URL = (
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  (import.meta as any).env?.VITE_KLKERP_API_BASE_URL ||
+  'https://klkerp.com/api'
+).replace(/\/+$/, '');
+
 export const DLE_BASE_URL = (
   import.meta.env.VITE_DLE_API_BASE_URL ?? ''
 ).replace(/\/+$/, '');
@@ -55,6 +61,13 @@ export const DLE_ENDPOINTS = {
   BIHAR_AMC_LIGHT_APPROVAL_PENDING: `${DLE_BASE_URL}/api/bihar/amc/light/approval/pending`,
   DLE_DASHBOARD_INTEGRATION: `${DLE_BASE_URL}/api/portal/integration/dle-dashboard`,
   ATTENDANCE_INTEGRATION_LIST: `${DLE_BASE_URL}/api/attendance/integration/list`,
+
+  // DLE UP KUSUM-C AMC (Base URL: https://klkerp.com/api)
+  UP_KUSUMC_AMC_DISTRICT: `${KLKERP_API_BASE_URL}/dle/up/kusumc/amc/district`,
+  UP_KUSUMC_AMC_BLOCK: `${KLKERP_API_BASE_URL}/dle/up/kusumc/amc/block`,
+  UP_KUSUMC_AMC_PANCHAYAT: `${KLKERP_API_BASE_URL}/dle/up/kusumc/amc/panchayat`,
+  UP_KUSUMC_AMC_STORE: `${KLKERP_API_BASE_URL}/dle/up/kusumc/amc/store`,
+  UP_KUSUMC_AMC_VIEW: `${KLKERP_API_BASE_URL}/dle/up/kusumc/amc/view`,
 };
 
 export const getDleToken = (): string | null => {
@@ -97,6 +110,96 @@ export const getDleAuthHeaders = (
  * { users: [] }
  * { data: { users: [] } }
  */
+export interface Option {
+  value: string;
+  label: string;
+}
+
+/** Backend response kuch bhi ho (array / {data: []}) -> hamesha array */
+export const toArray = (json: any): any[] => {
+  if (Array.isArray(json)) return json;
+  const KEYS = [
+    'districts', 'f_districts', 'district', 'f_district',
+    'blocks', 'f_blocks', 'block', 'f_block',
+    'panchayats', 'f_panchayats', 'panchayat', 'f_panchayat',
+    'assign', 'assigns', 'users', 'volumes', 'list', 'rows', 'records', 'items', 'data'
+  ];
+  const walk = (d: any, depth: number): any[] => {
+    if (Array.isArray(d)) return d;
+    if (!d || typeof d !== 'object' || depth > 3) return [];
+    for (const k of KEYS) {
+      if (d[k] !== undefined) {
+        const r = walk(d[k], depth + 1);
+        if (r.length || Array.isArray(d[k])) return r;
+      }
+    }
+    for (const k of Object.keys(d)) if (Array.isArray(d[k])) return d[k];
+    return [];
+  };
+  return walk(json, 0);
+};
+
+/** {id, name} / {district: '...'} -> {value, label} options */
+export const toOptions = (json: any): Option[] => {
+  const seen = new Set<string>();
+  const out: Option[] = [];
+  toArray(json).forEach((o: any) => {
+    let value: any;
+    let label: any;
+    if (o === null || o === undefined) return;
+    if (typeof o === 'string' || typeof o === 'number') {
+      value = o;
+      label = o;
+    } else {
+      const geo =
+        o.f_district ??
+        o.f_block ??
+        o.f_panchayat ??
+        o.district ??
+        o.district_name ??
+        o.block ??
+        o.block_name ??
+        o.panchayat ??
+        o.panchayat_name ??
+        o.volume ??
+        o.volume_name;
+
+      value =
+        geo ??
+        o.id ??
+        o.value ??
+        o.user_id ??
+        o.district_id ??
+        o.block_id ??
+        o.panchayat_id ??
+        o.name;
+
+      label =
+        o.name ??
+        o.label ??
+        o.user_name ??
+        o.f_district ??
+        o.district_name ??
+        o.district ??
+        o.f_block ??
+        o.block_name ??
+        o.block ??
+        o.f_panchayat ??
+        o.panchayat_name ??
+        o.panchayat ??
+        o.volume_name ??
+        o.volume ??
+        value;
+    }
+    if (value === null || value === undefined || String(value).trim() === '') return;
+    const v = String(value);
+    if (seen.has(v)) return;
+    seen.add(v);
+    out.push({ value: v, label: String(label) });
+  });
+  return out;
+};
+
 export const extractList = (res: any): any[] => {
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.data)) return res.data;
@@ -666,6 +769,164 @@ export class DleService {
    * Get Attendance Integration List
    * Backend: GET /api/attendance/integration/list
    */
+  /**
+   * Helper request function for klkerp.com endpoints (Bearer token auth + Laravel error resolution)
+   */
+  async requestKlkerp<T = any>(
+    url: string,
+    options: RequestInit = {},
+    params?: Record<string, unknown>
+  ): Promise<T> {
+    const token = getDleToken();
+    const qs = params ? buildQuery(params) : '';
+    const method = (options.method || 'GET').toUpperCase();
+    const isWrite = method !== 'GET';
+
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    try {
+      const res = await fetch(url + qs, {
+        ...options,
+        ...(isWrite ? { redirect: 'manual' as RequestRedirect } : {}),
+        headers,
+      });
+
+      // POST ke baad backend ne redirect kiya => data save ho chuka hai
+      if (isWrite && (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400))) {
+        return { success: true, message: 'Assigned successfully.' } as any;
+      }
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        // non-json body
+      }
+
+      if (!res.ok) {
+        let errorMsg = json?.message || `API Error ${res.status}`;
+        if (res.status === 401) {
+          errorMsg = 'Session expired or unauthenticated. Please log in again.';
+        }
+        const err = new Error(errorMsg) as any;
+        err.status = res.status;
+        err.errors = json?.errors;
+        throw err;
+      }
+
+      return json;
+    } catch (err: any) {
+      if (err.name === 'AbortError') throw err;
+      if (err.name === 'TypeError' && err.message?.includes('fetch')) {
+        const netErr = new Error(
+          'Network Error: Unable to connect to server. Please check your network connection.'
+        ) as any;
+        netErr.status = 0;
+        throw netErr;
+      }
+      throw err;
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     7. UP KUSUM-C AMC Endpoints (klkerp.com)
+     ───────────────────────────────────────────────────────────── */
+
+  /**
+   * 1. GET /dle/up/kusumc/amc/district
+   */
+  async getUpKusumCAmcDistricts(signal?: AbortSignal) {
+    return this.requestKlkerp(DLE_ENDPOINTS.UP_KUSUMC_AMC_DISTRICT, {
+      method: 'GET',
+      signal,
+    });
+  }
+
+  /**
+   * 2. GET /dle/up/kusumc/amc/block
+   * Accepts district or district_id as query param
+   */
+  async getUpKusumCAmcBlocks(
+    districtOrParams: string | Record<string, any>,
+    signal?: AbortSignal
+  ) {
+    const params =
+      typeof districtOrParams === 'object'
+        ? districtOrParams
+        : {
+            district: districtOrParams,
+            district_id: districtOrParams,
+            f_district: districtOrParams,
+          };
+
+    return this.requestKlkerp(
+      DLE_ENDPOINTS.UP_KUSUMC_AMC_BLOCK,
+      { method: 'GET', signal },
+      params
+    );
+  }
+
+  /**
+   * 3. GET /dle/up/kusumc/amc/panchayat
+   * Accepts block, block_id, district, district_id
+   */
+  async getUpKusumCAmcPanchayats(
+    blockOrParams: string | Record<string, any>,
+    district?: string,
+    signal?: AbortSignal
+  ) {
+    const params =
+      typeof blockOrParams === 'object'
+        ? blockOrParams
+        : {
+            block: blockOrParams,
+            block_id: blockOrParams,
+            f_block: blockOrParams,
+            ...(district
+              ? { district, district_id: district, f_district: district }
+              : {}),
+          };
+
+    return this.requestKlkerp(
+      DLE_ENDPOINTS.UP_KUSUMC_AMC_PANCHAYAT,
+      { method: 'GET', signal },
+      params
+    );
+  }
+
+  /**
+   * 4. POST /dle/up/kusumc/amc/store
+   */
+  async storeUpKusumCAmc(
+    payload: Record<string, any>,
+    signal?: AbortSignal
+  ) {
+    return this.requestKlkerp(DLE_ENDPOINTS.UP_KUSUMC_AMC_STORE, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal,
+    });
+  }
+
+  /**
+   * 5. GET /dle/up/kusumc/amc/view
+   */
+  async getUpKusumCAmcView(
+    params?: Record<string, any>,
+    signal?: AbortSignal
+  ) {
+    return this.requestKlkerp(
+      DLE_ENDPOINTS.UP_KUSUMC_AMC_VIEW,
+      { method: 'GET', signal },
+      params
+    );
+  }
+
   async getAttendanceList(
     params?: {
       user_id?: string | number;
@@ -686,5 +947,17 @@ export class DleService {
 }
 
 export const dleService = new DleService();
+
+export const upKusumCAmc = {
+  getDistricts: (signal?: AbortSignal) => dleService.getUpKusumCAmcDistricts(signal),
+  getBlocks: (districtOrParams: string | Record<string, any>, signal?: AbortSignal) =>
+    dleService.getUpKusumCAmcBlocks(districtOrParams, signal),
+  getPanchayats: (blockOrParams: string | Record<string, any>, district?: string, signal?: AbortSignal) =>
+    dleService.getUpKusumCAmcPanchayats(blockOrParams, district, signal),
+  storeAssign: (payload: Record<string, any>, signal?: AbortSignal) =>
+    dleService.storeUpKusumCAmc(payload, signal),
+  viewAssign: (params?: Record<string, any>, signal?: AbortSignal) =>
+    dleService.getUpKusumCAmcView(params, signal),
+};
 
 export default dleService;

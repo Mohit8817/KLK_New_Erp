@@ -67,10 +67,15 @@ const BiharAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/Bihar/
 const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
 const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
 const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
+
+const UPAMCSSLDashboard = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLDashboard'));
 const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
 const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
 const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
 const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLSurveyLightDetails'));
+const UPAMCKusumCDashboard = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCDashboard'));
+const UPAMCKusumCAssignPumps = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCAssignPumps'));
+const UPAMCKusumCViewAssign = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCViewAssign'));
 const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
 const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
 const DLEAttendanceViewData = lazy(() => import('./components/DLE/Attendance/DLEAttendanceViewData'));
@@ -89,6 +94,20 @@ const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Ins
 const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
 const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
 const AssamStatusView = lazy(() => import('./components/V-Portal/assam/Installation/Swp/StatusView'));
+<<<<<<< HEAD
+
+// ── V-PORTAL: KARNATAKA ──
+const KarnatakaDashboard = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/KarnatakaDashboard'));
+const KarnatakaInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/Installation'));
+const KarnatakaInstallationRequest = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationRequest'));
+const KarnatakaInstallationSite = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationSite'));
+const KarnatakaViewInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewInstallation'));
+const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/AddPayment'));
+const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
+const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
+const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
 const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
 const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
@@ -326,6 +345,19 @@ const KashmirInstSRT70MWClaim = lazy(() => import('./components/V-Portal/kashmir
 const KashmirExpensesRequest = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/RequestExpenses'));
 const KashmirExpensesView = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewExpenses'));
 const KashmirExpensesPayment = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewPayments'));
+
+// ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
+const VendorDailyReport = lazy(() => import('./components/V-Portal/reports/DailyReport'));
+const VendorAddReport = lazy(() => import('./components/V-Portal/reports/AddReport'));
+const VendorViewReport = lazy(() => import('./components/V-Portal/reports/ViewReport'));
+
+const VendorComplaintDashboard = lazy(() => import('./components/V-Portal/complaints/VendorComplaintDashboard'));
+const VendorAddComplaint = lazy(() => import('./components/V-Portal/complaints/AddComplaint'));
+const VendorViewComplaint = lazy(() => import('./components/V-Portal/complaints/ViewComplaint'));
+
+const VendorUsersDashboard = lazy(() => import('./components/V-Portal/users/UsersDashboard'));
+const VendorAddUser = lazy(() => import('./components/V-Portal/users/AddUser'));
+const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers'));
 
 
 // ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
@@ -577,10 +609,21 @@ const shell: Record<string, PageComponent> = {
   'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
   'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
   'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
+  'dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
+  '/dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
   'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
   'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
   'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
   'dle/up/ssl/amc/view-verify-light/:id': UPAMCSSLSurveyLightDetails,
+  'dle/up/kusumc/amc/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/dashboard': UPAMCKusumCDashboard,
+  'up/amc/kusum-c/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/amc/create-assign': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-pump': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-light': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/view-assign': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-pump': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-light': UPAMCKusumCViewAssign,
   'dle/users': DLEManagementViewData,
   'dle/users/:id': DleUserDetail,
   'dle/attendance': DLEAttendanceViewData,
@@ -591,7 +634,10 @@ const shell: Record<string, PageComponent> = {
   'v-portal': VPortalDashboard,
   'vendor/dashboard': VPortalDashboard,
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
   // ══════════════ V-PORTAL: COMMON MODULES ══════════════
   // Reports
   'v/reports': VendorDailyReport,
@@ -643,6 +689,45 @@ const shell: Record<string, PageComponent> = {
   'assam/view-payment': AssamViewPayment,
   'assam/swp/status-view': AssamStatusView,
   'assam/status-view': AssamStatusView,
+<<<<<<< HEAD
+
+  // ── V-PORTAL: KARNATAKA ──
+  'v/karnataka/installation/swp/dashboard': KarnatakaDashboard,
+  'v/karnataka/installation/swp/request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/installation-request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/installation-site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/view': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/view-installation': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/add-payment': KarnatakaAddPayment,
+  'v/karnataka/installation/swp/payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/view-payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/material-details': KarnatakaMaterialDetails,
+  'v/karnataka/installation/swp/status-view': KarnatakaStatusView,
+  'v/karnataka/installation/swp/status': KarnatakaStatusView,
+  'karnataka': KarnatakaDashboard,
+  'karnataka/dashboard': KarnatakaDashboard,
+  'karnataka/installation': KarnatakaInstallation,
+  'karnataka/swp': KarnatakaDashboard,
+  'karnataka/swp/dashboard': KarnatakaDashboard,
+  'karnataka/swp/installation-request': KarnatakaInstallationRequest,
+  'karnataka/installation-request': KarnatakaInstallationRequest,
+  'karnataka/swp/installation-site': KarnatakaInstallationSite,
+  'karnataka/installation-site': KarnatakaInstallationSite,
+  'karnataka/swp/add-installation': KarnatakaInstallationSite,
+  'karnataka/add-installation': KarnatakaInstallationSite,
+  'karnataka/swp/view-installation': KarnatakaViewInstallation,
+  'karnataka/view-installation': KarnatakaViewInstallation,
+  'karnataka/swp/add-payment': KarnatakaAddPayment,
+  'karnataka/add-payment': KarnatakaAddPayment,
+  'karnataka/swp/view-payment': KarnatakaViewPayment,
+  'karnataka/view-payment': KarnatakaViewPayment,
+  'karnataka/swp/material-details': KarnatakaMaterialDetails,
+  'karnataka/material-details': KarnatakaMaterialDetails,
+  'karnataka/swp/status-view': KarnatakaStatusView,
+  'karnataka/status-view': KarnatakaStatusView,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
   // ══════════════ V-PORTAL: UTTAR PRADESH: SURVEY ══════════════
   'v/up/srt-surveys/create': UPSurveySRTAdd,
@@ -1003,26 +1088,96 @@ const shell: Record<string, PageComponent> = {
   'ssl/installation-dashboard': BiharInstSSLDb,
   'v/bihar/ssl/installation-dashboard': BiharInstSSLDb,
   'bihar/ssl/installation-dashboard': BiharInstSSLDb,
+
+  // Assigned Lights
   'v/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
   'ssl/view-assigned-ssl-site': BiharInstSSLAssign,
   'v/bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
   'bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'v/ssl/assigned-lights': BiharInstSSLAssign,
+  'ssl/assigned-lights': BiharInstSSLAssign,
+  'v/bihar/ssl/assigned-lights': BiharInstSSLAssign,
+  'bihar/ssl/assigned-lights': BiharInstSSLAssign,
+
+  // Install Light
   'v/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
   'ssl/update-ssl-site-deatils': BiharInstSSLInstall,
   'v/bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
   'bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'v/ssl/install-light': BiharInstSSLInstall,
+  'ssl/install-light': BiharInstSSLInstall,
+  'v/ssl/install-lights': BiharInstSSLInstall,
+  'ssl/install-lights': BiharInstSSLInstall,
+  'v/ssl/install-light/:id': BiharInstSSLInstall,
+  'ssl/install-light/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/install-light': BiharInstSSLInstall,
+  'bihar/ssl/install-light': BiharInstSSLInstall,
+  'v/bihar/ssl/install-light/:id': BiharInstSSLInstall,
+  'bihar/ssl/install-light/:id': BiharInstSSLInstall,
+
+  // Installation Detail
   'v/ssl/view-ssl-complete-site': BiharInstSSLDetail,
   'ssl/view-ssl-complete-site': BiharInstSSLDetail,
   'v/bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
   'bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'v/ssl/installation-detail': BiharInstSSLDetail,
+  'ssl/installation-detail': BiharInstSSLDetail,
+  'v/ssl/installation-details': BiharInstSSLDetail,
+  'ssl/installation-details': BiharInstSSLDetail,
+  'v/bihar/ssl/installation-detail': BiharInstSSLDetail,
+  'bihar/ssl/installation-detail': BiharInstSSLDetail,
+  'v/bihar/ssl/installation-details': BiharInstSSLDetail,
+  'bihar/ssl/installation-details': BiharInstSSLDetail,
+
+  // Claim Request
   'v/ssl/view-claim-request-deatils': BiharInstSSLClaim,
   'ssl/view-claim-request-deatils': BiharInstSSLClaim,
   'v/bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
   'bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'v/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'ssl/view-claim-request-details': BiharInstSSLClaim,
+  'v/bihar/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'bihar/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'v/ssl/claim-request': BiharInstSSLClaim,
+  'ssl/claim-request': BiharInstSSLClaim,
+  'v/bihar/ssl/claim-request': BiharInstSSLClaim,
+  'bihar/ssl/claim-request': BiharInstSSLClaim,
+
+  // Supply Inspection
   'v/bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
   'bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'v/bihar/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'bihar/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl/view-ssl-supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl/view-ssl-supply-inspection': BiharInstSSLSupplyInspect,
+
+  // Installation Inspection
   'v/bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
   'bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'v/bihar/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'bihar/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl/view-ssl-installation-inspection': BiharInstSSLInstallInspect,
+  'ssl/view-ssl-installation-inspection': BiharInstSSLInstallInspect,
 
   // Punjab Installation - SSL
   'v/punjab/ssl/installation/dashboard': PunjabInstSSLDb,
@@ -1034,17 +1189,21 @@ const shell: Record<string, PageComponent> = {
   'v/punjab/ssl/installation/install-light': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
   'punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+<<<<<<< HEAD
   'v/punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
   'punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
   'v/punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
   'punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
   'v/punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
   'punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
   'punjab/ssl/installation/install-light': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/site': PunjabInstSSLInstall,
   'v/punjab/ssl/installation/view': PunjabInstSSLDetail,
   'punjab/ssl': PunjabInstSSLDb,
   'punjab': PunjabInstSSLDb,
+<<<<<<< HEAD
 
   // Arunachal Pradesh Installation - SHL
   'v/arunachal/shl/installation/dashboard': ArunachalInstSHLDb,
@@ -1073,6 +1232,8 @@ const shell: Record<string, PageComponent> = {
   'arunachal/shl/installation/districtwise-data/:status/:district': ArunachalInstSHLStatusView,
   'arunachal/shl': ArunachalInstSHLDb,
   'arunachal': ArunachalInstSHLDb,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
 
   // Installation - SRT
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,

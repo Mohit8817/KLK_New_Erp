@@ -51,7 +51,16 @@ export function Sidebar({
     pathname.startsWith('/v-dashboard') ||
     pathname.startsWith('/v/') ||
     pathname === '/v' ||
+<<<<<<< HEAD
     (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up')));
+=======
+    pathname.startsWith('/assam') ||
+    pathname.startsWith('/jammu') ||
+    pathname.startsWith('/up') ||
+    pathname.startsWith('/bihar') ||
+    pathname.startsWith('/ssl') ||
+    pathname.startsWith('/srt');
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>
