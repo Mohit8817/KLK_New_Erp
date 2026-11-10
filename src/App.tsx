@@ -358,6 +358,13 @@ const VerifyClaim = lazy(() => import('./components/Vendor-Management/assam/Inst
 const ViewPayment = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewPayment'));
 const StatusView = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/StatusView'));
 
+// ── SUPER ADMIN: ARUNACHAL SHL ──
+const ArunachalShlDashboard = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ArunachalShlDashboard'));
+const ArunachalAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/AssignLights'));
+const ArunachalViewAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ViewAssignLights'));
+const ArunachalVerifyLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/VerifyLights'));
+const ArunachalShlStatusView = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/StatusView'));
+
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 // const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
 // const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
@@ -1598,6 +1605,20 @@ export function App() {
               <Route path="vendor-management/assam/swp/site" element={wrap(AssignInstallation)} />
               <Route path="vendor-management/assam/swp/view" element={wrap(VerifyInstallation)} />
               <Route path="vendor-management/assam/swp/payment" element={wrap(ViewPayment)} />
+
+              {/* Super Admin: Arunachal SHL Routes */}
+              <Route path="vendor-management/arunachal/shl/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/status-view" element={wrap(ArunachalShlStatusView)} />
+              {/* Route aliases for compatibility */}
+              <Route path="arunachal/shl/installation/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="arunachal/shl/installation/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/assign/view" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/installation" element={wrap(ArunachalShlDashboard)} />
 
 
 

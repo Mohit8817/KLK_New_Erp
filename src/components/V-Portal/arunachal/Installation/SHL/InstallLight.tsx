@@ -931,8 +931,8 @@ export function Arunachal_Installation_SHL_InstallLight() {
         title={isEditMode ? 'Edit Installation Details' : 'Install Arunachal SHL Light'}
         subtitle={
           isEditMode
-            ? 'Update solar home light equipment numbers, GPS coordinates, and verification photo.'
-            : 'Capture Solar Home Light installation execution data, serial numbers, geocoordinates, and verification photograph.'
+            ? 'Update solar street light equipment numbers, GPS coordinates, and verification photo.'
+            : 'Capture Solar Street Light installation execution data, serial numbers, geocoordinates, and verification photograph.'
         }
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
@@ -962,11 +962,11 @@ export function Arunachal_Installation_SHL_InstallLight() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-                {isEditMode ? 'Edit Installation Details' : 'Solar Home Light Installation Form'}
+                {isEditMode ? 'Edit Installation Details' : 'Solar Street Light Installation Form'}
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted, #64748b)', margin: '2px 0 0' }}>
                 {isEditMode
-                  ? 'Update existing solar home light equipment numbers, GPS coordinates, and verification photograph.'
+                  ? 'Update existing solar street light equipment numbers, GPS coordinates, and verification photograph.'
                   : 'Fill out installation details and upload site completion evidence for department verification.'}
               </p>
             </div>

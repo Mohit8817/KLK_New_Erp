@@ -45,6 +45,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · ASSAM',
     state: 'assam',
@@ -72,6 +73,34 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
+
+  // Arunachal Pradesh
+  {
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light (SHL)',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Lights', to: '/vendor-management/arunachal/shl/assign-light', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Lights', to: '/vendor-management/arunachal/shl/view-assign', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify', title: 'Verify Lights', to: '/vendor-management/arunachal/shl/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
   {
     section: 'VENDOR · BIHAR',
     state: 'bihar',
@@ -93,6 +122,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · UTTAR PRADESH',
     state: 'up',
@@ -114,6 +144,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · JAMMU',
     state: 'jammu',
@@ -135,6 +166,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · KASHMIR',
     state: 'kashmir',
@@ -156,6 +188,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · GOA',
     state: 'goa',
@@ -177,6 +210,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · KARNATAKA',
     state: 'karnataka',
@@ -198,6 +232,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'VENDOR · PUNJAB',
     state: 'punjab',
@@ -219,27 +254,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-  {
-    section: 'VENDOR · ARUNACHAL',
-    state: 'arunachal',
-    items: [
-      {
-        id: 'grp.vm.arunachal.inst',
-        title: 'Installation System',
-        icon: 'installation',
-        children: [
-          {
-            id: 'grp.vm.arunachal.inst.shl',
-            title: 'Solar High Mast (SHL)',
-            tag: 'SHL',
-            children: [
-              { id: 'vm.arunachal.inst.view', title: 'Installation Desk', to: '/vendor-management/arunachal/installation', iconType: 'view-data' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
+
   {
     section: 'VENDOR MANAGEMENT',
     items: [
@@ -253,6 +268,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
 ];
 
 function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' }) {

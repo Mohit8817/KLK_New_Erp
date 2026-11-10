@@ -42,7 +42,9 @@ export function Sidebar({
     !!user?.vendor_id ||
     (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
 
-  const isVendorManagement = pathname.startsWith('/vendor-management');
+  const isVendorManagement =
+    pathname.startsWith('/vendor-management') ||
+    (!isVendor && pathname.startsWith('/arunachal'));
   const isDlePortal = pathname.startsWith('/dle');
   const isVPortal =
     pathname.startsWith('/v-portal') ||

@@ -63,6 +63,8 @@ export const canAccessState = (state: string): boolean => {
   ) {
     return true;
   }
+  // Arunachal Pradesh is always accessible to active users/admins so newly registered state is not blocked by stale session cache
+  if (nState === 'arunachal') return true;
   return false;
 };
 
@@ -73,6 +75,9 @@ export const stateOfSlug = (slug: string): string | null => {
   let clean = slug.replace(/^\/+/, '');
   if (clean.startsWith('v/')) {
     clean = clean.slice(2);
+  }
+  if (clean.startsWith('vendor-management/')) {
+    clean = clean.slice('vendor-management/'.length);
   }
   const mDle = clean.match(/^dle\/([^/]+)\//);
   if (mDle) {
@@ -88,6 +93,7 @@ export const stateOfSlug = (slug: string): string | null => {
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
   if (clean.startsWith('goa-') || clean.includes('goa')) return 'goa';
+  if (clean.startsWith('arunachal-') || clean.includes('arunachal')) return 'arunachal';
   return null;
 };
 
