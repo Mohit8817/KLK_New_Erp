@@ -24,7 +24,7 @@ export function Pagination({
   curPage,
   totalItems,
   total,
-  pageSize = 8,
+  pageSize = 100,
   onPageChange,
   setPage,
   rangeStart,
@@ -55,7 +55,8 @@ export function Pagination({
 
     if (setPage) {
       setPage(target);
-    } else if (onPageChange) {
+    }
+    if (onPageChange && onPageChange !== setPage) {
       onPageChange(target);
     }
   };

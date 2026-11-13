@@ -500,7 +500,11 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
           ) : (
             <>
               <div className="ax-table-wrap">
+<<<<<<< HEAD
                 <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+=======
+                <table className="ax-table ax-table--hover " style={{ whiteSpace: 'nowrap' }}>
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
                   <caption className="ax-visually-hidden">Bihar SSL Complaints</caption>
                   <thead className="ax-table__head">
                     <tr>

@@ -46,7 +46,10 @@ const VENDOR_SECTIONS: NavSection[] = [
     ],
   },
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
   {
     section: 'VENDOR · ASSAM',
     state: 'assam',
@@ -76,6 +79,34 @@ const VENDOR_SECTIONS: NavSection[] = [
   },
 
 
+<<<<<<< HEAD
+=======
+  // Arunachal Pradesh
+  {
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light (SHL)',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Lights', to: '/vendor-management/arunachal/shl/assign-light', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Lights', to: '/vendor-management/arunachal/shl/view-assign', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify', title: 'Verify Lights', to: '/vendor-management/arunachal/shl/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   {
 
@@ -92,11 +123,14 @@ const VENDOR_SECTIONS: NavSection[] = [
             title: 'Solar Street Light',
             tag: 'SHL',
             children: [
+<<<<<<< HEAD
               { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
               { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
               { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
               { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
              
+=======
+              { id: 'vm.bihar.inst.view', title: 'Installation Desk', to: '/vendor-management/bihar/installation', iconType: 'view-data' },
             ],
           },
         ],
@@ -104,6 +138,30 @@ const VENDOR_SECTIONS: NavSection[] = [
     ],
   },
 
+  {
+    section: 'VENDOR · UTTAR PRADESH',
+    state: 'up',
+    items: [
+      {
+        id: 'grp.vm.up.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.up.inst.resco',
+            title: 'Resco / SSL / Kusum C',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.up.inst.view', title: 'Installation Desk', to: '/vendor-management/up/installation', iconType: 'view-data' },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+<<<<<<< HEAD
   
   // {
   //   section: 'VENDOR · BIHAR',
@@ -151,6 +209,8 @@ const VENDOR_SECTIONS: NavSection[] = [
 
 
 
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
   {
     section: 'VENDOR · JAMMU',
     state: 'jammu',
@@ -224,8 +284,35 @@ const VENDOR_SECTIONS: NavSection[] = [
         icon: 'installation',
         children: [
           {
+<<<<<<< HEAD
             id: 'grp.vm.jammu.inst.srt',
             title: 'SRT (70MW Rooftop)',
+=======
+            id: 'grp.vm.jammu.inst.70mw',
+            title: '70MW / SSL / SWP',
+            tag: '70MW',
+            children: [
+              { id: 'vm.jammu.inst.view', title: 'Installation Desk', to: '/vendor-management/jammu/installation', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · KASHMIR',
+    state: 'kashmir',
+    items: [
+      {
+        id: 'grp.vm.kashmir.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.kashmir.inst.srt',
+            title: '70MW Rooftop (SRT)',
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
             tag: 'SRT',
             children: [
               { id: 'vm.jammu.inst.srt.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/srt-70mw/dashboard', iconType: 'analytics' },
@@ -236,6 +323,23 @@ const VENDOR_SECTIONS: NavSection[] = [
               { id: 'vm.jammu.inst.srt.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/srt-70mw/view-payment', iconType: 'view-data' },
             ],
           },
+<<<<<<< HEAD
+=======
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · GOA',
+    state: 'goa',
+    items: [
+      {
+        id: 'grp.vm.goa.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
           {
             id: 'grp.vm.jammu.inst.ssl',
             title: 'SSL (Street Light)',
@@ -249,6 +353,23 @@ const VENDOR_SECTIONS: NavSection[] = [
               { id: 'vm.jammu.inst.ssl.payment', title: 'Payment Request', to: '/vendor-management/jammu/installation/ssl/payment-request', iconType: 'view-data' },
             ],
           },
+<<<<<<< HEAD
+=======
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · KARNATAKA',
+    state: 'karnataka',
+    items: [
+      {
+        id: 'grp.vm.karnataka.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
           {
             id: 'grp.vm.jammu.inst.swp',
             title: 'SWP (Water Pump)',
@@ -299,6 +420,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+<<<<<<< HEAD
   // {
   //   section: 'VENDOR · KASHMIR',
   //   state: 'kashmir',
@@ -344,6 +466,8 @@ const VENDOR_SECTIONS: NavSection[] = [
 
 
 
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   {
     section: 'VENDOR · PUNJAB',
@@ -370,6 +494,7 @@ const VENDOR_SECTIONS: NavSection[] = [
     ],
   },
 
+<<<<<<< HEAD
 
   // {
   //   section: 'VENDOR MANAGEMENT',
@@ -384,6 +509,22 @@ const VENDOR_SECTIONS: NavSection[] = [
   //     },
   //   ],
   // },
+=======
+  {
+    section: 'VENDOR MANAGEMENT',
+    items: [
+      {
+        id: 'grp.vm.mgmt',
+        title: 'User Management',
+        icon: 'management',
+        children: [
+          { id: 'vm.users', title: 'Vendor Master & Users', to: '/vendor-management/users', iconType: 'view-data' },
+        ],
+      },
+    ],
+  },
+
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 ];
 
 function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' | 'survey' }) {

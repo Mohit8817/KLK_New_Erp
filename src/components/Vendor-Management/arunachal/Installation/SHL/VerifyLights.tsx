@@ -527,7 +527,11 @@ export function VerifyLights() {
   // Media Lightbox Modal
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+<<<<<<< HEAD
   // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+  // Vendor Name Lookup Map (populated from getAssignFormData + known fallbacks)
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
   const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
     '142': 'App Testing',
     '212': 'mohit',
@@ -537,6 +541,7 @@ export function VerifyLights() {
   const getVendorName = useCallback(
     (item?: Partial<LightVerificationItem> | null): string => {
       if (!item) return '—';
+<<<<<<< HEAD
       if (item.vendors && typeof item.vendors === 'object') {
         if (item.vendors.name) return item.vendors.name;
         if (item.vendors.vendor_name) return item.vendors.vendor_name;
@@ -544,12 +549,21 @@ export function VerifyLights() {
       if (typeof item.vendors === 'string' && item.vendors.trim()) return item.vendors.trim();
       if (item.vendor_name) return item.vendor_name;
       const vid = item.inst_vendor ?? item.vendor ?? (item.vendors as any)?.id;
+=======
+      if (item.vendors?.name) return item.vendors.name;
+      if (item.vendor_name) return item.vendor_name;
+      const vid = item.inst_vendor ?? item.vendor;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {
         const key = String(vid).trim();
         if (vendorMap[key]) return vendorMap[key];
         if (key === '142') return 'App Testing';
         if (key === '212') return 'mohit';
+<<<<<<< HEAD
         return `Vendor ${key}`;
+=======
+        return `Vendor #${key}`;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       }
       return '—';
     },
@@ -561,10 +575,16 @@ export function VerifyLights() {
     setLoading(true);
     setErrorMsg('');
     try {
+<<<<<<< HEAD
       const [res, assignFormRes, dashRes] = await Promise.allSettled([
         arunachalAdminService.getViewInstallation(),
         arunachalAdminService.getAssignFormData(),
         arunachalAdminService.getDashboard(),
+=======
+      const [res, assignFormRes] = await Promise.allSettled([
+        arunachalAdminService.getViewInstallation(),
+        arunachalAdminService.getAssignFormData(),
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       ]);
 
       if (res.status === 'fulfilled') {
@@ -575,16 +595,25 @@ export function VerifyLights() {
         throw res.reason;
       }
 
+<<<<<<< HEAD
       const vMap: Record<string | number, string> = {
         '142': 'App Testing',
         '212': 'mohit',
       };
       if (assignFormRes.status === 'fulfilled' && Array.isArray(assignFormRes.value.vendors)) {
+=======
+      if (assignFormRes.status === 'fulfilled' && Array.isArray(assignFormRes.value.vendors)) {
+        const vMap: Record<string | number, string> = {
+          '142': 'App Testing',
+          '212': 'mohit',
+        };
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         assignFormRes.value.vendors.forEach((v: any) => {
           const id = v.id ?? v.vendor ?? v.inst_vendor;
           const name = v.name ?? v.vendor_name;
           if (id && name) vMap[String(id).trim()] = String(name).trim();
         });
+<<<<<<< HEAD
       }
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value;
@@ -604,6 +633,10 @@ export function VerifyLights() {
         }
       }
       setVendorMap((prev) => ({ ...prev, ...vMap }));
+=======
+        setVendorMap((prev) => ({ ...prev, ...vMap }));
+      }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
     } catch (err: any) {
       console.error('Failed to load verify installations:', err);
       setErrorMsg(err.message || 'Failed to load installation verification data');
@@ -674,7 +707,11 @@ export function VerifyLights() {
         setSelectedSiteForDetails(updatedSite);
       }
 
+<<<<<<< HEAD
       setSuccessMsg(res.message || `SHL Light ${selectedSiteForAction.uid || selectedSiteForAction.id} verified successfully.`);
+=======
+      setSuccessMsg(res.message || `SHL Light #${selectedSiteForAction.uid || selectedSiteForAction.id} verified successfully.`);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       setSelectedSiteForAction(null);
       setActionStatus('1');
       setActionRemarks('');
@@ -722,6 +759,7 @@ export function VerifyLights() {
         rem.includes(q)
       );
     });
+<<<<<<< HEAD
   }, [currentList, searchQuery, getVendorName]);
 
   // Pagination
@@ -730,6 +768,12 @@ export function VerifyLights() {
   useEffect(() => {
     pagination.setPage(1);
   }, [searchQuery, activeTab]);
+=======
+  }, [currentList, searchQuery]);
+
+  // Pagination
+  const pagination = usePagination(filteredRows, { initialPageSize: 100 });
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   // Export Columns (Exact 20 fields)
   const exportColumns: ExportColumn<LightVerificationItem>[] = useMemo(
@@ -745,7 +789,11 @@ export function VerifyLights() {
       { header: 'Panchayat', accessor: (r: LightVerificationItem) => r.panchayat || '—' },
       { header: 'Address', accessor: (r: LightVerificationItem) => r.address || r.village || r.post || '—' },
       { header: 'Phase', accessor: (r: LightVerificationItem) => r.phase || r.volume || '—' },
+<<<<<<< HEAD
       { header: 'Vendor', accessor: (r: LightVerificationItem) => getVendorName(r) },
+=======
+      { header: 'Vendor', accessor: (r: LightVerificationItem) => r.vendors?.name || r.vendor_name || (r.inst_vendor ? `Vendor #${r.inst_vendor}` : (r.vendor ? `Vendor #${r.vendor}` : '—')) },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       { header: 'Contact Person', accessor: (r: LightVerificationItem) => r.beneficiary_name || r.contact_person || r.farmer_name || r.customer_name || '—' },
       { header: 'Contact Number', accessor: (r: LightVerificationItem) => r.contact_no || r.contact_number || r.phone || '—' },
       { header: 'Panel No.', accessor: (r: LightVerificationItem) => r.panel_no || r.module_no || '—' },
@@ -1222,7 +1270,11 @@ export function VerifyLights() {
 
                         {/* 9. Vendor */}
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+<<<<<<< HEAD
                           {getVendorName(row)}
+=======
+                          {row.vendors?.name || row.vendor_name || (row.inst_vendor ? `Vendor #${row.inst_vendor}` : (row.vendor ? `Vendor #${row.vendor}` : '—'))}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                         </td>
 
                         {/* 10. Contact Person */}
@@ -1426,12 +1478,18 @@ export function VerifyLights() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={pagination.curPage}
+<<<<<<< HEAD
                 curPage={pagination.curPage}
                 totalItems={pagination.totalItems}
                 total={pagination.totalItems}
                 pageSize={pagination.pageSize}
                 onPageChange={pagination.setPage}
                 setPage={pagination.setPage}
+=======
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPageChange={pagination.setPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                 onPageSizeChange={pagination.setPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
@@ -1447,7 +1505,11 @@ export function VerifyLights() {
         title="Arunachal SHL Light Installation Details"
         subtitle={
           selectedSiteForDetails
+<<<<<<< HEAD
             ? `Light UID: ${selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id} • Vendor: ${getVendorName(selectedSiteForDetails)} • District: ${selectedSiteForDetails.district}`
+=======
+            ? `Light UID: #${selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id} • Vendor: ${selectedSiteForDetails.vendors?.name || selectedSiteForDetails.vendor_name || (selectedSiteForDetails.inst_vendor ? `Vendor #${selectedSiteForDetails.inst_vendor}` : selectedSiteForDetails.vendor)} • District: ${selectedSiteForDetails.district}`
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
             : ''
         }
         maxWidth={860}
@@ -1516,7 +1578,11 @@ export function VerifyLights() {
               <div>
                 <span style={{ fontSize: 12, color: '#64748b' }}>Light UID: </span>
                 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: '#2563eb' }}>
+<<<<<<< HEAD
                   {selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
+=======
+                  #{selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                 </strong>
                 {selectedSiteForDetails.phase && (
                   <span style={{ marginLeft: 12, fontSize: 12, color: '#64748b' }}>
@@ -1566,7 +1632,11 @@ export function VerifyLights() {
 
                   <span style={{ color: '#64748b' }}>Vendor:</span>
                   <span style={{ fontWeight: 600 }}>
+<<<<<<< HEAD
                     {getVendorName(selectedSiteForDetails)}
+=======
+                    {selectedSiteForDetails.vendors?.name || selectedSiteForDetails.vendor_name || (selectedSiteForDetails.inst_vendor ? `Vendor #${selectedSiteForDetails.inst_vendor}` : (selectedSiteForDetails.vendor ? `Vendor #${selectedSiteForDetails.vendor}` : '—'))}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                   </span>
                 </div>
               </div>
@@ -1711,7 +1781,11 @@ export function VerifyLights() {
                 <span>{selectedSiteForDetails.inst_verify_date || '—'}</span>
 
                 <span style={{ color: '#64748b' }}>QA Verified By:</span>
+<<<<<<< HEAD
                 <span>{selectedSiteForDetails.inst_verify_by ? `User ID: ${selectedSiteForDetails.inst_verify_by}` : '—'}</span>
+=======
+                <span>{selectedSiteForDetails.inst_verify_by ? `User #${selectedSiteForDetails.inst_verify_by}` : '—'}</span>
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
                 <span style={{ color: '#64748b' }}>QA Review Remarks:</span>
                 <span style={{ fontWeight: 600, color: selectedSiteForDetails.inst_verify_remarks ? '#b45309' : '#64748b' }}>
@@ -1732,7 +1806,11 @@ export function VerifyLights() {
         title="Verify Installation Status"
         subtitle={
           selectedSiteForAction
+<<<<<<< HEAD
             ? `Light UID: ${selectedSiteForAction.unique_id || selectedSiteForAction.uid || selectedSiteForAction.id} • District: ${selectedSiteForAction.district}`
+=======
+            ? `Light UID: #${selectedSiteForAction.unique_id || selectedSiteForAction.uid || selectedSiteForAction.id} • District: ${selectedSiteForAction.district}`
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
             : ''
         }
         maxWidth={520}

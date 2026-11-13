@@ -500,6 +500,7 @@ export function ArunachalStatusView() {
   const getVendorName = useCallback(
     (item?: Partial<LightVerificationItem> | null): string => {
       if (!item) return DASH;
+<<<<<<< HEAD
       if (item.vendors && typeof item.vendors === 'object') {
         if (item.vendors.name) return item.vendors.name;
         if (item.vendors.vendor_name) return item.vendors.vendor_name;
@@ -507,12 +508,21 @@ export function ArunachalStatusView() {
       if (typeof item.vendors === 'string' && item.vendors.trim()) return item.vendors.trim();
       if (item.vendor_name) return item.vendor_name;
       const vid = item.inst_vendor ?? item.vendor ?? (item.vendors as any)?.id;
+=======
+      if (item.vendors?.name) return item.vendors.name;
+      if (item.vendor_name) return item.vendor_name;
+      const vid = item.inst_vendor ?? item.vendor;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {
         const key = String(vid).trim();
         if (vendorMap[key]) return vendorMap[key];
         if (key === '142') return 'App Testing';
         if (key === '212') return 'mohit';
+<<<<<<< HEAD
         return `Vendor ${key}`;
+=======
+        return `Vendor #${key}`;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       }
       return DASH;
     },
@@ -522,16 +532,30 @@ export function ArunachalStatusView() {
   // Load districts list and vendors list from Dashboard metadata / assign API
   useEffect(() => {
     let cancelled = false;
+<<<<<<< HEAD
     Promise.allSettled([
       arunachalAdminService.getDashboard(),
       arunachalAdminService.getAssignFormData(),
     ])
       .then(([dashResult, assignResult]) => {
         if (cancelled) return;
+=======
+    arunachalAdminService
+      .getDashboard()
+      .then((dash: any) => {
+        if (cancelled) return;
+        if (Array.isArray(dash?.districtwise)) {
+          const names = Array.from(
+            new Set(dash.districtwise.map((d: any) => (d.district || '').trim()).filter(Boolean))
+          ).sort() as string[];
+          if (names.length > 0) setAllDistricts(names);
+        }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         const vMap: Record<string | number, string> = {
           '142': 'App Testing',
           '212': 'mohit',
         };
+<<<<<<< HEAD
 
         if (dashResult.status === 'fulfilled') {
           const dash = dashResult.value;
@@ -565,6 +589,22 @@ export function ArunachalStatusView() {
           });
         }
 
+=======
+        if (Array.isArray(dash?.vendorswise)) {
+          dash.vendorswise.forEach((v: any) => {
+            const vid = v.inst_vendor ?? v.vendor ?? v.id;
+            const vname = v.vendor_name ?? v.name;
+            if (vid && vname) vMap[String(vid).trim()] = String(vname).trim();
+          });
+        }
+        if (Array.isArray(dash?.vendors)) {
+          dash.vendors.forEach((v: any) => {
+            const vid = v.inst_vendor ?? v.vendor ?? v.id;
+            const vname = v.vendor_name ?? v.name;
+            if (vid && vname) vMap[String(vid).trim()] = String(vname).trim();
+          });
+        }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         setVendorMap((prev) => ({ ...prev, ...vMap }));
       })
       .catch(() => {});
@@ -678,11 +718,15 @@ export function ArunachalStatusView() {
     setPageSize,
     paginatedData,
     totalItems,
+<<<<<<< HEAD
   } = usePagination({ data: filteredLights, initialPageSize: 10 });
 
   useEffect(() => {
     setPage(1);
   }, [search, activeStatus, activeDistrict, activeVendor]);
+=======
+  } = usePagination({ data: filteredLights, initialPageSize: 100 });
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   const handleStatusChange = (newStatus: string) => {
     const valid = normalizeArunachalDashboardStatus(newStatus);
@@ -833,6 +877,7 @@ export function ArunachalStatusView() {
     w.focus();
   };
 
+<<<<<<< HEAD
   const resolveVendorLabel = (vid?: string | number | null) => {
     if (!vid) return '';
     const key = String(vid).trim();
@@ -842,6 +887,8 @@ export function ArunachalStatusView() {
     return `Vendor ${key}`;
   };
 
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
@@ -850,7 +897,11 @@ export function ArunachalStatusView() {
       {/* ── Page Head ── */}
       <PageHead
         title={`Arunachal SHL: ${currentStatusMeta.label}`}
+<<<<<<< HEAD
         subtitle={`${currentStatusMeta.desc} · Showing records for ${activeDistrict ? `District: ${activeDistrict}` : activeVendor ? `Vendor: ${resolveVendorLabel(activeVendor)}` : 'All Arunachal Districts'}`}
+=======
+        subtitle={`${currentStatusMeta.desc} · Showing records for ${activeDistrict ? `District: ${activeDistrict}` : activeVendor ? (vendorMap[activeVendor] || (activeVendor === '142' ? 'App Testing' : activeVendor === '212' ? 'mohit' : `Vendor #${activeVendor}`)) : 'All Arunachal Districts'}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         breadcrumbs={[
           { label: 'ERP Dashboard', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
@@ -897,7 +948,11 @@ export function ArunachalStatusView() {
         <KpiCard
           tone="cyan"
           label="Selected Territory"
+<<<<<<< HEAD
           value={activeDistrict || (activeVendor ? resolveVendorLabel(activeVendor) : 'All Districts')}
+=======
+          value={activeDistrict || (activeVendor ? (vendorMap[activeVendor] || (activeVendor === '142' ? 'App Testing' : activeVendor === '212' ? 'mohit' : `Vendor #${activeVendor}`)) : 'All Districts')}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
           sub={activeDistrict ? 'Single district filter active' : `${districtOptions.length} districts recorded`}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -944,7 +999,11 @@ export function ArunachalStatusView() {
             <p className="ax-card__subtitle">
               <span className="ax-num">{filteredLights.length}</span> of <span className="ax-num">{lights.length}</span> lights
               {' '}· Status: <b>{currentStatusMeta.label}</b>
+<<<<<<< HEAD
               {activeDistrict ? ` · District: ${activeDistrict}` : activeVendor ? ` · Vendor: ${resolveVendorLabel(activeVendor)}` : ' · All Districts'}
+=======
+              {activeDistrict ? ` · District: ${activeDistrict}` : activeVendor ? ` · Vendor: ${vendorMap[activeVendor] || (activeVendor === '142' ? 'App Testing' : activeVendor === '212' ? 'mohit' : `Vendor #${activeVendor}`)}` : ' · All Districts'}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
             </p>
           </div>
           <div className="ax-card__actions">
@@ -1078,7 +1137,11 @@ export function ArunachalStatusView() {
                   const lat = txt(row, 'inst_latitude') || txt(row, 'latitude') || txt(row, 'lat');
                   const lng = txt(row, 'inst_longitude') || txt(row, 'longitude') || txt(row, 'long') || txt(row, 'lng');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
+<<<<<<< HEAD
                   const lightLabel = row.unique_id || row.uid || row.id ? `Light ${row.unique_id || row.uid || row.id}` : 'Light Proof';
+=======
+                  const lightLabel = row.unique_id || row.uid || row.id ? `Light #${row.unique_id || row.uid || row.id}` : 'Light Proof';
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                   const mediaRaw = row.light_file || row.file || row.inst_file;
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
@@ -1205,12 +1268,18 @@ export function ArunachalStatusView() {
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
+<<<<<<< HEAD
               curPage={currentPage}
               totalItems={totalItems}
               total={totalItems}
               pageSize={pageSize}
               onPageChange={setPage}
               setPage={setPage}
+=======
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
               onPageSizeChange={setPageSize}
               pageSizeOptions={[10, 25, 50, 100, 200]}
             />

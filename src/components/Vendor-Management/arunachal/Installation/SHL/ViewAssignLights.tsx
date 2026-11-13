@@ -499,7 +499,11 @@ export function ViewAssignLights() {
   const [approvingRecord, setApprovingRecord] = useState<AssignLightRecord | null>(null);
   const [isApproving, setIsApproving] = useState<boolean>(false);
 
+<<<<<<< HEAD
   // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+  // Vendor Name Lookup Map (populated from getAssignFormData + known fallbacks)
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
   const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
     '142': 'App Testing',
     '212': 'mohit',
@@ -508,6 +512,7 @@ export function ViewAssignLights() {
   const getVendorName = useCallback(
     (r?: Partial<AssignLightRecord> | null): string => {
       if (!r) return '—';
+<<<<<<< HEAD
       if (r.vendors && typeof r.vendors === 'object') {
         if (r.vendors.name) return r.vendors.name;
         if (r.vendors.vendor_name) return r.vendors.vendor_name;
@@ -515,12 +520,21 @@ export function ViewAssignLights() {
       if (typeof r.vendors === 'string' && r.vendors.trim()) return r.vendors.trim();
       if (r.vendor_name) return r.vendor_name;
       const vid = r.vendor ?? r.inst_vendor ?? (r.vendors as any)?.id;
+=======
+      if (r.vendors?.name) return r.vendors.name;
+      if (r.vendor_name) return r.vendor_name;
+      const vid = r.vendor ?? r.inst_vendor;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {
         const key = String(vid).trim();
         if (vendorMap[key]) return vendorMap[key];
         if (key === '142') return 'App Testing';
         if (key === '212') return 'mohit';
+<<<<<<< HEAD
         return `Vendor ${key}`;
+=======
+        return `Vendor #${key}`;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       }
       return '—';
     },
@@ -548,10 +562,16 @@ export function ViewAssignLights() {
     setLoading(true);
     setErrorMsg('');
     try {
+<<<<<<< HEAD
       const [res, formRes, dashRes] = await Promise.allSettled([
         arunachalAdminService.getViewAssign(),
         arunachalAdminService.getAssignFormData(),
         arunachalAdminService.getDashboard(),
+=======
+      const [res, formRes] = await Promise.allSettled([
+        arunachalAdminService.getViewAssign(),
+        arunachalAdminService.getAssignFormData(),
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       ]);
 
       if (res.status === 'fulfilled') {
@@ -570,16 +590,25 @@ export function ViewAssignLights() {
         throw res.reason;
       }
 
+<<<<<<< HEAD
       const vMap: Record<string | number, string> = {
         '142': 'App Testing',
         '212': 'mohit',
       };
       if (formRes.status === 'fulfilled' && Array.isArray(formRes.value.vendors)) {
+=======
+      if (formRes.status === 'fulfilled' && Array.isArray(formRes.value.vendors)) {
+        const vMap: Record<string | number, string> = {
+          '142': 'App Testing',
+          '212': 'mohit',
+        };
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         formRes.value.vendors.forEach((v: any) => {
           const id = v.id ?? v.vendor;
           const name = v.name ?? v.vendor_name;
           if (id && name) vMap[String(id).trim()] = String(name).trim();
         });
+<<<<<<< HEAD
       }
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value;
@@ -599,6 +628,10 @@ export function ViewAssignLights() {
         }
       }
       setVendorMap((prev) => ({ ...prev, ...vMap }));
+=======
+        setVendorMap((prev) => ({ ...prev, ...vMap }));
+      }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
     } catch (err: any) {
       console.error('Failed to load assignments:', err);
       setErrorMsg(err.message || 'Failed to load assigned lights');
@@ -648,12 +681,17 @@ export function ViewAssignLights() {
     return [...list].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
   }, [assigns, statusFilter, searchQuery, getVendorName]);
 
+<<<<<<< HEAD
   // Pagination
   const pagination = usePagination(filteredRows, { initialPageSize: 10 });
 
   useEffect(() => {
     pagination.setPage(1);
   }, [searchQuery, statusFilter]);
+=======
+  // Pagination - 100 per page so all assignments show up immediately
+  const pagination = usePagination(filteredRows, { initialPageSize: 100 });
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   // Export columns
   const exportCols: ExportColumn<AssignLightRecord>[] = useMemo(
@@ -664,7 +702,11 @@ export function ViewAssignLights() {
       } as any,
       {
         header: 'Batch ID',
+<<<<<<< HEAD
         accessor: (r: AssignLightRecord) => String(r.id),
+=======
+        accessor: (r: AssignLightRecord) => `#${r.id}`,
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       },
       {
         header: 'Vendor',
@@ -809,7 +851,11 @@ export function ViewAssignLights() {
     setIsApproving(true);
     try {
       await arunachalAdminService.approveAssign(approvingRecord.id);
+<<<<<<< HEAD
       setSuccessMsg(`Assignment ID: ${approvingRecord.id} approved successfully and vendor notified.`);
+=======
+      setSuccessMsg(`Assignment #${approvingRecord.id} approved successfully and vendor notified.`);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
       setApprovingRecord(null);
       await loadData();
     } catch (err: any) {
@@ -1162,7 +1208,11 @@ export function ViewAssignLights() {
                               borderRadius: 4,
                             }}
                           >
+<<<<<<< HEAD
                             {row.id}
+=======
+                            #{row.id}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                           </span>
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
@@ -1408,12 +1458,18 @@ export function ViewAssignLights() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={pagination.curPage}
+<<<<<<< HEAD
                 curPage={pagination.curPage}
                 totalItems={pagination.totalItems}
                 total={pagination.totalItems}
                 pageSize={pagination.pageSize}
                 onPageChange={pagination.setPage}
                 setPage={pagination.setPage}
+=======
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPageChange={pagination.setPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                 onPageSizeChange={pagination.setPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
@@ -1427,7 +1483,11 @@ export function ViewAssignLights() {
         open={Boolean(selectedRecordForPanchayats)}
         onClose={() => setSelectedRecordForPanchayats(null)}
         title={`Assigned Panchayats Breakdown: ${getVendorName(selectedRecordForPanchayats)}`}
+<<<<<<< HEAD
         subtitle={`Batch ID: ${selectedRecordForPanchayats?.id} • District: ${selectedRecordForPanchayats?.district} • Block: ${selectedRecordForPanchayats?.block} • Volume: ${selectedRecordForPanchayats?.volume}`}
+=======
+        subtitle={`Batch ID #${selectedRecordForPanchayats?.id} • District: ${selectedRecordForPanchayats?.district} • Block: ${selectedRecordForPanchayats?.block} • Volume: ${selectedRecordForPanchayats?.volume}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
         maxWidth={780}
         footer={
           <button
@@ -1510,7 +1570,11 @@ export function ViewAssignLights() {
               <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
                 <thead>
                   <tr>
+<<<<<<< HEAD
                     <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
+=======
+                    <th className="ax-table__th" style={{ width: 60 }}>#</th>
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
                     <th className="ax-table__th">Panchayat Name</th>
                     <th className="ax-table__th">District</th>
                     <th className="ax-table__th">Block</th>
@@ -1600,7 +1664,11 @@ export function ViewAssignLights() {
           <div style={{ fontSize: 13, lineHeight: 1.6 }}>
             <p style={{ margin: '0 0 12px' }}>
               Are you sure you want to approve SHL assignment{' '}
+<<<<<<< HEAD
               <strong>ID: {approvingRecord.id}</strong> for{' '}
+=======
+              <strong>#{approvingRecord.id}</strong> for{' '}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
               <strong>{getVendorName(approvingRecord)}</strong>?
             </p>
             <div

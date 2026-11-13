@@ -409,7 +409,7 @@ export const ARUNACHAL_STATUS_LIST: ArunachalStatusMeta[] = [
   { key: 'total', label: 'Total Lights', tone: 'accent', desc: 'All Arunachal Pradesh SHL lights under vendor scope' },
   { key: 'site-assigned', label: 'Assigned Lights', tone: 'cyan', desc: 'Lights assigned and accepted by vendor' },
   { key: 'site-not-assigned', label: 'Not Assigned', tone: 'amber', desc: 'Lights not yet assigned or accepted' },
-  { key: 'inst-complete', label: 'Installed Lights', tone: 'emerald', desc: 'Successfully installed solar home lights' },
+  { key: 'inst-complete', label: 'Installed Lights', tone: 'emerald', desc: 'Successfully installed solar street lights' },
   { key: 'inst-pending', label: 'Install Pending', tone: 'amber', desc: 'Lights awaiting installation in field' },
   { key: 'verify-approve', label: 'Verified & Approved', tone: 'emerald', desc: 'Installation verified & approved by department' },
   { key: 'verify-pending', label: 'Verification Pending', tone: 'amber', desc: 'Installed lights pending departmental inspection' },
@@ -505,6 +505,15 @@ class ArunachalShlInstallationService {
       });
       if (res.ok) {
         const json = await res.json().catch(() => null);
+        if (Array.isArray(json?.data?.assignedlight)) {
+          return json.data.assignedlight;
+        }
+        if (Array.isArray(json?.assignedlight)) {
+          return json.assignedlight;
+        }
+        if (Array.isArray(json?.data?.assigned_light)) {
+          return json.data.assigned_light;
+        }
         if (Array.isArray(json?.data)) {
           return json.data;
         }
