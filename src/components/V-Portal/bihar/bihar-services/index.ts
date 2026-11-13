@@ -5,7 +5,7 @@ export { default as biharUlaInstallationService } from './biharUlaInstallationSe
 export * from './biharSrtInstallationService';
 export { default as biharSrtInstallationService } from './biharSrtInstallationService';
 export * from './biharSslInstallationService';
-export { default as biharSslInstallationService } from './biharSslInstallationService';
+export { default as biharSslInstallationService, getMediaUrl } from './biharSslInstallationService';
 export * from './biharComplaintService';
 export { default as biharComplaintService } from './biharComplaintService';
 export * from './biharAmcService';

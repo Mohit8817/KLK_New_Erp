@@ -6,7 +6,6 @@ import { useAuth } from '../../../../../context/AuthContext';
 import {
   jammuRescoService,
   type JammuRescoSiteNameItem,
-  type JammuRescoSiteDetail,
   type JammuRescoInstallSiteItem,
 } from '../../jammu-services';
 import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
@@ -530,7 +529,7 @@ export function RescoInstallSite() {
 
   // Selected site and fetched specifications (API 5: GET /jk/resco-installation-fetch-details/{id})
   const [selectedSiteId, setSelectedSiteId] = useState<string>(paramSiteId || '');
-  const [siteDetail, setSiteDetail] = useState<JammuRescoSiteDetail | null>(null);
+  const [siteDetail, setSiteDetail] = useState<JammuRescoInstallSiteItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Section 3: Fill this Form - User Manual Inputs (Exact fields requested)

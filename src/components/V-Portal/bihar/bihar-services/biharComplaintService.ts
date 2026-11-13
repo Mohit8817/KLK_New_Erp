@@ -74,7 +74,7 @@ export function getBiharComplaintMediaUrl(path?: string | null, type?: 'srt' | '
   return candidates[0] || `${BACKEND_BASE}/${trimmed.replace(/^\/+/, '')}`;
 }
 
-export const getMediaUrl = (path?: string | null): string => {
+export const getComplaintMediaUrl = (path?: string | null): string => {
   return getBiharComplaintMediaUrl(path);
 };
 

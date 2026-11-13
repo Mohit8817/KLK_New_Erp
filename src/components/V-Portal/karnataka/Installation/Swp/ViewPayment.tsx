@@ -1273,6 +1273,8 @@ export function KarnatakaViewPayment() {
                 paginatedData.map((c, index) => {
                   const invoiceUrl = resolveKarnatakaMediaUrl(c.file || c.invoice_file);
                   const isApproved = Number(c.claim_status ?? c.status) === 2;
+                  const isRejected = Number(c.claim_status ?? c.status) === 3;
+                  const isLocked = isApproved || isRejected;
                   const sids = parseSiteIds(c.site_id);
 
                   return (
@@ -1443,7 +1445,7 @@ export function KarnatakaViewPayment() {
                           >
                             View
                           </button>
-                          {isApproved ? (
+                          {isLocked ? (
                             <span
                               className="ax-badge ax-badge--soft"
                               style={{
@@ -1459,7 +1461,7 @@ export function KarnatakaViewPayment() {
                                 borderRadius: 6,
                                 cursor: 'not-allowed',
                               }}
-                              title="Claim Approved. Modifications locked."
+                              title={`Claim has been ${isApproved ? 'Approved' : 'Rejected'}. Modifications locked.`}
                             >
                               <svg
                                 viewBox="0 0 24 24"

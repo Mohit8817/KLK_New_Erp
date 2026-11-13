@@ -165,7 +165,7 @@ export interface JammuRescoInstallSiteItem {
 
 // Aliases for compatibility
 export type JammuRescoSiteNameItem = JammuRescoInstallSiteItem;
-export type JammuRescoSiteDetail = JammuRescoInstallSiteItem;
+export type JammuRescoInstallSiteDetail = JammuRescoInstallSiteItem;
 
 // 7. View Installed Sites
 export interface JammuRescoInstallDetailSummary {

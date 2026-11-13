@@ -40,7 +40,7 @@ export function getUpSurveyMediaUrl(path?: string | null): string {
   return `${BACKEND_BASE}/uploads/${normalized}`;
 }
 
-export function getAuthToken(): string | null {
+function getAuthToken(): string | null {
   return (
     authService.getToken() ||
     localStorage.getItem('token') ||

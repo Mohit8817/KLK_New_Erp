@@ -1105,26 +1105,54 @@ export function ViewPayment() {
                         )}
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDisbursePayment(row);
-                            setDisburseAmount(balAmt > 0 ? String(balAmt) : String(totalAmt));
-                            setDisburseRemarks('');
-                          }}
-                          style={{
-                            padding: '4px 12px',
-                            borderRadius: 6,
-                            background: '#2563eb',
-                            color: '#ffffff',
-                            border: 'none',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Disburse
-                        </button>
+                        {pStatus === 2 || balAmt <= 0 ? (
+                          <button
+                            type="button"
+                            disabled
+                            title="Payment has been fully settled (Locked)"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: '#f1f5f9',
+                              color: '#94a3b8',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'not-allowed',
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            Locked
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDisbursePayment(row);
+                              setDisburseAmount(balAmt > 0 ? String(balAmt) : String(totalAmt));
+                              setDisburseRemarks('');
+                            }}
+                            style={{
+                              padding: '4px 12px',
+                              borderRadius: 6,
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Disburse
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

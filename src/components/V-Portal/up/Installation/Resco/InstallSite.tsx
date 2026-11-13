@@ -358,9 +358,30 @@ export function UP_Installation_Resco_InstallSite() {
     }
   };
 
+  const getSiteNameLabel = (sn: any, id: number | string) => {
+    if (!sn) return `Site #${id}`;
+    if (typeof sn === 'string') {
+      if (sn.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(sn);
+          if (parsed && typeof parsed === 'object') {
+            const keys = Object.keys(parsed);
+            return keys.length > 0 ? keys.join(', ') : `Site #${id}`;
+          }
+        } catch {}
+      }
+      return sn;
+    }
+    if (typeof sn === 'object' && sn !== null) {
+      const keys = Object.keys(sn);
+      return keys.length > 0 ? keys.join(', ') : `Site #${id}`;
+    }
+    return String(sn);
+  };
+
   const siteSelectOptions: Option[] = sites.map((s) => ({
     value: String(s.id),
-    label: `${s.site_name || `Site #${s.id}`}${s.district ? ` (${s.district})` : ''}`,
+    label: `${getSiteNameLabel(s.site_name, s.id)}${s.district ? ` (${s.district})` : ''}`,
   }));
 
   return (
@@ -462,7 +483,7 @@ export function UP_Installation_Resco_InstallSite() {
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput id="up-inst-state" label="State" readOnly value={siteInfo?.state ? siteInfo.state.toUpperCase() : 'UP'} />
                 <FloatingInput id="up-inst-district" label="District" readOnly value={siteInfo?.district || ''} />
-                <FloatingInput id="up-inst-site-name" label="Site Name" readOnly value={siteInfo?.site_name || ''} />
+                <FloatingInput id="up-inst-site-name" label="Site Name" readOnly value={getSiteNameLabel(siteInfo?.site_name, siteInfo?.id || '')} />
                 <FloatingInput id="up-inst-location" label="Location" readOnly value={siteInfo?.location || ''} />
                 <FloatingInput id="up-inst-firm" label="Firm Name" readOnly value={siteInfo?.firm_name || ''} />
                 <FloatingInput id="up-inst-ca" label="CA No." readOnly value={siteInfo?.ca_no || ''} />

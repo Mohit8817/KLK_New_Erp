@@ -3,7 +3,11 @@ import { authService } from './authService';
 /** "Uttar Pradesh" / "UP" → "up", baaki lowercase */
 export const normState = (s: any): string => {
   const v = String(s ?? '').trim().toLowerCase();
-  return v === 'uttar pradesh' || v === 'u.p.' ? 'up' : v;
+  if (v === 'uttar pradesh' || v === 'u.p.' || v === 'up') return 'up';
+  if (v === 'arunachal pradesh' || v === 'arunachal' || v === 'ar') return 'arunachal';
+  if (v === 'madhya pradesh' || v === 'm.p.' || v === 'mp') return 'mp';
+  if (v === 'himachal pradesh' || v === 'h.p.' || v === 'hp') return 'hp';
+  return v;
 };
 
 const loginUser = (): any => {
@@ -16,11 +20,19 @@ const loginUser = (): any => {
 export const getRoleLevel = (): string | null => {
   const u = loginUser();
   const session = authService.getSession();
-  const rawRole = u?.role_id ?? u?.role;
+  const rawRole =
+    u?.role_id ??
+    u?.usertype ??
+    u?.user_type ??
+    session?.role_id ??
+    session?.usertype ??
+    session?.user_type ??
+    u?.role ??
+    session?.role;
+
   if (rawRole === 0 || rawRole === '0') return '0';
   if (rawRole === 1 || rawRole === '1') return '1';
-  if (session?.role_id === 0 || session?.role_id === '0') return '0';
-  if (session?.role_id === 1 || session?.role_id === '1') return '1';
+  if (rawRole === 'super_admin' || rawRole === 'admin' || rawRole === 'all') return '0';
   return rawRole !== null && rawRole !== undefined ? String(rawRole).trim() : null;
 };
 
@@ -29,6 +41,23 @@ export const getAllowedStates = (): string[] | 'ALL' => {
 
   const u = loginUser();
   const session = authService.getSession();
+
+  const isSuperAdmin =
+    u?.usertype === '0' || u?.usertype === 0 ||
+    session?.usertype === '0' || session?.usertype === 0 ||
+    u?.user_type === '0' || u?.user_type === 0 ||
+    session?.user_type === '0' || session?.user_type === 0 ||
+    u?.role === '0' || u?.role === 0 ||
+    session?.role === '0' || session?.role === 0 ||
+    u?.role_id === '0' || u?.role_id === 0 ||
+    session?.role_id === '0' || session?.role_id === 0 ||
+    u?.role === 'super_admin' || session?.role === 'super_admin' ||
+    u?.role === 'admin' || session?.role === 'admin';
+
+  if (isSuperAdmin) {
+    return 'ALL';
+  }
+
   if (session?.role === 'vendor' || u?.role === 'vendor' || session?.vendor_id || u?.vendor_id) {
     return 'ALL';
   }
@@ -66,9 +95,9 @@ export const canAccessState = (state: string): boolean => {
   return false;
 };
 
-const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'arunachal', 'goa'];
+const KNOWN_STATES = ['bihar', 'up', 'assam', 'jammu', 'jharkhand', 'kashmir', 'uttar pradesh', 'punjab', 'arunachal', 'goa', 'karnataka'];
 
-/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam'; 'goa/...' → 'goa' */
+/** 'dle/bihar/ssl/...' → 'bihar'; 'dle/up/...' → 'up'; 'up/survey/...' → 'up'; 'jammu/...' → 'jammu'; 'assam/...' → 'assam'; 'goa/...' → 'goa'; 'karnataka/...' → 'karnataka' */
 export const stateOfSlug = (slug: string): string | null => {
   let clean = slug.replace(/^\/+/, '');
   if (clean.startsWith('v/')) {
@@ -80,18 +109,22 @@ export const stateOfSlug = (slug: string): string | null => {
     if (KNOWN_STATES.includes(candidate)) return candidate;
     return null;
   }
-  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab|arunachal|goa)\//);
+  const mV = clean.match(/^(up|bihar|assam|jammu|jharkhand|kashmir|punjab|arunachal|goa|karnataka)\//);
   if (mV) return normState(mV[1]);
-  if (clean.startsWith('up-') || clean.includes('/up/')) return 'up';
-  if (clean.startsWith('bihar-') || clean.includes('bihar')) return 'bihar';
-  if (clean.startsWith('jammu-') || clean.includes('jammu')) return 'jammu';
+  if (clean.startsWith('up-') || clean.includes('/up/') || clean.includes('upssl') || clean === 'edit-ssl') return 'up';
+  if (clean.startsWith('bihar-') || clean.includes('bihar') || clean.startsWith('ssl/') || clean.startsWith('srt/')) return 'bihar';
+  if (clean.startsWith('jammu-') || clean.includes('jammu') || clean.startsWith('jk-') || clean.startsWith('jk/')) return 'jammu';
+  if (clean.startsWith('kashmir-') || clean.includes('kashmir')) return 'kashmir';
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
   if (clean.startsWith('goa-') || clean.includes('goa')) return 'goa';
+  if (clean.startsWith('karnataka-') || clean.includes('karnataka')) return 'karnataka';
   return null;
 };
 
 export const canAccessSlug = (slug: string): boolean => {
+  const allowed = getAllowedStates();
+  if (allowed === 'ALL') return true;
   const st = stateOfSlug(slug);
   return !st || canAccessState(st);
 };

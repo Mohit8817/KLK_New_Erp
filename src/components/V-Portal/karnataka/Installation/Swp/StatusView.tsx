@@ -1343,6 +1343,8 @@ export function KarnatakaStatusView() {
                   const vStatus = Number(row.inst_verify_status ?? row.verify_status ?? 0);
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
+                  const isVerifyRejected = vStatus === 2 || rawVerifyStr === '2' || rawVerifyStr === 'rejected' || rawVerifyStr === 'reject';
+                  const isActionLocked = isVerifyApproved || isVerifyRejected;
                   const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
                   const pStatus = Number(row.inst_pay_status ?? row.pay_status ?? row.inst_claim_status ?? 0);
 
@@ -1441,9 +1443,9 @@ export function KarnatakaStatusView() {
                         <PaymentBadge status={pStatus} />
                       </td>
 
-                      {/* Action: Locked if Verify Status is Approved, otherwise RowActionDropdown */}
+                      {/* Action: Locked if Verify Status is Approved or Rejected, otherwise RowActionDropdown */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {isVerifyApproved ? (
+                        {isActionLocked ? (
                           <span
                             className="ax-badge ax-badge--soft"
                             style={{
@@ -1460,7 +1462,7 @@ export function KarnatakaStatusView() {
                               cursor: 'not-allowed',
                               userSelect: 'none',
                             }}
-                            title="Installation Verified & Approved. Actions are locked."
+                            title={`Installation has been ${isVerifyApproved ? 'Approved' : 'Rejected'}. Actions are locked.`}
                           >
                             <svg
                               viewBox="0 0 24 24"

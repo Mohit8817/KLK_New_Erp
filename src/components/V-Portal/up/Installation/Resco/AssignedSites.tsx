@@ -353,16 +353,43 @@ function SiteDetailModal({
   if (!open || !item) return null;
 
   const fileUrl = item.file ? resolveUpMediaUrl(item.file) : '';
+  const panelFileUrl = item.panel_no_file ? resolveUpMediaUrl(item.panel_no_file) : '';
+
+  // Get primary display name for modal header
+  let siteTitle = `Assignment #${item.id}`;
+  if (typeof item.site_name === 'string' && item.site_name.trim()) {
+    siteTitle = item.site_name;
+  } else if (typeof item.site_name === 'object' && item.site_name !== null) {
+    const keys = Object.keys(item.site_name);
+    if (keys.length > 0) {
+      siteTitle = keys.join(', ');
+    }
+  }
+
+  // Parse sites if object or string
+  let siteEntries: [string, any][] = [];
+  if (typeof item.site_name === 'object' && item.site_name !== null) {
+    siteEntries = Object.entries(item.site_name);
+  } else if (typeof item.site_name === 'string' && item.site_name.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(item.site_name);
+      if (typeof parsed === 'object' && parsed !== null) {
+        siteEntries = Object.entries(parsed);
+      }
+    } catch {
+      // not json
+    }
+  }
 
   return (
-    <Modal open onClose={onClose} labelledBy="site-detail-title" dialogStyle={{ maxWidth: 620 }}>
+    <Modal open onClose={onClose} labelledBy="site-detail-title" dialogStyle={{ maxWidth: 640 }}>
       <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
         <div>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>
             Assigned Resco Site Details
           </span>
           <h3 id="site-detail-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }}>
-            {item.site_name || `Site #${item.id}`}
+            {siteTitle}
           </h3>
         </div>
         <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
@@ -371,23 +398,50 @@ function SiteDetailModal({
       </div>
 
       <div className="ax-modal__body" style={{ padding: 20 }}>
+        {/* Assignment info */}
         <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', marginBottom: 14 }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Assignment Details</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><strong>{item.vendor || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><strong>{item.vendor || item.vendors?.name || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor ID: </span><strong>{item.vendors?.vendor_id || item.vendor_id || DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Firm / Company: </span><strong>{item.vendors?.company || item.vendors?.firm || item.firm_name || DASH}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong>{item.assign_date || DASH}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{(item.state || 'UP').toUpperCase()}</strong></div>
             <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.district || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name: </span><strong>{item.site_name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Deadline: </span><strong>{item.deadline || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Count: </span><strong>{item.count ?? 1}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Volume: </span><strong>{item.volume !== undefined ? `${item.volume} kW` : DASH}</strong></div>
+            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Count: </span><strong>{item.sitecount ?? item.count ?? 1}</strong></div>
             <div>
               <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
               <span className={`ax-badge ax-badge--soft ${item.status === 2 ? 'ax-badge--success' : 'ax-badge--warning'}`} style={{ fontWeight: 600 }}>
                 {item.status === 2 ? 'Accepted' : 'Pending'}
               </span>
             </div>
+            {item.vendors?.contact && (
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact: </span><strong>{item.vendors.contact}</strong></div>
+            )}
           </div>
+        </div>
+
+        {/* Sites & Deadlines list */}
+        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', marginBottom: 14 }}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Sites & Deadlines</h4>
+          {siteEntries.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {siteEntries.map(([name, dl], idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--ax-surface, #ffffff)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 12.5 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{name}</span>
+                  <span style={{ color: 'var(--ax-text-muted)', fontSize: 11.5 }}>
+                    Deadline: <strong>{String(dl || DASH)}</strong>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5 }}>
+              <strong>{typeof item.site_name === 'string' ? item.site_name : DASH}</strong>
+              {item.deadline && <span style={{ color: 'var(--ax-text-muted)', marginLeft: 8 }}>(Deadline: {item.deadline})</span>}
+            </div>
+          )}
         </div>
 
         {item.remarks && (
@@ -397,12 +451,24 @@ function SiteDetailModal({
           </div>
         )}
 
-        {fileUrl && (
-          <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-            <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Attached File</h4>
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost" style={{ fontSize: 12 }}>
-              Download File ↗
-            </a>
+        {(fileUrl || panelFileUrl) && (
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {fileUrl && (
+              <div>
+                <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Assignment Letter</h4>
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost" style={{ fontSize: 12 }}>
+                  Download Assignment File ↗
+                </a>
+              </div>
+            )}
+            {panelFileUrl && (
+              <div>
+                <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Panel Numbers File</h4>
+                <a href={panelFileUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost" style={{ fontSize: 12 }}>
+                  Download Panel File ↗
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -459,8 +525,19 @@ export function UP_Installation_Resco_AssignedSites() {
 
   const renderSiteNames = (raw: any, deadlineFallback?: string) => {
     if (!raw) return DASH;
-    if (typeof raw === 'object' && raw !== null) {
-      const entries = Object.entries(raw);
+    let data = raw;
+    if (typeof data === 'string' && data.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed && typeof parsed === 'object') {
+          data = parsed;
+        }
+      } catch {
+        // retain string
+      }
+    }
+    if (typeof data === 'object' && data !== null) {
+      const entries = Object.entries(data);
       if (entries.length === 0) return DASH;
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -479,7 +556,7 @@ export function UP_Installation_Resco_AssignedSites() {
     }
     return (
       <span>
-        {String(raw)}{' '}
+        {String(data)}{' '}
         {deadlineFallback && (
           <span style={{ color: 'var(--ax-text-muted)', fontSize: 11 }}>
             ({deadlineFallback})
@@ -543,8 +620,13 @@ export function UP_Installation_Resco_AssignedSites() {
       // Search
       if (search.trim()) {
         const q = search.toLowerCase();
-        const vendorStr = String(s.vendor || '').toLowerCase();
-        const siteStr = String(s.site_name || '').toLowerCase();
+        const vendorStr = String(s.vendor || s.vendors?.name || s.vendors?.company || '').toLowerCase();
+        let siteStr = '';
+        if (typeof s.site_name === 'string') {
+          siteStr = s.site_name.toLowerCase();
+        } else if (typeof s.site_name === 'object' && s.site_name !== null) {
+          siteStr = Object.entries(s.site_name).map(([k, v]) => `${k} ${v}`).join(' ').toLowerCase();
+        }
         const distStr = String(s.district || '').toLowerCase();
         const remarksStr = String(s.remarks || '').toLowerCase();
         const dateStr = String(s.assign_date || '').toLowerCase();
@@ -589,13 +671,34 @@ export function UP_Installation_Resco_AssignedSites() {
   const exportCols: ExportColumn<UpRescoAssignSiteItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: UpRescoAssignSiteItem, i: number) => String(i + 1) },
-      { header: 'Vendor', accessor: (r) => r.vendor || DASH },
+      { header: 'Vendor', accessor: (r) => r.vendor || r.vendors?.name || DASH },
       { header: 'Assign Date', accessor: (r) => r.assign_date || DASH },
       { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
       { header: 'District', accessor: (r) => r.district || DASH },
-      { header: 'Site Name', accessor: (r) => r.site_name || DASH },
-      { header: 'Deadline', accessor: (r) => r.deadline || DASH },
-      { header: 'Count', accessor: (r) => String(r.count ?? 1) },
+      {
+        header: 'Site Name',
+        accessor: (r) => {
+          if (!r.site_name) return DASH;
+          if (typeof r.site_name === 'string') return r.site_name;
+          if (typeof r.site_name === 'object') {
+            const keys = Object.keys(r.site_name);
+            return keys.length > 0 ? keys.join(', ') : DASH;
+          }
+          return String(r.site_name);
+        },
+      },
+      {
+        header: 'Deadline',
+        accessor: (r) => {
+          if (r.deadline) return r.deadline;
+          if (typeof r.site_name === 'object' && r.site_name !== null) {
+            const vals = Object.values(r.site_name).filter(Boolean);
+            return vals.length > 0 ? vals.join(', ') : DASH;
+          }
+          return DASH;
+        },
+      },
+      { header: 'Count', accessor: (r) => String(r.sitecount ?? r.count ?? 1) },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
       { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending') },
     ],
@@ -833,7 +936,12 @@ export function UP_Installation_Resco_AssignedSites() {
                       <tr key={item.id || index} className="ax-table__row">
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {item.vendor || DASH}
+                          <div>{item.vendor || item.vendors?.name || DASH}</div>
+                          {item.vendors?.vendor_id && (
+                            <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 400 }}>
+                              {item.vendors.vendor_id}
+                            </div>
+                          )}
                         </td>
                         <td className="ax-table__td">{item.assign_date || DASH}</td>
                         <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
@@ -844,7 +952,7 @@ export function UP_Installation_Resco_AssignedSites() {
                           {renderSiteNames(item.site_name, item.deadline)}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
-                          {item.count ?? (typeof item.site_name === 'object' && item.site_name !== null ? Object.keys(item.site_name).length : 1)}
+                          {item.sitecount ?? item.count ?? (typeof item.site_name === 'object' && item.site_name !== null ? Object.keys(item.site_name).length : 1)}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {fileUrl ? (

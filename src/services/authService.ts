@@ -170,10 +170,11 @@ class AuthService {
         name: userData.name || email.split('@')[0],
         email: userData.email || email.trim(),
 
-        // ✅ Explicitly preserve company_id
+        // ✅ Explicitly preserve company_id and role/usertype
         company_id: userData.company_id ?? null,
-
-        role: 'user',
+        usertype: userData.usertype ?? userData.user_type ?? null,
+        role_id: userData.role_id ?? userData.role ?? null,
+        role: userData.role === '0' || userData.role === 0 ? '0' : (userData.role || 'user'),
         token,
 
         loginTime: new Date().toISOString(),

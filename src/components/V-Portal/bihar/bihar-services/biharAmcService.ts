@@ -4,11 +4,36 @@ import { BIHAR_AMC_API } from '../../V_Portal_APIS/Bihar_API';
 const BASE_URL = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
 const ROOT_URL = BASE_URL.replace(/\/api\/?$/, '');
 
+const R2_BASE = (
+  (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ||
+  'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev'
+).replace(/\/+$/, '');
+
+export function getAmcMediaCandidates(path?: string | null): string[] {
+  if (!path) return [];
+  const clean = String(path).trim().replace(/\\/g, '/').replace(/^uploa\s+ds\//i, 'uploads/');
+  if (!clean) return [];
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  const normalized = clean.startsWith('/') ? clean.slice(1) : clean;
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  candidates.push(`${ROOT_URL}/${normalized}`);
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/${normalized}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  candidates.push(`${ROOT_URL}/public/${normalized}`);
+
+  return Array.from(new Set(candidates));
+}
+
 export function getAmcMediaUrl(path?: string | null): string {
-  if (!path) return '';
-  if (/^https?:\/\//i.test(path)) return path;
-  const clean = path.replace(/^\/+/, '');
-  return `${ROOT_URL}/${clean}`;
+  const list = getAmcMediaCandidates(path);
+  return list[0] || '';
 }
 
 /* ──────────────────────────────────────────────────────────

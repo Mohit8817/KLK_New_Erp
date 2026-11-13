@@ -1,0 +1,1084 @@
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { PageHead } from '../../../../shell/PageHead';
+import {
+  kashmirAdminService,
+  resolveKashmirMediaUrl,
+  calculateSrtDeadlineDays,
+  type VendorItem,
+  type DistrictItem,
+  type SiteItem,
+} from '../../kashmir-services';
+
+// Unified Single-Card Layout with Floating Labels & Section Dividers (same as Assign Installation)
+const SINGLE_CARD_FORM_CSS = `
+.kswp-assign-form .ax-card {
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-xl, 16px);
+  background: var(--ax-surface-solid);
+  box-shadow: var(--ax-shadow-sm);
+  overflow: hidden;
+}
+.kswp-assign-form .ax-card__header {
+  padding: var(--ax-space-5) var(--ax-space-6);
+  border-bottom: 1px solid var(--ax-border-subtle);
+  background: var(--ax-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ax-space-4);
+}
+.kswp-assign-form .ax-card__body { padding: var(--ax-space-6); }
+
+/* Quick Section Nav Pills */
+.kswp-section-pills {
+  display: flex;
+  gap: var(--ax-space-2);
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.kswp-section-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--ax-radius-pill);
+  font-size: var(--ax-text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  color: var(--ax-text);
+  cursor: pointer;
+  transition: all var(--ax-motion-fast) var(--ax-ease-standard);
+}
+.kswp-section-pill-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid));
+}
+.kswp-section-pill-btn .pill-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ax-surface-subtle);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+
+/* Section Block */
+.kswp-section-block { padding-top: var(--ax-space-2); scroll-margin-top: 80px; }
+.kswp-section-header {
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
+  gap: var(--ax-space-2);
+  margin-bottom: var(--ax-space-5);
+  padding-bottom: var(--ax-space-3);
+  border-bottom: 1px solid var(--ax-border-subtle);
+}
+.kswp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.kswp-section-divider {
+  border: 0;
+  border-top: 1px dashed var(--ax-border);
+  margin: var(--ax-space-8) 0 var(--ax-space-6);
+}
+
+/* Floating Label Core */
+.ax-float { position: relative; width: 100%; }
+.ax-float__input {
+  width: 100%;
+  height: 46px;
+  padding: 12px 14px 4px 14px;
+  font-size: var(--ax-text-sm);
+  background: var(--ax-surface-solid);
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-md);
+  color: var(--ax-text);
+  outline: none;
+  transition: border-color var(--ax-motion-fast) var(--ax-ease-standard),
+              box-shadow var(--ax-motion-fast) var(--ax-ease-standard);
+}
+.ax-float__input::placeholder { color: transparent; }
+.ax-float__input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+}
+.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle); }
+.ax-float__input.is-invalid { border-color: #ef4444; }
+.ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 24%, transparent); }
+textarea.ax-float__input {
+  height: auto;
+  min-height: 96px;
+  padding-top: 20px;
+  resize: vertical;
+}
+
+.ax-float__label {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0 4px;
+  font-size: var(--ax-text-sm);
+  color: var(--ax-text-subtle);
+  background: var(--ax-surface-solid);
+  border-radius: var(--ax-radius-xs);
+  pointer-events: none;
+  transition: top var(--ax-motion-fast) var(--ax-ease-standard),
+              font-size var(--ax-motion-fast) var(--ax-ease-standard),
+              color var(--ax-motion-fast) var(--ax-ease-standard);
+  z-index: 2;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+textarea.ax-float__input + .ax-float__label { top: 22px; }
+.ax-float__label.floating {
+  top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: #2563eb;
+}
+.ax-float__label.has-val:not(.floating) {
+  top: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ax-text-muted);
+}
+.ax-float__input.is-invalid + .ax-float__label { color: #ef4444; }
+
+.kswp-field-error { margin-top: 4px; font-size: 11px; color: #ef4444; }
+`;
+
+/* ───────── Floating Select ───────── */
+type Option = { value: string; label: string };
+
+function FloatingSelect({
+  id,
+  label,
+  value,
+  options,
+  placeholder,
+  disabled,
+  error,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: Option[];
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  onChange: (val: string) => void;
+}) {
+  return (
+    <div>
+      <div className="ax-float">
+        <select
+          id={id}
+          className={`ax-float__input ${error ? 'is-invalid' : ''}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <label htmlFor={id} className="ax-float__label floating">
+          {label} <span style={{ color: '#ef4444' }}>*</span>
+        </label>
+      </div>
+      {error && <div className="kswp-field-error">{error}</div>}
+    </div>
+  );
+}
+
+/* ───────── Modern Upload Dropzone ───────── */
+interface UploadDropzoneProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  disabled?: boolean;
+  accept?: string;
+  file: File | null;
+  preview?: string;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+}
+
+function UploadDropzone({
+  id,
+  label,
+  required,
+  disabled,
+  accept = '.pdf,.jpg,.jpeg,.png',
+  file,
+  preview,
+  onSelect,
+  onRemove,
+  error,
+}: UploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled) return;
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (disabled) return;
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onSelect(chosen);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '12.5px',
+          fontWeight: 600,
+          color: error ? '#ef4444' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <span style={{ color: '#ef4444' }}>*</span>}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        disabled={disabled}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (disabled) return;
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => {
+          if (!disabled) inputRef.current?.click();
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled) setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => {
+          if (!disabled) setIsHovered(true);
+        }}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: disabled
+            ? '1.5px dashed #cbd5e1'
+            : isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed #ef4444'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: disabled
+            ? 'var(--ax-surface-subtle, #f8fafc)'
+            : isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : '#ffffff',
+          opacity: disabled ? 0.75 : 1,
+          padding: file || preview ? '12px 14px' : '22px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 110,
+        }}
+      >
+        {file || preview ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+              {preview ? (
+                <img
+                  src={preview}
+                  alt={label}
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border)' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file ? file.name : label}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                  {file ? `${(file.size / 1024).toFixed(0)} KB · Ready to upload` : 'File selected'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0 }}
+              title="Remove file"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+              PDF, JPG, JPEG or PNG (Max 5 MB) — single file
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>{error}</span>}
+    </div>
+  );
+}
+
+export function AssignSite() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('id');
+
+  // Form state
+  const [vendor, setVendor] = useState<string>('');
+  const [stateName, setStateName] = useState<string>('kashmir');
+  const [district, setDistrict] = useState<string>('');
+  const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
+  const [existingFileName, setExistingFileName] = useState<string>('');
+  const [remarks, setRemarks] = useState<string>('');
+
+  // Dropdown options
+  const [vendors, setVendors] = useState<VendorItem[]>([]);
+  const [districts, setDistricts] = useState<DistrictItem[]>([]);
+  const [sites, setSites] = useState<SiteItem[]>([]);
+
+  // UI state
+  const [loading, setLoading] = useState<boolean>(false);
+  const [fetchingDistricts] = useState<boolean>(false);
+  const [fetchingSites, setFetchingSites] = useState<boolean>(false);
+  const [siteSearch, setSiteSearch] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Section refs for navigation pills
+  const sec1 = useRef<HTMLDivElement>(null);
+  const sec2 = useRef<HTMLDivElement>(null);
+  const sec3 = useRef<HTMLDivElement>(null);
+
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const clearError = (name: string) => {
+    setValidationErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  // Initial load: vendors & districts (or edit data)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialData() {
+      setLoading(true);
+      setErrorMsg(null);
+      try {
+        if (editId) {
+          const editData = await kashmirAdminService.getEditAssign(editId);
+          if (!isMounted) return;
+          const data = editData?.data || editData;
+          setVendors(Array.isArray(data?.vendors) ? data.vendors : []);
+          setDistricts(Array.isArray(data?.districts) ? data.districts : []);
+          setSites(Array.isArray(data?.sites) ? data.sites : []);
+
+          const a = data.assignSrt || data.assign || {};
+          setVendor(String(a.vendor || ''));
+          setStateName(a.state || 'kashmir');
+          setDistrict(String(a.district || ''));
+          setRemarks(a.remarks || '');
+          if (a.file) setExistingFileName(String(a.file));
+
+          let siteIds: number[] = [];
+          if (Array.isArray(a.site_name)) {
+            siteIds = a.site_name.map(Number);
+          } else if (typeof a.site_name === 'string') {
+            try {
+              const parsed = JSON.parse(a.site_name);
+              if (Array.isArray(parsed)) siteIds = parsed.map(Number);
+            } catch {
+              siteIds = a.site_name.split(',').map((x: string) => Number(x.trim())).filter(Boolean);
+            }
+          }
+          setSelectedSiteIds(siteIds);
+        } else {
+          const [assignData, distList] = await Promise.all([
+            kashmirAdminService.getAssignFormData().catch(() => ({ vendors: [] })),
+            kashmirAdminService.fetchDistricts().catch(() => []),
+          ]);
+          if (!isMounted) return;
+          setVendors(Array.isArray(assignData?.vendors) ? assignData.vendors : []);
+          setDistricts(Array.isArray(distList) ? distList : []);
+        }
+      } catch (err: any) {
+        console.error('Initial assign form load error:', err);
+        setErrorMsg(err?.message || 'Failed to load assignment form options.');
+        setVendors([]);
+        setDistricts([]);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadInitialData();
+    return () => { isMounted = false; };
+  }, [editId]);
+
+  // When district changes, fetch sites
+  useEffect(() => {
+    if (!district) {
+      setSites([]);
+      return;
+    }
+    if (editId && sites.length > 0) return; // preserve on initial edit load
+
+    let isMounted = true;
+    async function loadSites() {
+      setFetchingSites(true);
+      try {
+        const sList = await kashmirAdminService.fetchSites(district);
+        if (!isMounted) return;
+        setSites(Array.isArray(sList) ? sList : []);
+      } catch (e: any) {
+        console.error('Failed to load sites:', e);
+        if (isMounted) setSites([]);
+      } finally {
+        if (isMounted) setFetchingSites(false);
+      }
+    }
+
+    loadSites();
+    return () => { isMounted = false; };
+  }, [district, editId]);
+
+  // Filtered sites
+  const filteredSites = useMemo(() => {
+    if (!siteSearch.trim()) return sites;
+    const q = siteSearch.toLowerCase();
+    return sites.filter(
+      (s) =>
+        (s.site_name || '').toLowerCase().includes(q) ||
+        (s.site_code || '').toLowerCase().includes(q) ||
+        (s.contact_person || '').toLowerCase().includes(q) ||
+        (s.contact_number || '').toLowerCase().includes(q)
+    );
+  }, [sites, siteSearch]);
+
+  const toggleSite = (id: number) => {
+    setSelectedSiteIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    clearError('site');
+  };
+
+  const selectAllSites = () => {
+    if (selectedSiteIds.length === filteredSites.length) {
+      setSelectedSiteIds([]);
+    } else {
+      setSelectedSiteIds(filteredSites.map((s) => s.id));
+      clearError('site');
+    }
+  };
+
+  // Validation
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!vendor) errs.vendor = 'Please select a Vendor.';
+    if (!stateName) errs.state = 'Please select a State.';
+    if (!district) errs.district = 'Please select a District.';
+    if (selectedSiteIds.length === 0) errs.site = 'Please select at least one Site.';
+    if (!editId && !file) errs.file = 'Please upload a file.';
+    setValidationErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  // Submit
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!validate()) {
+      setErrorMsg('Please correct the highlighted fields before submitting.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('vendor', vendor);
+      formData.append('state', stateName);
+      formData.append('district', district);
+      selectedSiteIds.forEach((id) => {
+        formData.append('site[]', String(id));
+      });
+      if (remarks) formData.append('remarks', remarks);
+      if (file) formData.append('file', file);
+
+      if (editId) {
+        formData.append('id', editId);
+        const res = await kashmirAdminService.updateAssign(formData);
+        setSuccessMsg(res.message || 'Assigned Site Updated Successfully!!!');
+      } else {
+        const res = await kashmirAdminService.storeAssign(formData);
+        setSuccessMsg(res.message || 'Site Assigned Successfully!!!');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      setTimeout(() => {
+        navigate('/vendor-management/kashmir/srt70mw/installation/view-assign');
+      }, 1200);
+    } catch (err: any) {
+      console.error('Assign submit error:', err);
+      setErrorMsg(err?.message || 'Something went wrong while saving assignment.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setVendor('');
+    setStateName('kashmir');
+    setDistrict('');
+    setSelectedSiteIds([]);
+    setRemarks('');
+    setFile(null);
+    if (filePreview) URL.revokeObjectURL(filePreview);
+    setFilePreview(undefined);
+    setValidationErrors({});
+  };
+
+  const vendorOptions: Option[] = vendors.map((v) => ({
+    value: String(v.id),
+    label: `${v.name}${v.vendor_id ? ` (${v.vendor_id})` : ''}`,
+  }));
+  const stateOptions: Option[] = [
+    { value: 'kashmir', label: 'Kashmir' },
+    { value: 'Jammu & Kashmir', label: 'Jammu & Kashmir' },
+  ];
+  const districtOptions: Option[] = districts.map((d) => ({
+    value: String(d.district),
+    label: String(d.district),
+  }));
+
+  const pageTitle = editId ? 'Edit Kashmir SRT 70MW Installation' : 'Assign Kashmir SRT 70MW Installation';
+
+  return (
+    <div className="ax-page kswp-assign-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
+
+      {/* Page Head */}
+      <PageHead
+        title={pageTitle}
+        subtitle="The field labels marked with * are required input fields."
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Kashmir SRT 70MW', href: '/vendor-management/kashmir/srt70mw/dashboard' },
+          { label: pageTitle },
+        ]}
+        actions={
+          <Link
+            to="/vendor-management/kashmir/srt70mw/installation/view-assign"
+            className="ax-btn ax-btn--secondary ax-btn--sm"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ marginRight: 6 }}
+            >
+              <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+              <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+            </svg>
+            View Assigned List
+          </Link>
+        }
+      />
+
+      {/* Status Banners */}
+      {errorMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✕ {errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: 16 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✓ {successMsg}</span>
+          <span style={{ fontSize: 12, opacity: 0.8 }}>Redirecting...</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="ax-card" noValidate>
+        {/* Header with Section Pills */}
+        <div className="ax-card__header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
+                {editId ? `Edit Kashmir SRT 70MW Installation #${editId}` : 'Assign Kashmir SRT 70MW Installation'}
+              </h2>
+          
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {selectedSiteIds.length > 0 && (
+                <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
+                  {selectedSiteIds.length} Site(s) Selected
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Nav Pills */}
+          <div className="kswp-section-pills">
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+              <span className="pill-num">1</span> Vendor & District
+            </button>
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+              <span className="pill-num">2</span> Site Selection
+            </button>
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> File & Remarks
+            </button>
+          </div>
+        </div>
+
+        <div className="ax-card__body">
+          {/* Section 1: Vendor, State & District */}
+          <div ref={sec1} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Vendor & District Selection</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Assign certified EPC vendor, operational state, and project district
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <FloatingSelect
+                id="kashmir-vendor"
+                label="Vendor Name"
+                placeholder="-- Select Vendor --"
+                value={vendor}
+                options={vendorOptions}
+                disabled={loading}
+                onChange={(v) => { setVendor(v); clearError('vendor'); }}
+                error={validationErrors.vendor}
+              />
+              <FloatingSelect
+                id="kashmir-state"
+                label="State"
+                placeholder="-- Select State --"
+                value={stateName}
+                options={stateOptions}
+                disabled={loading}
+                onChange={(v) => { setStateName(v); clearError('state'); }}
+                error={validationErrors.state}
+              />
+              <FloatingSelect
+                id="kashmir-district"
+                label="District"
+                placeholder={fetchingDistricts ? 'Loading districts...' : '-- Select District --'}
+                value={district}
+                options={districtOptions}
+                disabled={loading}
+                onChange={(v) => { setDistrict(v); clearError('district'); }}
+                error={validationErrors.district}
+              />
+            </div>
+          </div>
+
+          <hr className="kswp-section-divider" />
+
+          {/* Section 2: Site Selection */}
+          <div ref={sec2} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                  2. Site Name <span style={{ color: '#ef4444' }}>*</span>
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Select one or more surveyed solar rooftop installation sites for Kashmir 70MW SRT
+                </span>
+              </div>
+              {filteredSites.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#2563eb' }}>
+                    {selectedSiteIds.length} of {sites.length} Selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={selectAllSites}
+                    className="ax-btn ax-btn--secondary ax-btn--sm"
+                    style={{ fontSize: 11, padding: '3px 10px' }}
+                  >
+                    {selectedSiteIds.length === filteredSites.length ? 'Deselect All' : `Select All (${filteredSites.length})`}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!district ? (
+              <div
+                style={{
+                  padding: '24px',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  border: `1.5px dashed ${validationErrors.site ? '#ef4444' : 'var(--ax-border, #cbd5e1)'}`,
+                  borderRadius: 10,
+                  color: 'var(--ax-text-muted, #64748b)',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                -- Select District to Load Sites --
+              </div>
+            ) : fetchingSites ? (
+              <div style={{ padding: '28px', textAlign: 'center', color: '#2563eb', fontSize: 13 }}>
+                <span className="ax-spinner" style={{ marginRight: 8 }} />
+                Loading available sites for district &ldquo;{district}&rdquo;...
+              </div>
+            ) : sites.length === 0 ? (
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 8,
+                  color: '#b91c1c',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                No unassigned surveyed sites found for {district}.
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: `1px solid ${validationErrors.site ? '#ef4444' : 'var(--ax-border, #e2e8f0)'}`,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  background: 'var(--ax-surface-solid, #ffffff)',
+                }}
+              >
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
+                  <input
+                    type="text"
+                    className="ax-form-input"
+                    value={siteSearch}
+                    onChange={(e) => setSiteSearch(e.target.value)}
+                    placeholder="Search site name, code, contact person, number..."
+                    style={{ width: '100%', padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+                  />
+                </div>
+
+                <div style={{ maxHeight: 280, overflowY: 'auto', padding: 10 }}>
+                  {filteredSites.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--ax-text-muted, #64748b)' }}>
+                      No sites match your search.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                      {filteredSites.map((site) => {
+                        const isSelected = selectedSiteIds.includes(site.id);
+                        const deadlineDays = calculateSrtDeadlineDays(site.sanction_load);
+                        return (
+                          <div
+                            key={site.id}
+                            onClick={() => toggleSite(site.id)}
+                            role="checkbox"
+                            aria-checked={isSelected}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === ' ' || e.key === 'Enter') {
+                                e.preventDefault();
+                                toggleSite(site.id);
+                              }
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              border: `1.5px solid ${isSelected ? '#3b82f6' : 'var(--ax-border, #e2e8f0)'}`,
+                              background: isSelected ? '#eff6ff' : 'var(--ax-surface-solid, #ffffff)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              fontSize: 12,
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSite(site.id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {site.site_name}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+                                {site.site_code ? `Code: ${site.site_code} • ` : ''}
+                                {site.sanction_load ? `${site.sanction_load} kW • ` : ''}
+                                ~{deadlineDays} days deadline
+                              </div>
+                              {site.contact_person && (
+                                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+                                  Contact: {site.contact_person} {site.contact_number ? `(${site.contact_number})` : ''}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {validationErrors.site && <div className="kswp-field-error" style={{ marginTop: 6 }}>{validationErrors.site}</div>}
+          </div>
+
+          <hr className="kswp-section-divider" />
+
+          {/* Section 3: File & Remarks */}
+          <div ref={sec3} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Work Order File & Remarks</h3>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  Upload the assignment order / sanction copy and enter operational remarks
+                </span>
+              </div>
+            </div>
+
+            {/* Existing File Link */}
+            {existingFileName && (
+              <div style={{ marginBottom: 14, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)' }}>Currently Attached File:</span>
+                <a
+                  href={resolveKashmirMediaUrl(existingFileName)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  {existingFileName.split('/').pop()} ↗
+                </a>
+              </div>
+            )}
+
+            <div style={{ maxWidth: 540, marginBottom: 20 }}>
+              <UploadDropzone
+                id="assign_file"
+                label="File"
+                required={!editId}
+                accept=".pdf,.jpg,.jpeg,.png"
+                disabled={loading}
+                file={file}
+                preview={filePreview}
+                error={validationErrors.file}
+                onSelect={(selected) => {
+                  setFile(selected);
+                  clearError('file');
+                  if (filePreview) URL.revokeObjectURL(filePreview);
+                  if (selected && selected.type.startsWith('image/')) {
+                    setFilePreview(URL.createObjectURL(selected));
+                  } else {
+                    setFilePreview(undefined);
+                  }
+                }}
+                onRemove={() => {
+                  setFile(null);
+                  if (filePreview) {
+                    URL.revokeObjectURL(filePreview);
+                    setFilePreview(undefined);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Remarks */}
+            <div className="ax-float">
+              <textarea
+                id="kashmir-remarks"
+                className="ax-float__input"
+                placeholder="Remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                disabled={loading}
+                rows={3}
+              />
+              <label htmlFor="kashmir-remarks" className={`ax-float__label ${remarks ? 'has-val' : ''}`}>
+                Remarks
+              </label>
+            </div>
+          </div>
+
+          {/* Submit Footer */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={handleReset}
+              disabled={loading}
+            >
+              Reset
+            </button>
+            <Link to="/vendor-management/kashmir/srt70mw/installation/view-assign" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={loading}
+              style={{ minWidth: 180, fontWeight: 700 }}
+            >
+              {loading ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ax-spinner" /> {editId ? 'Updating...' : 'Assigning...'}
+                </span>
+              ) : editId ? (
+                'Update Assignment'
+              ) : (
+                'Assign Site'
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default AssignSite;

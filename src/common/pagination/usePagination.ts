@@ -75,10 +75,13 @@ export function usePagination<T>(
     canPrev: curPage > 1,
 
     // Compatibility aliases
+    pagedItems: paged,
+    paginatedItems: paged,
     pageItems: paged,
     startIndex: start,
     paginatedData: paged,
     currentPage: curPage,
+    setCurrentPage: handlePageChange,
     from: rangeStart,
     to: rangeEnd,
   };

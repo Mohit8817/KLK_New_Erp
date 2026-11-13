@@ -271,18 +271,58 @@ export interface UpSsl18wDashboardData {
 
 export interface UpRescoAssignSiteItem {
   id: number;
-  state?: string;
-  type?: string;
+  company_id?: string;
+  volume?: number;
   purpose?: string;
-  status: number;
-  site_name?: Record<string, string> | string; // Map of site_name -> deadline
-  vendors?: { id: number; name: string };
-  // Flattened helpers for UI
+  type?: string;
   vendor?: string;
-  vendor_id?: number;
+  vendor_id?: number | string;
+  state?: string;
   district?: string;
-  deadline?: string;
+  site_name?: Record<string, string> | string; // Map of site_name -> deadline
+  assign_date?: string;
+  sitecount?: string | number;
   count?: number;
+  file?: string | null;
+  panel_no_file?: string | null;
+  created_by?: string | number | null;
+  update_by?: string | number | null;
+  status: number;
+  remarks?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deadline?: string;
+  vendors?: {
+    id: number;
+    company_id?: string;
+    category?: string;
+    parent_id?: string | number;
+    type?: string;
+    vendor_id?: string;
+    password?: string;
+    name: string;
+    email?: string;
+    contact?: string;
+    gst?: string;
+    state?: string;
+    register_for?: string;
+    firm?: string;
+    company?: string;
+    sow?: string;
+    bank?: string;
+    account_no?: string;
+    ifsc?: string;
+    status?: string | number;
+    profile_photo?: string | null;
+    aadhar_photo?: string | null;
+    pancard_photo?: string | null;
+    doj?: string;
+    self_signed?: string | null;
+    profile_approved?: string | number;
+    created_at?: string;
+    updated_at?: string;
+  };
+  // Flattened helpers for UI
   location?: string;
   firm_name?: string;
   ca_no?: string;
@@ -910,16 +950,64 @@ class UpInstallationService {
     if (Array.isArray(res.data)) {
       items = res.data.map((row: any) => {
         const assign = row.assign_resc || row;
+
+        let siteNameObj: Record<string, string> | string = assign.site_name;
+        if (typeof siteNameObj === 'string' && siteNameObj.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(siteNameObj);
+            if (parsed && typeof parsed === 'object') {
+              siteNameObj = parsed;
+            }
+          } catch {
+            // retain string
+          }
+        }
+
+        let extractedDeadline = '';
+        if (siteNameObj && typeof siteNameObj === 'object') {
+          const deadlines = Object.values(siteNameObj).filter(Boolean);
+          if (deadlines.length > 0) {
+            extractedDeadline = String(deadlines[0]);
+          }
+        }
+
+        const countNum =
+          Number(
+            assign.sitecount ??
+            assign.volume ??
+            (typeof siteNameObj === 'object' && siteNameObj !== null ? Object.keys(siteNameObj).length : 1)
+          ) || 1;
+
         return {
           id: assign.id,
-          state: assign.state || 'up',
-          type: assign.type || 'resco',
+          company_id: assign.company_id,
+          volume: assign.volume,
           purpose: assign.purpose || 'installation',
-          status: assign.status,
-          site_name: assign.site_name,
+          type: assign.type || 'resco',
+          vendor_id: assign.vendors?.id ?? (typeof assign.vendor === 'number' ? assign.vendor : undefined),
+          vendor: assign.vendors?.name || (typeof assign.vendor === 'string' ? assign.vendor : (assign.vendors?.company || '')),
+          state: assign.state || 'up',
+          district: assign.district || '',
+          site_name: siteNameObj,
+          assign_date: assign.assign_date || '',
+          sitecount: assign.sitecount,
+          count: countNum,
+          file: assign.file || null,
+          panel_no_file: assign.panel_no_file || null,
+          created_by: assign.created_by,
+          update_by: assign.update_by,
+          status: typeof assign.status === 'number' ? assign.status : Number(assign.status || 0),
+          remarks: assign.remarks || '',
+          created_at: assign.created_at,
+          updated_at: assign.updated_at,
+          deadline: assign.deadline || extractedDeadline,
           vendors: assign.vendors,
-          vendor: assign.vendors?.name,
-          vendor_id: assign.vendors?.id,
+          firm_name: assign.vendors?.company || assign.vendors?.firm || assign.firm_name || '',
+          location: assign.location || assign.district || '',
+          ca_no: assign.ca_no || '',
+          sanction_load: assign.sanction_load || (assign.volume ? `${assign.volume} kW` : ''),
+          plant_sc: assign.plant_sc || '',
+          wo_no: assign.wo_no || '',
         };
       });
     }
@@ -934,9 +1022,66 @@ class UpInstallationService {
   /** Resco 2: View assigned site detail */
   async getRescoAssignDetail(id: number | string): Promise<{ status: boolean; data?: UpRescoAssignSiteItem }> {
     const res = await apiRequest(`up/resco/installation/view-assign-detail/${id}`);
+    const assign = res.data?.assign_resc || res.data;
+    if (!assign) {
+      return { status: res.status, data: undefined };
+    }
+
+    let siteNameObj: Record<string, string> | string = assign.site_name;
+    if (typeof siteNameObj === 'string' && siteNameObj.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(siteNameObj);
+        if (parsed && typeof parsed === 'object') {
+          siteNameObj = parsed;
+        }
+      } catch {
+        // retain string
+      }
+    }
+
+    let extractedDeadline = '';
+    if (siteNameObj && typeof siteNameObj === 'object') {
+      const deadlines = Object.values(siteNameObj).filter(Boolean);
+      if (deadlines.length > 0) {
+        extractedDeadline = String(deadlines[0]);
+      }
+    }
+
+    const item: UpRescoAssignSiteItem = {
+      id: assign.id,
+      company_id: assign.company_id,
+      volume: assign.volume,
+      purpose: assign.purpose || 'installation',
+      type: assign.type || 'resco',
+      vendor_id: assign.vendors?.id ?? (typeof assign.vendor === 'number' ? assign.vendor : undefined),
+      vendor: assign.vendors?.name || (typeof assign.vendor === 'string' ? assign.vendor : (assign.vendors?.company || '')),
+      state: assign.state || 'up',
+      district: assign.district || '',
+      site_name: siteNameObj,
+      assign_date: assign.assign_date || '',
+      sitecount: assign.sitecount,
+      count: Number(assign.sitecount ?? assign.volume ?? 1) || 1,
+      file: assign.file || null,
+      panel_no_file: assign.panel_no_file || null,
+      created_by: assign.created_by,
+      update_by: assign.update_by,
+      status: typeof assign.status === 'number' ? assign.status : Number(assign.status || 0),
+      remarks: assign.remarks || '',
+      created_at: assign.created_at,
+      updated_at: assign.updated_at,
+      deadline: assign.deadline || extractedDeadline,
+      vendors: assign.vendors,
+      firm_name: assign.vendors?.company || assign.vendors?.firm || '',
+      location: assign.location || assign.district || '',
+      ca_no: assign.ca_no || '',
+      sanction_load: assign.sanction_load || (assign.volume ? `${assign.volume} kW` : ''),
+      plant_sc: assign.plant_sc || '',
+      wo_no: assign.wo_no || '',
+    };
+
     return {
       status: res.status,
-      data: res.data,
+      data: item,
     };
   }
 

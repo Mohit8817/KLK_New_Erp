@@ -808,12 +808,6 @@ export function UP_Installation_KusumC_ViewInstallation() {
   const [updating, setUpdating] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // HOC Upload Modal State
-  const [hocModalSite, setHocModalSite] = useState<UpKusumCInstalledSiteItem | null>(null);
-  const [hocFile, setHocFile] = useState<File | null>(null);
-  const [hocDate, setHocDate] = useState(new Date().toISOString().slice(0, 10));
-  const [submittingHoc, setSubmittingHoc] = useState(false);
-
   useEffect(() => {
     if (!toastMsg) return;
     const t = window.setTimeout(() => setToastMsg(null), 4000);
@@ -922,35 +916,6 @@ export function UP_Installation_KusumC_ViewInstallation() {
       setEditError(err?.message || 'Server error updating installation.');
     } finally {
       setUpdating(false);
-    }
-  };
-
-  // HOC Document Submit
-  const handleHocSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hocModalSite || !hocFile) return;
-    setSubmittingHoc(true);
-
-    const fd = new FormData();
-    fd.append('site_id', String(hocModalSite.id));
-    fd.append('hoc_photo', hocFile);
-    fd.append('inst_doc', hocFile);
-    fd.append('date', hocDate);
-
-    try {
-      const res = await upInstallationService.submitKusumCHoc(fd);
-      if (res.status) {
-        setToastMsg({ type: 'success', text: res.message || 'HOC submitted successfully!' });
-        setHocModalSite(null);
-        setHocFile(null);
-        loadData();
-      } else {
-        setToastMsg({ type: 'danger', text: res.message || 'Failed to submit HOC.' });
-      }
-    } catch (err: any) {
-      setToastMsg({ type: 'danger', text: err?.message || 'Server error uploading HOC.' });
-    } finally {
-      setSubmittingHoc(false);
     }
   };
 
@@ -1515,15 +1480,6 @@ export function UP_Installation_KusumC_ViewInstallation() {
                               >
                                 Edit
                               </button>
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--primary ax-btn--xs"
-                                style={{ padding: '3px 8px', fontSize: 11 }}
-                                onClick={() => { setHocModalSite(row); setHocFile(null); }}
-                                title="Submit HOC document"
-                              >
-                                HOC
-                              </button>
                             </div>
                           )}
                         </td>
@@ -1708,79 +1664,7 @@ export function UP_Installation_KusumC_ViewInstallation() {
         </form>
       </Modal>
 
-      {/* ── HOC Document Upload Modal ── */}
-      <Modal open={!!hocModalSite} onClose={() => setHocModalSite(null)} labelledBy="hoc-modal-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 520 }}>
-        <form onSubmit={handleHocSubmit}>
-          <div className="ax-modal__header">
-            <div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Submit HOC Document
-              </span>
-              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }} id="hoc-modal-title">
-                {hocModalSite?.applicant_name || hocModalSite?.f_farmer_name || hocModalSite?.farmer_name || 'Site'} <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(#{hocModalSite?.id})</span>
-              </h4>
-            </div>
-            <button type="button" className="ax-modal__close" onClick={() => setHocModalSite(null)} disabled={submittingHoc} aria-label="Close dialog">{X_ICON}</button>
-          </div>
 
-          <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-              Upload the signed Handing Over Certificate (HOC) photo for applicant <strong>{hocModalSite?.applicant_name || hocModalSite?.f_farmer_name || hocModalSite?.farmer_name}</strong>.
-            </p>
-
-            <div className="ax-modern-field">
-              <label className="ax-modern-label">
-                <span>HOC Date</span>
-                <span className="ax-modern-req">*</span>
-              </label>
-              <input type="date" className="ax-input" value={hocDate} onChange={(e) => setHocDate(e.target.value)} required />
-            </div>
-
-            <div className="ax-modern-field">
-              <label className="ax-modern-label">
-                <span>HOC Document / Photo</span>
-                <span className="ax-modern-req">*</span>
-              </label>
-              {hocFile ? (
-                <div className="ax-modern-file-chip">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div className="ax-modern-file-chip__icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                        <path d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#15803d' }}>{hocFile.name}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>{(hocFile.size / 1024).toFixed(1)} KB</div>
-                    </div>
-                  </div>
-                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" style={{ color: '#ef4444' }} onClick={() => setHocFile(null)}>{X_ICON}</button>
-                </div>
-              ) : (
-                <label className="ax-modern-dropzone">
-                  <div className="ax-modern-dropzone__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)' }}>Click to upload HOC document</div>
-                  <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Accepts images and PDF files</div>
-                  <input type="file" required accept="image/*,application/pdf" onChange={(e) => setHocFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
-                </label>
-              )}
-            </div>
-          </div>
-
-          <div className="ax-modal__footer">
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setHocModalSite(null)} disabled={submittingHoc}>Cancel</button>
-            <button type="submit" className="ax-btn ax-btn--primary" disabled={submittingHoc || !hocFile}>
-              {submittingHoc ? 'Uploading…' : 'Submit HOC'}
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

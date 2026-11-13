@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessSlug, canAccessState } from '../../services/stateAccess';
 import './dle-sidebar.css';
@@ -394,7 +394,13 @@ function DLEGroupItem({
     'to' in c ? isLeafActive(c.to) : isSubGroupActive(c)
   );
 
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(hasActiveChild);
+
+  useEffect(() => {
+    if (hasActiveChild) {
+      setOpen(true);
+    }
+  }, [hasActiveChild]);
   const isOpen = filter ? true : open;
 
   return (
@@ -529,8 +535,14 @@ function DLESubGroupItem({
   const isLeafActive = (to: string) => currentPath === to;
   const hasActiveChild = subGroup.children.some((c) => isLeafActive(c.to));
 
-  const [open, setOpen] = useState(true);
-  const isOpen = filter ? true : open || hasActiveChild;
+  const [open, setOpen] = useState(hasActiveChild);
+
+  useEffect(() => {
+    if (hasActiveChild) {
+      setOpen(true);
+    }
+  }, [hasActiveChild]);
+  const isOpen = filter ? true : open;
 
   const visibleChildren = subGroup.children.filter((c) => {
     if (!canAccessSlug(c.to.replace(/^\//, ''))) return false;

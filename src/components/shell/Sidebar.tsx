@@ -18,7 +18,7 @@ export function Sidebar({
   drawerOpen = false,
   onCloseDrawer,
 }: {
-  drawerOpen?: boolean;
+  drawerOpen?: boolean; 
   onCloseDrawer?: () => void;
 }) {
   const location = useLocation();
@@ -42,7 +42,52 @@ export function Sidebar({
     !!user?.vendor_id ||
     (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
 
-  const isVendorManagement = pathname.startsWith('/vendor-management');
+  const isVendorManagement =
+    pathname.startsWith('/vendor-management') ||
+    pathname.startsWith('/karnataka-swp') ||
+    pathname.startsWith('/karnataka-view-assign-swp') ||
+    pathname.startsWith('/karnataka-verify-swp') ||
+    pathname.startsWith('/karnataka-view-swp') ||
+    pathname.startsWith('/karnataka/swp') ||
+    pathname.startsWith('/up-dashboard-kusum-c') ||
+    pathname.startsWith('/up/assign-kusum-c') ||
+    pathname.startsWith('/up/view-assign-kusum-c') ||
+    pathname.startsWith('/up/verify-kusum-c') ||
+    pathname.startsWith('/up/view-kusum-c') ||
+    pathname.startsWith('/up/resco-') ||
+    pathname.startsWith('/up/ssl-18w-') ||
+    pathname.startsWith('/up/ssl-18w-installation') ||
+    pathname === '/up/ssl-18w-installation' ||
+    pathname.startsWith('/up/resco/amc') ||
+    pathname.startsWith('/up/ssl/amc') ||
+    pathname.startsWith('/up/ssl18w/amc') ||
+    pathname.startsWith('/up/kusumb/amc') ||
+    pathname.startsWith('/up/kusumc/amc') ||
+    pathname.startsWith('/up/powerpack/amc') ||
+    pathname.startsWith('/up/ongrid/amc') ||
+    pathname.startsWith('/up/offgrid/amc') ||
+    pathname.startsWith('/bihar') ||
+    pathname.startsWith('/vendor/assign-ssl-sites') ||
+    pathname.startsWith('/vendor/view-assign-ssl-sites') ||
+    pathname.startsWith('/ssl/view-bihar') ||
+    pathname.startsWith('/srt/') ||
+    pathname.startsWith('/assign-vendor-') ||
+    pathname.startsWith('/bihar-') ||
+    pathname.startsWith('/jammu') ||
+    pathname.startsWith('/jammu-') ||
+    pathname.startsWith('/jk/') ||
+    pathname.startsWith('/kashmir') ||
+    pathname.startsWith('/goa') ||
+    pathname.startsWith('/goa-') ||
+    pathname.startsWith('/punjab') ||
+    pathname === '/add-vendor' ||
+    pathname === '/view-vendor' ||
+    pathname.startsWith('/vendor/add-workorder') ||
+    pathname.startsWith('/vendor/view-workorder') ||
+    pathname.startsWith('/vendor/view-rm-request') ||
+    pathname === '/view-payment' ||
+    pathname === '/view-vendor-complaint' ||
+    pathname === '/view-daily-progress';
   const isDlePortal = pathname.startsWith('/dle');
   const isVPortal =
     pathname.startsWith('/v-portal') ||
@@ -157,7 +202,7 @@ export function Sidebar({
           <VendorManagementSidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : isDlePortal ? (
           <DLESidebar filter={filter} onNavigate={onCloseDrawer} />
-        ) : isVPortal && isVendor ? (
+        ) : isVPortal ? (
           <VPortalSidebar filter={filter} onNavigate={onCloseDrawer} />
         ) : (
           <MainErpSidebar filter={filter} />

@@ -1249,26 +1249,54 @@ export function VerifyDocument() {
                             </svg>
                             Details
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSiteForAction(row);
-                              setActionStatus(String(row.inst_doc_status === 1 ? '2' : row.inst_doc_status || '2'));
-                              setActionRemarks(row.inst_doc_remarks || '');
-                            }}
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              background: '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Verify
-                          </button>
+                          {Number(row.inst_doc_status) === 2 || Number(row.inst_doc_status) === 3 ? (
+                            <button
+                              type="button"
+                              disabled
+                              title={`Document has been ${Number(row.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #e2e8f0',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'not-allowed',
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              Locked
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSiteForAction(row);
+                                setActionStatus(String(row.inst_doc_status === 1 ? '2' : row.inst_doc_status || '2'));
+                                setActionRemarks(row.inst_doc_remarks || '');
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Verify
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1309,35 +1337,62 @@ export function VerifyDocument() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <div>
               {selectedSiteForDetails && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const site = selectedSiteForDetails;
-                    setSelectedSiteForDetails(null);
-                    setSelectedSiteForAction(site);
-                    setActionStatus(String(site.inst_doc_status === 1 ? '2' : site.inst_doc_status || '2'));
-                    setActionRemarks(site.inst_doc_remarks || '');
-                  }}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 6,
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                  Verify This Document
-                </button>
+                Number(selectedSiteForDetails.inst_doc_status) === 2 || Number(selectedSiteForDetails.inst_doc_status) === 3 ? (
+                  <button
+                    type="button"
+                    disabled
+                    title={`Document has been ${Number(selectedSiteForDetails.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#f1f5f9',
+                      color: '#94a3b8',
+                      border: '1px solid #e2e8f0',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'not-allowed',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Locked ({Number(selectedSiteForDetails.inst_doc_status) === 2 ? 'Approved' : 'Rejected'})
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const site = selectedSiteForDetails;
+                      setSelectedSiteForDetails(null);
+                      setSelectedSiteForAction(site);
+                      setActionStatus(String(site.inst_doc_status === 1 ? '2' : site.inst_doc_status || '2'));
+                      setActionRemarks(site.inst_doc_remarks || '');
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Verify This Document
+                  </button>
+                )
               )}
             </div>
             <button

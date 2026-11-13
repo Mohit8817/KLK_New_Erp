@@ -29,7 +29,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // 1. External Vendor: Restricted strictly to V-Portal
   if (isVendor) {
     const isVPortalPath =
-      location.pathname === '/v-dashboard' ||
+      location.pathname === '/v' || location.pathname === '/v/' || location.pathname === '/v-dashboard' ||
       location.pathname.startsWith('/v/') ||
       location.pathname.startsWith('/v-') ||
       location.pathname === '/vendor' ||

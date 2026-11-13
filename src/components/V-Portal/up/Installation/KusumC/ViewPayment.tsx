@@ -729,13 +729,41 @@ export function UP_Installation_KusumC_ViewPayment() {
                             </span>
                           </td>
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
-                              onClick={() => handleOpenEditClaim(item)}
-                            >
-                              Edit
-                            </button>
+                            {isApproved ? (
+                              <button
+                                type="button"
+                                disabled
+                                title="Claim has been approved and payment settled. Action is locked."
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  background: '#f1f5f9',
+                                  color: '#94a3b8',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'not-allowed',
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                Locked
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                onClick={() => handleOpenEditClaim(item)}
+                              >
+                                Edit
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
