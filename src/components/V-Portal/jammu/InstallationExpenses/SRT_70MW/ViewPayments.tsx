@@ -147,7 +147,7 @@ const getRowPayRemarks = (row: JammuExpensePaymentItem): string => {
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -203,8 +203,8 @@ function KpiCard({
 /* ───────── Responsive styling ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -823,3 +823,4 @@ export function ViewPayments() {
 }
 
 export default ViewPayments;
+

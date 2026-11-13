@@ -42,14 +42,16 @@ export function Sidebar({
     !!user?.vendor_id ||
     (user?.user_type && String(user.user_type).toLowerCase() === 'vendor');
 
-  const isVendorManagement = pathname.startsWith('/vendor-management');
+  const isVendorManagement =
+    pathname.startsWith('/vendor-management') ||
+    pathname.startsWith('/arunachal/shl/installation');
   const isDlePortal = pathname.startsWith('/dle');
   const isVPortal =
     pathname.startsWith('/v-portal') ||
     pathname.startsWith('/v-dashboard') ||
     pathname.startsWith('/v/') ||
     pathname === '/v' ||
-    (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up')));
+    (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up') || pathname.startsWith('/arunachal')));
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>

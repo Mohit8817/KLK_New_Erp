@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 export interface UsePaginationOptions<T> {
   data?: T[];
@@ -8,14 +8,15 @@ export interface UsePaginationOptions<T> {
 
 /**
  * Universal pagination hook identical to the logic in Grid.js table.
- * Supports both:
+ * Supports:
  *   usePagination({ data: items, initialPageSize: 10 })
- * and
  *   usePagination(items, { initialPageSize: 10 })
+ *   usePagination(items, 100)
+ * Returns { paged, pagedData, paginationProps, curPage, page, totalPages, ... }
  */
 export function usePagination<T>(
   optionsOrData: UsePaginationOptions<T> | T[] = [],
-  legacyOpts?: { initialPageSize?: number; initialPage?: number }
+  legacyOpts?: { initialPageSize?: number; initialPage?: number } | number
 ) {
   let rawData: T[] = [];
   let defaultPageSize = 8;
@@ -23,8 +24,12 @@ export function usePagination<T>(
 
   if (Array.isArray(optionsOrData)) {
     rawData = optionsOrData;
-    if (legacyOpts?.initialPageSize) defaultPageSize = legacyOpts.initialPageSize;
-    if (legacyOpts?.initialPage) defaultPage = legacyOpts.initialPage;
+    if (typeof legacyOpts === 'number') {
+      defaultPageSize = legacyOpts;
+    } else if (legacyOpts && typeof legacyOpts === 'object') {
+      if (legacyOpts.initialPageSize) defaultPageSize = legacyOpts.initialPageSize;
+      if (legacyOpts.initialPage) defaultPage = legacyOpts.initialPage;
+    }
   } else if (optionsOrData && typeof optionsOrData === 'object') {
     rawData = Array.isArray(optionsOrData.data) ? optionsOrData.data : [];
     if (optionsOrData.initialPageSize) defaultPageSize = optionsOrData.initialPageSize;
@@ -45,18 +50,35 @@ export function usePagination<T>(
   const rangeEnd = Math.min(curPage * pageSize, totalItems);
   const pageList = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
-  const handlePageChange = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+  }, []);
 
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageSizeChange = useCallback((newSize: number) => {
     setPageSize(newSize);
     setPage(1);
+  }, []);
+
+  const paginationProps = {
+    currentPage: curPage,
+    curPage,
+    page: curPage,
+    pageSize,
+    totalItems,
+    total: totalItems,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+    setPage: handlePageChange,
+    onPageChange: handlePageChange,
+    onPageSizeChange: handlePageSizeChange,
   };
 
   return {
     // Exact Grid.js names
     paged,
+    pagedData: paged,
+    paginationProps,
     curPage,
     totalPages,
     rangeStart,

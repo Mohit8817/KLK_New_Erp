@@ -24,8 +24,8 @@ const DASH = '—';
 /* ───────── Responsive page CSS (Matching Reference Code) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -260,7 +260,7 @@ const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -450,7 +450,7 @@ function FileThumbnail({
         target="_blank"
         rel="noreferrer"
         className="ax-btn ax-btn--ghost ax-btn--xs"
-        style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11 }}
+        style={{ color: '#2559bf', padding: '2px 8px', fontSize: 11 }}
         title="View / Download Work Order File"
       >
         View File ↗
@@ -489,7 +489,7 @@ function FileThumbnail({
         target="_blank"
         rel="noreferrer"
         className="ax-btn ax-btn--ghost ax-btn--xs"
-        style={{ color: '#2563eb', padding: '1px 5px', fontSize: 10 }}
+        style={{ color: '#2559bf', padding: '1px 5px', fontSize: 10 }}
         title="Open in new tab"
       >
         ↗
@@ -982,7 +982,7 @@ export function AssignSite() {
                   return (
                     <tr key={row.assign_srt.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2559bf' }}>
                         #{row.assign_srt.id}
                       </td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
@@ -1036,10 +1036,10 @@ export function AssignSite() {
                               padding: '2px 8px',
                               fontSize: 11,
                               fontWeight: 600,
-                              color: '#2563eb',
-                              background: 'rgba(37, 99, 235, 0.08)',
+                              color: '#2559bf',
+                              background: 'rgba(37, 89, 191, 0.08)',
                               borderRadius: 4,
-                              border: '1px solid rgba(37, 99, 235, 0.25)',
+                              border: '1px solid rgba(37, 89, 191, 0.25)',
                               cursor: 'pointer',
                               lineHeight: 1.4,
                               verticalAlign: 'middle',
@@ -1182,7 +1182,7 @@ export function AssignSite() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch ID</span>
-                  <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>#{detailModalItem.assign_srt.id}</b>
+                  <b style={{ color: '#2559bf', fontFamily: 'monospace' }}>#{detailModalItem.assign_srt.id}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Company ID</span>
@@ -1331,3 +1331,4 @@ export function AssignSite() {
 }
 
 export default AssignSite;
+

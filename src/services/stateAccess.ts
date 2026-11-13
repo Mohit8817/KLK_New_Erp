@@ -1,9 +1,13 @@
 import { authService } from './authService';
 
-/** "Uttar Pradesh" / "UP" → "up", baaki lowercase */
+/** "Uttar Pradesh" / "UP" → "up", "Arunachal Pradesh" → "arunachal", baaki lowercase */
 export const normState = (s: any): string => {
   const v = String(s ?? '').trim().toLowerCase();
-  return v === 'uttar pradesh' || v === 'u.p.' ? 'up' : v;
+  if (v === 'uttar pradesh' || v === 'u.p.' || v === 'up') return 'up';
+  if (v === 'arunachal pradesh' || v === 'arunachal' || v === 'ar') return 'arunachal';
+  if (v === 'madhya pradesh' || v === 'm.p.' || v === 'mp') return 'mp';
+  if (v === 'himachal pradesh' || v === 'h.p.' || v === 'hp') return 'hp';
+  return v;
 };
 
 const loginUser = (): any => {
@@ -88,6 +92,7 @@ export const stateOfSlug = (slug: string): string | null => {
   if (clean.startsWith('assam-') || clean.includes('assam')) return 'assam';
   if (clean.startsWith('punjab-') || clean.includes('punjab')) return 'punjab';
   if (clean.startsWith('goa-') || clean.includes('goa')) return 'goa';
+  if (clean.startsWith('arunachal-') || clean.includes('arunachal')) return 'arunachal';
   return null;
 };
 

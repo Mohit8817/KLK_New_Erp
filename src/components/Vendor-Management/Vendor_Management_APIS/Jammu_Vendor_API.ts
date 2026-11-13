@@ -27,6 +27,14 @@ export const JAMMU_VENDOR_API = {
   SWP_VIEW_ASSIGNED: `${BASE_URL}/v/jammu/installation/swp/installation-request`,
   SWP_VIEW_INSTALLED: `${BASE_URL}/v/jammu/installation/swp/view-installation`,
   SWP_VERIFY_PAYMENT: `${BASE_URL}/v/jammu/installation/swp/view-payment`,
+
+  // Jammu Survey Systems
+  SURVEY_RESCO_DASHBOARD: `${BASE_URL}/jk/resco-survey-dashboard`,
+  SURVEY_RESCO_ASSIGN_STORE: `${BASE_URL}/jk/resco-survey-assign-store`,
+  SURVEY_RESCO_VIEW_ASSIGNED: `${BASE_URL}/jk/view-assigned-resco-survey`,
+  SURVEY_RESCO_PENDING: `${BASE_URL}/jk/resco-survey`,
+  SURVEY_RESCO_VIEW: `${BASE_URL}/jk/view-resco-survey`,
+  SURVEY_SRT70_VIEW: `${BASE_URL}/jammu/srt70mw/view-survey`,
 };
 
 export default JAMMU_VENDOR_API;

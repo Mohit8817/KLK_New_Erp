@@ -345,6 +345,11 @@
   color: #d97706;
 }
 
+.vm-sb__icon-box--survey {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+}
+
 .vm-sb__item-btn:hover .vm-sb__icon-box,
 .vm-sb__item-link:hover .vm-sb__icon-box {
   transform: scale(1.08);

@@ -226,7 +226,7 @@ function SrtThumbnail({
 /* ───────── Top KPI Card ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -288,8 +288,8 @@ function KpiCard({
 /* ───────── Styles ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -871,7 +871,7 @@ export function ViewData() {
                   return (
                     <tr key={row.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2563eb' }}>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2559bf' }}>
                         {uidDisplay}
                       </td>
                       <td className="ax-table__td">
@@ -884,7 +884,7 @@ export function ViewData() {
                             padding: 0,
                             font: 'inherit',
                             fontWeight: 600,
-                            color: '#2563eb',
+                            color: '#2559bf',
                             textAlign: 'left',
                             cursor: 'pointer',
                           }}
@@ -910,7 +910,7 @@ export function ViewData() {
                       <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: '#16a34a' }}>
                         {row.proposed_capacity ? `${row.proposed_capacity} kW` : DASH}
                       </td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#2563eb' }}>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#2559bf' }}>
                         {row.sanction_load ? `${row.sanction_load} kW` : DASH}
                       </td>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>
@@ -995,7 +995,7 @@ export function ViewData() {
                             href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}
+                            style={{ color: '#2559bf', fontWeight: 600, textDecoration: 'none' }}
                             title="Open in Google Maps"
                           >
                             {row.latitude}, {row.longitude} ↗
@@ -1012,7 +1012,7 @@ export function ViewData() {
                           <div style={{ fontSize: 11, color: '#64748b' }}>{cleanText(row.contact_person_designation)}</div>
                         )}
                         {(row.contact_person_mobile || row.contact_no) && (
-                          <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#2563eb' }}>
+                          <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#2559bf' }}>
                             {cleanText(row.contact_person_mobile || row.contact_no)}
                           </div>
                         )}
@@ -1066,7 +1066,7 @@ export function ViewData() {
                             target="_blank"
                             rel="noreferrer"
                             className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ color: '#2563eb', padding: '2px 8px', fontSize: 11, fontWeight: 600 }}
+                            style={{ color: '#2559bf', padding: '2px 8px', fontSize: 11, fontWeight: 600 }}
                             title="View Survey PDF"
                           >
                             PDF ↗
@@ -1177,7 +1177,7 @@ export function ViewData() {
               </div>
               <div>
                 <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Company ID</span>
-                <b style={{ color: '#2563eb' }}>{activeRecord.company_id || '—'}</b>
+                <b style={{ color: '#2559bf' }}>{activeRecord.company_id || '—'}</b>
               </div>
               <div>
                 <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State</span>
@@ -1372,3 +1372,4 @@ export function ViewData() {
 }
 
 export default ViewData;
+

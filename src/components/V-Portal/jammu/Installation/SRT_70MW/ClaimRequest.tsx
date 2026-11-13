@@ -49,7 +49,7 @@ const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string }) => {
             target="_blank"
             rel="noreferrer"
             className="ax-btn ax-btn--ghost ax-btn--xs"
-            style={{ padding: '2px 4px', fontSize: 11, color: '#2563eb' }}
+            style={{ padding: '2px 4px', fontSize: 11, color: '#2559bf' }}
             title="View handover document"
           >
             ↗
@@ -69,7 +69,7 @@ const DocBadge = ({ status, docUrl }: { status?: number; docUrl?: string }) => {
             target="_blank"
             rel="noreferrer"
             className="ax-btn ax-btn--ghost ax-btn--xs"
-            style={{ padding: '2px 4px', fontSize: 11, color: '#2563eb' }}
+            style={{ padding: '2px 4px', fontSize: 11, color: '#2559bf' }}
             title="View handover document"
           >
             ↗
@@ -271,7 +271,7 @@ function InstallationThumbnail({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -404,12 +404,12 @@ const OVERLAY_CSS = `
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   }
   .ax-modern-dropzone:hover {
-    border-color: var(--ax-accent, #2563eb);
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+    border-color: var(--ax-accent, #2559bf);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 5%, var(--ax-surface-subtle, #f8fafc));
   }
   .ax-modern-dropzone__icon {
     width: 42px; height: 42px; border-radius: 50%;
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 10%, #ffffff);
     display: flex; align-items: center; justify-content: center;
   }
   .ax-modern-file-chip {
@@ -425,8 +425,8 @@ const OVERLAY_CSS = `
 /* ───────── Responsive Page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1213,7 +1213,7 @@ export function ClaimRequest() {
                               target="_blank"
                               rel="noreferrer"
                               className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
+                              style={{ color: '#2559bf', padding: '2px 6px', fontSize: 11 }}
                               title="Open document in new tab"
                             >
                               View ↗
@@ -1361,7 +1361,7 @@ export function ClaimRequest() {
                 ))}
               </select>
               {loadingSites && (
-                <div style={{ fontSize: 11, color: '#2563eb', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#2559bf', marginTop: 2 }}>
                   <span className="ax-spinner" /> Loading eligible sites...
                 </div>
               )}
@@ -1410,7 +1410,7 @@ export function ClaimRequest() {
                   tabIndex={0}
                 >
                   <div className="ax-modern-dropzone__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2559bf' }}>
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
@@ -1554,7 +1554,7 @@ export function ClaimRequest() {
                     tabIndex={0}
                   >
                     <div className="ax-modern-dropzone__icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2559bf' }}>
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="17 8 12 3 7 8" />
                         <line x1="12" y1="3" x2="12" y2="15" />
@@ -1665,3 +1665,4 @@ export function ClaimRequest() {
 }
 
 export default ClaimRequest;
+

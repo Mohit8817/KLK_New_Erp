@@ -482,11 +482,11 @@ export function Arunachal_Installation_SHL_Dashboard() {
     totalItems,
     setPage,
     setPageSize,
-  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
+  } = usePagination({ data: tableDistricts, initialPageSize: 10 });
 
   useEffect(() => {
     setPage(1);
-  }, [tableQuery, selectedDistrict, selectedStatus, setPage]);
+  }, [tableQuery, selectedDistrict, selectedStatus]);
 
   // Percentages & Rates
   const pctComplete = pctOf(shl.complete, shl.site_count);
@@ -1313,11 +1313,14 @@ export function Arunachal_Installation_SHL_Dashboard() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={currentPage}
+                curPage={currentPage}
                 totalItems={totalItems}
+                total={totalItems}
                 pageSize={pageSize}
                 onPageChange={setPage}
+                setPage={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 25, 50, 100]}
+                pageSizeOptions={[10, 25, 50, 100, 200]}
               />
             </div>
           </div>

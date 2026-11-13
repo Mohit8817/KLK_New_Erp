@@ -358,6 +358,76 @@ const VerifyClaim = lazy(() => import('./components/Vendor-Management/assam/Inst
 const ViewPayment = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewPayment'));
 const StatusView = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/StatusView'));
 
+
+// ── SUPER ADMIN: ARUNACHAL SHL ──
+const ArunachalShlDashboard = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ArunachalShlDashboard'));
+const ArunachalAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/AssignLights'));
+const ArunachalViewAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ViewAssignLights'));
+const ArunachalVerifyLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/VerifyLights'));
+const ArunachalShlStatusView = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/StatusView'));
+
+// ── SUPER ADMIN: PUNJAB SSL ──
+const PunjabSslDashboard = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/PunjabSslDashboard'));
+const PunjabAssignLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/AssignLights'));
+const PunjabViewAssignLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/ViewAssignLights'));
+const PunjabVerifyLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/VerifyLights'));
+const PunjabSslStatusView = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/StatusView'));
+
+// ── SUPER ADMIN: KARNATAKA ──
+
+
+
+
+
+// ── SUPER ADMIN: JAMMU SURVEY ──
+const JammuVerifySrt70MWSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/SRT_70MW/VerifySrt70MWSurvey'));
+const JammuRescoDashboard = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/RescoDashboard'));
+const JammuAssignRescoSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignRescoSurvey'));
+const JammuAssignViewSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignViewSurvey'));
+const JammuAssignedSurveyVendor = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignedSurveyVendor'));
+const JammuVerifySurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/VerifySurvey'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SRT ──
+const JammuSrtDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/SrtDashboard'));
+const JammuAssignSrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/AssignSrtSites'));
+const JammuViewAssignSrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewAssignSrtSites'));
+const JammuVerifySrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/VerifySrtSites'));
+const JammuViewSrtClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewSrtClaim'));
+const JammuViewSrtPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewSrtPayment'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SSL ──
+const JammuSslDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslDashboard'));
+const JammuAssignSslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/AssignSslLights'));
+const JammuViewAssignSslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/ViewAssignSslLights'));
+const JammuVerifySslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/VerifySslLights'));
+const JammuSslClaimRequest = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslClaimRequest'));
+const JammuSslPaymentRequest = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslPaymentRequest'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SWP ──
+const JammuSwpDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/SwpDashboard'));
+const JammuAssignSwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/AssignSwpInstallation'));
+const JammuViewAssignSwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/ViewAssignSwpInstallation'));
+const JammuVerifySwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpInstallation'));
+const JammuVerifySwpDocument = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpDocument'));
+const JammuVerifySwpClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpClaim'));
+const JammuViewSwpPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/ViewSwpPayment'));
+const JammuSwpStatusView = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/StatusView'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - RESCO ──
+const JammuRescoInstDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/RescoDashboard'));
+const JammuAssignRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/AssignRescoInstallation'));
+const JammuViewAssignRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewAssignRescoInstallation'));
+const JammuViewAssignVendorInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewAssignVendorInstallation'));
+const JammuVerifyRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/VerifyRescoInstallation'));
+const JammuVerifyRescoDocument = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/VerifyRescoDocument'));
+const JammuViewRescoClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoClaim'));
+const JammuViewRescoPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoPayment'));
+const JammuViewRescoBills = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoBills'));
+
+// ── SUPER ADMIN: JAMMU EXPENSES - SRT ──
+const JammuSrtExpenseClaimRequests = lazy(() => import('./components/Vendor-Management/jammu/Expenses/SRT_70MW/SrtExpenseClaimRequests'));
+const JammuSrtExpenseViewPayments = lazy(() => import('./components/Vendor-Management/jammu/Expenses/SRT_70MW/SrtExpenseViewPayments'));
+
 // const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
 // const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
 // const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
@@ -913,12 +983,16 @@ const shell: Record<string, PageComponent> = {
   'v/jammu/installation/resco/installation-details': JMInstRescoDetail,
   'v/jammu/installation/resco/claim-request': JMInstRescoClaim,
   'v/jammu/installation/resco/status-view': JMInstRescoStatusView,
+  'v/jammu/installation/resco/view-bills': JammuViewRescoBills,
+  'v/jammu/installation/resco/monthly-bill': JammuViewRescoBills,
   'jammu/installation/resco/dashboard': JMInstRescoDb,
   'jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
   'jammu/installation/resco/install-site': JMInstRescoInstall,
   'jammu/installation/resco/installation-details': JMInstRescoDetail,
   'jammu/installation/resco/claim-request': JMInstRescoClaim,
   'jammu/installation/resco/status-view': JMInstRescoStatusView,
+  'jammu/installation/resco/view-bills': JammuViewRescoBills,
+  'jammu/installation/resco/monthly-bill': JammuViewRescoBills,
 
   'v/jammu/installation/srt-70mw/dashboard': JammuDashboard,
   'v/jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
@@ -1600,6 +1674,179 @@ export function App() {
               <Route path="vendor-management/assam/swp/payment" element={wrap(ViewPayment)} />
 
 
+
+  
+
+        {/* Super Admin: Arunachal SHL Routes */}
+              <Route path="vendor-management/arunachal/shl/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl/assign-installation" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign-installation" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-installation" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-document" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-claim" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/shl/view-payment" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/shl/status-view" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/installation" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal" element={wrap(ArunachalShlDashboard)} />
+              {/* Route aliases for compatibility */}
+              <Route path="arunachal/shl/installation/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="arunachal/shl/installation/assign-installation" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign-installation" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/assign/view" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/verify-installation" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify-document" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify-claim" element={wrap(ArunachalShlStatusView)} />
+              <Route path="arunachal/shl/installation/view-payment" element={wrap(ArunachalShlStatusView)} />
+              <Route path="arunachal/shl/installation/status-view" element={wrap(ArunachalShlStatusView)} />
+
+        {/* Super Admin: Punjab SSL Routes */}
+              <Route path="vendor-management/punjab/ssl/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/ssl/assign-installation" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/assign-lights" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/assign-light" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign-installation" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign-lights" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/verify-installation" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/verify-lights" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/verify" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/status-view" element={wrap(PunjabSslStatusView)} />
+              <Route path="vendor-management/punjab/installation" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/ssl" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab" element={wrap(PunjabSslDashboard)} />
+
+              {/* Direct Compatibility Aliases matching user request URLs */}
+              <Route path="punjab/ssl/installation/assign-lights" element={wrap(PunjabAssignLights)} />
+              <Route path="punjab/ssl/installation/assign-installation" element={wrap(PunjabAssignLights)} />
+              <Route path="punjab/ssl/installation/view-assign-lights" element={wrap(PunjabViewAssignLights)} />
+              <Route path="punjab/ssl/installation/view-assign" element={wrap(PunjabViewAssignLights)} />
+              <Route path="punjab/ssl/installation/verify-lights" element={wrap(PunjabVerifyLights)} />
+              <Route path="punjab/ssl/installation/verify-installation" element={wrap(PunjabVerifyLights)} />
+              <Route path="punjab/ssl/installation/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="punjab/ssl/installation/status-view" element={wrap(PunjabSslStatusView)} />
+              <Route path="punjab/ssl/installation/view-dashboard/:status" element={wrap(PunjabSslStatusView)} />
+              <Route path="punjab/ssl/installation/districtwise-data/:status/:district" element={wrap(PunjabSslStatusView)} />
+
+        {/* Super Admin: Jammu Survey Routes */}
+              <Route path="vendor-management/jammu/survey/srt-70mw/verify" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="vendor-management/jammu/survey/srt-70mw" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/dashboard" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu/survey/resco/assign" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/assign-survey" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/view-assign" element={wrap(JammuAssignViewSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/assigned-vendor" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="vendor-management/jammu/survey/resco/pending-survey" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="vendor-management/jammu/survey/resco/verify" element={wrap(JammuVerifySurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/view-survey" element={wrap(JammuVerifySurvey)} />
+              <Route path="vendor-management/jammu/survey/resco" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu/survey" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu" element={wrap(JammuRescoDashboard)} />
+
+              {/* Jammu Survey Direct Compatibility Aliases */}
+              <Route path="jammu/srt70mw-survey-verify" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="jk/resco-survey-assign" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="jk/resco-survey-assign-view" element={wrap(JammuAssignViewSurvey)} />
+              <Route path="jk/resco-survey-assign-vendor" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="jk/resco-survey-verify" element={wrap(JammuVerifySurvey)} />
+
+        {/* Super Admin: Jammu Installation Routes - SRT 70MW */}
+              <Route path="vendor-management/jammu/installation/srt-70mw/dashboard" element={wrap(JammuSrtDashboard)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/assign-sites" element={wrap(JammuAssignSrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/verify-sites" element={wrap(JammuVerifySrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-claim" element={wrap(JammuViewSrtClaim)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-payment" element={wrap(JammuViewSrtPayment)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw" element={wrap(JammuSrtDashboard)} />
+
+              {/* Jammu SRT 70MW Direct & Compatibility Aliases */}
+              <Route path="vendor-management/jammu/srt/dashboard" element={wrap(JammuSrtDashboard)} />
+              <Route path="vendor-management/jammu/srt/assign-sites" element={wrap(JammuAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-assign" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/verify-sites" element={wrap(JammuVerifySrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-claim" element={wrap(JammuViewSrtClaim)} />
+              <Route path="vendor-management/jammu/srt/view-payment" element={wrap(JammuViewSrtPayment)} />
+              <Route path="vendor-management/jammu/srt" element={wrap(JammuSrtDashboard)} />
+              <Route path="jammu/assign-installation-srt70mw" element={wrap(JammuAssignSrtSites)} />
+              <Route path="jammu/view-assign-installation-srt70mw" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="jammu/verify-srt70mw-installation" element={wrap(JammuVerifySrtSites)} />
+              <Route path="jammu/claim-srt70mw-installation" element={wrap(JammuViewSrtClaim)} />
+              <Route path="jammu/view-claim-srt70mw" element={wrap(JammuViewSrtClaim)} />
+              <Route path="jammu/payment-srt70mw-installation" element={wrap(JammuViewSrtPayment)} />
+              <Route path="jammu/view-payment-srt70mw" element={wrap(JammuViewSrtPayment)} />
+
+        {/* Super Admin: Jammu Installation Routes - SSL */}
+              <Route path="vendor-management/jammu/installation/ssl/dashboard" element={wrap(JammuSslDashboard)} />
+              <Route path="vendor-management/jammu/installation/ssl/assign-lights" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/view-assign-lights" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />
+              <Route path="vendor-management/jammu/installation/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />
+              <Route path="vendor-management/jammu/installation/ssl" element={wrap(JammuSslDashboard)} />
+              {/* Jammu SSL Shorthand Aliases */}
+              <Route path="vendor-management/jammu/ssl/dashboard" element={wrap(JammuSslDashboard)} />
+              <Route path="vendor-management/jammu/ssl/assign-light" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/assign-lights" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assign" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assigned" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assign-lights" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/verify" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />
+              <Route path="vendor-management/jammu/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />
+              <Route path="vendor-management/jammu/ssl" element={wrap(JammuSslDashboard)} />
+
+        {/* Super Admin: Jammu Installation Routes - SWP */}
+              <Route path="vendor-management/jammu/installation/swp/dashboard" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/installation/swp/assign-installation" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/assign" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/view-assign-installation" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/view-assign" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-installation" element={wrap(JammuVerifySwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-document" element={wrap(JammuVerifySwpDocument)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-claim" element={wrap(JammuVerifySwpClaim)} />
+              <Route path="vendor-management/jammu/installation/swp/view-payment" element={wrap(JammuViewSwpPayment)} />
+              <Route path="vendor-management/jammu/installation/swp/status-view" element={wrap(JammuSwpStatusView)} />
+              <Route path="vendor-management/jammu/installation/swp" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/swp/dashboard" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/swp/assign-installation" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/assign" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/view-assign-installation" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/view-assign" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/verify-installation" element={wrap(JammuVerifySwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/verify-document" element={wrap(JammuVerifySwpDocument)} />
+              <Route path="vendor-management/jammu/swp/verify-claim" element={wrap(JammuVerifySwpClaim)} />
+              <Route path="vendor-management/jammu/swp/view-payment" element={wrap(JammuViewSwpPayment)} />
+              <Route path="vendor-management/jammu/swp/status-view" element={wrap(JammuSwpStatusView)} />
+              <Route path="vendor-management/jammu/swp" element={wrap(JammuSwpDashboard)} />
+
+        {/* Super Admin: Jammu Installation Routes - RESCO */}
+              <Route path="vendor-management/jammu/installation/resco/dashboard" element={wrap(JammuRescoInstDashboard)} />
+              <Route path="vendor-management/jammu/installation/resco/assign-installation" element={wrap(JammuAssignRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/view-assign-installation" element={wrap(JammuViewAssignRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/view-assign-vendor-installation" element={wrap(JammuViewAssignVendorInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/verify-installation" element={wrap(JammuVerifyRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/verify-document" element={wrap(JammuVerifyRescoDocument)} />
+              <Route path="vendor-management/jammu/installation/resco/view-claim" element={wrap(JammuViewRescoClaim)} />
+              <Route path="vendor-management/jammu/installation/resco/view-payment" element={wrap(JammuViewRescoPayment)} />
+              <Route path="vendor-management/jammu/installation/resco/view-bills" element={wrap(JammuViewRescoBills)} />
+              <Route path="vendor-management/jammu/installation/resco" element={wrap(JammuRescoInstDashboard)} />
+              <Route path="vendor-management/jammu/installation" element={wrap(JammuSrtDashboard)} />
+
+        {/* Super Admin: Jammu Expenses Routes - SRT 70MW */}
+              <Route path="vendor-management/jammu/expenses/srt-70mw/claim-requests" element={wrap(JammuSrtExpenseClaimRequests)} />
+              <Route path="vendor-management/jammu/expenses/srt-70mw/view-payments" element={wrap(JammuSrtExpenseViewPayments)} />
+              <Route path="vendor-management/jammu/expenses/srt-70mw" element={wrap(JammuSrtExpenseClaimRequests)} />
+              <Route path="vendor-management/jammu/expenses" element={wrap(JammuSrtExpenseClaimRequests)} />
 
               <Route path="gallery" element={wrap(AppsGallery)} />
               <Route path="complaints" element={wrap(ModulePlaceholder)} />
