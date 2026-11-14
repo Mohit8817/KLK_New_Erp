@@ -21,7 +21,11 @@ import {
 /* ───────── Responsive page CSS (all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
+<<<<<<< HEAD
     --asw-primary: var(--ax-accent, #2563eb);
+=======
+    --asw-primary: #2563eb;
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -315,7 +319,11 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'rose';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+<<<<<<< HEAD
   accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+=======
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -499,7 +507,15 @@ export function ViewAssignLights() {
   const [approvingRecord, setApprovingRecord] = useState<AssignLightRecord | null>(null);
   const [isApproving, setIsApproving] = useState<boolean>(false);
 
+<<<<<<< HEAD
   // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+<<<<<<< HEAD
+  // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+  // Vendor Name Lookup Map (populated from getAssignFormData + known fallbacks)
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
     '142': 'App Testing',
     '212': 'mohit',
@@ -508,6 +524,10 @@ export function ViewAssignLights() {
   const getVendorName = useCallback(
     (r?: Partial<AssignLightRecord> | null): string => {
       if (!r) return '—';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       if (r.vendors && typeof r.vendors === 'object') {
         if (r.vendors.name) return r.vendors.name;
         if (r.vendors.vendor_name) return r.vendors.vendor_name;
@@ -515,12 +535,28 @@ export function ViewAssignLights() {
       if (typeof r.vendors === 'string' && r.vendors.trim()) return r.vendors.trim();
       if (r.vendor_name) return r.vendor_name;
       const vid = r.vendor ?? r.inst_vendor ?? (r.vendors as any)?.id;
+<<<<<<< HEAD
+=======
+=======
+      if (r.vendors?.name) return r.vendors.name;
+      if (r.vendor_name) return r.vendor_name;
+      const vid = r.vendor ?? r.inst_vendor;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {
         const key = String(vid).trim();
         if (vendorMap[key]) return vendorMap[key];
         if (key === '142') return 'App Testing';
         if (key === '212') return 'mohit';
+<<<<<<< HEAD
         return `Vendor ${key}`;
+=======
+<<<<<<< HEAD
+        return `Vendor ${key}`;
+=======
+        return `Vendor #${key}`;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       }
       return '—';
     },
@@ -548,10 +584,22 @@ export function ViewAssignLights() {
     setLoading(true);
     setErrorMsg('');
     try {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       const [res, formRes, dashRes] = await Promise.allSettled([
         arunachalAdminService.getViewAssign(),
         arunachalAdminService.getAssignFormData(),
         arunachalAdminService.getDashboard(),
+<<<<<<< HEAD
+=======
+=======
+      const [res, formRes] = await Promise.allSettled([
+        arunachalAdminService.getViewAssign(),
+        arunachalAdminService.getAssignFormData(),
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       ]);
 
       if (res.status === 'fulfilled') {
@@ -570,16 +618,34 @@ export function ViewAssignLights() {
         throw res.reason;
       }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       const vMap: Record<string | number, string> = {
         '142': 'App Testing',
         '212': 'mohit',
       };
       if (formRes.status === 'fulfilled' && Array.isArray(formRes.value.vendors)) {
+<<<<<<< HEAD
+=======
+=======
+      if (formRes.status === 'fulfilled' && Array.isArray(formRes.value.vendors)) {
+        const vMap: Record<string | number, string> = {
+          '142': 'App Testing',
+          '212': 'mohit',
+        };
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
         formRes.value.vendors.forEach((v: any) => {
           const id = v.id ?? v.vendor;
           const name = v.name ?? v.vendor_name;
           if (id && name) vMap[String(id).trim()] = String(name).trim();
         });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       }
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value;
@@ -599,6 +665,13 @@ export function ViewAssignLights() {
         }
       }
       setVendorMap((prev) => ({ ...prev, ...vMap }));
+<<<<<<< HEAD
+=======
+=======
+        setVendorMap((prev) => ({ ...prev, ...vMap }));
+      }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
     } catch (err: any) {
       console.error('Failed to load assignments:', err);
       setErrorMsg(err.message || 'Failed to load assigned lights');
@@ -648,12 +721,23 @@ export function ViewAssignLights() {
     return [...list].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
   }, [assigns, statusFilter, searchQuery, getVendorName]);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   // Pagination
   const pagination = usePagination(filteredRows, { initialPageSize: 10 });
 
   useEffect(() => {
     pagination.setPage(1);
   }, [searchQuery, statusFilter]);
+<<<<<<< HEAD
+=======
+=======
+  // Pagination - 100 per page so all assignments show up immediately
+  const pagination = usePagination(filteredRows, { initialPageSize: 100 });
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   // Export columns
   const exportCols: ExportColumn<AssignLightRecord>[] = useMemo(
@@ -664,7 +748,15 @@ export function ViewAssignLights() {
       } as any,
       {
         header: 'Batch ID',
+<<<<<<< HEAD
         accessor: (r: AssignLightRecord) => String(r.id),
+=======
+<<<<<<< HEAD
+        accessor: (r: AssignLightRecord) => String(r.id),
+=======
+        accessor: (r: AssignLightRecord) => `#${r.id}`,
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       },
       {
         header: 'Vendor',
@@ -809,7 +901,15 @@ export function ViewAssignLights() {
     setIsApproving(true);
     try {
       await arunachalAdminService.approveAssign(approvingRecord.id);
+<<<<<<< HEAD
       setSuccessMsg(`Assignment ID: ${approvingRecord.id} approved successfully and vendor notified.`);
+=======
+<<<<<<< HEAD
+      setSuccessMsg(`Assignment ID: ${approvingRecord.id} approved successfully and vendor notified.`);
+=======
+      setSuccessMsg(`Assignment #${approvingRecord.id} approved successfully and vendor notified.`);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       setApprovingRecord(null);
       await loadData();
     } catch (err: any) {
@@ -1038,8 +1138,21 @@ export function ViewAssignLights() {
                       setSearchQuery('');
                       setStatusFilter('all');
                     }}
+<<<<<<< HEAD
                     className="ax-btn ax-btn--ghost ax-btn--sm"
                     style={{ height: 32, padding: '0 8px', fontSize: 12 }}
+=======
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                    }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   >
                     Reset
                   </button>
@@ -1047,13 +1160,28 @@ export function ViewAssignLights() {
 
                 <Link
                   to="/vendor-management/arunachal/shl/assign-light"
+<<<<<<< HEAD
                   className="ax-btn ax-btn--primary ax-btn--sm"
+=======
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
+<<<<<<< HEAD
                     whiteSpace: 'nowrap',
                     textDecoration: 'none',
+=======
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)',
+                    whiteSpace: 'nowrap',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   }}
                 >
                   + Assign New Lights
@@ -1140,15 +1268,28 @@ export function ViewAssignLights() {
                           <span
                             className="ax-badge"
                             style={{
+<<<<<<< HEAD
                               background: 'rgba(var(--asw-primary-rgb), 0.12)',
                               color: 'var(--ax-accent, #2563eb)',
+=======
+                              background: 'rgba(37, 99, 235, 0.12)',
+                              color: '#2563eb',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                               fontWeight: 700,
                               fontSize: 12,
                               padding: '2px 8px',
                               borderRadius: 4,
                             }}
                           >
+<<<<<<< HEAD
                             {row.id}
+=======
+<<<<<<< HEAD
+                            {row.id}
+=======
+                            #{row.id}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                           </span>
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
@@ -1180,9 +1321,18 @@ export function ViewAssignLights() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedRecordForPanchayats(row)}
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--secondary ax-btn--xs"
                                 style={{
                                   padding: '2px 8px',
+=======
+                                style={{
+                                  background: 'rgba(37, 99, 235, 0.1)',
+                                  color: '#2563eb',
+                                  border: '1px solid rgba(37, 99, 235, 0.25)',
+                                  borderRadius: 4,
+                                  padding: '1px 6px',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                   fontSize: 11,
                                   fontWeight: 700,
                                   cursor: 'pointer',
@@ -1194,7 +1344,11 @@ export function ViewAssignLights() {
                             )}
                           </div>
                         </td>
+<<<<<<< HEAD
                         <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ax-accent, #2563eb)' }}>
+=======
+                        <td className="ax-table__td" style={{ textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                           {count}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
@@ -1246,16 +1400,26 @@ export function ViewAssignLights() {
                                 padding: '3px 8px',
                                 fontSize: 11,
                                 fontWeight: 700,
+<<<<<<< HEAD
                                 color: 'var(--ax-accent, #2563eb)',
                                 background: 'rgba(var(--asw-primary-rgb), 0.1)',
                                 border: '1px solid rgba(var(--asw-primary-rgb), 0.25)',
+=======
+                                color: '#2563eb',
+                                background: 'rgba(37, 99, 235, 0.1)',
+                                border: '1px solid rgba(37, 99, 235, 0.25)',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                 borderRadius: 6,
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                               }}
                             >
+<<<<<<< HEAD
                               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ax-accent, #2563eb)' }} />
+=======
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                               Accepted
                             </span>
                           ) : isApproved ? (
@@ -1305,12 +1469,27 @@ export function ViewAssignLights() {
                               <button
                                 type="button"
                                 onClick={() => setApprovingRecord(row)}
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--primary ax-btn--sm"
                                 style={{
+=======
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  background: '#2563eb',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: 6,
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                   padding: '4px 10px',
                                   fontSize: 11,
                                   fontWeight: 600,
                                   cursor: 'pointer',
+<<<<<<< HEAD
+=======
+                                  transition: 'background 0.15s ease',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                 }}
                                 title="Approve this lights assignment batch"
                               >
@@ -1323,8 +1502,19 @@ export function ViewAssignLights() {
                               <button
                                 type="button"
                                 disabled
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--secondary ax-btn--sm"
                                 style={{
+=======
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  background: 'var(--ax-surface-subtle)',
+                                  border: '1px solid var(--ax-border)',
+                                  color: 'var(--ax-text-muted)',
+                                  borderRadius: 6,
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                   padding: '3px 8px',
                                   fontSize: 11,
                                   fontWeight: 600,
@@ -1343,8 +1533,19 @@ export function ViewAssignLights() {
                               <button
                                 type="button"
                                 onClick={() => navigate(`/vendor-management/arunachal/shl/assign-light?edit=${row.id}`)}
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--secondary ax-btn--sm"
                                 style={{
+=======
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  background: '#ffffff',
+                                  border: '1px solid var(--ax-border, #cbd5e1)',
+                                  color: '#334155',
+                                  borderRadius: 6,
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                                   padding: '3px 8px',
                                   fontSize: 11,
                                   fontWeight: 600,
@@ -1372,12 +1573,24 @@ export function ViewAssignLights() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={pagination.curPage}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 curPage={pagination.curPage}
                 totalItems={pagination.totalItems}
                 total={pagination.totalItems}
                 pageSize={pagination.pageSize}
                 onPageChange={pagination.setPage}
                 setPage={pagination.setPage}
+<<<<<<< HEAD
+=======
+=======
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPageChange={pagination.setPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 onPageSizeChange={pagination.setPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
@@ -1391,16 +1604,34 @@ export function ViewAssignLights() {
         open={Boolean(selectedRecordForPanchayats)}
         onClose={() => setSelectedRecordForPanchayats(null)}
         title={`Assigned Panchayats Breakdown: ${getVendorName(selectedRecordForPanchayats)}`}
+<<<<<<< HEAD
         subtitle={`Batch ID: ${selectedRecordForPanchayats?.id} • District: ${selectedRecordForPanchayats?.district} • Block: ${selectedRecordForPanchayats?.block} • Volume: ${selectedRecordForPanchayats?.volume}`}
+=======
+<<<<<<< HEAD
+        subtitle={`Batch ID: ${selectedRecordForPanchayats?.id} • District: ${selectedRecordForPanchayats?.district} • Block: ${selectedRecordForPanchayats?.block} • Volume: ${selectedRecordForPanchayats?.volume}`}
+=======
+        subtitle={`Batch ID #${selectedRecordForPanchayats?.id} • District: ${selectedRecordForPanchayats?.district} • Block: ${selectedRecordForPanchayats?.block} • Volume: ${selectedRecordForPanchayats?.volume}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
         maxWidth={780}
         footer={
           <button
             type="button"
             onClick={() => setSelectedRecordForPanchayats(null)}
+<<<<<<< HEAD
             className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
+=======
+            style={{
+              padding: '6px 16px',
+              fontSize: 13,
+              borderRadius: 6,
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1429,7 +1660,11 @@ export function ViewAssignLights() {
               </div>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Total Allocated Lights</span>
+<<<<<<< HEAD
                 <strong style={{ fontSize: 13, color: 'var(--ax-accent, #2563eb)' }}>{selectedRecordForPanchayats.sitecount ?? selectedRecordForPanchayats.site_count ?? 0} Lights</strong>
+=======
+                <strong style={{ fontSize: 13, color: '#2563eb' }}>{selectedRecordForPanchayats.sitecount ?? selectedRecordForPanchayats.site_count ?? 0} Lights</strong>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
               </div>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
@@ -1442,7 +1677,11 @@ export function ViewAssignLights() {
                     fontSize: 13,
                     color:
                       Number(selectedRecordForPanchayats.status) === 2
+<<<<<<< HEAD
                         ? 'var(--ax-accent, #2563eb)'
+=======
+                        ? '#2563eb'
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                         : Number(selectedRecordForPanchayats.status) === 1
                         ? '#16a34a'
                         : '#d97706',
@@ -1471,7 +1710,15 @@ export function ViewAssignLights() {
               <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
                 <thead>
                   <tr>
+<<<<<<< HEAD
                     <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
+=======
+<<<<<<< HEAD
+                    <th className="ax-table__th" style={{ width: 60 }}>Sr. No.</th>
+=======
+                    <th className="ax-table__th" style={{ width: 60 }}>#</th>
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                     <th className="ax-table__th">Panchayat Name</th>
                     <th className="ax-table__th">District</th>
                     <th className="ax-table__th">Block</th>
@@ -1489,9 +1736,15 @@ export function ViewAssignLights() {
                         <td className="ax-table__td">
                           <span
                             style={{
+<<<<<<< HEAD
                               background: 'rgba(var(--asw-primary-rgb), 0.08)',
                               color: 'var(--ax-accent, #2563eb)',
                               border: '1px solid rgba(var(--asw-primary-rgb), 0.2)',
+=======
+                              background: 'rgba(37, 99, 235, 0.08)',
+                              color: '#2563eb',
+                              border: '1px solid rgba(37, 99, 235, 0.2)',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                               padding: '2px 8px',
                               borderRadius: 4,
                               fontSize: 11,
@@ -1529,7 +1782,11 @@ export function ViewAssignLights() {
           <>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
               onClick={() => setApprovingRecord(null)}
               disabled={isApproving}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1540,11 +1797,23 @@ export function ViewAssignLights() {
               type="button"
               onClick={handleConfirmApprove}
               disabled={isApproving}
+<<<<<<< HEAD
               className="ax-btn ax-btn--primary"
               style={{
                 fontWeight: 600,
                 padding: '6px 16px',
                 fontSize: 13,
+=======
+              style={{
+                background: '#2563eb',
+                borderColor: '#2563eb',
+                color: '#ffffff',
+                fontWeight: 600,
+                padding: '6px 16px',
+                fontSize: 13,
+                borderRadius: 6,
+                border: 'none',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 cursor: 'pointer',
               }}
             >
@@ -1557,7 +1826,15 @@ export function ViewAssignLights() {
           <div style={{ fontSize: 13, lineHeight: 1.6 }}>
             <p style={{ margin: '0 0 12px' }}>
               Are you sure you want to approve SHL assignment{' '}
+<<<<<<< HEAD
               <strong>ID: {approvingRecord.id}</strong> for{' '}
+=======
+<<<<<<< HEAD
+              <strong>ID: {approvingRecord.id}</strong> for{' '}
+=======
+              <strong>#{approvingRecord.id}</strong> for{' '}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
               <strong>{getVendorName(approvingRecord)}</strong>?
             </p>
             <div
@@ -1623,11 +1900,23 @@ export function ViewAssignLights() {
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+<<<<<<< HEAD
                   className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
                     textDecoration: 'none',
+=======
+                  style={{
+                    fontSize: 12,
+                    color: '#2563eb',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   }}
                 >
                   Open Original ↗
@@ -1677,10 +1966,19 @@ export function ViewAssignLights() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+<<<<<<< HEAD
                     className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+=======
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#fff',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

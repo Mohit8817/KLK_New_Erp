@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 export interface UsePaginationOptions<T> {
   data?: T[];
@@ -8,23 +8,39 @@ export interface UsePaginationOptions<T> {
 
 /**
  * Universal pagination hook identical to the logic in Grid.js table.
- * Supports both:
+<<<<<<< HEAD
+ * Supports:
  *   usePagination({ data: items, initialPageSize: 10 })
- * and
  *   usePagination(items, { initialPageSize: 10 })
+ *   usePagination(items, 100)
+ * Returns { paged, pagedData, paginationProps, curPage, page, totalPages, ... }
  */
 export function usePagination<T>(
   optionsOrData: UsePaginationOptions<T> | T[] = [],
-  legacyOpts?: { initialPageSize?: number; initialPage?: number }
+  legacyOpts?: { initialPageSize?: number; initialPage?: number } | number
+=======
+ * Supports both:
+ *   usePagination({ data: items, initialPageSize: 100 })
+ * and
+ *   usePagination(items, { initialPageSize: 100 })
+ */
+export function usePagination<T>(
+  optionsOrData: UsePaginationOptions<T> | T[] = [],
+  legacyOpts?: number | { initialPageSize?: number; initialPage?: number }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 ) {
   let rawData: T[] = [];
-  let defaultPageSize = 8;
+  let defaultPageSize = 100;
   let defaultPage = 1;
 
   if (Array.isArray(optionsOrData)) {
     rawData = optionsOrData;
-    if (legacyOpts?.initialPageSize) defaultPageSize = legacyOpts.initialPageSize;
-    if (legacyOpts?.initialPage) defaultPage = legacyOpts.initialPage;
+    if (typeof legacyOpts === 'number') {
+      defaultPageSize = legacyOpts;
+    } else if (legacyOpts && typeof legacyOpts === 'object') {
+      if (legacyOpts.initialPageSize) defaultPageSize = legacyOpts.initialPageSize;
+      if (legacyOpts.initialPage) defaultPage = legacyOpts.initialPage;
+    }
   } else if (optionsOrData && typeof optionsOrData === 'object') {
     rawData = Array.isArray(optionsOrData.data) ? optionsOrData.data : [];
     if (optionsOrData.initialPageSize) defaultPageSize = optionsOrData.initialPageSize;
@@ -45,18 +61,67 @@ export function usePagination<T>(
   const rangeEnd = Math.min(curPage * pageSize, totalItems);
   const pageList = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
-  const handlePageChange = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
+  const handlePageChange = useCallback((newPage: number) => {
+<<<<<<< HEAD
+    setPage(newPage);
+  }, []);
 
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageSizeChange = useCallback((newSize: number) => {
+=======
+<<<<<<< HEAD
+    if (typeof newPage !== 'number' || isNaN(newPage)) return;
+    setPage(Math.max(1, newPage));
+  }, []);
+
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    if (typeof newSize !== 'number' || isNaN(newSize) || newSize <= 0) return;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
     setPageSize(newSize);
     setPage(1);
+  }, []);
+
+<<<<<<< HEAD
+  const paginationProps = {
+    currentPage: curPage,
+    curPage,
+    page: curPage,
+    pageSize,
+    totalItems,
+    total: totalItems,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+    setPage: handlePageChange,
+    onPageChange: handlePageChange,
+    onPageSizeChange: handlePageSizeChange,
   };
+=======
+  const handleNextPage = useCallback(() => {
+    setPage((p) => p + 1);
+  }, []);
+
+  const handlePrevPage = useCallback(() => {
+    setPage((p) => Math.max(1, p - 1));
+  }, []);
+=======
+    setPage((prev) => {
+      if (typeof newPage !== 'number' || isNaN(newPage)) return prev;
+      return newPage;
+    });
+  }, []);
+
+  const handlePageSizeChange = useCallback((newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  }, []);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   return {
     // Exact Grid.js names
     paged,
+    pagedData: paged,
+    paginationProps,
     curPage,
     totalPages,
     rangeStart,
@@ -69,8 +134,8 @@ export function usePagination<T>(
     totalRecords: totalItems,
     setPage: handlePageChange,
     setPageSize: handlePageSizeChange,
-    nextPage: () => handlePageChange(curPage + 1),
-    prevPage: () => handlePageChange(curPage - 1),
+    nextPage: handleNextPage,
+    prevPage: handlePrevPage,
     canNext: curPage < totalPages,
     canPrev: curPage > 1,
 

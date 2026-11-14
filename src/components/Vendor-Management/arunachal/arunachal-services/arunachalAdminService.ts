@@ -879,6 +879,10 @@ class ArunachalAdminService {
     const data = json.data || {};
     return data.shl || (Array.isArray(data) ? data : []);
   }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   // ── 16. Centralized Vendor Lookup & Resolution ──
   private vendorMapCache: Record<string, string> | null = null;
@@ -978,6 +982,11 @@ class ArunachalAdminService {
     }
     return '—';
   }
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 }
 
 export const arunachalAdminService = new ArunachalAdminService();

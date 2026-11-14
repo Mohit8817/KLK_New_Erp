@@ -384,23 +384,43 @@ export function ArunachalShlDashboard() {
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   // Vendor Name Lookup Map (populated from getVendorMap + known fallbacks)
   const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
     '142': 'App Testing',
     '212': 'mohit',
   });
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   // Load Dashboard Data (API 12: GET /dashboard)
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       const [res, vMap] = await Promise.all([
         arunachalAdminService.getDashboard(),
         arunachalAdminService.getVendorMap(),
       ]);
       setData(res);
       setVendorMap(vMap);
+<<<<<<< HEAD
+=======
+=======
+      const res = await arunachalAdminService.getDashboard();
+      setData(res);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       setUpdatedAt(new Date());
     } catch (err: any) {
       console.error('Arunachal SHL Dashboard fetch error:', err);
@@ -449,6 +469,10 @@ export function ArunachalShlDashboard() {
 
   // Vendor options for filter
   const vendorOptions = useMemo(
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
     () =>
       vendorswise.map((v) => ({
         id: v.inst_vendor,
@@ -458,6 +482,13 @@ export function ArunachalShlDashboard() {
           (String(v.inst_vendor) === '142' ? 'App Testing' : String(v.inst_vendor) === '212' ? 'mohit' : `Vendor ${v.inst_vendor}`),
       })),
     [vendorswise, vendorMap]
+<<<<<<< HEAD
+=======
+=======
+    () => vendorswise.map((v) => ({ id: v.inst_vendor, name: v.vendor_name })),
+    [vendorswise]
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   );
 
   // Filtered district rows based on selectedDistrict and selectedStatus
@@ -590,16 +621,34 @@ export function ArunachalShlDashboard() {
     totalItems: districtTotalItems,
     setPage: setDistrictPage,
     setPageSize: setDistrictPageSize,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   } = usePagination({ data: tableDistricts, initialPageSize: 10 });
 
   useEffect(() => {
     setDistrictPage(1);
   }, [tableQuery, selectedDistrict, selectedStatus]);
+<<<<<<< HEAD
+=======
+=======
+  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
+
+  useEffect(() => {
+    setDistrictPage(1);
+  }, [tableQuery, selectedDistrict, selectedStatus, setDistrictPage]);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   // Table search & pagination for Vendor Table
   const deferredVendorQuery = useDeferredValue(vendorQuery);
   const tableVendors = useMemo(() => {
     const q = deferredVendorQuery.trim().toLowerCase();
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
     return filteredVendors.filter((v) => {
       const vName = (
         v.vendor_name ||
@@ -609,6 +658,15 @@ export function ArunachalShlDashboard() {
       return !q || vName.includes(q);
     });
   }, [filteredVendors, deferredVendorQuery, vendorMap]);
+<<<<<<< HEAD
+=======
+=======
+    return filteredVendors.filter(
+      (v) => !q || v.vendor_name.toLowerCase().includes(q)
+    );
+  }, [filteredVendors, deferredVendorQuery]);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   const {
     paginatedData: pagedVendors,
@@ -617,11 +675,25 @@ export function ArunachalShlDashboard() {
     totalItems: vendorTotalItems,
     setPage: setVendorPage,
     setPageSize: setVendorPageSize,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   } = usePagination({ data: tableVendors, initialPageSize: 10 });
 
   useEffect(() => {
     setVendorPage(1);
   }, [vendorQuery, selectedVendor, selectedStatus]);
+<<<<<<< HEAD
+=======
+=======
+  } = usePagination({ data: tableVendors, initialPageSize: 50 });
+
+  useEffect(() => {
+    setVendorPage(1);
+  }, [vendorQuery, selectedVendor, selectedStatus, setVendorPage]);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   // Percentages & Rates
   const pctComplete = pctOf(shl.complete, shl.site_count);
@@ -1524,12 +1596,24 @@ export function ArunachalShlDashboard() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={districtCurrentPage}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 curPage={districtCurrentPage}
                 totalItems={districtTotalItems}
                 total={districtTotalItems}
                 pageSize={districtPageSize}
                 onPageChange={setDistrictPage}
                 setPage={setDistrictPage}
+<<<<<<< HEAD
+=======
+=======
+                totalItems={districtTotalItems}
+                pageSize={districtPageSize}
+                onPageChange={setDistrictPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 onPageSizeChange={setDistrictPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
@@ -1666,12 +1750,22 @@ export function ArunachalShlDashboard() {
                 </tr>
               </thead>
               <tbody>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 {pagedVendors.map((v) => {
                   const resolvedVendorTitle =
                     v.vendor_name ||
                     vendorMap[String(v.inst_vendor)] ||
                     (String(v.inst_vendor) === '142' ? 'App Testing' : String(v.inst_vendor) === '212' ? 'mohit' : `Vendor ${v.inst_vendor}`);
                   return (
+<<<<<<< HEAD
+=======
+=======
+                {pagedVendors.map((v) => (
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   <tr
                     key={v.inst_vendor}
                     className="ax-table__row"
@@ -1682,12 +1776,28 @@ export function ArunachalShlDashboard() {
                     style={{ cursor: 'pointer' }}
                   >
                     <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+<<<<<<< HEAD
                       <b>{resolvedVendorTitle}</b>
+=======
+<<<<<<< HEAD
+                      <b>{resolvedVendorTitle}</b>
+=======
+                      <b>{v.vendor_name}</b>
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                     </td>
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View all lights assigned to ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View all lights assigned to ${resolvedVendorTitle}`}
+=======
+                      title={`View all lights assigned to ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.light_count || 0)}
@@ -1695,7 +1805,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View installed lights by ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View installed lights by ${resolvedVendorTitle}`}
+=======
+                      title={`View installed lights by ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.inst_complete || 0)}
@@ -1703,7 +1821,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View pending lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View pending lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View pending lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.inst_pending || 0)}
@@ -1711,7 +1837,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View verify approved lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View verify approved lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View verify approved lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.verify_approved || 0)}
@@ -1719,7 +1853,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View verification pending lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View verification pending lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View verification pending lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verification Pending Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.verify_pending || 0)}
@@ -1727,7 +1869,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-red, #ef4444)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View rejected lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View rejected lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View rejected lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Rejected Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.verify_reject || 0)}
@@ -1735,7 +1885,15 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View claim approved lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View claim approved lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View claim approved lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('claim-approved', 'Claim Approved Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.claim_approved || 0)}
@@ -1743,13 +1901,29 @@ export function ArunachalShlDashboard() {
                     <td
                       className="ax-table__td ax-table__td--num ax-num"
                       style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+<<<<<<< HEAD
                       title={`View payment settled lights for ${resolvedVendorTitle}`}
+=======
+<<<<<<< HEAD
+                      title={`View payment settled lights for ${resolvedVendorTitle}`}
+=======
+                      title={`View payment settled lights for ${v.vendor_name}`}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                       onClick={(e) => { e.stopPropagation(); openDrillDown('pay-done', 'Payment Settled Lights', undefined, v.inst_vendor); }}
                     >
                       {num(v.payment_done || 0)}
                     </td>
                   </tr>
+<<<<<<< HEAD
                 );})}
+=======
+<<<<<<< HEAD
+                );})}
+=======
+                ))}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 {!loading && pagedVendors.length === 0 && (
                   <tr>
                     <td className="ax-table__td" colSpan={9} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
@@ -1778,12 +1952,24 @@ export function ArunachalShlDashboard() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={vendorCurrentPage}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 curPage={vendorCurrentPage}
                 totalItems={vendorTotalItems}
                 total={vendorTotalItems}
                 pageSize={vendorPageSize}
                 onPageChange={setVendorPage}
                 setPage={setVendorPage}
+<<<<<<< HEAD
+=======
+=======
+                totalItems={vendorTotalItems}
+                pageSize={vendorPageSize}
+                onPageChange={setVendorPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 onPageSizeChange={setVendorPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />

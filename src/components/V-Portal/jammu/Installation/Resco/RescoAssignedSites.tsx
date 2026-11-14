@@ -38,6 +38,9 @@ const formatDate = (val?: any): string => {
   }
 };
 
+const escapeHtml = (s: string) =>
+  String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 /* ───────── Top KPI Card ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
@@ -262,7 +265,7 @@ export function RescoAssignedSites() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
-  // Load live data from API 1: GET /jk/resco-view-assign-installation-sites
+  // Load live data from API
   const loadAssignedSites = useCallback(async () => {
     setLoading(true);
     try {
@@ -281,7 +284,7 @@ export function RescoAssignedSites() {
     loadAssignedSites();
   }, [loadAssignedSites]);
 
-  // Handle Direct Accept (API 3: GET /jk/resco-assign-installation-accept/{id})
+  // Handle Direct Accept
   const handleDirectAccept = async (id?: number | string) => {
     if (!id) return;
     const numId = Number(id);
@@ -309,7 +312,7 @@ export function RescoAssignedSites() {
     }
   };
 
-  // Open Detail Modal (API 2: GET /jk/resco-view-assign-installation-detail)
+  // Open Detail Modal
   const handleOpenDetailModal = async (item: JammuRescoAssignedSiteItem) => {
     setDetailModalItem(item);
     setDetailData(null);
@@ -364,7 +367,7 @@ export function RescoAssignedSites() {
   }, [records, districtFilter, statusFilter, search]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
-    usePagination({ data: filtered, initialPageSize: 100 });
+    usePagination({ data: filtered, initialPageSize: 10 });
 
   useEffect(() => {
     setPage(1);
@@ -395,25 +398,93 @@ export function RescoAssignedSites() {
     []
   );
 
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return column.accessor(row, index);
+    return (row as Record<string, any>)[column.accessor as string] ?? '';
+  };
+  const escapeExportValue = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const headerRow = columns.map((c) => `"${escapeExportValue(c.header)}"`).join(',');
+    const rows = list.map((row, index) =>
+      columns.map((c) => `"${escapeExportValue(getExportValue(row, c, index)).replace(/"/g, '""')}"`).join(',')
+    );
+    const csv = [headerRow, ...rows].join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      setToastMsg({ type: 'success', text: 'Copied to clipboard!' });
+    } catch {
+      // fallback
+    }
+  };
+
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
 
-      {/* ── Page Head matching reference ── */}
+      {/* ── Page Head ── */}
       <PageHead
         title="Jammu RESCO - Assigned Sites"
         subtitle="Manage and accept RESCO solar rooftop installation work orders, developer allocations, and deadlines"
         breadcrumbs={[
-          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Home', href: '/vendor-management' },
           { label: 'Jammu & Kashmir' },
           { label: 'Installation' },
           { label: 'RESCO' },
           { label: 'Assigned Sites' },
         ]}
         actions={
-          <Link to="/v/jammu/installation/resco/install-site" className="ax-btn ax-btn--primary ax-btn--sm">
-            <span className="ax-btn__label">+ Install Site</span>
-          </Link>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+            <Link to="/vendor-management/jammu/installation/resco/assign-installation" className="ax-btn ax-btn--secondary ax-btn--sm">
+              + Assign Installation
+            </Link>
+            <Link to="/v/jammu/installation/resco/install-site" className="ax-btn ax-btn--primary ax-btn--sm">
+              <span className="ax-btn__label">+ Install Site</span>
+            </Link>
+          </div>
         }
       />
 
@@ -539,64 +610,16 @@ export function RescoAssignedSites() {
               />
 
               <TableExportToolbar
-                onCopy={() => {
-                  const t = filtered
-                    .map((r, i) =>
-                      [
-                        i + 1,
-                        r.inst_vendor || r.vendor || '',
-                        formatDate(r.assign_date || r.created_at),
-                        r.state || 'Jammu',
-                        r.district || '',
-                        r.site_name || '',
-                        formatDate(r.inst_deadline),
-                        r.count ?? 1,
-                        r.remarks || r.remark || '',
-                        Number(r.status) === 2 ? 'Accepted' : 'Assigned',
-                      ].join('\t')
-                    )
-                    .join('\n');
-                  navigator.clipboard.writeText(t);
-                  setToastMsg({ type: 'success', text: 'Copied to clipboard!' });
-                }}
-                onExportCSV={() => {
-                  const out = [
-                    'Sr. No.,Vendor,Assign Date,State,District,Site Name,Deadline,Count,Remarks,Status',
-                    ...filtered.map(
-                      (r, i) =>
-                        `"${i + 1}","${r.inst_vendor || r.vendor || ''}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
-                    ),
-                  ].join('\n');
-                  const blob = new Blob([out], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'Jammu_RESCO_Assigned_Sites.csv';
-                  a.click();
-                }}
-                onExportExcel={() => {
-                  const out = [
-                    'Sr. No.,Vendor,Assign Date,State,District,Site Name,Deadline,Count,Remarks,Status',
-                    ...filtered.map(
-                      (r, i) =>
-                        `"${i + 1}","${r.inst_vendor || r.vendor || ''}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
-                    ),
-                  ].join('\n');
-                  const blob = new Blob([out], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'Jammu_RESCO_Assigned_Sites.xls';
-                  a.click();
-                }}
-                onExportPDF={() => window.print()}
+                onCopy={() => copyToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportToCSV(filtered, exportCols, 'Jammu_RESCO_Assigned_Sites')}
+                onExportExcel={() => exportToExcel(filtered, exportCols, 'Jammu_RESCO_Assigned_Sites')}
+                onExportPDF={() => exportToPDF(filtered, exportCols, 'Jammu RESCO Assigned Sites Register')}
               />
             </div>
           </div>
         </div>
 
-        {/* ── Table with EXACT user headers:
-            Sr. No. | Vendor | Assign Date | State | District | Site Name - Deadline | Count | File | View | Remarks | Status | Action ── */}
+        {/* ── Table Container ── */}
         <div className="ax-table-wrap">
           <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap' }}>
             <thead className="ax-table__head">
@@ -761,7 +784,7 @@ export function RescoAssignedSites() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100, 200]}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
@@ -776,7 +799,7 @@ export function RescoAssignedSites() {
               <h2 className="ax-modal__title" id="resco-assign-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                 <span>RESCO Assignment Details</span>
                 <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
-                  {detailModalItem.id}
+                  ID: {detailModalItem.id}
                 </span>
               </h2>
               <button
@@ -800,124 +823,87 @@ export function RescoAssignedSites() {
                   <b>{String(detailModalItem.inst_vendor || detailModalItem.vendor || '—')}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State</span>
-                  <b>{detailModalItem.state || 'Jammu & Kashmir'}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State / Territory</span>
+                  <span>{detailModalItem.state || 'Jammu & Kashmir'}</span>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>District</span>
                   <b>{detailModalItem.district || '—'}</b>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site Name</span>
-                  <b>{detailModalItem.site_name || `Site ${detailModalItem.site_id || detailModalItem.id}`}</b>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assign Date</span>
+                  <span>{formatDate(detailModalItem.assign_date || detailModalItem.created_at)}</span>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Installation Deadline</span>
-                  <b style={{ color: '#d97706' }}>{formatDate(detailModalItem.inst_deadline)}</b>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assigned On</span>
-                  <b>{formatDate(detailModalItem.assign_date || detailModalItem.created_at)}</b>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Status</span>
-                  {Number(detailModalItem.status) === 2 ? (
-                    <Badge tone="success">Accepted</Badge>
-                  ) : (
-                    <Badge tone="warning">Assigned (Pending Accept)</Badge>
-                  )}
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Remarks</span>
-                  <p style={{ margin: '4px 0 0 0', fontSize: 13, background: 'var(--ax-surface-subtle, #f8fafc)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                    {detailModalItem.remarks || detailModalItem.remark || 'No remarks provided.'}
-                  </p>
+                  <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Completion Deadline</span>
+                  <b style={{ color: '#ef4444' }}>{formatDate(detailModalItem.inst_deadline)}</b>
                 </div>
               </div>
 
-              {/* Detailed sites if fetched from API 2 */}
-              {loadingDetail && (
-                <div style={{ textAlign: 'center', padding: '16px 0', color: '#2563eb', fontSize: 13 }}>
-                  <span className="ax-spinner" style={{ marginRight: 6 }} /> Fetching assignment breakdown…
-                </div>
-              )}
+              {/* Nested Sites from API 2 */}
+              <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-strong)', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
+                  Allocated Sites in Batch ({detailData?.sites?.length ?? detailModalItem.count ?? 1})
+                </span>
 
-              {detailData?.sites && detailData.sites.length > 0 && (
-                <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
-                    Allocated Sites Details ({detailData.sites.length})
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {detailData.sites.map((s, sIdx) => (
-                      <div
-                        key={sIdx}
-                        style={{
-                          padding: '10px 14px',
-                          background: 'var(--ax-surface-subtle, #f8fafc)',
-                          border: '1px solid var(--ax-border, #e2e8f0)',
-                          borderRadius: 8,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <div>
-                          <b style={{ color: 'var(--ax-text-strong)', display: 'block' }}>{s.site_name}</b>
-                          <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                            District: {s.district || detailModalItem.district}
-                          </span>
-                        </div>
-                        {s.inst_deadline && (
-                          <span className="ax-badge ax-badge--soft ax-badge--neutral">
-                            Deadline: {formatDate(s.inst_deadline)}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                {loadingDetail ? (
+                  <div style={{ padding: 18, textAlign: 'center', color: 'var(--ax-text-muted)', fontSize: 13 }}>
+                    <span className="ax-spinner" style={{ marginRight: 6 }} /> Fetching site details…
                   </div>
-                </div>
-              )}
+                ) : detailData?.sites && detailData.sites.length > 0 ? (
+                  <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8 }}>
+                    <table className="ax-table ax-table--compact" style={{ width: '100%', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--ax-surface-subtle, #f8fafc)' }}>
+                          <th style={{ padding: '6px 10px' }}>Sr.</th>
+                          <th style={{ padding: '6px 10px' }}>Site Name</th>
+                          <th style={{ padding: '6px 10px' }}>District</th>
+                          <th style={{ padding: '6px 10px' }}>Deadline</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailData.sites.map((st, sIdx) => (
+                          <tr key={sIdx}>
+                            <td style={{ padding: '6px 10px' }}>{sIdx + 1}</td>
+                            <td style={{ padding: '6px 10px', fontWeight: 600 }}>{st.site_name || `Site ${sIdx + 1}`}</td>
+                            <td style={{ padding: '6px 10px' }}>{st.district || detailModalItem.district || '—'}</td>
+                            <td style={{ padding: '6px 10px' }}>{formatDate(st.inst_deadline || detailModalItem.inst_deadline)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: '10px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 6, fontSize: 12.5, color: 'var(--ax-text-muted)' }}>
+                    Site Name: <b style={{ color: 'var(--ax-text-strong)' }}>{detailModalItem.site_name || 'All Assigned Sites in District'}</b>
+                  </div>
+                )}
+              </div>
 
-              {/* Work Order Document File if available */}
-              {detailModalItem.file && (
-                <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginTop: 14 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
-                    Attached Work Order Document
-                  </span>
-                  <a
-                    href={resolveJammuMediaUrl(detailModalItem.file)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ax-btn ax-btn--secondary ax-btn--xs"
-                  >
-                    📄 View Work Order File
-                  </a>
+              {detailModalItem.remarks && (
+                <div style={{ marginTop: 12, padding: 10, background: '#fffbeb', borderRadius: 6, border: '1px solid #fde68a', fontSize: 12, color: '#92400e' }}>
+                  <b>Remarks / Notes:</b> {detailModalItem.remarks}
                 </div>
               )}
             </div>
 
-            <div className="ax-modal__footer">
-              {Number(detailModalItem.status) !== 2 ? (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  disabled={acceptingId === Number(detailModalItem.id)}
-                  onClick={() => handleDirectAccept(detailModalItem.id)}
-                >
-                  {acceptingId === Number(detailModalItem.id) ? 'Accepting…' : 'Accept Assignment'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
-                  onClick={() => {
-                    setDetailModalItem(null);
-                    navigate(`/v/jammu/installation/resco/install-site?id=${detailModalItem.site_id || detailModalItem.id}`);
-                  }}
-                >
-                  Install Site ➔
-                </button>
-              )}
+            <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+              <div>
+                {Number(detailModalItem.status) !== 2 ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary ax-btn--sm"
+                    disabled={acceptingId === Number(detailModalItem.id)}
+                    onClick={() => handleDirectAccept(detailModalItem.id)}
+                  >
+                    {acceptingId === Number(detailModalItem.id) ? 'Accepting…' : 'Accept Assignment'}
+                  </button>
+                ) : (
+                  <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '4px 10px' }}>
+                    ✓ Work Order Accepted
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"

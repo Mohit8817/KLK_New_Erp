@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessState } from '../../services/stateAccess';
 import './v-portal-sidebar.css';
@@ -17,7 +17,7 @@ interface VPortalSubGroup {
 interface VPortalCategory {
   id: string;
   title: string;
-  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints';
+  icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'reports' | 'users';
   subgroups: VPortalSubGroup[];
 }
 
@@ -28,6 +28,9 @@ interface VPortalSection {
 }
 
 const V_PORTAL_NAVIGATION: VPortalSection[] = [
+
+
+
   /* ═══════════════════ UTTAR PRADESH ═══════════════════ */
   {
     section: 'Uttar Pradesh',
@@ -270,6 +273,132 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
     ],
   },
 
+
+
+        /* ═══════════════════ JAMMU  ═══════════════════ */
+  {
+    section: 'Jammu',
+    state: 'jammu',
+    categories: [
+      {
+        id: 'jammu.survey',
+        title: 'Survey',
+        icon: 'survey',
+        subgroups: [
+          {
+            id: 'jammu.survey.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Assign Survey', to: '/v/jammu/survey/resco/assign-survey' },
+              { title: 'Pending Survey', to: '/v/jammu/survey/resco/pending-survey' },
+              { title: 'View Survey', to: '/v/jammu/survey/resco/view-survey' },
+            ],
+          },
+          {
+            id: 'jammu.survey.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Add 70MW SRT', to: '/v/jammu/survey/srt-70mw/add-srt' },
+              { title: 'View 70MW SRT', to: '/v/jammu/survey/srt-70mw/view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'jammu.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'jammu.installation.resco',
+            title: 'Resco',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/resco/dashboard' },
+              { title: 'Assigned Sites', to: '/v/jammu/installation/resco/assigned-sites' },
+              { title: 'Install Site', to: '/v/jammu/installation/resco/install-site' },
+              { title: 'Installation Details', to: '/v/jammu/installation/resco/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/resco/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/srt-70mw/dashboard' },
+              { title: 'Assign Site', to: '/v/jammu/installation/srt-70mw/assign-site' },
+              { title: 'Install Sites', to: '/v/jammu/installation/srt-70mw/install-sites' },
+              { title: 'Installation Details', to: '/v/jammu/installation/srt-70mw/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/srt-70mw/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/ssl/dashboard' },
+              { title: 'Assign Lights', to: '/v/jammu/installation/ssl/assign-lights' },
+              { title: 'Install Lights', to: '/v/jammu/installation/ssl/install-lights' },
+              { title: 'Installation Details', to: '/v/jammu/installation/ssl/installation-details' },
+              { title: 'Claim Request', to: '/v/jammu/installation/ssl/claim-request' },
+            ],
+          },
+          {
+            id: 'jammu.installation.swp',
+            title: 'SWP',
+            items: [
+              { title: 'Dashboard', to: '/v/jammu/installation/swp/dashboard' },
+              { title: 'Installation Request', to: '/v/jammu/installation/swp/installation-request' },
+              { title: 'Installation Site', to: '/v/jammu/installation/swp/installation-site' },
+              { title: 'View Installation', to: '/v/jammu/installation/swp/view-installation' },
+              { title: 'View Payment', to: '/v/jammu/installation/swp/view-payment' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'jammu.expenses',
+        title: 'Installation Expenses',
+        icon: 'expenses',
+        subgroups: [
+          {
+            id: 'jammu.expenses.srt-70mw',
+            title: 'SRT 70MW',
+            items: [
+              { title: 'Request Expenses', to: '/v/jammu/installation-expenses/srt-70mw/request-expenses' },
+              { title: 'View Expenses', to: '/v/jammu/installation-expenses/srt-70mw/view-expenses' },
+              { title: 'View Payments', to: '/v/jammu/installation-expenses/srt-70mw/view-payments' },
+            ],
+          },
+        ],
+      },
+
+      // AMC 
+      // {
+      //   id: 'jammu.amc',
+      //   title: 'AMC',
+      //   icon: 'amc',
+      //   subgroups: [
+      //     {
+      //       id: 'jammu.amc.resco',
+      //       title: 'Resco',
+      //       items: [
+      //         { title: 'Assign Survey', to: '/v/jammu/amc/resco/assign-survey' },
+      //         { title: 'Pending Survey', to: '/v/jammu/amc/resco/pending-survey' },
+      //         { title: 'View Survey', to: '/v/jammu/amc/resco/view-survey' },
+      //       ],
+      //     },
+      //     {
+      //       id: 'jammu.amc.ssl',
+      //       title: 'SSL',
+      //       items: [
+      //         { title: 'View Assign AMC', to: '/v/jammu/amc/ssl/view-assign-amc' },
+      //       ],
+      //     },
+      //   ],
+      // },
+    ],
+  },
+
   /* ═══════════════════ BIHAR ═══════════════════ */
   {
     section: 'Bihar',
@@ -420,7 +549,10 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
     ],
   },
 
+<<<<<<< HEAD
     /* ═══════════════════ KARNATAKA ═══════════════════ */
+=======
+  /* ═══════════════════ KARNATAKA ═══════════════════ */
   {
     section: 'Karnataka',
     state: 'karnataka',
@@ -447,6 +579,89 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       },
     ],
   },
+
+
+
+  /* ═══════════════════ PUNJAB ═══════════════════ */
+  {
+    section: 'Punjab',
+    state: 'punjab',
+    categories: [
+      {
+        id: 'punjab.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'punjab.installation.ssl',
+            title: 'SSL',
+            items: [
+              { title: 'Dashboard', to: '/v/punjab/ssl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/punjab/ssl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/punjab/ssl/installation/update-light-deatils' },
+              { title: 'Installation Detail', to: '/v/punjab/ssl/installation/complete-light' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ═══════════════════ ARUNACHAL PRADESH ═══════════════════ */
+  {
+    section: 'Arunachal Pradesh',
+    state: 'arunachal',
+    categories: [
+      {
+        id: 'arunachal.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'arunachal.installation.shl',
+            title: 'SHL',
+            items: [
+              { title: 'Dashboard', to: '/v/arunachal/shl/installation/dashboard' },
+              { title: 'Assigned Lights', to: '/v/arunachal/shl/installation/view-assigned-light' },
+              { title: 'Install Light', to: '/v/arunachal/shl/installation/install-light' },
+              { title: 'Installation Detail', to: '/v/arunachal/shl/installation/view-installation' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+    /* ═══════════════════ JAMMU & KASHMIR ═══════════════════ */
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+  {
+    section: 'Karnataka',
+    state: 'karnataka',
+    categories: [
+      {
+        id: 'karnataka.installation',
+        title: 'Installation',
+        icon: 'installation',
+        subgroups: [
+          {
+            id: 'karnataka.installation.swp',
+            title: 'SWP',
+            items: [
+              { title: 'Dashboard', to: '/v/karnataka/installation/swp/dashboard' },
+              { title: 'Installation Request', to: '/v/karnataka/installation/swp/request' },
+              { title: 'Installation Site', to: '/v/karnataka/installation/swp/site' },
+              { title: 'View Installation', to: '/v/karnataka/installation/swp/view' },
+              { title: 'Add Payment', to: '/v/karnataka/installation/swp/add-payment' },
+              { title: 'View Payment', to: '/v/karnataka/installation/swp/payment' },
+              { title: 'Material Details', to: '/v/karnataka/installation/swp/material-details' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+<<<<<<< HEAD
 
 
 
@@ -561,6 +776,7 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
 
 
 
+<<<<<<< HEAD
         /* ═══════════════════ JAMMU  ═══════════════════ */
   {
     section: 'Jammu',
@@ -684,6 +900,9 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       // },
     ],
   },
+=======
+
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
   /* ═══════════════════ KASHMIR ═══════════════════ */
   {
     section: 'Kashmir',
@@ -742,9 +961,14 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
   },
 
 
+<<<<<<< HEAD
   //Common vendor services.....
 
    {
+=======
+    /* ═══════════════════ COMMON VENDOR MODULES ═══════════════════ */
+  {
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
     section: 'Vendor Services',
     state: '',
     categories: [
@@ -798,6 +1022,12 @@ const V_PORTAL_NAVIGATION: VPortalSection[] = [
       },
     ],
   },
+<<<<<<< HEAD
+=======
+  
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 ];
 
 function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'amc' | 'complaints' | 'dashboard' | 'reports' | 'users' }) {
@@ -810,6 +1040,29 @@ function VPIconBox({ icon }: { icon: 'survey' | 'installation' | 'expenses' | 'a
             <rect x="14" y="3" width="7" height="7" rx="1.5" />
             <rect x="14" y="14" width="7" height="7" rx="1.5" />
             <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        </div>
+      );
+    case 'reports':
+      return (
+        <div className="vp-sb__icon-box vp-sb__icon-box--reports">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </div>
+      );
+    case 'users':
+      return (
+        <div className="vp-sb__icon-box vp-sb__icon-box--users">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </svg>
         </div>
       );

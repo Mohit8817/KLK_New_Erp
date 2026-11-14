@@ -876,7 +876,15 @@ export function AssignLights() {
           </svg>
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 2 }}>
+<<<<<<< HEAD
               Edit Mode — Assigned Lights ID: {editId}
+=======
+<<<<<<< HEAD
+              Edit Mode — Assigned Lights ID: {editId}
+=======
+              Edit Mode — Assigned Lights #{editId}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
             </div>
             <div>
               Territory & vendor allocation (Vendor, Volume, District, Block, and assigned Panchayats) is locked to this assignment record. You can update the completion deadline date, remarks, and work order file.
@@ -938,7 +946,15 @@ export function AssignLights() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
+<<<<<<< HEAD
                 {isEditMode ? `Edit Assigned Lights ID: ${editId}` : 'SHL Installation Assign Lights'}
+=======
+<<<<<<< HEAD
+                {isEditMode ? `Edit Assigned Lights ID: ${editId}` : 'SHL Installation Assign Lights'}
+=======
+                {isEditMode ? `Edit Assigned Lights #${editId}` : 'SHL Installation Assign Lights'}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: isAcceptedLocked ? '#2563eb' : '#ef4444', margin: '4px 0 0' }}>
                 {isAcceptedLocked
@@ -1221,7 +1237,15 @@ export function AssignLights() {
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
+<<<<<<< HEAD
                       Locked to Work Order ID: {editId}
+=======
+<<<<<<< HEAD
+                      Locked to Work Order ID: {editId}
+=======
+                      Locked to Work Order #{editId}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                     </span>
                   )}
                 </div>

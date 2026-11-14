@@ -146,10 +146,19 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
                   download
                   target="_blank"
                   rel="noreferrer"
+<<<<<<< HEAD
                   className="ax-btn ax-btn--primary"
                   style={{
                     display: 'inline-block',
                     padding: '8px 18px',
+=======
+                  style={{
+                    display: 'inline-block',
+                    padding: '8px 18px',
+                    borderRadius: 6,
+                    background: '#2563eb',
+                    color: '#fff',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                     fontWeight: 700,
                     fontSize: 13,
                     textDecoration: 'none',
@@ -210,6 +219,10 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
               onClick={onClose}
+<<<<<<< HEAD
+=======
+              style={{ background: '#2563eb', borderColor: '#2563eb', color: '#fff' }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
             >
               Close
             </button>

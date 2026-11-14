@@ -426,7 +426,15 @@ function UploadDropzone({
 export function KarnatakaInstallationSite() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+<<<<<<< HEAD
   const { user, rawResponse } = useAuth();
+=======
+<<<<<<< HEAD
+  const { user, rawResponse } = useAuth();
+=======
+  const { user } = useAuth();
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
   // Mode: Check if edit query parameter exists (API 6 & API 7)
   const editSiteIdParam = searchParams.get('id') || searchParams.get('edit_id') || searchParams.get('site_id');
@@ -434,6 +442,10 @@ export function KarnatakaInstallationSite() {
 
   // Logged-in Vendor name resolution from active login session & useAuth context
   const loginVendorName = useMemo(() => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
     const getCleanString = (val: any): string => {
       if (typeof val === 'string' && val.trim()) {
         const trimmed = val.trim();
@@ -448,6 +460,8 @@ export function KarnatakaInstallationSite() {
           lower !== 'n/a'
         ) {
           return trimmed;
+<<<<<<< HEAD
+=======
         }
       }
       return '';
@@ -594,6 +608,191 @@ export function KarnatakaInstallationSite() {
 
     return '';
   }, [user, rawResponse]);
+=======
+    try {
+      const session = authService.getSession() as any;
+      const raw = authService.getRawResponse() as any;
+      const directUser = authService.getUser() as any;
+
+      const candidates = [
+        user?.name,
+        user?.vendor_name,
+        user?.username,
+        session?.name,
+        session?.username,
+        session?.vendor_name,
+        session?.vendors?.name,
+        session?.vendor?.name,
+        directUser?.name,
+        directUser?.vendor_name,
+        directUser?.username,
+        raw?.data?.username,
+        raw?.username,
+        raw?.vendor?.name,
+        raw?.data?.vendor?.name,
+        raw?.data?.vendors?.name,
+        raw?.user?.name,
+        raw?.data?.name,
+        session?.company,
+        session?.firm,
+        session?.vendor_id ? `Vendor (${session.vendor_id})` : '',
+      ];
+
+      for (const c of candidates) {
+        if (c && typeof c === 'string' && c.trim() && c.trim() !== 'Active Vendor' && c.trim() !== 'NA') {
+          return c.trim();
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
+        }
+      }
+      return '';
+    };
+
+    // 1. From AuthContext reactive state
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).firm_name) ||
+        getCleanString((user as any).company_name) ||
+        getCleanString((user as any).company) ||
+        getCleanString((user as any).username) ||
+        getCleanString(
+          (user as any).vendor_id
+            ? String((user as any).vendor_id).startsWith('Vendor')
+              ? (user as any).vendor_id
+              : `Vendor (${(user as any).vendor_id})`
+            : ''
+        );
+      if (fromUser) return fromUser;
+    }
+<<<<<<< HEAD
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor) ||
+        getCleanString(rawResponse?.data?.name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name) ||
+        getCleanString(rawResponse?.data?.user?.name) ||
+        getCleanString(rawResponse?.vendor_id ? `Vendor (${rawResponse.vendor_id})` : '');
+      if (fromRaw) return fromRaw;
+    }
+
+    // 2. From authService storage methods
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.name) ||
+          getCleanString(session.firm_name) ||
+          getCleanString(session.company_name) ||
+          getCleanString(session.company) ||
+          getCleanString(session.username) ||
+          getCleanString(session.vendor?.name) ||
+          getCleanString(session.vendors?.name) ||
+          getCleanString(
+            session.vendor_id
+              ? String(session.vendor_id).startsWith('Vendor')
+                ? session.vendor_id
+                : `Vendor (${session.vendor_id})`
+              : ''
+          );
+        if (fromSession) return fromSession;
+      }
+
+      const raw = authService.getRawResponse() as any;
+      if (raw) {
+        const fromRaw =
+          getCleanString(raw?.vendor?.name) ||
+          getCleanString(raw?.vendor?.vendor_name) ||
+          getCleanString(raw?.vendor) ||
+          getCleanString(raw?.vendor_name) ||
+          getCleanString(raw?.data?.vendor?.name) ||
+          getCleanString(raw?.data?.vendor?.vendor_name) ||
+          getCleanString(raw?.data?.vendor_name) ||
+          getCleanString(raw?.data?.vendor) ||
+          getCleanString(raw?.data?.name) ||
+          getCleanString(raw?.name) ||
+          getCleanString(raw?.user?.name) ||
+          getCleanString(raw?.data?.user?.name) ||
+          getCleanString(raw?.vendor_id ? `Vendor (${raw.vendor_id})` : '');
+        if (fromRaw) return fromRaw;
+      }
+    } catch {}
+
+    // 3. Direct localStorage / sessionStorage inspect fallback
+    try {
+      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
+      if (sessionStr) {
+        const parsed = JSON.parse(sessionStr);
+        const fromParsed =
+          getCleanString(parsed?.vendor_name) ||
+          getCleanString(parsed?.vendor) ||
+          getCleanString(parsed?.name) ||
+          getCleanString(parsed?.firm_name) ||
+          getCleanString(parsed?.company_name) ||
+          getCleanString(parsed?.username) ||
+          getCleanString(
+            parsed?.vendor_id
+              ? String(parsed.vendor_id).startsWith('Vendor')
+                ? parsed.vendor_id
+                : `Vendor (${parsed.vendor_id})`
+              : ''
+          );
+        if (fromParsed) return fromParsed;
+      }
+
+      const rawStr = sessionStorage.getItem('klk_raw_login_response') || localStorage.getItem('klk_raw_login_response');
+      if (rawStr) {
+        const parsedRaw = JSON.parse(rawStr);
+        const fromParsedRaw =
+          getCleanString(parsedRaw?.vendor?.name) ||
+          getCleanString(parsedRaw?.vendor?.vendor_name) ||
+          getCleanString(parsedRaw?.vendor) ||
+          getCleanString(parsedRaw?.vendor_name) ||
+          getCleanString(parsedRaw?.name) ||
+          getCleanString(parsedRaw?.user?.name) ||
+          getCleanString(parsedRaw?.data?.vendor?.name) ||
+          getCleanString(parsedRaw?.data?.vendor_name) ||
+          getCleanString(parsedRaw?.data?.vendor) ||
+          getCleanString(parsedRaw?.data?.name);
+        if (fromParsedRaw) return fromParsedRaw;
+      }
+
+      const directUserStr = localStorage.getItem('klk_user') || sessionStorage.getItem('klk_user');
+      if (directUserStr) {
+        const parsedUser = JSON.parse(directUserStr);
+        const fromUser =
+          getCleanString(parsedUser?.vendor_name) ||
+          getCleanString(parsedUser?.vendor) ||
+          getCleanString(parsedUser?.name) ||
+          getCleanString(parsedUser?.username);
+        if (fromUser) return fromUser;
+      }
+
+      const directVendorName = localStorage.getItem('klk_vendor_name') || sessionStorage.getItem('klk_vendor_name');
+      if (directVendorName) {
+        const fromVendorName = getCleanString(directVendorName);
+        if (fromVendorName) return fromVendorName;
+      }
+    } catch {}
+
+    return '';
+  }, [user, rawResponse]);
+=======
+  }, [user]);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
   // Section Refs for Quick Navigation Pills
   const sec1 = useRef<HTMLDivElement>(null);
@@ -615,11 +814,20 @@ export function KarnatakaInstallationSite() {
   const [siteDetail, setSiteDetail] = useState<KarnatakaSiteDetailItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
   // Combined resolved vendor name: prefers active logged-in vendor name, fallbacks to site details if available
   const resolvedVendorName = useMemo(() => {
     return loginVendorName || siteDetail?.vendor_name || siteDetail?.vendor || siteDetail?.assigned_vendor || '';
   }, [loginVendorName, siteDetail]);
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
   // Equipment Form Inputs (API 4 & API 7)
   const [controllerNo, setControllerNo] = useState('');
   const [pumpNo, setPumpNo] = useState('');
@@ -888,9 +1096,21 @@ export function KarnatakaInstallationSite() {
       if (pincode.trim()) formData.append('pincode', pincode.trim());
       if (instRemarks.trim()) formData.append('inst_remarks', instRemarks.trim());
 
+<<<<<<< HEAD
       // Pass vendor name retrieved from session / site
       formData.append('vendor', resolvedVendorName);
       formData.append('vendor_name', resolvedVendorName);
+=======
+<<<<<<< HEAD
+      // Pass vendor name retrieved from session / site
+      formData.append('vendor', resolvedVendorName);
+      formData.append('vendor_name', resolvedVendorName);
+=======
+      // Pass vendor name retrieved from session
+      formData.append('vendor', loginVendorName);
+      formData.append('vendor_name', loginVendorName);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
       // Photos
       if (moduleImage) formData.append('module_image', moduleImage);
@@ -989,7 +1209,15 @@ export function KarnatakaInstallationSite() {
               <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
                 {siteDetail.f_farmer_name || siteDetail.farmer_name
                   ? `${siteDetail.f_farmer_name || siteDetail.farmer_name} (${siteDetail.district || siteDetail.f_district || 'Karnataka'})`
+<<<<<<< HEAD
                   : `Site ${siteDetail.id}`}
+=======
+<<<<<<< HEAD
+                  : `Site ${siteDetail.id}`}
+=======
+                  : `Site #${siteDetail.id}`}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
               </span>
             )}
           </div>
@@ -1056,7 +1284,15 @@ export function KarnatakaInstallationSite() {
                       <option value="">-- Choose Assigned Site / Farmer Name --</option>
                       {sitesList.map((s) => (
                         <option key={s.id} value={String(s.id)}>
+<<<<<<< HEAD
                           Site {s.id} - {s.f_farmer_name || s.farmer_name || `Site ${s.id}`} ({s.district || s.f_district || 'Karnataka'})
+=======
+<<<<<<< HEAD
+                          Site {s.id} - {s.f_farmer_name || s.farmer_name || `Site ${s.id}`} ({s.district || s.f_district || 'Karnataka'})
+=======
+                          #{s.id} - {s.f_farmer_name || s.farmer_name || `Site ${s.id}`} ({s.district || s.f_district || 'Karnataka'})
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         </option>
                       ))}
                     </select>
@@ -1102,7 +1338,15 @@ export function KarnatakaInstallationSite() {
               <FloatingInput
                 label="Vendor Name"
                 name="vendor"
+<<<<<<< HEAD
                 value={resolvedVendorName}
+=======
+<<<<<<< HEAD
+                value={resolvedVendorName}
+=======
+                value={loginVendorName || siteDetail?.vendor_name || siteDetail?.vendor || ''}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                 onChange={() => {}}
                 disabled
               />
@@ -1199,11 +1443,27 @@ export function KarnatakaInstallationSite() {
                   <div key={idx} style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <FloatingInput
+<<<<<<< HEAD
                         label={`Module ${idx + 1} Serial`}
                         name={`module_serial_${idx}`}
                         value={serial}
                         onChange={(e) => handleModuleSerialChange(idx, e.target.value)}
                         placeholder={`Enter Module ${idx + 1}`}
+=======
+<<<<<<< HEAD
+                        label={`Module ${idx + 1} Serial`}
+                        name={`module_serial_${idx}`}
+                        value={serial}
+                        onChange={(e) => handleModuleSerialChange(idx, e.target.value)}
+                        placeholder={`Enter Module ${idx + 1}`}
+=======
+                        label={`Module #${idx + 1} Serial`}
+                        name={`module_serial_${idx}`}
+                        value={serial}
+                        onChange={(e) => handleModuleSerialChange(idx, e.target.value)}
+                        placeholder={`Enter Module #${idx + 1}`}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         required
                         onCameraClick={() => setScannerTarget(`module_${idx}`)}
                       />
@@ -1431,7 +1691,15 @@ export function KarnatakaInstallationSite() {
             : scannerTarget === 'imei'
             ? 'IMEI / RMS Number'
             : scannerTarget?.startsWith('module_')
+<<<<<<< HEAD
             ? `Module ${parseInt(scannerTarget.replace('module_', ''), 10) + 1} Serial`
+=======
+<<<<<<< HEAD
+            ? `Module ${parseInt(scannerTarget.replace('module_', ''), 10) + 1} Serial`
+=======
+            ? `Module #${parseInt(scannerTarget.replace('module_', ''), 10) + 1} Serial`
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
             : 'Barcode'
         }
         onScan={(code: string) => handleBarcodeScanned(scannerTarget || '', code)}

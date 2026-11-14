@@ -454,9 +454,13 @@ export function Arunachal_Installation_SHL_InstallationDetail() {
     try {
       const res = await arunachalShlInstallationService.getViewInstallation();
       setData(res);
+      const anyRes = res as any;
       const totalCount =
         (Array.isArray(res?.completelight) ? res.completelight.length : (res?.completelights?.length ?? 0)) +
-        (Array.isArray(res?.paymentlight) ? res.paymentlight.length : (res?.paymentlights?.length ?? 0));
+        (Array.isArray(res?.paymentlight) ? res.paymentlight.length : (res?.paymentlights?.length ?? 0)) +
+        (Array.isArray(anyRes?.verification) ? anyRes.verification.length : 0) +
+        (Array.isArray(anyRes?.verified?.data) ? anyRes.verified.data.length : (Array.isArray(anyRes?.verified) ? anyRes.verified.length : 0)) +
+        (Array.isArray(anyRes?.assignedlight) ? anyRes.assignedlight.length : (Array.isArray(anyRes?.data?.assignedlight) ? anyRes.data.assignedlight.length : 0));
       if (totalCount === 0) {
         setErrorMsg('No installation records have been recorded yet.');
       }
@@ -477,6 +481,10 @@ export function Arunachal_Installation_SHL_InstallationDetail() {
     if (!data) return [];
     if (Array.isArray(data.completelight)) return data.completelight;
     if (Array.isArray(data.completelights)) return data.completelights;
+    const anyData = data as any;
+    if (Array.isArray(anyData.verification)) return anyData.verification;
+    if (Array.isArray(anyData.assignedlight)) return anyData.assignedlight;
+    if (Array.isArray(anyData.data?.assignedlight)) return anyData.data.assignedlight;
     return [];
   }, [data]);
 
@@ -484,6 +492,9 @@ export function Arunachal_Installation_SHL_InstallationDetail() {
     if (!data) return [];
     if (Array.isArray(data.paymentlight)) return data.paymentlight;
     if (Array.isArray(data.paymentlights)) return data.paymentlights;
+    const anyData = data as any;
+    if (Array.isArray(anyData.verified?.data)) return anyData.verified.data;
+    if (Array.isArray(anyData.verified)) return anyData.verified;
     return [];
   }, [data]);
 
@@ -577,7 +588,7 @@ export function Arunachal_Installation_SHL_InstallationDetail() {
       {/* ── Page Head (Exact from reference) ── */}
       <PageHead
         title="Arunachal Pradesh SHL Installation Detail"
-        subtitle="Review Arunachal Pradesh Solar Home Light (SHL) completed installations, payment batches & verification"
+        subtitle="Review Arunachal Pradesh Solar Street Light (SHL) completed installations, payment batches & verification"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Arunachal Pradesh' },

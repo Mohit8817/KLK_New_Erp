@@ -265,7 +265,7 @@ function InstallationThumbnail({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -529,7 +529,7 @@ function PanelSerialsModal({
                       padding: '2px 6px',
                       fontSize: 11,
                       fontWeight: 600,
-                      color: isCopied ? '#16a34a' : '#2563eb',
+                      color: isCopied ? '#16a34a' : '#2559bf',
                       flexShrink: 0,
                     }}
                     title="Copy serial"
@@ -608,13 +608,13 @@ function SiteDossierModal({
               <div><span style={{ color: '#64748b' }}>District / State:</span> <div style={{ fontWeight: 600 }}>{site.district || DASH}, {site.state || 'Jammu'}</div></div>
               <div><span style={{ color: '#64748b' }}>Location:</span> <div style={{ fontWeight: 600 }}>{site.location || DASH}</div></div>
               <div><span style={{ color: '#64748b' }}>CA Number:</span> <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{site.ca_no || DASH}</div></div>
-              <div><span style={{ color: '#64748b' }}>Sanction Load:</span> <div style={{ fontWeight: 700, color: '#2563eb' }}>{site.sanction_load ? `${site.sanction_load} kW` : DASH}</div></div>
+              <div><span style={{ color: '#64748b' }}>Sanction Load:</span> <div style={{ fontWeight: 700, color: '#2559bf' }}>{site.sanction_load ? `${site.sanction_load} kW` : DASH}</div></div>
               <div><span style={{ color: '#64748b' }}>Firm / Volume:</span> <div style={{ fontWeight: 600 }}>{site.firm_name || DASH} (Vol {site.volume || '1'})</div></div>
               <div>
                 <span style={{ color: '#64748b' }}>GPS Coordinates:</span>
                 <div>
                   {hasGeo ? (
-                    <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                    <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" style={{ color: '#2559bf', fontWeight: 600, textDecoration: 'none' }}>
                       {lat}, {lng} ↗
                     </a>
                   ) : (
@@ -666,7 +666,7 @@ function SiteDossierModal({
               <div><span style={{ color: '#64748b' }}>SIM Number:</span> <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{site.sim_no || DASH}</div></div>
               <div>
                 <span style={{ color: '#64748b' }}>Total Panels:</span>
-                <div style={{ fontWeight: 700, color: '#2563eb' }}>
+                <div style={{ fontWeight: 700, color: '#2559bf' }}>
                   {panelCount} Panels
                   {serials.length > 0 && (
                     <span style={{ fontSize: 11, color: '#64748b', fontWeight: 400, marginLeft: 6 }}>
@@ -860,12 +860,12 @@ const OVERLAY_CSS = `
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   }
   .ax-modern-dropzone:hover {
-    border-color: var(--ax-accent, #2563eb);
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+    border-color: var(--ax-accent, #2559bf);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 5%, var(--ax-surface-subtle, #f8fafc));
   }
   .ax-modern-dropzone__icon {
     width: 42px; height: 42px; border-radius: 50%;
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 10%, #ffffff);
     display: flex; align-items: center; justify-content: center;
   }
   .ax-modern-file-chip {
@@ -881,8 +881,8 @@ const OVERLAY_CSS = `
 /* ───────── Responsive Page CSS ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1909,7 +1909,7 @@ export function InstallationDetails() {
                             padding: 0,
                             font: 'inherit',
                             fontWeight: 600,
-                            color: '#2563eb',
+                            color: '#2559bf',
                             textAlign: 'left',
                             cursor: 'pointer',
                             display: 'inline-block',
@@ -1972,7 +1972,7 @@ export function InstallationDetails() {
                                   alignItems: 'center',
                                   gap: 3,
                                   fontSize: 11,                               
-                                  color: '#2563eb',
+                                  color: '#2559bf',
                                                                   cursor: 'pointer',
                                   lineHeight: 1.3,
                                 }}
@@ -2002,7 +2002,7 @@ export function InstallationDetails() {
                               border: 'none',
                               padding: 0,
                               font: 'inherit',
-                              color: '#2563eb',
+                              color: '#2559bf',
                               fontWeight: 700,
                               cursor: 'pointer',
                               textDecoration: 'underline',
@@ -2060,7 +2060,7 @@ export function InstallationDetails() {
                             href={`https://www.google.com/maps?q=${lat},${lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
+                            style={{ color: 'var(--ax-primary-default, #2559bf)', textDecoration: 'none', fontWeight: 600 }}
                             title="Open location in Google Maps"
                           >
                             {lat}
@@ -2098,7 +2098,7 @@ export function InstallationDetails() {
                                 className="ax-btn ax-btn--ghost ax-btn--xs"
                                 onClick={() => setDetailModalSite(row as any)}
                                 title="View complete site dossier"
-                                style={{ color: '#2563eb', padding: '2px 8px' }}
+                                style={{ color: '#2559bf', padding: '2px 8px' }}
                               >
                                 View
                               </button>
@@ -2171,7 +2171,7 @@ export function InstallationDetails() {
                               className="ax-btn ax-btn--ghost ax-btn--xs"
                               onClick={() => setDetailModalSite(row as any)}
                               title="View complete site dossier"
-                              style={{ color: '#2563eb', padding: '2px 8px' }}
+                              style={{ color: '#2559bf', padding: '2px 8px' }}
                             >
                               View
                             </button>
@@ -2258,7 +2258,7 @@ export function InstallationDetails() {
             )}
 
             {editLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#2563eb' }}>
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#2559bf' }}>
                 <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading site specifications for edit…
               </div>
             ) : (
@@ -2493,3 +2493,4 @@ export function InstallationDetails() {
 
 export const ViewInstallation = InstallationDetails;
 export default InstallationDetails;
+
