@@ -19,8 +19,8 @@ import {
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -73,14 +73,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: var(--ax-accent, #2563eb);
+    color: var(--ax-accent, #2563eb);
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: #2563eb;
-    color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb)) !important;
+    color: var(--ax-on-accent, #ffffff) !important;
+    border-color: transparent !important;
+    box-shadow: var(--ax-glow-accent, 0 2px 4px rgba(37, 99, 235, 0.2)) !important;
   }
 
   .solar-erp-page .ax-card__header {
@@ -931,7 +931,7 @@ export function VerifyDocument() {
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
           Verification Pending
@@ -941,7 +941,7 @@ export function VerifyDocument() {
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active ax-btn--primary' : ''}`}
           onClick={() => setActiveTab('approved_rejected')}
         >
           Approved / Rejected Data
@@ -1228,12 +1228,9 @@ export function VerifyDocument() {
                           <button
                             type="button"
                             onClick={() => setSelectedSiteForDetails(row)}
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#f1f5f9',
-                              color: '#1e293b',
-                              border: '1px solid #cbd5e1',
                               fontSize: 11,
                               fontWeight: 600,
                               cursor: 'pointer',
@@ -1283,12 +1280,9 @@ export function VerifyDocument() {
                                 setActionStatus(String(row.inst_doc_status === 1 ? '2' : row.inst_doc_status || '2'));
                                 setActionRemarks(row.inst_doc_remarks || '');
                               }}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 padding: '4px 10px',
-                                borderRadius: 6,
-                                background: '#2563eb',
-                                color: '#ffffff',
-                                border: 'none',
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -1372,12 +1366,9 @@ export function VerifyDocument() {
                       setActionStatus(String(site.inst_doc_status === 1 ? '2' : site.inst_doc_status || '2'));
                       setActionRemarks(site.inst_doc_remarks || '');
                     }}
+                    className="ax-btn ax-btn--primary"
                     style={{
                       padding: '6px 14px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -1397,7 +1388,7 @@ export function VerifyDocument() {
             </div>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setSelectedSiteForDetails(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >
@@ -1739,7 +1730,7 @@ export function VerifyDocument() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1748,7 +1739,7 @@ export function VerifyDocument() {
             </button>
             <button
               type="button"
-              className="ax-button ax-button--primary"
+              className="ax-btn ax-btn--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -1807,14 +1798,12 @@ export function VerifyDocument() {
                 href={lightboxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="ax-btn ax-btn--primary"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
                   padding: '6px 14px',
-                  borderRadius: 6,
-                  background: '#2563eb',
-                  color: '#ffffff',
                   fontSize: 12,
                   fontWeight: 600,
                   textDecoration: 'none',
@@ -1830,7 +1819,7 @@ export function VerifyDocument() {
             )}
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >
@@ -1889,11 +1878,9 @@ export function VerifyDocument() {
                   target="_blank"
                   rel="noopener noreferrer"
                   download
+                  className="ax-btn ax-btn--primary"
                   style={{
                     padding: '8px 18px',
-                    borderRadius: 6,
-                    background: '#2563eb',
-                    color: '#ffffff',
                     fontSize: 13,
                     fontWeight: 700,
                     textDecoration: 'none',

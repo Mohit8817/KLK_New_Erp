@@ -599,13 +599,13 @@ export function BiharSRTInstallationDashboard() {
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadDashboardData} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
-            <Link to={`${BASE}/view-assign-sites`} className="ax-btn ax-btn--secondary ax-btn--sm">
+            <Link to={`${BASE}/view-assign`} className="ax-btn ax-btn--secondary ax-btn--sm">
               Assigned Sites
             </Link>
-            <Link to={`${BASE}/verify-sites`} className="ax-btn ax-btn--secondary ax-btn--sm">
+            <Link to={`${BASE}/verify`} className="ax-btn ax-btn--secondary ax-btn--sm">
               Verify Sites
             </Link>
-            <Link to={`${BASE}/assign-sites`} className="ax-btn ax-btn--primary ax-btn--sm">
+            <Link to={`${BASE}/assign`} className="ax-btn ax-btn--primary ax-btn--sm">
               <span className="ax-btn__label">+ Assign Sites</span>
             </Link>
           </div>
@@ -766,14 +766,14 @@ export function BiharSRTInstallationDashboard() {
         </section>
 
         {/* 4. Core KPI Cards */}
-        <KpiCard icon={I_PIN} tone="accent" label="Total Sites" value={num(stats.totalsite)} unit="Sites" sub="Allocated Bihar SRT sites" spark={siteSpark} onClick={() => go('view-assign-sites')} />
-        <KpiCard icon={I_DONE} tone="emerald" label="Complete Installation" value={num(stats.complete)} unit="Sites" sub="Field work completed" badge={`${pctComplete}%`} spark={completeSpark} onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_CLOCK} tone="amber" label="Pending Sites" value={num(stats.pendingsite)} unit="Sites" sub="Awaiting field execution" badge={`${pctPending}%`} spark={pendingSpark} onClick={() => go('view-assign-sites')} />
-        <KpiCard icon={I_SHIELD} tone="cyan" label="Verify Approved" value={num(stats.approvedsite)} unit="Sites" sub={`${num(stats.verifypending)} Audit in progress`} badge={`${pctApproved}%`} spark={approvedSpark} onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_CLOCK} tone="amber" label="Verification Pending" value={num(stats.verifypending)} unit="Sites" sub="Awaiting admin approval" onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_X} tone="red" label="Rejected Sites" value={num(stats.rejectsite)} unit="Sites" sub="Re-inspection required" onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_DOC} tone="violet" label="Claim Applicable" value={num(stats.claimedapplicable)} unit="Sites" sub={`${num(stats.claimraised)} Claims raised`} badge={`${pctClaim}%`} onClick={() => go('view-claim')} />
-        <KpiCard icon={I_CREDIT} tone="emerald" label="Payments Disbursed" value={num(stats.paymentsitecount)} unit="Sites" sub="Milestone settlements" badge={`${pctPaid}%`} onClick={() => go('view-payment')} />
+        <KpiCard icon={I_PIN} tone="accent" label="Total Sites" value={num(stats.totalsite)} unit="Sites" sub="Allocated Bihar SRT sites" spark={siteSpark} onClick={() => go('view-assign')} />
+        <KpiCard icon={I_DONE} tone="emerald" label="Complete Installation" value={num(stats.complete)} unit="Sites" sub="Field work completed" badge={`${pctComplete}%`} spark={completeSpark} onClick={() => go('verify')} />
+        <KpiCard icon={I_CLOCK} tone="amber" label="Pending Sites" value={num(stats.pendingsite)} unit="Sites" sub="Awaiting field execution" badge={`${pctPending}%`} spark={pendingSpark} onClick={() => go('view-assign')} />
+        <KpiCard icon={I_SHIELD} tone="cyan" label="Verify Approved" value={num(stats.approvedsite)} unit="Sites" sub={`${num(stats.verifypending)} Audit in progress`} badge={`${pctApproved}%`} spark={approvedSpark} onClick={() => go('verify')} />
+        <KpiCard icon={I_CLOCK} tone="amber" label="Verification Pending" value={num(stats.verifypending)} unit="Sites" sub="Awaiting admin approval" onClick={() => go('verify')} />
+        <KpiCard icon={I_X} tone="red" label="Rejected Sites" value={num(stats.rejectsite)} unit="Sites" sub="Re-inspection required" onClick={() => go('verify')} />
+        <KpiCard icon={I_DOC} tone="violet" label="Claim Applicable" value={num(stats.claimedapplicable)} unit="Sites" sub={`${num(stats.claimraised)} Claims raised`} badge={`${pctClaim}%`} onClick={() => go('claim')} />
+        <KpiCard icon={I_CREDIT} tone="emerald" label="Payments Disbursed" value={num(stats.paymentsitecount)} unit="Sites" sub="Milestone settlements" badge={`${pctPaid}%`} onClick={() => go('payment')} />
 
         {/* 5. Operations header */}
         <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
@@ -792,10 +792,10 @@ export function BiharSRTInstallationDashboard() {
           </div>
         </div>
 
-        <KpiCard icon={I_BOLT} tone="emerald" label="Execution Rate" value={`${pctComplete}%`} sub={`${num(stats.complete)} of ${num(stats.totalsite)} sites installed`} badge="Installed" spark={execRateSpark} onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_SHIELD} tone="cyan" label="Audit Pass Rate" value={`${pctOf(stats.approvedsite, stats.approvedsite + stats.rejectsite || 1)}%`} sub={`${num(stats.approvedsite)} Passed · ${num(stats.rejectsite)} Rejected`} spark={auditPassSpark} onClick={() => go('verify-sites')} />
-        <KpiCard icon={I_DOC} tone="violet" label="Claim Raise Rate" value={`${pctClaim}%`} sub={`${num(stats.claimraised)} claims raised`} onClick={() => go('view-claim')} />
-        <KpiCard icon={I_CREDIT} tone="accent" label="Payment Disbursement" value={`${pctPaid}%`} sub={`${num(stats.paymentsitecount)} sites disbursed`} onClick={() => go('view-payment')} />
+        <KpiCard icon={I_BOLT} tone="emerald" label="Execution Rate" value={`${pctComplete}%`} sub={`${num(stats.complete)} of ${num(stats.totalsite)} sites installed`} badge="Installed" spark={execRateSpark} onClick={() => go('verify')} />
+        <KpiCard icon={I_SHIELD} tone="cyan" label="Audit Pass Rate" value={`${pctOf(stats.approvedsite, stats.approvedsite + stats.rejectsite || 1)}%`} sub={`${num(stats.approvedsite)} Passed · ${num(stats.rejectsite)} Rejected`} spark={auditPassSpark} onClick={() => go('verify')} />
+        <KpiCard icon={I_DOC} tone="violet" label="Claim Raise Rate" value={`${pctClaim}%`} sub={`${num(stats.claimraised)} claims raised`} onClick={() => go('claim')} />
+        <KpiCard icon={I_CREDIT} tone="accent" label="Payment Disbursement" value={`${pctPaid}%`} sub={`${num(stats.paymentsitecount)} sites disbursed`} onClick={() => go('payment')} />
 
         {/* State Operations Card */}
         <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT Operations Summary">
@@ -805,7 +805,7 @@ export function BiharSRTInstallationDashboard() {
               <h3 className="ax-card__title">Bihar · Solar Rooftop (SRT) Operations</h3>
               <p className="ax-card__subtitle">{num(stats.complete)} rooftop plants installed across {districtOptions.length} districts in Bihar</p>
             </div>
-            <Link to={`${BASE}/verify-sites`} className="ax-btn ax-btn--sm ax-btn--primary">
+            <Link to={`${BASE}/verify`} className="ax-btn ax-btn--sm ax-btn--primary">
               View Installation Register →
             </Link>
           </div>
@@ -1064,19 +1064,19 @@ export function BiharSRTInstallationDashboard() {
               <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
                 Quick Module Actions
               </span>
-              <Link to={`${BASE}/view-assign-sites`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to={`${BASE}/view-assign`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>View Assigned Sites</span><span>→</span>
               </Link>
-              <Link to={`${BASE}/assign-sites`} className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to={`${BASE}/assign`} className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Assign New Sites</span><span>+</span>
               </Link>
-              <Link to={`${BASE}/verify-sites`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to={`${BASE}/verify`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Review Site Verification</span><span>👁</span>
               </Link>
-              <Link to={`${BASE}/view-claim`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to={`${BASE}/claim`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Review Claims</span><span>→</span>
               </Link>
-              <Link to={`${BASE}/view-payment`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+              <Link to={`${BASE}/payment`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Review Payments</span><span>₹</span>
               </Link>
             </div>
@@ -1129,7 +1129,7 @@ export function BiharSRTInstallationDashboard() {
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600 }}>{num(v.approved)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #ef4444)', fontWeight: 600 }}>{num(v.rejected)}</td>
                     <td className="ax-table__td">
-                      <Link to={`${BASE}/view-assign-sites`} className="ax-btn ax-btn--secondary ax-btn--sm">View Orders</Link>
+                      <Link to={`${BASE}/view-assign`} className="ax-btn ax-btn--secondary ax-btn--sm">View Orders</Link>
                     </td>
                   </tr>
                 ))}

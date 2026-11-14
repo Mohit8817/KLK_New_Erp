@@ -20,7 +20,7 @@ import {
 /* ───────── Responsive page CSS (all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
+    --asw-primary: var(--ax-accent, #2563eb);
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -69,14 +69,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: var(--ax-accent, #2563eb);
+    color: var(--ax-accent, #2563eb);
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: #2563eb;
-    color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb));
+    color: var(--ax-on-accent, #ffffff);
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
   }
 
   .solar-erp-page .ax-card__header {
@@ -346,7 +346,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'rose';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -1024,27 +1024,27 @@ export function VerifyLights() {
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
           <button
             type="button"
-            className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+            className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
             onClick={() => {
               setActiveTab('pending');
               pagination.setPage(1);
             }}
           >
             Verification Pending
-            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
               {pendingList.length}
             </span>
           </button>
           <button
             type="button"
-            className={`asw-pill-btn ${activeTab === 'verified' ? 'active' : ''}`}
+            className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
             onClick={() => {
               setActiveTab('verified');
               pagination.setPage(1);
             }}
           >
             Approved / Rejected SHL Data
-            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
               {verifiedList.length}
             </span>
           </button>
@@ -1072,16 +1072,8 @@ export function VerifyLights() {
                       setSearchQuery('');
                       pagination.setPage(1);
                     }}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: 12,
-                      borderRadius: 6,
-                      border: '1px solid #cbd5e1',
-                      background: '#f8fafc',
-                      color: '#475569',
-                      cursor: 'pointer',
-                      fontWeight: 500,
-                    }}
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    style={{ height: 30, padding: '0 8px', fontSize: 12 }}
                   >
                     Reset
                   </button>
@@ -1166,14 +1158,14 @@ export function VerifyLights() {
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
 
                         {/* 2. Unique Id */}
-                        <td className="ax-table__td" style={{ fontWeight: 700, color: '#2563eb' }}>
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-accent, #2563eb)' }}>
                           <button
                             type="button"
                             onClick={() => setSelectedSiteForDetails(row)}
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#2563eb',
+                              color: 'var(--ax-accent, #2563eb)',
                               fontWeight: 700,
                               cursor: 'pointer',
                               padding: 0,
@@ -1275,7 +1267,7 @@ export function VerifyLights() {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: 4,
-                                  color: '#2563eb',
+                                  color: 'var(--ax-accent, #2563eb)',
                                   textDecoration: 'none',
                                   fontWeight: 600,
                                 }}
@@ -1369,18 +1361,11 @@ export function VerifyLights() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedSiteForDetails(row)}
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
                                 style={{
-                                  padding: '4px 8px',
-                                  borderRadius: 6,
-                                  background: '#f1f5f9',
-                                  color: '#1e293b',
-                                  border: '1px solid #cbd5e1',
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: 3,
+                                  gap: 4,
                                 }}
                                 title="View full site details"
                               >
@@ -1397,16 +1382,7 @@ export function VerifyLights() {
                                   setActionStatus(String(row.inst_verify_status ?? '1'));
                                   setActionRemarks(row.inst_verify_remarks || '');
                                 }}
-                                style={{
-                                  padding: '4px 10px',
-                                  borderRadius: 6,
-                                  background: '#2563eb',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                }}
+                                className="ax-btn ax-btn--primary ax-btn--sm"
                               >
                                 Verify
                               </button>
@@ -1464,15 +1440,8 @@ export function VerifyLights() {
                     setActionStatus(String(site.inst_verify_status ?? '1'));
                     setActionRemarks(site.inst_verify_remarks || '');
                   }}
+                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
-                    padding: '6px 14px',
-                    borderRadius: 6,
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
@@ -1488,9 +1457,8 @@ export function VerifyLights() {
             </div>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={() => setSelectedSiteForDetails(null)}
-              style={{ padding: '6px 16px', fontSize: 13 }}
             >
               Close
             </button>
@@ -1515,7 +1483,7 @@ export function VerifyLights() {
             >
               <div>
                 <span style={{ fontSize: 12, color: '#64748b' }}>Light UID: </span>
-                <strong style={{ fontFamily: 'monospace', fontSize: 13, color: '#2563eb' }}>
+                <strong style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--ax-accent, #2563eb)' }}>
                   {selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
                 </strong>
                 {selectedSiteForDetails.phase && (
@@ -1550,7 +1518,7 @@ export function VerifyLights() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
               {/* Contact Person Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
                   Contact & Vendor Details
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1573,7 +1541,7 @@ export function VerifyLights() {
 
               {/* Location Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
                   Site Location
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1602,7 +1570,7 @@ export function VerifyLights() {
                           href={`https://www.google.com/maps?q=${dLat},${dLng}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                         >
                           {dLat}, {dLng} ↗
                         </a>
@@ -1617,7 +1585,7 @@ export function VerifyLights() {
 
             {/* Grid 2: Hardware & Luminary Specs */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
                 Hardware & Equipment Specifications
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12 }}>
@@ -1650,7 +1618,7 @@ export function VerifyLights() {
 
             {/* Grid 3: Photographic Evidence */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 12, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
                 Photographic Evidence
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
@@ -1681,7 +1649,7 @@ export function VerifyLights() {
                               style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 6 }}
                             />
                           )}
-                          <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview media</div>
+                          <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview media</div>
                         </div>
                       ) : (
                         <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>No Media Attached</div>
@@ -1694,7 +1662,7 @@ export function VerifyLights() {
 
             {/* Grid 4: Audit & QA Verification Notes */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
                 Remarks & Audit Log
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 12 }}>
@@ -1740,7 +1708,7 @@ export function VerifyLights() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1749,16 +1717,10 @@ export function VerifyLights() {
             </button>
             <button
               type="button"
-              className="ax-button ax-button--primary"
+              className="ax-btn ax-btn--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{
-                background: '#2563eb',
-                borderColor: '#2563eb',
-                color: '#ffffff',
-                fontWeight: 600,
-                padding: '6px 18px',
-                fontSize: 13,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -1818,11 +1780,9 @@ export function VerifyLights() {
                 href={lightboxUrl}
                 target="_blank"
                 rel="noreferrer"
+                className="ax-btn ax-btn--primary ax-btn--sm"
                 style={{
-                  color: '#2563eb',
-                  fontWeight: 600,
-                  fontSize: 12,
-                  textDecoration: 'underline',
+                  textDecoration: 'none',
                 }}
               >
                 Open Original ↗
@@ -1830,7 +1790,7 @@ export function VerifyLights() {
             )}
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >

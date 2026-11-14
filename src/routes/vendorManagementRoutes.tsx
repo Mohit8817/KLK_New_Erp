@@ -807,22 +807,37 @@ export const vendorManagementRoutes: ReactElement[] = [
   <Route key="vm.bihar.srt.inst.db3" path="bihar/srt-installation-dashboard" element={wrap(BiharSRTInstallationDashboard)} />,
 
   <Route key="vm.bihar.srt.inst.assign" path="vendor-management/bihar/srt/installation/assign" element={wrap(BiharSRTInstallationAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.assign_sites" path="vendor-management/bihar/srt/installation/assign-sites" element={wrap(BiharSRTInstallationAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.assign_short" path="bihar/srt/installation/assign" element={wrap(BiharSRTInstallationAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.assign_sites_short" path="bihar/srt/installation/assign-sites" element={wrap(BiharSRTInstallationAssignSites)} />,
   <Route key="vm.bihar.srt.inst.assign2" path="vendor-management/srt/assign-srt" element={wrap(BiharSRTInstallationAssignSites)} />,
   <Route key="vm.bihar.srt.inst.assign3" path="srt/assign-srt" element={wrap(BiharSRTInstallationAssignSites)} />,
 
   <Route key="vm.bihar.srt.inst.vassign" path="vendor-management/bihar/srt/installation/view-assign" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.vassign_sites" path="vendor-management/bihar/srt/installation/view-assign-sites" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.vassign_short" path="bihar/srt/installation/view-assign" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+  <Route key="vm.bihar.srt.inst.vassign_sites_short" path="bihar/srt/installation/view-assign-sites" element={wrap(BiharSRTInstallationViewAssignSites)} />,
   <Route key="vm.bihar.srt.inst.vassign2" path="vendor-management/srt/view" element={wrap(BiharSRTInstallationViewAssignSites)} />,
   <Route key="vm.bihar.srt.inst.vassign3" path="srt/view" element={wrap(BiharSRTInstallationViewAssignSites)} />,
 
   <Route key="vm.bihar.srt.inst.verify" path="vendor-management/bihar/srt/installation/verify" element={wrap(BiharSRTInstallationVerifySites)} />,
+  <Route key="vm.bihar.srt.inst.verify_sites" path="vendor-management/bihar/srt/installation/verify-sites" element={wrap(BiharSRTInstallationVerifySites)} />,
+  <Route key="vm.bihar.srt.inst.verify_short" path="bihar/srt/installation/verify" element={wrap(BiharSRTInstallationVerifySites)} />,
+  <Route key="vm.bihar.srt.inst.verify_sites_short" path="bihar/srt/installation/verify-sites" element={wrap(BiharSRTInstallationVerifySites)} />,
   <Route key="vm.bihar.srt.inst.verify2" path="vendor-management/srt/verificationsite" element={wrap(BiharSRTInstallationVerifySites)} />,
   <Route key="vm.bihar.srt.inst.verify3" path="srt/verificationsite" element={wrap(BiharSRTInstallationVerifySites)} />,
 
   <Route key="vm.bihar.srt.inst.claim" path="vendor-management/bihar/srt/installation/claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+  <Route key="vm.bihar.srt.inst.claim_view" path="vendor-management/bihar/srt/installation/view-claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+  <Route key="vm.bihar.srt.inst.claim_short" path="bihar/srt/installation/claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+  <Route key="vm.bihar.srt.inst.claim_view_short" path="bihar/srt/installation/view-claim" element={wrap(BiharSRTInstallationViewClaim)} />,
   <Route key="vm.bihar.srt.inst.claim2" path="vendor-management/srt/claimsite" element={wrap(BiharSRTInstallationViewClaim)} />,
   <Route key="vm.bihar.srt.inst.claim3" path="srt/claimsite" element={wrap(BiharSRTInstallationViewClaim)} />,
 
   <Route key="vm.bihar.srt.inst.pay" path="vendor-management/bihar/srt/installation/payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+  <Route key="vm.bihar.srt.inst.pay_view" path="vendor-management/bihar/srt/installation/view-payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+  <Route key="vm.bihar.srt.inst.pay_short" path="bihar/srt/installation/payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+  <Route key="vm.bihar.srt.inst.pay_view_short" path="bihar/srt/installation/view-payment" element={wrap(BiharSRTInstallationViewPayment)} />,
   <Route key="vm.bihar.srt.inst.pay2" path="vendor-management/srt/assignsrtpayment" element={wrap(BiharSRTInstallationViewPayment)} />,
   <Route key="vm.bihar.srt.inst.pay3" path="srt/assignsrtpayment" element={wrap(BiharSRTInstallationViewPayment)} />,
 

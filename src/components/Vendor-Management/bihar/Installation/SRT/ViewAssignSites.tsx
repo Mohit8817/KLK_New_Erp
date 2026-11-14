@@ -193,33 +193,44 @@ export function BiharSRTInstallationViewAssignSites() {
       setLoading(true);
       setErrorMsg('');
       const res = await biharAdminService.getViewAssignSrt();
-      const rawList = Array.isArray(res)
-        ? res
+      const d = res?.data || res || {};
+
+      const rawList = Array.isArray(d.data)
+        ? d.data
+        : Array.isArray(d.assigned_data)
+        ? d.assigned_data
+        : Array.isArray(d.assignments)
+        ? d.assignments
+        : Array.isArray(d.assigned_sites)
+        ? d.assigned_sites
+        : Array.isArray(d.sites)
+        ? d.sites
         : Array.isArray(res?.data)
         ? res.data
         : Array.isArray(res?.assignments)
         ? res.assignments
-        : Array.isArray(res?.data?.assigned_data)
-        ? res.data.assigned_data
+        : Array.isArray(res?.assigned_sites)
+        ? res.assigned_sites
+        : Array.isArray(res)
+        ? res
         : [];
 
-      if (res?.summary || res?.kpi || res?.data?.summary) {
-        setSummaryData(res.summary || res.kpi || res.data?.summary);
-      }
+      const sum = d.summary || d.kpi || res?.summary || res?.kpi || d;
+      setSummaryData(sum);
 
       const mapped: BiharSRTInstAssignRecord[] = rawList.map((item: any, idx: number) => ({
         id: item.id ?? idx + 1,
-        vendor: item.vendor || item.vendor_name || item.agency_name || '—',
-        assign_date: item.assign_date || item.created_at || item.date || '—',
+        vendor: item.vendor || item.vendor_name || item.agency_name || item.firm_name || item.installation_assigned_by || '—',
+        assign_date: item.assign_date || item.created_at || item.date || item.installation_assigned_date || '—',
         state: item.state || 'Bihar',
         district: item.district || '—',
         site_name_deadline:
           item.site_name_deadline ||
-          `${item.site_name || 'Site'}${item.deadline ? ` - ${item.deadline}` : ''}`,
-        site_count: Number(item.site_count || item.count || 1),
-        file: item.file || item.allotment_file || '',
-        remarks: item.remarks || item.remark || '—',
-        status: item.status !== undefined ? Number(item.status) as any : 0,
+          `${item.site_name || item.site || item.beneficiary_name || 'Site'}${item.deadline || item.installation_deadline ? ` - ${item.deadline || item.installation_deadline}` : ''}`,
+        site_count: Number(item.site_count || item.count || (Array.isArray(item.sites) ? item.sites.length : 1)),
+        file: item.file || item.allotment_file || item.document || '',
+        remarks: item.remarks || item.remark || item.inst_remark || '—',
+        status: item.status !== undefined ? (Number(item.status) as any) : (item.installation_status !== undefined ? Number(item.installation_status) as any : 0),
       }));
 
       setRecords(mapped);

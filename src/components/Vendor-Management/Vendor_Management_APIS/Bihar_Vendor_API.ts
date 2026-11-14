@@ -203,7 +203,12 @@ export const BIHAR_ADMIN_API = {
       buildCandidateUrls(`/admin/bihar/srt/installation/edit-assign/${encodeURIComponent(id)}`),
     UPDATE_ASSIGN: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/srt/installation/update-assign/${encodeURIComponent(id)}`),
-    VIEW_ASSIGN: buildCandidateUrls('/admin/bihar/srt/installation/view-assign'),
+    VIEW_ASSIGN: [
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign'),
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign-site'),
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign-sites'),
+      ...buildCandidateUrls('/admin/bihar/srt/view-assign-site'),
+    ],
     VIEW_ASSIGN_DETAILS: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/srt/installation/view-assign-details/${encodeURIComponent(id)}`),
     VERIFY: buildCandidateUrls('/admin/bihar/srt/installation/verify'),
@@ -289,7 +294,12 @@ export const BIHAR_ADMIN_API = {
     ASSIGN_VENDOR: buildCandidateUrls('/admin/bihar/srt/installation/assign-vendor'),
     GET_DISTRICT_NAME: buildCandidateUrls('/admin/bihar/srt/installation/get-district-name'),
     GET_SITE_NAME: buildCandidateUrls('/admin/bihar/srt/installation/get-site-name'),
-    VIEW_ASSIGN: buildCandidateUrls('/admin/bihar/srt/installation/view-assign'),
+    VIEW_ASSIGN: [
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign'),
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign-site'),
+      ...buildCandidateUrls('/admin/bihar/srt/installation/view-assign-sites'),
+      ...buildCandidateUrls('/admin/bihar/srt/view-assign-site'),
+    ],
     ASSIGN_AMC: buildCandidateUrls('/admin/bihar/srt/installation/assign-amc'),
     VIEW_INSTALLATION_AMC: buildCandidateUrls('/admin/bihar/srt/installation/view-installation-amc'),
     VERIFY_AMC_STATUS: buildCandidateUrls('/admin/bihar/srt/installation/verify-amc-status'),
