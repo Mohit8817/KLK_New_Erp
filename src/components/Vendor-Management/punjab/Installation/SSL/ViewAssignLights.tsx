@@ -1283,10 +1283,13 @@ export function ViewAssignLights() {
           <button
             type="button"
             onClick={() => setSelectedAssignForSites(null)}
-            className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
+              borderRadius: 6,
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1495,10 +1498,12 @@ export function ViewAssignLights() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#fff',
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

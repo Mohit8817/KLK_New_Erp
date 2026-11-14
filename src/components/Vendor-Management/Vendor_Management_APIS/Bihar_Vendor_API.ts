@@ -11,19 +11,11 @@ export function buildCandidateUrls(path: string): string[] {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const candidates: string[] = [];
 
-  // 1. With /api prefix (standard API route)
+  // 1. With /api/admin prefix (standard API route)
   candidates.push(`${API_ROOT}${cleanPath}`);
-
-  // 1b. If cleanPath starts with /admin, also add candidate without /admin (very common in routes/api.php)
-  if (cleanPath.startsWith('/admin/')) {
-    candidates.push(`${API_ROOT}${cleanPath.replace(/^\/admin/, '')}`);
-  }
 
   // 2. Direct with ROOT_URL (web route or non-api prefixed backend route)
   candidates.push(`${ROOT_URL}${cleanPath}`);
-  if (cleanPath.startsWith('/admin/')) {
-    candidates.push(`${ROOT_URL}${cleanPath.replace(/^\/admin/, '')}`);
-  }
 
   // 3. Fallback with RAW_BASE
   if (RAW_BASE !== API_ROOT && RAW_BASE !== ROOT_URL) {
@@ -50,16 +42,7 @@ export const BIHAR_ADMIN_API = {
           : '/admin/bihar/srt200mw/survey/fetch-site'
       ),
     STORE_ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/store-assign-survey'),
-    VIEW_ASSIGN: [
-      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign-survey'),
-      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign'),
-      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/assign-view'),
-      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assigned-survey'),
-      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign-survey'),
-      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign'),
-      ...buildCandidateUrls('/bihar/srt200mw-survey'),
-      ...buildCandidateUrls('/bihar/srt200mw-view-survey'),
-    ],
+    VIEW_ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign-survey'),
     VIEW_SURVEY: buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
     VERIFY_STATUS: buildCandidateUrls('/admin/bihar/srt200mw/survey/verify-survey-status'),
     DASHBOARD: buildCandidateUrls('/admin/bihar/srt200mw/survey/dashbboard'),
@@ -88,12 +71,7 @@ export const BIHAR_ADMIN_API = {
   SSL_INSTALLATION: {
     // 5.1 Assignment & Master Data
     ASSIGN: buildCandidateUrls('/admin/bihar/ssl/installation/assign'),
-    STORE_ASSIGN: [
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store-assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/assign-installation'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-store'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-lights'),
-    ],
+    STORE_ASSIGN: buildCandidateUrls('/admin/bihar/ssl/installation/store-assign'),
     VIEW_ASSIGN: buildCandidateUrls('/admin/bihar/ssl/installation/view-assign'),
     EDIT_ASSIGN: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/ssl/installation/edit-assign/${encodeURIComponent(id)}`),
@@ -246,42 +224,8 @@ export const BIHAR_ADMIN_API = {
   // ── 8. Bihar SSL AMC ──
   // Controller: BiharSslAssignAmcConroller · Prefix: /admin/bihar/ssl/installation/
   SSL_AMC: {
-    ASSIGN_VENDOR: [
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign'),
-    ],
-    STORE_ASSIGN: [
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-amc'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store-assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-store'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc/assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc/store-assign'),
-      ...buildCandidateUrls('/api/user/dle/bihar/ssl/amc/store-assign-light'),
-      ...buildCandidateUrls('/admin/bihar/ssl/assign-installation'),
-    ],
-    ASSIGN: [
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-amc'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store-assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/amc-store'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/store'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc-assign-vendor'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc/assign'),
-      ...buildCandidateUrls('/admin/bihar/ssl/amc/store-assign'),
-      ...buildCandidateUrls('/api/user/dle/bihar/ssl/amc/store-assign-light'),
-      ...buildCandidateUrls('/admin/bihar/ssl/assign-installation'),
-      ...buildCandidateUrls('/admin/bihar/ssl/installation/assign'),
-    ],
+    ASSIGN_VENDOR: buildCandidateUrls('/admin/bihar/ssl/installation/amc-assign-vendor'),
+    ASSIGN: buildCandidateUrls('/admin/bihar/ssl/installation/assign'),
     GET_DISTRICT: buildCandidateUrls('/admin/bihar/ssl/installation/get-district'),
     GET_BLOCKS: buildCandidateUrls('/admin/bihar/ssl/installation/get-blocks'),
     GET_PANCHAYATS: buildCandidateUrls('/admin/bihar/ssl/installation/get-panchayats'),

@@ -22,21 +22,6 @@ type TabType = 'completed' | 'verified';
 
 const DASH = '—';
 
-const cleanCoord = (val?: string | number | null): string => {
-  if (!val) return DASH;
-  const s = String(val).trim();
-  if (!s || s === '0' || s === 'null' || s === 'undefined') return DASH;
-  const cleaned = s.replace(/^(latitude|longitude|lat|long|lng)\s*:\s*/i, '').trim();
-  return cleaned || DASH;
-};
-
-const extractArray = (val: any): any[] => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  if (Array.isArray(val.data)) return val.data;
-  return [];
-};
-
 const statusTone = (s: string): 'success' | 'danger' | 'warning' =>
   s === 'Approved' ? 'success' : s === 'Rejected' ? 'danger' : 'warning';
 
@@ -277,145 +262,52 @@ export function BiharSSLInstallationVerifyLight() {
     biharAdminService
       .getViewSslInstallation()
       .then((res: any) => {
-        const d = res?.data || {};
-        const rawVerification = extractArray(d.verification ?? res?.verification);
-        const rawVerified = extractArray(d.verified ?? res?.verified);
-        const rawCompleted = extractArray(d.completed ?? res?.completed);
-        const rawInstallations = extractArray(d.installations ?? res?.installations);
-        const allList = rawInstallations.length > 0
-          ? rawInstallations
-          : Array.isArray(d)
-          ? d
+        const rawCompleted = res?.data?.completed || res?.data?.verification || res?.completed || [];
+        const rawVerified = res?.data?.verified || res?.verified || [];
+        const allList = Array.isArray(res?.data?.installations)
+          ? res.data.installations
+          : Array.isArray(res?.data)
+          ? res.data
           : Array.isArray(res)
           ? res
           : [];
 
-        let compItems: any[] = [];
-        let verItems: any[] = [];
+        const compItems = Array.isArray(rawCompleted) && rawCompleted.length > 0
+          ? rawCompleted
+          : allList.filter((s: any) => !s.verify_status || s.verify_status === 'Pending' || s.verify_status === 0 || s.verify_status === '0');
 
-        if (rawVerified.length > 0) {
-          verItems = rawVerified;
-          compItems = rawVerification.length > 0 ? rawVerification : rawCompleted;
-        } else if (rawVerification.length > 0) {
-          // If rawVerified is empty, check if items in rawVerification have verification status
-          const pendingInVerification = rawVerification.filter((s: any) => {
-            const st = s.inst_verify_status ?? s.verify_status;
-            return st === 0 || st === '0' || st === null || st === undefined || st === '' || st === 'Pending';
-          });
-          const verifiedInVerification = rawVerification.filter((s: any) => {
-            const st = s.inst_verify_status ?? s.verify_status;
-            return st === 1 || st === '1' || st === 2 || st === '2' || st === 'Approved' || st === 'Rejected';
-          });
-          compItems = pendingInVerification;
-          verItems = verifiedInVerification;
-        } else if (rawCompleted.length > 0) {
-          compItems = rawCompleted;
-        } else {
-          compItems = allList.filter((s: any) => {
-            const st = s.inst_verify_status ?? s.verify_status;
-            return st === 0 || st === '0' || st === null || st === undefined || st === '' || st === 'Pending';
-          });
-          verItems = allList.filter((s: any) => {
-            const st = s.inst_verify_status ?? s.verify_status;
-            return st === 1 || st === '1' || st === 2 || st === '2' || st === 'Approved' || st === 'Rejected';
-          });
-        }
+        const verItems = Array.isArray(rawVerified) && rawVerified.length > 0
+          ? rawVerified
+          : allList.filter((s: any) => s.verify_status === 'Approved' || s.verify_status === 'Rejected' || s.verify_status === 1 || s.verify_status === 2);
 
-        const normalize = (item: any, idx: number): Row => {
-          const rawStatus =
-            item.inst_verify_status !== undefined && item.inst_verify_status !== null && item.inst_verify_status !== ''
-              ? item.inst_verify_status
-              : item.verify_status !== undefined && item.verify_status !== null && item.verify_status !== ''
-              ? item.verify_status
-              : item.status;
-          const isApp = rawStatus === 1 || rawStatus === '1' || String(rawStatus).toLowerCase() === 'approved';
-          const isRej = rawStatus === 2 || rawStatus === '2' || String(rawStatus).toLowerCase() === 'rejected';
-          const verify_status: 'Approved' | 'Rejected' | 'Pending' = isApp ? 'Approved' : isRej ? 'Rejected' : 'Pending';
-
-          // Vendor resolution: support vendor_name, vendor, firm_name, installation_assigned_by, installed_by
-          const vendorName =
-            item.installation_assigned_by ||
-            item.vendor_name ||
-            item.vendor ||
-            item.firm_name ||
-            (item.installed_by ? `Vendor #${item.installed_by}` : '') ||
-            (item.installation_vendor ? `Vendor #${item.installation_vendor}` : '') ||
-            'Vendor';
-
-          // State
-          const stateVal = item.state
-            ? String(item.state).charAt(0).toUpperCase() + String(item.state).slice(1)
-            : 'Bihar';
-
-          // Phase / Volume
-          const phaseVal = item.phase
-            ? (String(item.phase).toLowerCase().startsWith('phase') ? item.phase : `Phase ${item.phase}`)
-            : item.volume
-            ? `Vol ${item.volume}`
-            : 'Phase 1';
-
-          // Panchayat resolution (API returns "panchyat")
-          const panchayatVal = item.panchayat || item.panchyat || item.panchayat_name || DASH;
-
-          // Contact resolution (API returns "contact_no")
-          const contactVal = item.contact_no || item.beneficiary_contact || item.contact || item.mobile || DASH;
-
-          // Ward No formatting
-          const rawWard = item.ward_no ? String(item.ward_no).trim() : '';
-          const wardVal = rawWard
-            ? (rawWard.toLowerCase().startsWith('ward') ? rawWard : `Ward ${rawWard}`)
-            : 'Ward —';
-
-          // Serial / Module / Battery / Light / Image
-          const batteryVal = item.battery_serial_no || item.battery_no || item.battery_serial_file || DASH;
-          const panelVal = item.module_no || item.panel_no || item.module_file || DASH;
-          const lightNoVal = item.light_no || item.luminary_no || DASH;
-          const lightImgUrl = resolveBiharMediaUrl(item.light_file || item.light_image || item.image || item.luminary_file);
-          const remarkVal = item.inst_remark || item.remark || item.remarks || DASH;
-
-          return {
-            id: item.id || idx + 1,
-            vendor: vendorName,
-            uid: item.unique_id || item.uid || (item.wo_no ? `WO-${item.wo_no}` : '') || `SSL-${item.id || idx + 1}`,
-            state: stateVal,
-            phase: phaseVal,
-            volume: item.volume ? String(item.volume) : undefined,
-            wo_no: item.wo_no ? String(item.wo_no) : undefined,
-            district: item.district || DASH,
-            district_code: item.district_code || item.excel_id ? String(item.district_code || item.excel_id) : '',
-            block: item.block || DASH,
-            block_code: item.block_code ? String(item.block_code) : '',
-            panchayat: panchayatVal,
-            panchyat: item.panchyat,
-            panchayat_code: item.panchayat_code ? String(item.panchayat_code) : '',
-            village: item.village || null,
-            ward_no: wardVal,
-            pole_no: item.pole_no ? String(item.pole_no) : DASH,
-            beneficiary_name: item.beneficiary_name || item.farmer_name || item.consumer_name || DASH,
-            beneficiary_contact: contactVal,
-            contact_no: item.contact_no,
-            latitude: cleanCoord(item.latitude),
-            longitude: cleanCoord(item.longitude),
-            uuid_no: item.uuid_no || DASH,
-            imei_no: item.imei_no || item.sim_no || DASH,
-            light_no: lightNoVal,
-            battery_no: batteryVal,
-            battery_serial_no: item.battery_serial_no,
-            panel_no: panelVal,
-            module_no: item.module_no,
-            light_file: item.light_file,
-            light_image: lightImgUrl,
-            image: item.image,
-            remark: remarkVal,
-            inst_remark: item.inst_remark,
-            verify_status,
-            inst_verify_status: item.inst_verify_status,
-            reverify_status: item.reverify_status || (item.cms_upload_status ? `CMS: ${item.cms_upload_status}` : ''),
-            date_of_installation: item.date_of_installation || item.inst_date || '',
-            inst_date: item.inst_date || '',
-            created_at: item.created_at || '',
-          };
-        };
+        const normalize = (item: any, idx: number): Row => ({
+          id: item.id || idx + 1,
+          vendor: item.vendor_name || item.vendor || 'Vendor',
+          uid: item.uid || item.unique_id || `SSL-${item.id || idx + 1}`,
+          state: item.state || 'Bihar',
+          phase: item.phase || 'Phase 1',
+          district: item.district || '—',
+          district_code: item.district_code || '',
+          block: item.block || '—',
+          block_code: item.block_code || '',
+          panchayat: item.panchayat || '—',
+          panchayat_code: item.panchayat_code || '',
+          ward_no: item.ward_no ? `Ward ${item.ward_no}` : 'Ward —',
+          pole_no: item.pole_no || '—',
+          beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
+          beneficiary_contact: item.beneficiary_contact || item.contact || '—',
+          latitude: item.latitude || '—',
+          longitude: item.longitude || '—',
+          uuid_no: item.uuid_no || '—',
+          imei_no: item.imei_no || '—',
+          light_no: item.light_no || '—',
+          battery_no: item.battery_no || '—',
+          panel_no: item.panel_no || '—',
+          light_image: resolveBiharMediaUrl(item.light_image || item.image),
+          remark: item.remark || item.remarks || '—',
+          verify_status: item.verify_status === 1 || item.verify_status === 'Approved' ? 'Approved' : item.verify_status === 2 || item.verify_status === 'Rejected' ? 'Rejected' : 'Pending',
+          reverify_status: item.reverify_status || '',
+        });
 
         const cList = compItems.map(normalize);
         const vList = verItems.map(normalize);
@@ -423,26 +315,20 @@ export function BiharSSLInstallationVerifyLight() {
         setCompletedList(cList);
         setVerifiedList(vList);
 
-        // KPI Summary mapping (support flat response properties and summary object)
-        const summary = d.summary || res?.summary || {};
-        const total = Number(d.totalsite ?? d.totalLights ?? summary.total_assigned ?? summary.total ?? (cList.length + vList.length));
-        const comp = Number(d.complete ?? d.completeLights ?? summary.complete ?? cList.length);
-        const pend = Number(d.pendingsite ?? d.pendingLights ?? summary.pending ?? Math.max(0, total - comp));
-        const approved = Number(d.approvedsite ?? d.approveLights ?? summary.approve ?? vList.filter((r: Row) => r.verify_status === 'Approved').length);
-        const rejected = Number(d.rejectsite ?? d.rejectLights ?? summary.reject ?? vList.filter((r: Row) => r.verify_status === 'Rejected').length);
-        const vPending = Number(d.verifypending ?? summary.verify_pending ?? cList.length);
-        const claimApp = Number(d.claimedapplicable ?? summary.claim_applicable ?? 0);
-        const payDone = Number(d.paymentsitecount ?? summary.payment_done ?? 0);
+        const summary = res?.data?.summary || res?.summary || {};
+        const total = summary.total_assigned !== undefined ? Number(summary.total_assigned) : cList.length + vList.length;
+        const comp = summary.complete !== undefined ? Number(summary.complete) : cList.length;
+        const pend = summary.pending !== undefined ? Number(summary.pending) : Math.max(0, total - comp);
 
         setKpis({
           totalAssignedLights: total,
           completeLights: comp,
           pendingLights: pend,
-          approveLights: approved,
-          rejectLights: rejected,
-          verifyPending: vPending,
-          claimApplicable: claimApp,
-          paymentDone: payDone,
+          approveLights: summary.approve !== undefined ? Number(summary.approve) : vList.filter((r: Row) => r.verify_status === 'Approved').length,
+          rejectLights: summary.reject !== undefined ? Number(summary.reject) : vList.filter((r: Row) => r.verify_status === 'Rejected').length,
+          verifyPending: summary.verify_pending !== undefined ? Number(summary.verify_pending) : cList.length,
+          claimApplicable: summary.claim_applicable !== undefined ? Number(summary.claim_applicable) : 0,
+          paymentDone: summary.payment_done !== undefined ? Number(summary.payment_done) : 0,
         });
       })
       .catch((err: any) => {
@@ -472,24 +358,9 @@ export function BiharSSLInstallationVerifyLight() {
     const q = search.trim().toLowerCase();
     if (!q) return activeList;
     return activeList.filter((r) =>
-      [
-        r.vendor,
-        r.uid,
-        r.district,
-        r.block,
-        r.panchayat,
-        r.panchyat,
-        r.ward_no,
-        r.pole_no,
-        r.beneficiary_name,
-        r.beneficiary_contact,
-        r.contact_no,
-        r.light_no,
-        r.battery_no,
-        r.panel_no,
-        r.uuid_no,
-        r.imei_no,
-      ].some((v) => String(v ?? '').toLowerCase().includes(q))
+      [r.vendor, r.uid, r.district, r.block, r.panchayat, r.ward_no, r.pole_no, r.beneficiary_name].some((v) =>
+        String(v ?? '').toLowerCase().includes(q)
+      )
     );
   }, [activeList, search]);
 
@@ -521,10 +392,7 @@ export function BiharSSLInstallationVerifyLight() {
       await biharAdminService.verifySslInstallationStatus({
         id: actionItem.id,
         verify_status: verifyChoice,
-        inst_verify_status: Number(verifyChoice),
-        status: verifyChoice,
         remark: remarks,
-        inst_remark: remarks,
       });
       setSuccessMsg(`Light ${actionItem.uid} (${actionItem.pole_no}) marked as ${isApprove ? 'Approved' : 'Rejected'}!`);
       setActionItem(null);
@@ -545,25 +413,16 @@ export function BiharSSLInstallationVerifyLight() {
       { header: 'Vendor', accessor: (r) => r.vendor },
       { header: 'UID', accessor: (r) => r.uid },
       { header: 'State', accessor: (r) => r.state },
-      { header: 'Phase', accessor: (r) => r.phase || '' },
       { header: 'District', accessor: (r) => r.district },
-      { header: 'District Code', accessor: (r) => r.district_code || '' },
       { header: 'Block', accessor: (r) => r.block },
-      { header: 'Block Code', accessor: (r) => r.block_code || '' },
       { header: 'Panchayat', accessor: (r) => r.panchayat },
-      { header: 'Ward No', accessor: (r) => r.ward_no || '' },
-      { header: 'Pole No', accessor: (r) => r.pole_no || '' },
-      { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name || '' },
-      { header: 'Contact', accessor: (r) => r.beneficiary_contact || '' },
-      { header: 'Latitude', accessor: (r) => r.latitude || '' },
-      { header: 'Longitude', accessor: (r) => r.longitude || '' },
-      { header: 'UUID No', accessor: (r) => r.uuid_no || '' },
-      { header: 'IMEI No', accessor: (r) => r.imei_no || '' },
-      { header: 'Light No', accessor: (r) => r.light_no || '' },
-      { header: 'Battery No', accessor: (r) => r.battery_no || '' },
-      { header: 'Panel No', accessor: (r) => r.panel_no || '' },
-      { header: 'Installation Date', accessor: (r) => r.date_of_installation || '' },
-      { header: 'Remark', accessor: (r) => r.remark || '' },
+      { header: 'Ward No', accessor: (r) => r.ward_no },
+      { header: 'Pole No', accessor: (r) => r.pole_no },
+      { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name },
+      { header: 'Contact', accessor: (r) => r.beneficiary_contact },
+      { header: 'UUID No', accessor: (r) => r.uuid_no },
+      { header: 'IMEI No', accessor: (r) => r.imei_no },
+      { header: 'Light No', accessor: (r) => r.light_no },
       { header: 'Status', accessor: (r) => r.verify_status },
     ],
     []
@@ -857,13 +716,11 @@ export function BiharSSLInstallationVerifyLight() {
             <div style={{ background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8, padding: 12, fontSize: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
                 <div><b>Vendor:</b> {actionItem.vendor}</div>
-                <div><b>Beneficiary:</b> {actionItem.beneficiary_name} {actionItem.beneficiary_contact && actionItem.beneficiary_contact !== DASH ? `(${actionItem.beneficiary_contact})` : ''}</div>
+                <div><b>Beneficiary:</b> {actionItem.beneficiary_name}</div>
                 <div><b>District:</b> {actionItem.district}</div>
                 <div><b>Block / Panchayat:</b> {actionItem.block} / {actionItem.panchayat}</div>
                 <div><b>Ward / Pole:</b> {actionItem.ward_no} / {actionItem.pole_no}</div>
                 <div><b>IMEI / Light No:</b> {actionItem.imei_no} / {actionItem.light_no}</div>
-                <div><b>Battery / Panel No:</b> {actionItem.battery_no} / {actionItem.panel_no}</div>
-                <div><b>Installed On:</b> {actionItem.date_of_installation || DASH}</div>
               </div>
             </div>
           )}

@@ -19,7 +19,7 @@ import {
 /* ───────── Responsive page CSS (Exact Assam SWP reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -73,14 +73,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: var(--asw-primary, #2563eb);
-    color: var(--asw-primary, #2563eb);
+    border-color: #2563eb;
+    color: #2563eb;
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: var(--asw-primary, #2563eb);
+    background: #2563eb;
     color: #ffffff;
-    border-color: var(--asw-primary, #2563eb);
-    box-shadow: 0 2px 4px rgba(var(--asw-primary-rgb), 0.2);
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -370,7 +370,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -861,7 +861,7 @@ export function VerifyInstallation() {
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
           Verify Pending
@@ -871,7 +871,7 @@ export function VerifyInstallation() {
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active ax-btn--primary' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active' : ''}`}
           onClick={() => setActiveTab('approved_rejected')}
         >
           Approved / Rejected Data
@@ -1267,9 +1267,12 @@ export function VerifyInstallation() {
                           <button
                             type="button"
                             onClick={() => setSelectedSiteForDetails(row)}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               padding: '4px 8px',
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              color: '#1e293b',
+                              border: '1px solid #cbd5e1',
                               fontSize: 11,
                               fontWeight: 600,
                               cursor: 'pointer',
@@ -1290,17 +1293,19 @@ export function VerifyInstallation() {
                               type="button"
                               disabled
                               title={`Installation Verified & ${verifyStatus === 1 ? 'Approved' : 'Rejected'} (Locked)`}
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 4,
                                 padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: 'not-allowed',
-                                opacity: 0.75,
                               }}
                             >
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1317,9 +1322,12 @@ export function VerifyInstallation() {
                                 setActionStatus(String(row.inst_verify_status ?? '1'));
                                 setActionRemarks(row.inst_verify_remarks || row.verify_remarks || '');
                               }}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -1373,13 +1381,15 @@ export function VerifyInstallation() {
                     type="button"
                     disabled
                     title={`Installation Verified & ${Number(selectedSiteForDetails.inst_verify_status ?? 0) === 1 ? 'Approved' : 'Rejected'} (Locked)`}
-                    className="ax-btn ax-btn--secondary"
                     style={{
                       padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#f1f5f9',
+                      color: '#94a3b8',
+                      border: '1px solid #cbd5e1',
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: 'not-allowed',
-                      opacity: 0.75,
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
@@ -1401,9 +1411,12 @@ export function VerifyInstallation() {
                       setActionStatus(String(site.inst_verify_status ?? '1'));
                       setActionRemarks(site.inst_verify_remarks || site.verify_remarks || '');
                     }}
-                    className="ax-btn ax-btn--primary"
                     style={{
                       padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: 'pointer',
@@ -1423,7 +1436,7 @@ export function VerifyInstallation() {
             </div>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => setSelectedSiteForDetails(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >
@@ -1825,7 +1838,7 @@ export function VerifyInstallation() {
           <>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1834,7 +1847,7 @@ export function VerifyInstallation() {
             </button>
             <button
               type="button"
-              className="ax-btn ax-btn--primary"
+              className="ax-button ax-button--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -1889,7 +1902,7 @@ export function VerifyInstallation() {
         footer={
           <button
             type="button"
-            className="ax-btn ax-btn--secondary"
+            className="ax-button ax-button--secondary"
             onClick={() => setLightboxUrl(null)}
             style={{ padding: '6px 16px', fontSize: 13 }}
           >

@@ -1,19 +1,19 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { biharAdminService, resolveBiharMediaUrl } from '../../bihar-services/biharAdminService';
 import { BIHAR_DISTRICTS } from '../../bihar-types';
 
-// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Assign Bihar SSL Installation Sites Reference)
+// Unified Single-Card Layout with Floating Labels & Section Dividers (matching Kashmir SRT 70MW)
 const SINGLE_CARD_FORM_CSS = `
-.swp-inst-form .ax-card {
+.kswp-assign-form .ax-card {
   border: 1px solid var(--ax-border, #e2e8f0);
   border-radius: var(--ax-radius-xl, 16px);
   background: var(--ax-surface-solid, #ffffff);
   box-shadow: var(--ax-shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.05));
   overflow: hidden;
 }
-.swp-inst-form .ax-card__header {
+.kswp-assign-form .ax-card__header {
   padding: var(--ax-space-5, 20px) var(--ax-space-6, 24px);
   border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
   background: var(--ax-surface-subtle, #f8fafc);
@@ -21,17 +21,17 @@ const SINGLE_CARD_FORM_CSS = `
   flex-direction: column;
   gap: var(--ax-space-4, 16px);
 }
-.swp-inst-form .ax-card__body { padding: var(--ax-space-6, 24px); }
+.kswp-assign-form .ax-card__body { padding: var(--ax-space-6, 24px); }
 
 /* Quick Section Nav Pills */
-.swp-section-pills {
+.kswp-section-pills {
   display: flex;
   gap: var(--ax-space-2, 8px);
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
 }
-.swp-section-pill-btn {
+.kswp-section-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -41,17 +41,17 @@ const SINGLE_CARD_FORM_CSS = `
   font-weight: 500;
   white-space: nowrap;
   background: var(--ax-surface-solid, #ffffff);
-  border: 1px solid var(--ax-border, #e2e8f0);
+  border: 1px solid var(--ax-border, #cbd5e1);
   color: var(--ax-text, #334155);
   cursor: pointer;
   transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
-.swp-section-pill-btn:hover {
+.kswp-section-pill-btn:hover {
   border-color: #2563eb;
   color: #2563eb;
   background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
 }
-.swp-section-pill-btn .pill-num {
+.kswp-section-pill-btn .pill-num {
   width: 18px; height: 18px; border-radius: 50%;
   background: var(--ax-surface-subtle, #f1f5f9);
   display: inline-flex; align-items: center; justify-content: center;
@@ -59,16 +59,16 @@ const SINGLE_CARD_FORM_CSS = `
 }
 
 /* Section Block */
-.swp-section-block { padding-top: var(--ax-space-2, 8px); scroll-margin-top: 80px; }
-.swp-section-header {
+.kswp-section-block { padding-top: var(--ax-space-2, 8px); scroll-margin-top: 80px; }
+.kswp-section-header {
   display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
   gap: var(--ax-space-2, 8px);
   margin-bottom: var(--ax-space-5, 20px);
   padding-bottom: var(--ax-space-3, 12px);
   border-bottom: 1px solid var(--ax-border-subtle, #f1f5f9);
 }
-.swp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
-.swp-section-divider {
+.kswp-section-title-wrap { display: flex; flex-direction: column; gap: 4px; }
+.kswp-section-divider {
   border: 0;
   border-top: 1px dashed var(--ax-border, #cbd5e1);
   margin: var(--ax-space-8, 32px) 0 var(--ax-space-6, 24px);
@@ -94,9 +94,15 @@ const SINGLE_CARD_FORM_CSS = `
   border-color: #2563eb;
   box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
 }
-.ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
+.ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 .ax-float__input.is-invalid { border-color: #ef4444; }
 .ax-float__input.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, #ef4444 24%, transparent); }
+textarea.ax-float__input {
+  height: auto;
+  min-height: 96px;
+  padding-top: 20px;
+  resize: vertical;
+}
 
 .ax-float__label {
   position: absolute;
@@ -119,6 +125,7 @@ const SINGLE_CARD_FORM_CSS = `
   overflow: hidden;
   text-overflow: ellipsis;
 }
+textarea.ax-float__input + .ax-float__label { top: 22px; }
 .ax-float__label.floating {
   top: 0;
   font-size: 11px;
@@ -133,67 +140,68 @@ const SINGLE_CARD_FORM_CSS = `
 }
 .ax-float__input.is-invalid + .ax-float__label { color: #ef4444; }
 
-.swp-field-error { margin-top: 4px; font-size: 11px; color: #ef4444; }
+.kswp-field-error { margin-top: 4px; font-size: 11px; color: #ef4444; }
+
+/* Footer copyright */
+.srt-page-footer {
+  margin-top: 28px;
+  padding: 16px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ax-text-muted, #64748b);
+  border-top: 1px solid var(--ax-border, #e2e8f0);
+}
 `;
 
-interface FloatingInputProps {
-  label: string;
-  name: string;
-  value: string;
-  onChange?: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  required?: boolean;
-  disabled?: boolean;
-  type?: string;
-  placeholder?: string;
-  min?: string | number;
-  readOnly?: boolean;
-  error?: string;
-}
+/* ───────── Floating Select ───────── */
+type Option = { value: string; label: string };
 
-function FloatingInput({
+function FloatingSelect({
+  id,
   label,
-  name,
   value,
-  onChange,
-  required,
-  disabled,
-  type = 'text',
+  options,
   placeholder,
-  min,
-  readOnly,
+  disabled,
   error,
-}: FloatingInputProps) {
-  const [focused, setFocused] = useState(false);
-  const hasVal = Boolean(value && String(value).length > 0);
-
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: Option[];
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+  onChange: (val: string) => void;
+}) {
   return (
     <div>
       <div className="ax-float">
-        <input
-          type={type}
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          required={required}
-          disabled={disabled}
-          readOnly={readOnly}
-          min={min}
-          placeholder={placeholder || label}
+        <select
+          id={id}
           className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        />
-        <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
-          {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <label htmlFor={id} className="ax-float__label floating">
+          {label} <span style={{ color: '#ef4444' }}>*</span>
         </label>
       </div>
-      {error && <div className="swp-field-error">{error}</div>}
+      {error && <div className="kswp-field-error">{error}</div>}
     </div>
   );
 }
 
-/* ───────── Modern Upload Dropzone (matching Assign Bihar SSL Reference) ───────── */
+/* ───────── Modern Upload Dropzone ───────── */
 interface UploadDropzoneProps {
   id: string;
   label: string;
@@ -205,7 +213,6 @@ interface UploadDropzoneProps {
   onSelect: (file: File) => void;
   onRemove: () => void;
   error?: string;
-  hint?: string;
 }
 
 function UploadDropzone({
@@ -213,13 +220,12 @@ function UploadDropzone({
   label,
   required,
   disabled,
-  accept = '.xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png',
+  accept = '.pdf,.jpg,.jpeg,.png,.xlsx,.csv',
   file,
   preview,
   onSelect,
   onRemove,
   error,
-  hint = 'Supports Excel (XLSX, XLS), CSV, PDF (Max 15 MB) — single file',
 }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -237,9 +243,7 @@ function UploadDropzone({
     if (disabled) return;
     setIsDragging(false);
     const chosen = e.dataTransfer.files?.[0];
-    if (chosen) {
-      onSelect(chosen);
-    }
+    if (chosen) onSelect(chosen);
   };
 
   return (
@@ -249,14 +253,14 @@ function UploadDropzone({
         style={{
           fontSize: '12.5px',
           fontWeight: 600,
-          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          color: error ? '#ef4444' : 'var(--ax-text-strong, #334155)',
           display: 'flex',
           alignItems: 'center',
           gap: 4,
         }}
       >
         <span>{label}</span>
-        {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+        {required && <span style={{ color: '#ef4444' }}>*</span>}
       </label>
 
       <input
@@ -302,7 +306,7 @@ function UploadDropzone({
             : isDragging
             ? '1.5px dashed #2563eb'
             : error
-            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            ? '1.5px dashed #ef4444'
             : isHovered
             ? '1.5px dashed #94a3b8'
             : '1.5px dashed #cbd5e1',
@@ -400,17 +404,13 @@ function UploadDropzone({
               Click to upload or drag & drop
             </div>
             <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
-              {hint}
+              PDF, JPG, JPEG, PNG or XLSX (Max 15 MB) — single file
             </div>
           </>
         )}
       </div>
 
-      {error && (
-        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
-          {error}
-        </span>
-      )}
+      {error && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>{error}</span>}
     </div>
   );
 }
@@ -419,14 +419,12 @@ function UploadDropzone({
 export function AssignBiharSRT200MWSurvey() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('id') || searchParams.get('edit');
-  const isEditMode = Boolean(editId);
+  const editId = searchParams.get('id');
 
   // Form fields
   const [vendor, setVendor] = useState<string>('');
   const [stateName] = useState<string>('Bihar');
   const [district, setDistrict] = useState<string>('');
-  const [deadlineDate, setDeadlineDate] = useState<string>('');
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
@@ -447,7 +445,7 @@ export function AssignBiharSRT200MWSurvey() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Section refs for quick scrolling pills
+  // Section refs for smooth scrolling pills
   const sec1 = useRef<HTMLDivElement>(null);
   const sec2 = useRef<HTMLDivElement>(null);
   const sec3 = useRef<HTMLDivElement>(null);
@@ -501,7 +499,7 @@ export function AssignBiharSRT200MWSurvey() {
     };
   }, []);
 
-  // When district changes, fetch available sites
+  // When district changes, fetch sites
   useEffect(() => {
     if (!district) {
       setSites([]);
@@ -570,11 +568,11 @@ export function AssignBiharSRT200MWSurvey() {
   // Form validation
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!vendor) errs.vendor = 'Vendor Name is required.';
-    if (!district) errs.district = 'District is required.';
+    if (!vendor) errs.vendor = 'Please select a Vendor.';
+    if (!stateName) errs.state = 'Please select a State.';
+    if (!district) errs.district = 'Please select a District.';
     if (selectedSiteIds.length === 0) errs.site = 'Please select at least one Site.';
-    if (!deadlineDate) errs.deadline_date = 'Deadline Date is required.';
-    if (!isEditMode && !file && !existingFileName) errs.file = 'Work Order File is required.';
+    if (!editId && !file) errs.file = 'Please upload a file.';
     setValidationErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -601,7 +599,6 @@ export function AssignBiharSRT200MWSurvey() {
         formData.append('site_name[]', String(id));
         formData.append('site[]', String(id));
       });
-      if (deadlineDate) formData.append('deadline_date', deadlineDate);
       if (remarks) formData.append('remarks', remarks);
       if (file) formData.append('file', file);
       if (editId) formData.append('id', editId);
@@ -635,7 +632,6 @@ export function AssignBiharSRT200MWSurvey() {
   const handleReset = () => {
     setVendor('');
     setDistrict('');
-    setDeadlineDate('');
     setSelectedSiteIds([]);
     setSiteSearch('');
     setRemarks('');
@@ -647,10 +643,20 @@ export function AssignBiharSRT200MWSurvey() {
     setSuccessMsg(null);
   };
 
-  const pageTitle = isEditMode ? 'Edit Bihar SRT 200MW Survey' : 'Assign Bihar SRT200MW Survey';
+  const vendorOptions: Option[] = vendors.map((v) => ({
+    value: String(v.id),
+    label: v.name,
+  }));
+
+  const districtOptions: Option[] = BIHAR_DISTRICTS.map((d) => ({
+    value: d,
+    label: d,
+  }));
+
+  const pageTitle = editId ? 'Edit Bihar SRT 200MW Survey' : 'Assign Bihar SRT200MW Survey';
 
   return (
-    <div className="ax-page swp-inst-form">
+    <div className="ax-page kswp-assign-form" style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       {/* Page Head */}
@@ -682,7 +688,7 @@ export function AssignBiharSRT200MWSurvey() {
               <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
               <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
             </svg>
-            View Assigned SRT Sites
+            View Assigned List
           </Link>
         }
       />
@@ -734,18 +740,14 @@ export function AssignBiharSRT200MWSurvey() {
         </div>
       )}
 
-      {/* Unified Single-Card Layout matching Assign Bihar SSL Installation Sites Reference */}
       <form onSubmit={handleSubmit} className="ax-card" noValidate>
         {/* Header with Title and Section Navigation Pills */}
         <div className="ax-card__header">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
-                {isEditMode ? `Edit Bihar SRT 200MW Survey #${editId}` : 'Assign Bihar SRT200MW Survey'}
+                {editId ? `Edit Bihar SRT 200MW Survey #${editId}` : 'Assign Bihar SRT200MW Survey'}
               </h2>
-              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: '#ef4444', margin: '4px 0 0' }}>
-                The field labels marked with * are required input fields.
-              </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {selectedSiteIds.length > 0 && (
@@ -753,118 +755,90 @@ export function AssignBiharSRT200MWSurvey() {
                   {selectedSiteIds.length} Site(s) Selected
                 </span>
               )}
-              {district && (
-                <span className="ax-badge ax-badge--soft ax-badge--secondary" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
-                  {district}
-                </span>
-              )}
             </div>
           </div>
 
           {/* Quick Nav Pills */}
-          <div className="swp-section-pills">
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec1)}>
+          <div className="kswp-section-pills">
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec1)}>
               <span className="pill-num">1</span> Vendor & District
             </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec2)}>
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec2)}>
               <span className="pill-num">2</span> Site Selection
             </button>
-            <button type="button" className="swp-section-pill-btn" onClick={() => scrollTo(sec3)}>
-              <span className="pill-num">3</span> Timeline & Work Order
+            <button type="button" className="kswp-section-pill-btn" onClick={() => scrollTo(sec3)}>
+              <span className="pill-num">3</span> File & Remarks
             </button>
           </div>
         </div>
 
         <div className="ax-card__body">
           {/* SECTION 1: Vendor & District */}
-          <div ref={sec1} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Vendor & District Allocation</h3>
+          <div ref={sec1} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Vendor & District Selection</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Select authorized partner vendor, project state and allocated project district
+                  Assign certified EPC survey vendor, operational state, and project district
                 </span>
               </div>
             </div>
 
-            <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {/* Vendor Name * */}
-              <div>
-                <div className="ax-float">
-                  <select
-                    id="vendor_select"
-                    className={`ax-float__input ${validationErrors.vendor ? 'is-invalid' : ''}`}
-                    value={vendor}
-                    onChange={(e) => {
-                      setVendor(e.target.value);
-                      clearError('vendor');
-                    }}
-                    disabled={isSubmitting || loadingVendors}
-                    required
-                  >
-                    <option value="">{loadingVendors ? '-- Loading Vendors... --' : '-- Select Vendor --'}</option>
-                    {vendors.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="vendor_select" className="ax-float__label floating">
-                    Vendor Name <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-                {validationErrors.vendor && <div className="swp-field-error">{validationErrors.vendor}</div>}
-              </div>
-
-              {/* State (Bihar) */}
-              <FloatingInput
-                label="State"
-                name="state"
-                value={stateName}
-                disabled
-                readOnly
-                required
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <FloatingSelect
+                id="bihar-vendor"
+                label="Vendor Name"
+                placeholder={loadingVendors ? 'Loading vendors...' : '-- Select Vendor --'}
+                value={vendor}
+                options={vendorOptions}
+                disabled={isSubmitting || loadingVendors}
+                onChange={(v) => {
+                  setVendor(v);
+                  clearError('vendor');
+                }}
+                error={validationErrors.vendor}
               />
 
-              {/* District * */}
-              <div>
-                <div className="ax-float">
-                  <select
-                    id="district_select"
-                    className={`ax-float__input ${validationErrors.district ? 'is-invalid' : ''}`}
-                    value={district}
-                    onChange={(e) => {
-                      setDistrict(e.target.value);
-                      setSelectedSiteIds([]);
-                      clearError('district');
-                    }}
-                    disabled={isSubmitting}
-                    required
-                  >
-                    <option value="">-- Select District --</option>
-                    {BIHAR_DISTRICTS.map((d, idx) => (
-                      <option key={idx} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <label htmlFor="district_select" className="ax-float__label floating">
-                    District <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                </div>
-                {validationErrors.district && <div className="swp-field-error">{validationErrors.district}</div>}
+              <div className="ax-float">
+                <input
+                  type="text"
+                  id="bihar-state"
+                  className="ax-float__input"
+                  value={stateName}
+                  readOnly
+                  disabled
+                  style={{ background: '#f8fafc', color: '#1e293b', fontWeight: 600 }}
+                />
+                <label htmlFor="bihar-state" className="ax-float__label floating">
+                  State <span style={{ color: '#ef4444' }}>*</span>
+                </label>
               </div>
+
+              <FloatingSelect
+                id="bihar-district"
+                label="District"
+                placeholder="-- Select District --"
+                value={district}
+                options={districtOptions}
+                disabled={isSubmitting}
+                onChange={(v) => {
+                  setDistrict(v);
+                  setSelectedSiteIds([]);
+                  clearError('district');
+                }}
+                error={validationErrors.district}
+              />
             </div>
           </div>
 
-          <hr className="swp-section-divider" />
+          <hr className="kswp-section-divider" />
 
           {/* SECTION 2: Site Selection */}
-          <div ref={sec2} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
+          <div ref={sec2} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
-                  2. Site Selection <span style={{ color: '#ef4444' }}>*</span>
+                  2. Site Name <span style={{ color: '#ef4444' }}>*</span>
                 </h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
                   Select one or more rooftop solar sites to assign to the vendor for Bihar 200MW SRT Survey
@@ -924,7 +898,7 @@ export function AssignBiharSRT200MWSurvey() {
             {!district ? (
               <div
                 style={{
-                  padding: '28px',
+                  padding: '24px',
                   background: 'var(--ax-surface-subtle, #f8fafc)',
                   border: `1.5px dashed ${validationErrors.site ? '#ef4444' : 'var(--ax-border, #cbd5e1)'}`,
                   borderRadius: 10,
@@ -974,7 +948,7 @@ export function AssignBiharSRT200MWSurvey() {
                   />
                 </div>
 
-                <div style={{ maxHeight: 320, overflowY: 'auto', padding: 10 }}>
+                <div style={{ maxHeight: 300, overflowY: 'auto', padding: 10 }}>
                   {filteredSites.length === 0 ? (
                     <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--ax-text-muted, #64748b)' }}>
                       No sites match your search.
@@ -1090,50 +1064,19 @@ export function AssignBiharSRT200MWSurvey() {
                 </div>
               </div>
             )}
-            {validationErrors.site && <div className="swp-field-error" style={{ marginTop: 6 }}>{validationErrors.site}</div>}
+            {validationErrors.site && <div className="kswp-field-error" style={{ marginTop: 6 }}>{validationErrors.site}</div>}
           </div>
 
-          <hr className="swp-section-divider" />
+          <hr className="kswp-section-divider" />
 
-          {/* SECTION 3: Timeline & Work Order Documentation */}
-          <div ref={sec3} className="swp-section-block">
-            <div className="swp-section-header">
-              <div className="swp-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Timeline & Work Order Documentation</h3>
+          {/* SECTION 3: Work Order File & Remarks */}
+          <div ref={sec3} className="kswp-section-block">
+            <div className="kswp-section-header">
+              <div className="kswp-section-title-wrap">
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Work Order File & Remarks</h3>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Set completion deadline, attach official survey assignment order / allotment copy, and specify vendor instructions
+                  Upload the assignment order / allotment copy and enter operational remarks
                 </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: 20 }}>
-              {/* Deadline Date * */}
-              <div>
-                <FloatingInput
-                  label="Deadline Date"
-                  name="deadline_date"
-                  type="date"
-                  value={deadlineDate}
-                  onChange={(e) => {
-                    setDeadlineDate(e.target.value);
-                    clearError('deadline_date');
-                  }}
-                  disabled={isSubmitting}
-                  required
-                  error={validationErrors.deadline_date}
-                />
-              </div>
-
-              {/* Remarks */}
-              <div>
-                <FloatingInput
-                  label="Remarks"
-                  name="remarks"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  disabled={isSubmitting}
-                  placeholder="Optional assignment remarks"
-                />
               </div>
             </div>
 
@@ -1152,13 +1095,12 @@ export function AssignBiharSRT200MWSurvey() {
               </div>
             )}
 
-            {/* File Dropzone */}
-            <div style={{ maxWidth: 540 }}>
+            <div style={{ maxWidth: 540, marginBottom: 20 }}>
               <UploadDropzone
                 id="assign_file"
-                label="Work Order File"
-                required={!isEditMode && !existingFileName}
-                accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png"
+                label="File"
+                required={!editId}
+                accept=".pdf,.jpg,.jpeg,.png,.xlsx,.csv"
                 disabled={isSubmitting}
                 file={file}
                 preview={filePreview}
@@ -1180,24 +1122,39 @@ export function AssignBiharSRT200MWSurvey() {
                     setFilePreview(undefined);
                   }
                 }}
-                hint="Supports Excel (XLSX, XLS), CSV, PDF (Max 15 MB) — single file"
               />
+            </div>
+
+            {/* Remarks */}
+            <div className="ax-float">
+              <textarea
+                id="bihar-remarks"
+                className="ax-float__input"
+                placeholder="Remarks"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                disabled={isSubmitting}
+                rows={3}
+              />
+              <label htmlFor="bihar-remarks" className={`ax-float__label ${remarks ? 'has-val' : ''}`}>
+                Remarks
+              </label>
             </div>
           </div>
 
           {/* Submit Footer */}
           <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
-            <Link to="/vendor-management/bihar/srt200mw/survey/assign-view" className="ax-btn ax-btn--secondary">
-              Cancel
-            </Link>
             <button
               type="button"
               className="ax-btn ax-btn--secondary"
               onClick={handleReset}
               disabled={isSubmitting}
             >
-              Reset Form
+              Reset
             </button>
+            <Link to="/vendor-management/bihar/srt200mw/survey/assign-view" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
             <button
               type="submit"
               className="ax-btn ax-btn--primary"
@@ -1206,17 +1163,22 @@ export function AssignBiharSRT200MWSurvey() {
             >
               {isSubmitting ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <span className="ax-spinner" /> {isEditMode ? 'Updating...' : 'Assigning...'}
+                  <span className="ax-spinner" /> {editId ? 'Updating...' : 'Assigning...'}
                 </span>
-              ) : isEditMode ? (
+              ) : editId ? (
                 'Update Assignment'
               ) : (
-                'Assign Bihar SRT200MW Survey'
+                'Assign Sites'
               )}
             </button>
           </div>
         </div>
       </form>
+
+      {/* Footer copyright */}
+      <footer className="srt-page-footer">
+        Copyright © ETS NETWORKS. All rights reserved.
+      </footer>
     </div>
   );
 }

@@ -925,8 +925,6 @@ export const vendorManagementRoutes: ReactElement[] = [
 
   <Route key="vm.kashmir.srt.inst.status" path="vendor-management/kashmir/srt70mw/installation/status-view" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
   <Route key="vm.kashmir.srt.inst.status2" path="kashmir/srt70mw/installation/status-view" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
-  <Route key="vm.kashmir.srt.inst.status3" path="vendor-management/kashmir/srt70mw/installation-view-dashboard/:status" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
-  <Route key="vm.kashmir.srt.inst.status4" path="kashmir/srt70mw/installation-view-dashboard/:status" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
 
   // Kashmir Expense: SRT 70MW
   <Route key="vm.kashmir.exp.claim" path="vendor-management/kashmir/srt70mw/expense/claim-requests" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,

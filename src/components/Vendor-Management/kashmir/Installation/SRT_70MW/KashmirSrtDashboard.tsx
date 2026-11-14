@@ -57,7 +57,7 @@ const useChartHeight = (desktop: number, mobile: number) => {
 /* ───────── Responsive page CSS (Exact Assam SWP / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
@@ -292,7 +292,7 @@ interface KpiProps {
   onClick?: () => void;
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)', apex: '#2563eb' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb', apex: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2', apex: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a', apex: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706', apex: '#d97706' },

@@ -654,33 +654,14 @@ export function BiharULASurveyViewData() {
     if (!actionItem) return;
 
     const isApprove = verifyStatusAction === '1';
-    const statusVal = verifyStatusAction === '1' ? 1 : 2;
-    const remarks = remarksInput.trim();
     setSubmittingAction(true);
     setErrorMsg('');
     try {
-      const res: any = await biharAdminService.verifyUlaSurveyStatus({
+      await biharAdminService.verifyUlaSurveyStatus({
         id: actionItem.id,
-        site_id: actionItem.id,
-        status: statusVal,
-        verify_status: statusVal,
-        survey_verify_status: statusVal,
-        remarks: remarks || undefined,
-        remark: remarks || undefined,
-        verify_remarks: remarks || undefined,
-        survey_verify_remarks: remarks || undefined,
+        verify_status: verifyStatusAction,
+        verify_remarks: remarksInput.trim() || undefined,
       });
-
-      if (res && (res.status === false || res.success === false)) {
-        const errorDetail =
-          res.message ||
-          (res.errors
-            ? Array.isArray(res.errors)
-              ? res.errors.join(', ')
-              : Object.values(res.errors).flat().join(', ')
-            : 'Verification failed.');
-        throw new Error(errorDetail);
-      }
 
       const updatedSurvey: Row = {
         ...actionItem,
@@ -890,7 +871,7 @@ export function BiharULASurveyViewData() {
           }
           tone="cyan"
           label="Feasibility Status"
-          value={`${feasibleYes}`}
+          value={`${feasibleYes} Yes`}
           sub={`Non-feasible: ${feasibleNo} sites`}
         />
       </div>

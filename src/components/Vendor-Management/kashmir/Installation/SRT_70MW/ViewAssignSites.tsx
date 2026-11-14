@@ -20,7 +20,7 @@ import {
 /* ───────── Responsive page CSS (Exact Karnataka / Assam SWP View Assign Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -307,7 +307,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -505,7 +505,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'scale(1.06)';
-        e.currentTarget.style.borderColor = 'var(--ax-accent, #2563eb)';
+        e.currentTarget.style.borderColor = '#2563eb';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'scale(1)';
@@ -524,7 +524,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
               span.innerText = 'IMG';
               span.style.fontSize = '10px';
               span.style.fontWeight = '700';
-              span.style.color = 'var(--ax-accent, #2563eb)';
+              span.style.color = '#2563eb';
               e.currentTarget.parentElement.appendChild(span);
             }
           }}
@@ -548,10 +548,10 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2} style={{ width: 18, height: 18 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 18, height: 18 }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           </svg>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', lineHeight: 1 }}>DOC</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#2563eb', lineHeight: 1 }}>DOC</span>
         </div>
       )}
     </div>
@@ -1043,10 +1043,15 @@ export function ViewAssignSites() {
                         <button
                           type="button"
                           onClick={() => setSelectedAssignForSites(row)}
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
                           style={{
-                            color: 'var(--ax-accent, #2563eb)',
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                            fontSize: 12,
                             fontWeight: 700,
+                            cursor: 'pointer',
                           }}
                           title="Click to view allocated sites"
                         >
@@ -1068,16 +1073,16 @@ export function ViewAssignSites() {
                               padding: '3px 8px',
                               fontSize: 11,
                               fontWeight: 700,
-                              color: 'var(--ax-accent, #2563eb)',
-                              background: 'rgba(var(--asw-primary-rgb), 0.1)',
-                              border: '1px solid rgba(var(--asw-primary-rgb), 0.25)',
+                              color: '#2563eb',
+                              background: 'rgba(37, 99, 235, 0.1)',
+                              border: '1px solid rgba(37, 99, 235, 0.25)',
                               borderRadius: 6,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 4,
                             }}
                           >
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ax-accent, #2563eb)' }} />
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
                             Accepted
                           </span>
                         ) : Number(row.status) === 1 ? (
@@ -1127,11 +1132,19 @@ export function ViewAssignSites() {
                               type="button"
                               onClick={() => handleApprove(row.id)}
                               disabled={approvingId === row.id}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#10b981',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
+                                opacity: approvingId === row.id ? 0.7 : 1,
                               }}
                             >
                               {approvingId === row.id ? (
@@ -1150,12 +1163,17 @@ export function ViewAssignSites() {
                               type="button"
                               disabled
                               title="Accepted by Vendor (Locked for editing)"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
-                                opacity: 0.65,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
+                                fontSize: 11,
+                                fontWeight: 600,
                                 cursor: 'not-allowed',
                               }}
                             >
@@ -1179,11 +1197,19 @@ export function ViewAssignSites() {
                             <Link
                               to={`/vendor-management/kashmir/srt70mw/installation/assign?id=${row.id}&edit=${row.id}`}
                               title="Edit Assignment"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: 'rgba(37, 99, 235, 0.08)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                cursor: 'pointer',
                               }}
                             >
                               <svg
@@ -1262,10 +1288,15 @@ export function ViewAssignSites() {
               setSelectedAssignForSites(null);
               setModalSiteSearch('');
             }}
-            className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
+              borderRadius: 6,
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              fontWeight: 600,
+              cursor: 'pointer',
             }}
           >
             Close
@@ -1299,7 +1330,7 @@ export function ViewAssignSites() {
                       fontSize: 13,
                       color:
                         Number(selectedAssignForSites.status) === 2
-                          ? 'var(--ax-accent, #2563eb)'
+                          ? '#2563eb'
                           : Number(selectedAssignForSites.status) === 1
                           ? '#10b981'
                           : '#d97706',
@@ -1410,14 +1441,20 @@ export function ViewAssignSites() {
               <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
                 Assignment Work Order Preview
               </span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <a
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
+                    fontSize: 12,
+                    color: '#2563eb',
+                    fontWeight: 600,
                     textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1468,10 +1505,14 @@ export function ViewAssignSites() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: 13,
                       textDecoration: 'none',
                     }}
                   >

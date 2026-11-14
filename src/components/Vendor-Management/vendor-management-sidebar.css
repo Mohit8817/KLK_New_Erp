@@ -10,19 +10,15 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  box-sizing: border-box;
-  padding: 4px 8px 32px 8px;
+  padding: 2px 4px 28px 4px;
   user-select: none;
   font-family: inherit;
-  gap: 2px;
 }
 
 /* ── Top Portal Switcher Card ── */
 .vm-sb__top-card {
   position: relative;
-  margin: 0 0 12px 0;
-  width: 100%;
-  box-sizing: border-box;
+  margin: 0 2px 14px 2px;
   padding: 10px 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -155,16 +151,11 @@
 
 /* ── Section Title ── */
 .vm-sb__section {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 14px 0 6px 0;
-  padding: 0 10px;
+  margin: 14px 4px 6px 4px;
+  padding: 0 6px;
 }
 
 .vm-sb__section-title {
-  width: 100%;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -172,7 +163,7 @@
   color: var(--ax-text-subtle, #94a3b8);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .vm-sb__section-title::after {
@@ -187,7 +178,6 @@
 .vm-sb__group {
   display: flex;
   flex-direction: column;
-  width: 100%;
   margin-bottom: 2px;
 }
 
@@ -199,7 +189,6 @@
   align-items: center;
   gap: 9px;
   width: 100%;
-  box-sizing: border-box;
   padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -215,7 +204,8 @@
   transition:
     background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
 }
 
@@ -223,6 +213,7 @@
 .vm-sb__item-link:hover {
   background: #f1f5f9;
   color: var(--ax-text-strong, #0f172a);
+  transform: translateX(2px);
 }
 
 [data-ax-theme='dark'] .vm-sb__item-btn:hover,
@@ -250,6 +241,7 @@
   background: #f8fafc;
   border-color: #cbd5e1;
   color: #2563eb;
+  transform: translateX(2px);
 }
 
 [data-ax-theme='dark'] .vm-sb__item-link--dashboard:hover {
@@ -510,12 +502,14 @@
   text-decoration: none;
   transition:
     background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .vm-sb__leaf-link:hover {
   background: #f1f5f9;
   color: #2563eb;
+  transform: translateX(3px);
 }
 
 [data-ax-theme='dark'] .vm-sb__leaf-link:hover {

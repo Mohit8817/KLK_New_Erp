@@ -19,7 +19,7 @@ import {
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -385,7 +385,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -980,8 +980,11 @@ export function VerifyClaim() {
                         <button
                           type="button"
                           onClick={() => setViewSitesClaim(row)}
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
                           style={{
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
                             padding: '2px 8px',
                             fontSize: 12,
                             fontWeight: 700,
@@ -1053,17 +1056,19 @@ export function VerifyClaim() {
                             type="button"
                             disabled
                             title={`Claim has been ${Number(row.claim_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: 4,
                               padding: '4px 10px',
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              color: '#94a3b8',
+                              border: '1px solid #e2e8f0',
                               fontSize: 11,
                               fontWeight: 700,
                               cursor: 'not-allowed',
-                              opacity: 0.75,
                             }}
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
@@ -1081,9 +1086,12 @@ export function VerifyClaim() {
                               setActionRemarks(r.approved_remarks || r.verify_remarks || '');
                               setModalError('');
                             }}
-                            className="ax-btn ax-btn--primary ax-btn--sm"
                             style={{
                               padding: '4px 12px',
+                              borderRadius: 6,
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
                               fontSize: 11,
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -1133,16 +1141,15 @@ export function VerifyClaim() {
           <>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => setSelectedClaimForAction(null)}
               disabled={submittingAction}
-              style={{ padding: '7px 14px', fontSize: 13, cursor: 'pointer' }}
+              style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer' }}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="ax-btn ax-btn--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{
@@ -1151,6 +1158,10 @@ export function VerifyClaim() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                background: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 6,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -1212,10 +1223,13 @@ export function VerifyClaim() {
           <button
             type="button"
             onClick={() => setViewSitesClaim(null)}
-            className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
+              borderRadius: 6,
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1335,11 +1349,15 @@ export function VerifyClaim() {
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
                     fontSize: 12,
+                    color: '#2563eb',
                     fontWeight: 600,
                     textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1389,10 +1407,12 @@ export function VerifyClaim() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#fff',
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

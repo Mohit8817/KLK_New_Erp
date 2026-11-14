@@ -690,7 +690,7 @@ export function AssignInstallation() {
         actions={
           <Link
             to="/vendor-management/assam/swp/view-assign-installation"
-            className="ax-btn ax-btn--primary ax-btn--sm"
+            className="ax-btn ax-btn--secondary ax-btn--sm"
           >
             <svg
               width="14"

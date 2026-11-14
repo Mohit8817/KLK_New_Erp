@@ -22,7 +22,7 @@ type TabType = 'pending' | 'verified';
 /* ───────── Responsive page CSS (Exact reference matching Karnataka SWP VerifyInstallation) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -76,14 +76,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: var(--ax-accent, #2563eb);
-    color: var(--ax-accent, #2563eb);
+    border-color: #2563eb;
+    color: #2563eb;
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb));
-    color: var(--ax-on-accent, #ffffff);
-    border-color: transparent;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -385,11 +385,11 @@ function MediaFileThumbnail({
             padding: 2,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', marginTop: 1 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', marginTop: 1 }}>
             {ext || 'FILE'}
           </span>
         </div>
@@ -461,7 +461,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -935,21 +935,21 @@ export function VerifySites() {
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
           Verify Pending
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
             {pendingList.length}
           </span>
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
+          className={`asw-pill-btn ${activeTab === 'verified' ? 'active' : ''}`}
           onClick={() => setActiveTab('verified')}
         >
           Approved / Rejected Data
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
             {verifiedList.length}
           </span>
         </button>
@@ -1070,7 +1070,7 @@ export function VerifySites() {
                               alignItems: 'center',
                               gap: 3,
                               fontSize: 11,
-                              color: 'var(--ax-accent, #2563eb)',
+                              color: '#2563eb',
                               textDecoration: 'none',
                               marginTop: 2,
                             }}
@@ -1246,11 +1246,18 @@ export function VerifySites() {
                           <button
                             type="button"
                             onClick={() => setSelectedSiteForDetails(row)}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              color: '#1e293b',
+                              border: '1px solid #cbd5e1',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 4,
+                              gap: 3,
                             }}
                             title="View full site details"
                           >
@@ -1265,13 +1272,18 @@ export function VerifySites() {
                               type="button"
                               disabled
                               title="Installation has been Approved (Locked)"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 4,
-                                opacity: 0.65,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #e2e8f0',
+                                fontSize: 11,
+                                fontWeight: 700,
                                 cursor: 'not-allowed',
                               }}
                             >
@@ -1285,7 +1297,16 @@ export function VerifySites() {
                             <button
                               type="button"
                               onClick={() => openVerify(row)}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
                             >
                               Verify
                             </button>
@@ -1335,13 +1356,18 @@ export function VerifySites() {
                     type="button"
                     disabled
                     title="Installation has been Approved (Locked)"
-                    className="ax-btn ax-btn--secondary ax-btn--sm"
                     style={{
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#f1f5f9',
+                      color: '#94a3b8',
+                      border: '1px solid #e2e8f0',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'not-allowed',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
-                      opacity: 0.65,
-                      cursor: 'not-allowed',
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1358,8 +1384,15 @@ export function VerifySites() {
                       setSelectedSiteForDetails(null);
                       openVerify(site);
                     }}
-                    className="ax-btn ax-btn--primary ax-btn--sm"
                     style={{
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 6,
@@ -1376,8 +1409,9 @@ export function VerifySites() {
             </div>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
+              className="ax-button ax-button--secondary"
               onClick={() => setSelectedSiteForDetails(null)}
+              style={{ padding: '6px 16px', fontSize: 13 }}
             >
               Close
             </button>
@@ -1434,7 +1468,7 @@ export function VerifySites() {
             {/* Grid 1: Site Location & Contact Person */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
                   Site & Contact Details
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1458,7 +1492,7 @@ export function VerifySites() {
               </div>
 
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
                   Geographic Location
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1475,7 +1509,7 @@ export function VerifySites() {
                         href={`https://www.google.com/maps?q=${selectedSiteForDetails.inst_latitude},${selectedSiteForDetails.inst_longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                       >
                         {selectedSiteForDetails.inst_latitude}, {selectedSiteForDetails.inst_longitude} ↗
                       </a>
@@ -1489,7 +1523,7 @@ export function VerifySites() {
 
             {/* Grid 2: Hardware & Equipment Specs */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
                 Equipment & Hardware Serial Numbers
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12, marginBottom: 12 }}>
@@ -1548,7 +1582,7 @@ export function VerifySites() {
 
             {/* Grid 3: Installation Photographic Evidence */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 12, letterSpacing: '0.04em' }}>
                 Installation Photographic Proof
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
@@ -1567,7 +1601,7 @@ export function VerifySites() {
                         alt="System Image"
                         style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }}
                       />
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
                     </div>
                   ) : (
                     <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>Not Uploaded</div>
@@ -1589,7 +1623,7 @@ export function VerifySites() {
                         alt="Inverter Image"
                         style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }}
                       />
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
                     </div>
                   ) : (
                     <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>Not Uploaded</div>
@@ -1611,7 +1645,7 @@ export function VerifySites() {
                         alt="Panel Image"
                         style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }}
                       />
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
                     </div>
                   ) : (
                     <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>Not Uploaded</div>
@@ -1633,7 +1667,7 @@ export function VerifySites() {
                         alt="Net / Smart Meter"
                         style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }}
                       />
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
                     </div>
                   ) : (
                     <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>Not Uploaded</div>
@@ -1655,7 +1689,7 @@ export function VerifySites() {
                         alt="Loger Image"
                         style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 6 }}
                       />
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview</div>
                     </div>
                   ) : (
                     <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>Not Uploaded</div>
@@ -1680,7 +1714,7 @@ export function VerifySites() {
                         />
                       ) : (
                         <div style={{ padding: '28px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={1.5}>
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={1.5}>
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                             <polyline points="14 2 14 8 20 8" />
                           </svg>
@@ -1689,7 +1723,7 @@ export function VerifySites() {
                           </span>
                         </div>
                       )}
-                      <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview file</div>
+                      <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview file</div>
                     </div>
                   </div>
                 )}
@@ -1698,7 +1732,7 @@ export function VerifySites() {
 
             {/* Grid 4: Remarks & Audit Log */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
                 Audit & Verification Remarks
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: 8, fontSize: 12 }}>
@@ -1732,7 +1766,7 @@ export function VerifySites() {
           <>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1741,10 +1775,10 @@ export function VerifySites() {
             </button>
             <button
               type="button"
-              className="ax-btn ax-btn--primary"
+              className="ax-button ax-button--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
               {submittingAction && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
               Save Status
@@ -1810,11 +1844,16 @@ export function VerifySites() {
                 href={lightboxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ax-btn ax-btn--primary ax-btn--sm"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  fontSize: 12,
+                  fontWeight: 600,
                   textDecoration: 'none',
                 }}
               >
@@ -1828,7 +1867,7 @@ export function VerifySites() {
             )}
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >
@@ -1870,7 +1909,7 @@ export function VerifySites() {
                   border: '1px solid #e2e8f0',
                 }}
               >
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={1.5}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={1.5}>
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -1885,9 +1924,11 @@ export function VerifySites() {
                   target="_blank"
                   rel="noopener noreferrer"
                   download
-                  className="ax-btn ax-btn--primary"
                   style={{
                     padding: '8px 18px',
+                    borderRadius: 6,
+                    background: '#2563eb',
+                    color: '#ffffff',
                     fontSize: 13,
                     fontWeight: 700,
                     textDecoration: 'none',

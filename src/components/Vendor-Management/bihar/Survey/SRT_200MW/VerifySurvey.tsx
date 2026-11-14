@@ -650,33 +650,12 @@ export function VerifyBiharSRT200Survey() {
     setSubmittingAction(true);
     setActionError('');
     const isApprove = verifyStatusAction === '1';
-    const statusVal = verifyStatusAction === '1' ? 1 : 2;
-    const remarks = remarksInput.trim();
-
     try {
-      const res: any = await biharAdminService.verifySrt200mwSurveyStatus({
+      await biharAdminService.verifySrt200mwSurveyStatus({
         id: actionItem.id,
-        site_id: actionItem.id,
-        status: statusVal,
-        survey_verify_status: statusVal,
-        verify_status: statusVal,
-        remarks: remarks || undefined,
-        remark: remarks || undefined,
-        verify_remarks: remarks || undefined,
-        survey_verify_remarks: remarks || undefined,
+        survey_verify_status: verifyStatusAction,
+        verify_remarks: remarksInput.trim(),
       });
-
-      if (res && (res.status === false || res.success === false)) {
-        const errorMsg =
-          res.message ||
-          (res.errors
-            ? Array.isArray(res.errors)
-              ? res.errors.join(', ')
-              : Object.values(res.errors).flat().join(', ')
-            : 'Verification failed.');
-        throw new Error(errorMsg);
-      }
-
       setSuccessMsg(
         `Site ${actionItem.site_name} (${actionItem.uid}) has been ${isApprove ? 'Approved' : 'Rejected'} successfully!`
       );
@@ -685,14 +664,7 @@ export function VerifyBiharSRT200Survey() {
       loadSurveys();
       setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err: any) {
-      const errMsg =
-        err?.responseJson?.message ||
-        (err?.errors
-          ? Array.isArray(err.errors)
-            ? err.errors.join(', ')
-            : Object.values(err.errors).flat().join(', ')
-          : err?.message || 'Server error');
-      setActionError(`Failed to update verification status: ${errMsg}`);
+      setActionError(`Failed to update verification status: ${err?.message || 'Server error'}`);
     } finally {
       setSubmittingAction(false);
     }

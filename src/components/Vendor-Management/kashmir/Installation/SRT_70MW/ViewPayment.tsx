@@ -23,7 +23,7 @@ type TabType = 'pay80' | 'pay20';
 /* ───────── Responsive page CSS (Exact Assam SWP / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary: #2563eb;
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -78,14 +78,14 @@ const PAGE_CSS = `
     gap: 6px;
   }
   .solar-erp-page .asw-tab-btn:hover {
-    color: var(--ax-accent, #2563eb);
-    border-color: var(--ax-accent, #2563eb);
+    color: #2563eb;
+    border-color: #2563eb;
   }
   .solar-erp-page .asw-tab-btn--active {
-    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb)) !important;
-    color: var(--ax-on-accent, #ffffff) !important;
-    border-color: transparent !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -355,7 +355,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -452,7 +452,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'scale(1.06)';
-        e.currentTarget.style.borderColor = 'var(--ax-accent, #2563eb)';
+        e.currentTarget.style.borderColor = '#2563eb';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'scale(1)';
@@ -471,7 +471,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
               span.innerText = 'IMG';
               span.style.fontSize = '10px';
               span.style.fontWeight = '700';
-              span.style.color = 'var(--ax-accent, #2563eb)';
+              span.style.color = '#2563eb';
               e.currentTarget.parentElement.appendChild(span);
             }
           }}
@@ -495,11 +495,11 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2} style={{ width: 18, height: 18 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 18, height: 18 }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', lineHeight: 1 }}>DOC</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#2563eb', lineHeight: 1 }}>DOC</span>
         </div>
       )}
     </div>
@@ -1026,16 +1026,34 @@ export function ViewPayment() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               type="submit"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              style={{ height: 34, padding: '0 14px', fontSize: 12 }}
+              className="ax-button ax-button--primary"
+              style={{
+                height: 34,
+                padding: '0 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
             >
               Apply Filter
             </button>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              style={{ height: 34, padding: '0 12px', fontSize: 12 }}
+              className="ax-button ax-button--secondary"
+              style={{
+                height: 34,
+                padding: '0 12px',
+                fontSize: 12,
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
             >
               Clear
             </button>
@@ -1047,7 +1065,7 @@ export function ViewPayment() {
       <div className="asw-tabs-wrap">
         <button
           type="button"
-          className={`asw-tab-btn ${activeTab === 'pay80' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          className={`asw-tab-btn ${activeTab === 'pay80' ? 'asw-tab-btn--active' : ''}`}
           onClick={() => {
             setActiveTab('pay80');
             pagination.setPage(1);
@@ -1057,7 +1075,7 @@ export function ViewPayment() {
         </button>
         <button
           type="button"
-          className={`asw-tab-btn ${activeTab === 'pay20' ? 'asw-tab-btn--active ax-btn--primary' : ''}`}
+          className={`asw-tab-btn ${activeTab === 'pay20' ? 'asw-tab-btn--active' : ''}`}
           onClick={() => {
             setActiveTab('pay20');
             pagination.setPage(1);
@@ -1204,13 +1222,18 @@ export function ViewPayment() {
                             type="button"
                             disabled
                             title={`Payment completed & disbursed (${is80 ? '80%' : '20%'}). Further action is locked.`}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '4px',
-                              opacity: 0.65,
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: '#f1f5f9',
+                              color: '#94a3b8',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '11px',
+                              fontWeight: 700,
                               cursor: 'not-allowed',
                             }}
                           >
@@ -1224,7 +1247,16 @@ export function ViewPayment() {
                           <button
                             type="button"
                             onClick={() => (is80 ? handleOpenPay80(row) : handleOpenPay20(row))}
-                            className="ax-btn ax-btn--primary ax-btn--sm"
+                            style={{
+                              padding: '4px 12px',
+                              borderRadius: 6,
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              border: 'none',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
                           >
                             Disburse
                           </button>
@@ -1273,13 +1305,13 @@ export function ViewPayment() {
           <>
             <button
               type="button"
-              className="ax-btn ax-btn--secondary"
+              className="ax-button ax-button--secondary"
               onClick={() => {
                 setPay80Target(null);
                 setPay20Target(null);
               }}
               disabled={submittingDisburse}
-              style={{ padding: '7px 14px', fontSize: 13 }}
+              style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#f1f5f9', border: '1px solid #cbd5e1' }}
             >
               Cancel
             </button>
@@ -1287,13 +1319,18 @@ export function ViewPayment() {
               type="button"
               onClick={handleDisburseSubmit}
               disabled={submittingDisburse}
-              className="ax-btn ax-btn--primary"
               style={{
                 padding: '7px 18px',
                 fontSize: 13,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                background: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 6,
+                fontWeight: 700,
+                cursor: 'pointer',
               }}
             >
               {submittingDisburse && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
@@ -1395,9 +1432,14 @@ export function ViewPayment() {
                   href={lightboxUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#2563eb',
                     textDecoration: 'none',
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    background: '#eff6ff',
                   }}
                 >
                   Open in New Tab ↗

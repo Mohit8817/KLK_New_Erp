@@ -455,8 +455,8 @@ const OVERLAY_CSS = `
 
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
-    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .asw-cards-row {
@@ -1129,7 +1129,7 @@ export function AssamStatusView() {
                         ) : (
                           <button
                             type="button"
-                            className="ax-btn ax-btn--primary ax-btn--sm"
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{ padding: '4px 10px', fontSize: '12px' }}
                             onClick={() => navigate(`/vendor-management/assam/swp/site?edit_id=${row.id}`)}
                           >

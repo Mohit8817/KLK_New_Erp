@@ -14,8 +14,6 @@ import {
   type AssamSwpDashboardResponse,
   type DistrictWiseDetail,
   type DistrictMonthItem,
-  type DistrictInstallItem,
-  type VendorItem,
 } from '../../assam-services';
 
 // Code-split ApexCharts so Assam SWP Dashboard shell renders instantly
@@ -28,19 +26,9 @@ const LIGHT_CYAN = '#0891b2';
 const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
-const LIGHT_PINK = '#ec4899';
 
-const num = (x: number | string | undefined | null) => {
-  const n = Number(x);
-  return isNaN(n) ? '0' : n.toLocaleString('en-IN');
-};
-
-const pctOf = (a: number | string | undefined | null, b: number | string | undefined | null) => {
-  const numA = Number(a) || 0;
-  const numB = Number(b) || 0;
-  return numB ? Math.round((numA / numB) * 1000) / 10 : 0;
-};
-
+const num = (x: number) => x.toLocaleString('en-IN');
+const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // Responsive chart height hook matching DleDashboard
@@ -58,8 +46,8 @@ const useChartHeight = (desktop: number, mobile: number) => {
 /* ───────── Responsive page CSS (Exact DLE Dashboard & Solar ERP reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: var(--ax-accent, #2563eb);
-    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -140,8 +128,8 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table { min-width: 900px; }
-  .solar-erp-page .ax-welcome__lede { max-width: 860px; }
+  .solar-erp-page .ax-table { min-width: 850px; }
+  .solar-erp-page .ax-welcome__lede { max-width: 820px; }
 
   /* Filter bar matching DleDashboard */
   .solar-erp-page .asw-filter-item { display: flex; align-items: center; gap: 6px; }
@@ -275,7 +263,6 @@ const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
 const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="7" y1="15" x2="7.01" y2="15" /><line x1="11" y1="15" x2="13" y2="15" /></>);
-const I_USER = svg(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>);
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
@@ -372,66 +359,30 @@ const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const footerStyle = { borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' } as const;
 
-export interface VendorWiseRow {
-  inst_vendor: number | string;
-  site_count: number;
-  complete: number;
-  pending: number;
-  verify_pending: number;
-  verify_approved: number;
-  verify_reject: number;
-  doc_approved: number;
-  doc_pending: number;
-  doc_reject: number;
-  inst_claim_raised: number;
-  inst_claim_approved: number;
-  inst_claim_reject: number;
-  inst_pay_complete: number;
-  inst_pay_partially: number;
-  inst_pay_pending: number;
-  [key: string]: any;
-}
-
 export function AssamSwpDashboard() {
   const navigate = useNavigate();
-  const [data, setData] = useState<AssamSwpDashboardResponse | any | null>(null);
+  const [data, setData] = useState<AssamSwpDashboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-
-  // Vendor metadata mapping
-  const [vendorsList, setVendorsList] = useState<VendorItem[]>([]);
 
   // Filter states
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [tableQuery, setTableQuery] = useState<string>('');
-  const [vendorQuery, setVendorQuery] = useState<string>('');
 
   // Chart heights
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // 1. Load Dashboard Data (API 14) + Vendor Master Map
+  // 1. Load Dashboard Data (API 14)
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
-      const [res, formRes] = await Promise.allSettled([
-        assamAdminService.getDashboard(),
-        assamAdminService.getAssignFormData(),
-      ]);
-
-      if (res.status === 'fulfilled') {
-        setData(res.value);
-        setUpdatedAt(new Date());
-      } else {
-        throw res.reason;
-      }
-
-      if (formRes.status === 'fulfilled' && Array.isArray(formRes.value?.vendors)) {
-        setVendorsList(formRes.value.vendors);
-      }
+      const res = await assamAdminService.getDashboard();
+      setData(res);
+      setUpdatedAt(new Date());
     } catch (err: any) {
       console.error('Assam Dashboard fetch error:', err);
       setApiError(err?.message || 'Failed to fetch dynamic dashboard data');
@@ -444,25 +395,8 @@ export function AssamSwpDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Vendor Lookup Map
-  const vendorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    vendorsList.forEach((v) => {
-      map.set(String(v.id), v.name);
-    });
-    return map;
-  }, [vendorsList]);
-
-  const getVendorName = useCallback(
-    (vendorId: string | number) => {
-      const key = String(vendorId ?? '');
-      return vendorMap.get(key) || `Vendor #${key}`;
-    },
-    [vendorMap]
-  );
-
   // ── Status Drill-down Navigation ──
-  const openDrillDown = (statusKey: string, _label?: string, district?: string, vendor?: string | number) => {
+  const openDrillDown = (statusKey: string, _label?: string, district?: string) => {
     const normalizedStatus = normalizeAssamDashboardStatus(statusKey);
     const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
     const params = new URLSearchParams();
@@ -470,23 +404,14 @@ export function AssamSwpDashboard() {
     if (targetDistrict) {
       params.set('district', targetDistrict);
     }
-    if (vendor) {
-      params.set('vendor', String(vendor));
-    }
     navigate(`/vendor-management/assam/swp/status-view?${params.toString()}`);
   };
 
   const districtwise: DistrictWiseDetail[] = useMemo(() => data?.districtwise || [], [data]);
-  const vendorwises: VendorWiseRow[] = useMemo(
-    () => (data?.vendorwises || data?.vendorswise || data?.vendorwise || []) as VendorWiseRow[],
+  const monthlyInstallations: DistrictMonthItem[] = useMemo(
+    () => data?.district_installation_month || data?.monthly_installations || [],
     [data]
   );
-  const districtInstall: DistrictInstallItem[] = useMemo(() => data?.district_install || [], [data]);
-  const monthlyInstallations: DistrictMonthItem[] = useMemo(() => {
-    const raw = data?.district_installation_month || data?.monthly_installations || [];
-    // Sort chronological (oldest to newest) for a clean trend chart
-    return [...raw].sort((a, b) => (a.month_year || '').localeCompare(b.month_year || ''));
-  }, [data]);
 
   // District options for filter
   const districtOptions = useMemo(
@@ -501,8 +426,6 @@ export function AssamSwpDashboard() {
       let matchStatus = true;
       if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
       else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
-      else if (selectedStatus === 'Assigned') matchStatus = (Number(d.assigned) || 0) > 0;
-      else if (selectedStatus === 'NotAssigned') matchStatus = (Number(d.not_assigned) || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
       else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
@@ -513,15 +436,12 @@ export function AssamSwpDashboard() {
       else if (selectedStatus === 'ClaimApproved') matchStatus = (d.inst_claim_approved || 0) > 0;
       else if (selectedStatus === 'PayComplete') matchStatus = (d.inst_pay_complete || 0) > 0;
       else if (selectedStatus === 'PayPending') matchStatus = (d.inst_pay_pending || 0) > 0;
-      else if (selectedStatus === 'PayPartially') matchStatus = (d.inst_pay_partially || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
   const rawSwp = useMemo(() => data?.swp || {
     site_count: 0,
-    assigned: 0,
-    not_assigned: 0,
     complete: 0,
     pending: 0,
     verify_pending: 0,
@@ -546,8 +466,6 @@ export function AssamSwpDashboard() {
     if (filteredDistricts.length === 0) {
       return {
         site_count: 0,
-        assigned: 0,
-        not_assigned: 0,
         complete: 0,
         pending: 0,
         verify_pending: 0,
@@ -567,8 +485,6 @@ export function AssamSwpDashboard() {
     return filteredDistricts.reduce(
       (acc, d) => ({
         site_count: acc.site_count + (Number(d.site_count) || 0),
-        assigned: acc.assigned + (Number(d.assigned) || 0),
-        not_assigned: acc.not_assigned + (Number(d.not_assigned) || 0),
         complete: acc.complete + (Number(d.complete) || 0),
         pending: acc.pending + (Number(d.pending) || 0),
         verify_pending: acc.verify_pending + (Number(d.verify_pending) || 0),
@@ -586,8 +502,6 @@ export function AssamSwpDashboard() {
       }),
       {
         site_count: 0,
-        assigned: 0,
-        not_assigned: 0,
         complete: 0,
         pending: 0,
         verify_pending: 0,
@@ -608,14 +522,14 @@ export function AssamSwpDashboard() {
 
   const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
-  // Table search & pagination for Districts
-  const deferredDistrictQuery = useDeferredValue(tableQuery);
+  // Table search & pagination matching DLE Dashboard
+  const deferredQuery = useDeferredValue(tableQuery);
   const tableDistricts = useMemo(() => {
-    const q = deferredDistrictQuery.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     return filteredDistricts.filter(
       (d) => !q || d.district.toLowerCase().includes(q)
     );
-  }, [filteredDistricts, deferredDistrictQuery]);
+  }, [filteredDistricts, deferredQuery]);
 
   const {
     paginatedData: pagedDistricts,
@@ -630,32 +544,7 @@ export function AssamSwpDashboard() {
     setPage(1);
   }, [tableQuery, selectedDistrict, selectedStatus, setPage]);
 
-  // Table search & pagination for Vendors
-  const deferredVendorQuery = useDeferredValue(vendorQuery);
-  const tableVendors = useMemo(() => {
-    const q = deferredVendorQuery.trim().toLowerCase();
-    return vendorwises.filter((v) => {
-      if (!q) return true;
-      const vName = getVendorName(v.inst_vendor).toLowerCase();
-      const vId = String(v.inst_vendor || '').toLowerCase();
-      return vName.includes(q) || vId.includes(q);
-    });
-  }, [vendorwises, deferredVendorQuery, getVendorName]);
-
-  const {
-    paginatedData: pagedVendors,
-    currentPage: currentVendorPage,
-    pageSize: vendorPageSize,
-    totalItems: totalVendorItems,
-    setPage: setVendorPage,
-    setPageSize: setVendorPageSize,
-  } = usePagination({ data: tableVendors, initialPageSize: 10 });
-
-  useEffect(() => {
-    setVendorPage(1);
-  }, [vendorQuery, setVendorPage]);
-
-  // Percentages & Rates matching user specification exactly
+  // Percentages & Rates
   const pctComplete = pctOf(swp.complete, swp.site_count);
   const pctPending = pctOf(swp.pending, swp.site_count);
   const pctVerified = pctOf(swp.verify_approved, swp.complete || 1);
@@ -673,7 +562,7 @@ export function AssamSwpDashboard() {
 
   // Top districts for bar chart matching filters
   const chartDistricts = useMemo(
-    () => [...filteredDistricts].sort((a, b) => (Number(b.complete) || 0) - (Number(a.complete) || 0)).slice(0, 15),
+    () => [...filteredDistricts].sort((a, b) => (b.complete || 0) - (a.complete || 0)).slice(0, 15),
     [filteredDistricts]
   );
 
@@ -688,40 +577,17 @@ export function AssamSwpDashboard() {
   const docClearedSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.doc_approved, d.complete || 1)) : undefined;
   const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_pay_complete, d.complete || 1)) : undefined;
 
-  // Export Columns definition for District Table (All response fields)
+  // Export Columns definition for District Table
   const districtCols: ExportColumn<DistrictWiseDetail>[] = useMemo(() => [
     { header: 'District', accessor: 'district' },
     { header: 'Allocated Sites', accessor: 'site_count' },
-    { header: 'Assigned Sites', accessor: (d) => d.assigned ?? 0 },
-    { header: 'Not Assigned', accessor: (d) => d.not_assigned ?? 0 },
     { header: 'Installed Sites', accessor: 'complete' },
     { header: 'Pending Sites', accessor: 'pending' },
     { header: 'Verify Approved', accessor: 'verify_approved' },
     { header: 'Verify Pending', accessor: 'verify_pending' },
-    { header: 'Verify Rejected', accessor: 'verify_reject' },
     { header: 'Doc Approved', accessor: 'doc_approved' },
-    { header: 'Doc Pending', accessor: 'doc_pending' },
-    { header: 'Doc Rejected', accessor: 'doc_reject' },
-    { header: 'Claims Raised', accessor: 'inst_claim_raised' },
-    { header: 'Claims Approved', accessor: 'inst_claim_approved' },
     { header: 'Payment Settled', accessor: 'inst_pay_complete' },
-    { header: 'Partially Paid', accessor: 'inst_pay_partially' },
-    { header: 'Payment Pending', accessor: 'inst_pay_pending' },
   ], []);
-
-  // Export Columns definition for Vendor Performance Table
-  const vendorCols: ExportColumn<VendorWiseRow>[] = useMemo(() => [
-    { header: 'Vendor Name', accessor: (v) => getVendorName(v.inst_vendor) },
-    { header: 'Vendor ID', accessor: 'inst_vendor' },
-    { header: 'Allocated Sites', accessor: 'site_count' },
-    { header: 'Installed Sites', accessor: 'complete' },
-    { header: 'Pending Sites', accessor: 'pending' },
-    { header: 'Verify Approved', accessor: 'verify_approved' },
-    { header: 'Verify Pending', accessor: 'verify_pending' },
-    { header: 'Doc Approved', accessor: 'doc_approved' },
-    { header: 'Claims Raised', accessor: 'inst_claim_raised' },
-    { header: 'Payment Settled', accessor: 'inst_pay_complete' },
-  ], [getVendorName]);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = 'Assam_SWP_District_Overview';
@@ -756,7 +622,7 @@ export function AssamSwpDashboard() {
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
-  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[], msg = 'Data copied to clipboard!') => {
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
     if (!list.length || !columns.length) return;
     const t = [
       columns.map((c) => c.header).join('\t'),
@@ -764,7 +630,7 @@ export function AssamSwpDashboard() {
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
-      alert(msg);
+      alert('District overview data copied to clipboard!');
     } catch {
       const ta = document.createElement('textarea');
       ta.value = t;
@@ -774,7 +640,7 @@ export function AssamSwpDashboard() {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      alert(msg);
+      alert('District overview data copied to clipboard!');
     }
   };
 
@@ -825,13 +691,13 @@ export function AssamSwpDashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Assam
             </span>
-            <Link to="/vendor-management/assam/swp/status-view?status=complete" className="ax-btn ax-btn--primary ax-btn--sm">
+            <Link to="/vendor-management/assam/swp/status-view?status=complete" className="ax-btn ax-btn--secondary ax-btn--sm">
               Status Register
             </Link>
-            <Link to="/vendor-management/assam/swp/request" className="ax-btn ax-btn--primary ax-btn--sm">
+            <Link to="/vendor-management/assam/swp/request" className="ax-btn ax-btn--secondary ax-btn--sm">
               Assigned Requests
             </Link>
-            <Link to="/vendor-management/assam/swp/view" className="ax-btn ax-btn--primary ax-btn--sm">
+            <Link to="/vendor-management/assam/swp/view" className="ax-btn ax-btn--secondary ax-btn--sm">
               View Installations
             </Link>
             <Link to="/vendor-management/assam/swp/site" className="ax-btn ax-btn--primary ax-btn--sm">
@@ -895,8 +761,6 @@ export function AssamSwpDashboard() {
                   <option value="All">All Operations</option>
                   <option value="Complete">Installed Sites</option>
                   <option value="Pending">Pending Installation</option>
-                  <option value="Assigned">Assigned to Vendors</option>
-                  <option value="NotAssigned">Unassigned Sites</option>
                   <option value="VerifyApproved">Verify Approved</option>
                   <option value="VerifyPending">Verification Pending</option>
                   <option value="VerifyReject">Verification Rejected</option>
@@ -1013,7 +877,7 @@ export function AssamSwpDashboard() {
           </div>
         </section>
 
-        {/* 4. Core 8 KPI Cards (Exact user specification) */}
+        {/* 4. Core KPI Cards (interactive with sparklines) */}
         <KpiCard
           icon={I_PIN}
           tone="accent"
@@ -1103,7 +967,7 @@ export function AssamSwpDashboard() {
           onClick={() => openDrillDown('pay-complete', 'Payment Settled Sites')}
         />
 
-        {/* 5. Additional Full Response Operational Highlights */}
+        {/* 5. Operational Highlights & Execution Tracker */}
         <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
           <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
             <div>
@@ -1111,26 +975,35 @@ export function AssamSwpDashboard() {
                 Operations & Quality Performance
               </span>
               <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', margin: 0 }}>
-                Full Operational Metrics & Governance
+                Execution Throughput & Quality Health
               </h2>
             </div>
             <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 'var(--ax-text-xs)' }}>
-              Assam SWP Full Response Tracker
+              Assam SWP Vendor Portal
             </span>
           </div>
         </div>
 
-        {/* Secondary Operational Metrics Cards */}
+        {/* Operational Highlights Cards */}
         <KpiCard
-          icon={I_USER}
-          tone="accent"
-          label="Assigned Sites"
-          value={num(swp.assigned || 0)}
-          unit="Sites"
-          sub={`${num(swp.not_assigned || 0)} unassigned sites`}
-          badge={`${pctOf(swp.assigned || 0, swp.site_count || 1)}%`}
-          spark={siteSpark}
-          onClick={() => openDrillDown('assigned', 'Assigned Sites')}
+          icon={I_BOLT}
+          tone="emerald"
+          label="Execution Rate"
+          value={`${pctComplete}%`}
+          sub={`${num(swp.complete)} of ${num(swp.site_count)} sites installed`}
+          badge="Installed"
+          spark={execRateSpark}
+          onClick={() => openDrillDown('complete', 'Completed Sites')}
+        />
+
+        <KpiCard
+          icon={I_SHIELD}
+          tone="cyan"
+          label="Audit Pass Rate"
+          value={`${pctOf(swp.verify_approved, (swp.verify_approved + swp.verify_reject) || 1)}%`}
+          sub={`${num(swp.verify_approved)} Passed · ${num(swp.verify_reject)} Rejected`}
+          spark={auditPassSpark}
+          onClick={() => openDrillDown('verify-approved', 'Approved Audits')}
         />
 
         <KpiCard
@@ -1138,31 +1011,19 @@ export function AssamSwpDashboard() {
           tone="violet"
           label="Document Cleared"
           value={`${pctDocApproved}%`}
-          sub={`${num(swp.doc_approved)} approved · ${num(swp.doc_pending)} pending`}
+          sub={`${num(swp.doc_approved)} compliance docs accepted`}
           spark={docClearedSpark}
           onClick={() => openDrillDown('doc-approved', 'Document Cleared Sites')}
         />
 
         <KpiCard
           icon={I_CREDIT}
-          tone="cyan"
-          label="Payment Claims"
-          value={num(swp.inst_claim_raised || 0)}
-          unit="Claims"
-          sub={`${num(swp.inst_claim_approved || 0)} Approved · ${num(swp.inst_claim_reject || 0)} Rejected`}
-          badge="Invoices"
-          onClick={() => openDrillDown('claim-raised', 'Raised Claims')}
-        />
-
-        <KpiCard
-          icon={I_CLOCK}
-          tone="amber"
-          label="Pending Disbursement"
-          value={num(swp.inst_pay_pending || 0)}
-          unit="Claims"
-          sub={`${num(swp.inst_pay_partially || 0)} Partially settled`}
+          tone="accent"
+          label="Claim Settlement"
+          value={`${pctPaid}%`}
+          sub={`${num(swp.inst_pay_complete)} sites disbursed`}
           spark={claimSpark}
-          onClick={() => openDrillDown('pay-pending', 'Pending Disbursements')}
+          onClick={() => openDrillDown('pay-complete', 'Settled Claims')}
         />
 
         {/* State Operations Executive Card */}
@@ -1208,7 +1069,7 @@ export function AssamSwpDashboard() {
             </div>
 
             <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-              <b>Verification & Compliance Summary:</b> {num(swp.assigned)} assigned ({num(swp.not_assigned)} unassigned) · {num(swp.verify_approved)} verified approved ({num(swp.verify_pending)} QA pending, {num(swp.verify_reject)} rejected) · {num(swp.doc_approved)} handover docs approved ({num(swp.doc_pending)} pending) · {num(swp.inst_claim_raised)} claims raised · {num(swp.inst_pay_complete)} payments settled ({num(swp.inst_pay_partially)} partial, {num(swp.inst_pay_pending)} pending).
+              <b>Verification & Compliance:</b> {num(swp.verify_approved)} sites approved by auditor ({pctVerified}%) · {num(swp.doc_approved)} joint handover sheets approved · {num(swp.inst_pay_complete)} payment settlements confirmed.
             </div>
           </div>
         </section>
@@ -1428,13 +1289,13 @@ export function AssamSwpDashboard() {
           </div>
         </section>
 
-        {/* 8. District Wise Detailed Table (Full Response Data) */}
-        <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
+        {/* 8. District Wise Detailed Table */}
+        <section className="ax-card ax-col--8" role="region" aria-label="District wise summary table">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
-              <h2 className="ax-card__title">District Wise SWP Summary (Complete Response Data)</h2>
-              <p className="ax-card__subtitle">Allocated, assigned, verification, document compliance & claim disbursement metrics across all districts</p>
+              <h2 className="ax-card__title">District Wise SWP Summary</h2>
+              <p className="ax-card__subtitle">Allocated, installed, verification & payment metrics per district</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
@@ -1445,7 +1306,7 @@ export function AssamSwpDashboard() {
                   ariaLabel="Search districts"
                 />
                 <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableDistricts, districtCols, 'District summary data copied to clipboard!')}
+                  onCopy={() => copyToClipboard(tableDistricts, districtCols)}
                   onExportCSV={() => exportToCSV(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
                   onExportExcel={() => exportToExcel(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
                   onExportPDF={() => exportToPDF(tableDistricts, districtCols, fileTitle)}
@@ -1455,163 +1316,85 @@ export function AssamSwpDashboard() {
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ minWidth: 1600, whiteSpace: 'nowrap' }}>
+            <table className="ax-table ax-table--hover">
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Assigned</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Unassigned</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Reject</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Doc Approved</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Doc Pending</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Raised</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Pending</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedDistricts.map((d) => {
-                  const pct = pctOf(d.complete, d.site_count);
-                  return (
-                    <tr
-                      key={d.district}
-                      className="ax-table__row"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openDrillDown('complete', 'District Installations', d.district)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
-                      style={{ cursor: 'pointer' }}
+                {pagedDistricts.map((d) => (
+                  <tr
+                    key={d.district}
+                    className="ax-table__row"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                      <b>{d.district}</b>
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ fontWeight: 600, cursor: 'pointer' }}
+                      title={`View all allocated sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Sites', d.district); }}
                     >
-                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                        <b>{d.district}</b>
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ fontWeight: 600, cursor: 'pointer' }}
-                        title={`View all allocated sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Sites', d.district); }}
-                      >
-                        {num(d.site_count || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View assigned sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('assigned', 'Assigned Sites', d.district); }}
-                      >
-                        {num((d as any).assigned || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}
-                      >
-                        {num((d as any).not_assigned || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View completed sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Sites', d.district); }}
-                      >
-                        {num(d.complete || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View pending sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Sites', d.district); }}
-                      >
-                        {num(d.pending || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View verify approved sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Sites', d.district); }}
-                      >
-                        {num(d.verify_approved || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View verify pending sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verify Pending Sites', d.district); }}
-                      >
-                        {num(d.verify_pending || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View verify rejected sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Verify Rejected Sites', d.district); }}
-                      >
-                        {num(d.verify_reject || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View doc approved sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('doc-approved', 'Doc Approved Sites', d.district); }}
-                      >
-                        {num(d.doc_approved || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}
-                      >
-                        {num(d.doc_pending || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--asw-primary)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View claim raised in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('claim-raised', 'Claim Raised', d.district); }}
-                      >
-                        {num(d.inst_claim_raised || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}
-                      >
-                        {num(d.inst_claim_approved || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View payment settled sites in ${d.district}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay-complete', 'Payment Settled Sites', d.district); }}
-                      >
-                        {num(d.inst_pay_complete || 0)}
-                      </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}
-                      >
-                        {num(d.inst_pay_pending || 0)}
-                      </td>
-                      <td className="ax-table__td">
-                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
-                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
-                            <div className="ax-progress__track">
-                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
-                            </div>
-                          </div>
-                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      {num(d.site_count || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View completed sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Sites', d.district); }}
+                    >
+                      {num(d.complete || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View pending sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Sites', d.district); }}
+                    >
+                      {num(d.pending || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View verify approved sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Sites', d.district); }}
+                    >
+                      {num(d.verify_approved || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View doc approved sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('doc-approved', 'Doc Approved Sites', d.district); }}
+                    >
+                      {num(d.doc_approved || 0)}
+                    </td>
+                    <td
+                      className="ax-table__td ax-table__td--num ax-num"
+                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                      title={`View payment settled sites in ${d.district}`}
+                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay-complete', 'Payment Settled Sites', d.district); }}
+                    >
+                      {num(d.inst_pay_complete || 0)}
+                    </td>
+                  </tr>
+                ))}
                 {!loading && pagedDistricts.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={16} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
                       No districts match the filter criteria.
                     </td>
                   </tr>
@@ -1620,22 +1403,11 @@ export function AssamSwpDashboard() {
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Districts)</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ cursor: 'pointer' }} title="View all allocated sites" onClick={() => openDrillDown('total', 'Total Allocated Sites')}>{num(swp.site_count)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View all assigned sites" onClick={() => openDrillDown('assigned', 'Total Assigned Sites')}>{num(swp.assigned)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-muted)' }}>{num(swp.not_assigned)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed sites" onClick={() => openDrillDown('complete', 'Total Installed Sites')}>{num(swp.complete)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending sites" onClick={() => openDrillDown('pending', 'Total Pending Sites')}>{num(swp.pending)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved sites" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Sites')}>{num(swp.verify_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View verify pending sites" onClick={() => openDrillDown('verify-pending', 'Total Verify Pending Sites')}>{num(swp.verify_pending)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)', cursor: 'pointer' }} title="View verify rejected sites" onClick={() => openDrillDown('verify-reject', 'Total Verify Rejected Sites')}>{num(swp.verify_reject)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', cursor: 'pointer' }} title="View doc approved sites" onClick={() => openDrillDown('doc-approved', 'Total Doc Approved Sites')}>{num(swp.doc_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-muted)' }}>{num(swp.doc_pending)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)', cursor: 'pointer' }} title="View claim raised" onClick={() => openDrillDown('claim-raised', 'Total Claims Raised')}>{num(swp.inst_claim_raised)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(swp.inst_claim_approved)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View payment settled sites" onClick={() => openDrillDown('pay-complete', 'Total Payment Settled Sites')}>{num(swp.inst_pay_complete)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(swp.inst_pay_pending)}</td>
-                    <td className="ax-table__td">
-                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{pctComplete}%</b>
-                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1656,239 +1428,59 @@ export function AssamSwpDashboard() {
           </div>
         </section>
 
-        {/* 9. Vendor-Wise Performance Table (API Response "vendorwises") */}
-        <section className="ax-card ax-col--12" role="region" aria-label="Vendor Wise Performance">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Contractor & Vendor Execution</span>
-              <h2 className="ax-card__title">Vendor-Wise Installation Performance</h2>
-              <p className="ax-card__subtitle">Field throughput, audit approvals, compliance documentation and claim status per vendor contractor</p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput
-                  value={vendorQuery}
-                  onChange={setVendorQuery}
-                  placeholder="Search vendor…"
-                  ariaLabel="Search vendors"
-                />
-                <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableVendors, vendorCols, 'Vendor performance data copied to clipboard!')}
-                  onExportCSV={() => exportToCSV(tableVendors, vendorCols, `Assam_SWP_Vendor_Performance_${stamp}`)}
-                  onExportExcel={() => exportToExcel(tableVendors, vendorCols, `Assam_SWP_Vendor_Performance_${stamp}`)}
-                  onExportPDF={() => exportToPDF(tableVendors, vendorCols, 'Assam SWP Vendor-Wise Performance')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover" style={{ minWidth: 1200, whiteSpace: 'nowrap' }}>
-              <thead className="ax-table__head">
-                <tr>
-                  <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated Sites</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Installed Sites</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Pending Sites</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Doc Approved</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Doc Pending</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claims Raised</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedVendors.map((v) => {
-                  const pct = pctOf(v.complete, v.site_count);
-                  const vName = getVendorName(v.inst_vendor);
-                  return (
-                    <tr
-                      key={String(v.inst_vendor)}
-                      className="ax-table__row"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openDrillDown('complete', 'Vendor Installations', undefined, v.inst_vendor)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'Vendor Installations', undefined, v.inst_vendor); } }}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <b>{vName}</b>
-                          <small style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>ID: #{v.inst_vendor}</small>
-                        </div>
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
-                        {num(v.site_count || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
-                        {num(v.complete || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
-                        {num(v.pending || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600 }}>
-                        {num(v.verify_approved || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
-                        {num(v.verify_pending || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600 }}>
-                        {num(v.doc_approved || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>
-                        {num(v.doc_pending || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)', fontWeight: 600 }}>
-                        {num(v.inst_claim_raised || 0)}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
-                        {num(v.inst_pay_complete || 0)}
-                      </td>
-                      <td className="ax-table__td">
-                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
-                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
-                            <div className="ax-progress__track">
-                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
-                            </div>
-                          </div>
-                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!loading && pagedVendors.length === 0 && (
-                  <tr>
-                    <td className="ax-table__td" colSpan={11} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
-                      No vendor performance records match your search.
-                    </td>
-                  </tr>
-                )}
-                {pagedVendors.length > 0 && (
-                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
-                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Vendors)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(vendorwises.reduce((s, v) => s + (Number(v.site_count) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.complete) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.pending) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.verify_approved) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.verify_pending) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.doc_approved) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-muted)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.doc_pending) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.inst_claim_raised) || 0), 0))}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorwises.reduce((s, v) => s + (Number(v.inst_pay_complete) || 0), 0))}</td>
-                    <td className="ax-table__td">
-                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                        {pctOf(vendorwises.reduce((s, v) => s + (Number(v.complete) || 0), 0), vendorwises.reduce((s, v) => s + (Number(v.site_count) || 0), 1))}%
-                      </b>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="ax-card__footer" style={footerStyle}>
-            <div className="ula-pagination-left">
-              <Pagination
-                currentPage={currentVendorPage}
-                totalItems={totalVendorItems}
-                pageSize={vendorPageSize}
-                onPageChange={setVendorPage}
-                onPageSizeChange={setVendorPageSize}
-                pageSizeOptions={[5, 10, 25, 50]}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 10. District Quick-Access & Quick Actions */}
-        <section className="ax-card ax-col--6" role="region" aria-label="District Status & Quick Navigation">
+        {/* 9. District Quick-Access & Quick Actions */}
+        <section className="ax-card ax-col--4" role="region" aria-label="District Status & Quick Navigation">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">District Operations</span>
-              <h2 className="ax-card__title">Top Execution Districts (Leaderboard)</h2>
-              <p className="ax-card__subtitle">Highest installation completion across districts</p>
+              <h2 className="ax-card__title">District Quick Access</h2>
+              <p className="ax-card__subtitle">Installation progress by district</p>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <div>
               <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
                 <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                  Installation Ranking
+                  Top Execution Districts
                 </span>
                 <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(swp.complete)} Installed</span>
               </div>
               <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                {(() => {
-                  const items = districtInstall.length > 0 ? districtInstall : filteredDistricts;
-                  return items
-                    .slice()
-                    .sort((a: any, b: any) => (Number(b.inst_complete || b.complete) || 0) - (Number(a.inst_complete || a.complete) || 0))
-                    .slice(0, 10)
-                    .map((d: any) => {
-                      const completeVal = Number(d.inst_complete ?? d.complete) || 0;
-                      const matched = districtwise.find((x) => x.district.toLowerCase() === d.district.toLowerCase());
-                      const totalVal = matched?.site_count || completeVal;
-                      const pct = pctOf(completeVal, totalVal);
-                      return (
-                        <button
-                          key={d.district}
-                          type="button"
-                          className="ax-cluster"
-                          onClick={() => openDrillDown('complete', 'District Installations', d.district)}
-                          style={{
-                            width: '100%',
-                            justifyContent: 'space-between',
-                            fontSize: 'var(--ax-text-xs)',
-                            border: 0,
-                            background: 'transparent',
-                            padding: '6px 0',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)',
-                          }}
-                        >
-                          <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
-                          <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                            {num(completeVal)} / {num(totalVal)} ({pct}%)
-                          </b>
-                        </button>
-                      );
-                    });
-                })()}
+                {(filteredDistricts.length > 0 ? filteredDistricts : districtwise).slice(0, 8).map((d) => (
+                  <button
+                    key={d.district}
+                    type="button"
+                    className="ax-cluster"
+                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                    style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', border: 0, background: 'transparent', padding: '6px 0', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
+                  >
+                    <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
+                    <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                      {num(d.complete || 0)} / {num(d.site_count || 0)} ({pctOf(d.complete || 0, d.site_count || 1)}%)
+                    </b>
+                  </button>
+                ))}
                 {districtwise.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* 11. Quick Module Actions */}
-        <section className="ax-card ax-col--6" role="region" aria-label="Quick Module Actions">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Workflows & Portals</span>
-              <h2 className="ax-card__title">Quick Module Actions</h2>
-              <p className="ax-card__subtitle">Shortcuts to manage site assignments, audits and vendor disbursements</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <Link to="/vendor-management/assam/swp/request" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+            <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
+
+            {/* Quick Actions Links */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                Quick Module Actions
+              </span>
+              <Link to="/vendor-management/assam/swp/request" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Accept Assigned Requests</span>
                 <span>→</span>
               </Link>
-              <Link to="/vendor-management/assam/swp/site" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+              <Link to="/vendor-management/assam/swp/site" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Record New Installation</span>
                 <span>+</span>
               </Link>
-              <Link to="/vendor-management/assam/swp/view" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
-                <span>Review Master Installation Registry</span>
-                <span>📋</span>
-              </Link>
-              <Link to="/vendor-management/assam/swp/payment" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
-                <span>Submit & Disburse Payment Claim</span>
+              <Link to="/vendor-management/assam/swp/payment" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+                <span>Submit Payment Claim</span>
                 <span>₹</span>
               </Link>
             </div>

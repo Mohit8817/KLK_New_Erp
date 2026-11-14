@@ -55,32 +55,12 @@ export async function fetchWithCandidateUrls<T = any>(
   const token = authService.getToken();
   const baseHeaders: Record<string, string> = {
     Accept: 'application/json',
-    'X-Requested-With': 'XMLHttpRequest',
   };
-
-  // Only attach real active Bearer tokens (skip client-side synthetic fallback tokens to avoid Sanctum 500s)
   if (token) {
-    const isSynthetic =
-      token.startsWith('klk_user_session_token_') ||
-      token.startsWith('klk_vendor_session_token_');
-    if (!isSynthetic) {
-      baseHeaders.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  // Attach company_id header for multi-tenant backend queries
-  const companyId =
-    localStorage.getItem('company_id') ||
-    localStorage.getItem('klk_company_id') ||
-    sessionStorage.getItem('company_id') ||
-    (authService.getSession() as any)?.company_id ||
-    'KLK25022025';
-  if (companyId) {
-    baseHeaders['X-Company-Id'] = String(companyId);
+    baseHeaders.Authorization = `Bearer ${token}`;
   }
 
   const isFormData = options.body instanceof FormData;
-  const isWrite = (options.method || 'GET').toUpperCase() !== 'GET';
   const headers: Record<string, string> = isFormData
     ? { ...baseHeaders, ...((options.headers as Record<string, string>) || {}) }
     : { ...baseHeaders, 'Content-Type': 'application/json', ...((options.headers as Record<string, string>) || {}) };
@@ -90,16 +70,9 @@ export async function fetchWithCandidateUrls<T = any>(
   for (const url of urls) {
     try {
       const response = await fetch(url, {
-        credentials: 'include',
-        ...(isWrite ? { redirect: 'manual' as RequestRedirect } : {}),
         ...options,
         headers,
       });
-
-      // Laravel form submissions typically return 302/redirect back on success
-      if (isWrite && (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400))) {
-        return { success: true, message: 'Saved successfully.' } as any;
-      }
 
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
@@ -107,25 +80,11 @@ export async function fetchWithCandidateUrls<T = any>(
         if (response.ok) {
           return json;
         }
-        // If 400 or 422 validation/client error, throw informative error immediately
+        // Even if status is 400/422, return parsed json so caller can read error message
         if (response.status === 400 || response.status === 422) {
-          const detail =
-            json?.message ||
-            (json?.errors
-              ? Array.isArray(json.errors)
-                ? json.errors.join(', ')
-                : Object.values(json.errors).flat().join(', ')
-              : `Request failed with status ${response.status}`);
-          const err: any = new Error(detail);
-          err.errors = json?.errors;
-          err.status = response.status;
-          err.responseJson = json;
-          lastError = err;
-          throw err;
+          return json;
         }
-        const err: any = new Error(json?.message || `Request failed with status ${response.status}`);
-        err.status = response.status;
-        lastError = err;
+        lastError = new Error(json?.message || `Request failed with status ${response.status}`);
       } else {
         const text = await response.text();
         if (response.ok) {
@@ -135,14 +94,9 @@ export async function fetchWithCandidateUrls<T = any>(
             return text as any;
           }
         }
-        const err: any = new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-        err.status = response.status;
-        lastError = err;
+        lastError = new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
       }
     } catch (err: any) {
-      if (err?.status === 422 || err?.status === 400) {
-        throw err;
-      }
       lastError = err;
     }
   }
@@ -179,18 +133,7 @@ export class BiharAdminService {
 
   // GET view-assign-survey
   async getViewAssignSrt200mwSurveys() {
-    const companyId =
-      localStorage.getItem('company_id') ||
-      localStorage.getItem('klk_company_id') ||
-      sessionStorage.getItem('company_id') ||
-      (authService.getSession() as any)?.company_id ||
-      'KLK25022025';
-
-    const baseCandidateUrls = BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN;
-    const withCompanyQuery = baseCandidateUrls.map((u) => `${u}${u.includes('?') ? '&' : '?'}company_id=${encodeURIComponent(companyId)}`);
-
-    const urls = Array.from(new Set([...withCompanyQuery, ...baseCandidateUrls]));
-    return fetchWithCandidateUrls(urls);
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN);
   }
 
   // GET view-survey

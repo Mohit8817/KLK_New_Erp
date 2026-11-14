@@ -588,52 +588,27 @@ export function BiharSSLAMCAssignSSL() {
 
     setSubmitting(true);
     try {
-      const selectedVendorObj = vendorList.find((v) => v.name === vendor || String(v.id) === vendor);
-      const vendorId = selectedVendorObj ? String(selectedVendorObj.id) : vendor;
-
       const formData = new FormData();
-      if (isEditMode && editId) {
-        formData.append('id', String(editId));
-      }
       formData.append('state', stateName);
       formData.append('vendor', vendor);
-      formData.append('vendor_name', vendor);
-      formData.append('vendor_id', vendorId);
-      formData.append('users', vendorId);
-      formData.append('user_id', vendorId);
       formData.append('district', district);
-      formData.append('district_id', district);
       formData.append('block', block);
-      formData.append('block_id', block);
       formData.append('panchayat', panchayat);
-      formData.append('panchayat_id', panchayat);
       formData.append('ward', ward);
-      formData.append('ward_no', ward);
-      formData.append('ward_id', ward);
       if (deadlineDate) {
         formData.append('deadline_date', deadlineDate);
-        formData.append('deadline', deadlineDate);
       }
       if (file) {
         formData.append('file', file);
       }
       if (remarks.trim()) {
         formData.append('remarks', remarks.trim());
-        formData.append('remark', remarks.trim());
       }
 
-      try {
-        if (typeof biharAdminService.assignSslAmc === 'function') {
-          await biharAdminService.assignSslAmc(formData);
-        } else if (typeof (biharAdminService as any).assignSslAmcVendor === 'function') {
-          await (biharAdminService as any).assignSslAmcVendor(formData);
-        }
-      } catch (apiErr: any) {
-        // If 422 or 400 validation error from backend, bubble up the specific error
-        if (apiErr?.status === 422 || apiErr?.status === 400) {
-          throw apiErr;
-        }
-        console.warn('[AssignSSL] API POST candidate attempts fallback:', apiErr);
+      if (typeof biharAdminService.assignSslAmc === 'function') {
+        await biharAdminService.assignSslAmc(formData);
+      } else if (typeof (biharAdminService as any).assignSslAmcVendor === 'function') {
+        await (biharAdminService as any).assignSslAmcVendor(formData);
       }
 
       setSuccessMsg(
