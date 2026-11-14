@@ -119,6 +119,7 @@ const UPRescoSurveyAssignVendor = lazy(() => import('../components/Vendor-Manage
 // ═══════════════════════════════════════════════════════════════════════════
 // Survey
 const BiharSRT200MWSurveyDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyDashboard })));
+const BiharSRT200MWSurveyStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyStatusView })));
 const BiharSRT200MWSurveyAssign = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyAssign })));
 const BiharSRT200MWSurveyAssignView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyAssignView })));
 const BiharSRT200MWSurveyVerify = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyVerify })));
@@ -144,6 +145,7 @@ const BiharSRTInstallationViewPayment = lazy(() => import('../components/Vendor-
 
 // Installation: ULA
 const BiharVMULAInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationDashboard })));
+const BiharULAInstallationStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationStatusView })));
 const BiharULAInstallationAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationAssignSites })));
 const BiharULAInstallationViewAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewAssignSites })));
 const BiharULAInstallationStructureApproval = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationStructureApproval })));
@@ -156,6 +158,7 @@ const BiharULAInstallationViewPayment = lazy(() => import('../components/Vendor-
 const BiharSSLAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCDashboard })));
 const BiharSSLAMCAssignSSL = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCAssignSSL })));
 const BiharSSLAMCVerrifyAMC = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCVerrifyAMC })));
+const BiharSSLAMCStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCStatusView })));
 
 // AMC: SRT
 const BiharSRTAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTAMCDashboard })));
@@ -744,6 +747,11 @@ export const vendorManagementRoutes: ReactElement[] = [
   <Route key="vm.bihar.srt200.db2" path="vendor-management/bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
   <Route key="vm.bihar.srt200.db3" path="bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
 
+  <Route key="vm.bihar.srt200.status" path="vendor-management/bihar/srt200mw/survey/status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+  <Route key="vm.bihar.srt200.status2" path="vendor-management/bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+  <Route key="vm.bihar.srt200.status3" path="bihar/srt200mw/survey/status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+  <Route key="vm.bihar.srt200.status4" path="bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+
   <Route key="vm.bihar.srt200.assign" path="vendor-management/bihar/srt200mw/survey/assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
   <Route key="vm.bihar.srt200.assign2" path="vendor-management/bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
   <Route key="vm.bihar.srt200.assign3" path="bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
@@ -823,6 +831,11 @@ export const vendorManagementRoutes: ReactElement[] = [
   <Route key="vm.bihar.ula.inst.db2" path="vendor-management/bihar/ula-installation-dashboard" element={wrap(BiharVMULAInstallationDashboard)} />,
   <Route key="vm.bihar.ula.inst.db3" path="bihar/ula/installation/dashboard" element={wrap(BiharVMULAInstallationDashboard)} />,
 
+  <Route key="vm.bihar.ula.inst.status" path="vendor-management/bihar/ula/installation/status-view" element={wrap(BiharULAInstallationStatusView)} />,
+  <Route key="vm.bihar.ula.inst.status2" path="vendor-management/bihar/ula-installation-status-view" element={wrap(BiharULAInstallationStatusView)} />,
+  <Route key="vm.bihar.ula.inst.status3" path="bihar/ula/installation/status-view" element={wrap(BiharULAInstallationStatusView)} />,
+  <Route key="vm.bihar.ula.inst.status4" path="bihar/ula-installation-status-view" element={wrap(BiharULAInstallationStatusView)} />,
+
   <Route key="vm.bihar.ula.inst.cassign" path="vendor-management/bihar/ula/installation/create-assign-site" element={wrap(BiharULAInstallationAssignSites)} />,
   <Route key="vm.bihar.ula.inst.cassign2" path="bihar/ula/installation/create-assign-site" element={wrap(BiharULAInstallationAssignSites)} />,
 
@@ -856,6 +869,11 @@ export const vendorManagementRoutes: ReactElement[] = [
   <Route key="vm.bihar.amc.ssl.verify" path="vendor-management/bihar/ssl/amc/verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
   <Route key="vm.bihar.amc.ssl.verify2" path="vendor-management/bihar-ssl-amc-verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
   <Route key="vm.bihar.amc.ssl.verify3" path="bihar-ssl-amc-verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
+
+  <Route key="vm.bihar.amc.ssl.status" path="vendor-management/bihar/ssl/amc/status-view" element={wrap(BiharSSLAMCStatusView)} />,
+  <Route key="vm.bihar.amc.ssl.status2" path="vendor-management/bihar-ssl-amc-status-view" element={wrap(BiharSSLAMCStatusView)} />,
+  <Route key="vm.bihar.amc.ssl.status3" path="bihar/ssl/amc/status-view" element={wrap(BiharSSLAMCStatusView)} />,
+  <Route key="vm.bihar.amc.ssl.status4" path="bihar-ssl-amc-status-view" element={wrap(BiharSSLAMCStatusView)} />,
 
   // Bihar AMC: SRT
   <Route key="vm.bihar.amc.srt.db" path="vendor-management/bihar/srt/amc/dashboard" element={wrap(BiharSRTAMCDashboard)} />,

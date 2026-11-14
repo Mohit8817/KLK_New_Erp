@@ -1061,6 +1061,7 @@ export function ViewPayment() {
                   const totalAmt = Number(row.amount || 0);
                   const paidAmt = Number(row.pay_amount || 0);
                   const balAmt = Math.max(0, totalAmt - paidAmt);
+                  const pStatus = Number(row.pay_status ?? 0);
 
                   return (
                     <tr key={row.id}>

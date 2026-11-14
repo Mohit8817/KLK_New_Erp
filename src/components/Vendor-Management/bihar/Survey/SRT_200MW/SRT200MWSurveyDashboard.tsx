@@ -1093,54 +1093,14 @@ export function BiharSRT200MWSurveyDashboard() {
     printWindow.print();
   };
 
-  // ── Drilldown & Modal Opener matching Karnataka SWP ──
-  const openDrillDown = async (statusKey: string, label?: string, district?: string, vendor?: string | number) => {
+  // ── Drilldown Status View Navigation matching Karnataka SWP ──
+  const openDrillDown = (statusKey: string, _label?: string, district?: string, vendor?: string | number) => {
     const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
-
-    let rows: any[] = [];
-    try {
-      if (targetDistrict) {
-        const resp = await biharAdminService.getSrt200mwDistrictWiseData(statusKey, targetDistrict);
-        const data = resp?.data || resp;
-        if (Array.isArray(data) && data.length > 0) rows = data;
-      } else if (vendor !== undefined && vendor !== null && vendor !== '') {
-        const resp = await biharAdminService.getSrt200mwVendorWiseData(statusKey, String(vendor));
-        const data = resp?.data || resp;
-        if (Array.isArray(data) && data.length > 0) rows = data;
-      } else {
-        const resp = await biharAdminService.getSrt200mwViewDashboard(statusKey);
-        const data = resp?.data || resp;
-        if (Array.isArray(data) && data.length > 0) rows = data;
-      }
-    } catch {
-      // Fallback to local filter
-    }
-
-    if (rows.length === 0) {
-      if (statusKey === 'total' || statusKey === 'pending-assign') {
-        rows = rawAssigns.filter((a) => !targetDistrict || a.district?.toLowerCase() === targetDistrict.toLowerCase());
-        if (rows.length === 0) {
-          rows = rawSurveys.filter((s) => !targetDistrict || s.district?.toLowerCase() === targetDistrict.toLowerCase());
-        }
-      } else {
-        rows = rawSurveys.filter((s) => {
-          const matchDist = !targetDistrict || s.district?.toLowerCase() === targetDistrict.toLowerCase();
-          const matchVendor = !vendor || String(s.survey_vendor || '') === String(vendor);
-          let matchSt = true;
-          if (statusKey === 'complete') matchSt = true;
-          else if (statusKey === 'verify-approved') matchSt = s.survey_verify_status === 1 || s.verify_status === 'Approved';
-          else if (statusKey === 'verify-pending') matchSt = s.survey_verify_status === 0 || s.verify_status === 'Pending';
-          else if (statusKey === 'verify-reject') matchSt = s.survey_verify_status === 2 || s.verify_status === 'Rejected';
-          return matchDist && matchVendor && matchSt;
-        });
-      }
-    }
-
-    setModalTitle(label || `${targetDistrict || 'Bihar'} · ${statusKey.toUpperCase()} Surveys`);
-    setModalSubtitle(`Filtered by status: ${statusKey} · ${targetDistrict ? `District: ${targetDistrict}` : 'All Districts'} (${rows.length} records)`);
-    setModalRows(rows);
-    setModalSearch('');
-    setModalOpen(true);
+    const params = new URLSearchParams();
+    params.set('status', statusKey);
+    if (targetDistrict) params.set('district', targetDistrict);
+    if (vendor !== undefined && vendor !== null && vendor !== '') params.set('vendor', String(vendor));
+    navigate(`/vendor-management/bihar/srt200mw/survey/status-view?${params.toString()}`);
   };
 
   const filteredModalRows = useMemo(() => {
@@ -1181,13 +1141,9 @@ export function BiharSRT200MWSurveyDashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Bihar
             </span>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={() => openDrillDown('complete', 'Status Register · Bihar SRT 200MW')}
-            >
+            <Link to="/vendor-management/bihar/srt200mw/survey/status-view?status=complete" className="ax-btn ax-btn--secondary ax-btn--sm">
               Status Register
-            </button>
+            </Link>
             <Link to="/vendor-management/bihar/srt200mw/survey/assign-view" className="ax-btn ax-btn--secondary ax-btn--sm">
               Assigned Requests
             </Link>

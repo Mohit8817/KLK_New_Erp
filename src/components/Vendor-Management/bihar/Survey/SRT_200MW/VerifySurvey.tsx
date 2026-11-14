@@ -515,7 +515,7 @@ export function VerifyBiharSRT200Survey() {
         const normalize = (item: any, idx: number): Row => ({
           id: item.id || idx + 1,
           uid: item.uid || item.unique_id || `SRT-${item.id || idx + 1}`,
-          vendor_name: item.vendor_name || (item.survey_vendor ? `Vendor #${item.survey_vendor}` : (item.vendor || 'Vendor')),
+          vendor_name: item.vendor_name || (item.survey_vendor ? `${item.survey_vendor}` : (item.vendor || 'Vendor')),
           state: item.state || 'Bihar',
           district: item.district || '—',
           division: item.division || '—',

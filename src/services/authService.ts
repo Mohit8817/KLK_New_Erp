@@ -170,7 +170,7 @@ class AuthService {
         name: userData.name || email.split('@')[0],
         email: userData.email || email.trim(),
 
-        // ✅ Explicitly preserve company_id and role/usertype
+        //  Explicitly preserve company_id and role/usertype
         company_id: userData.company_id ?? null,
         usertype: userData.usertype ?? userData.user_type ?? null,
         role_id: userData.role_id ?? userData.role ?? null,

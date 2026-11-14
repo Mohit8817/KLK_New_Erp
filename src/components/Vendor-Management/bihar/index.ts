@@ -5,6 +5,7 @@ export { AssignBiharSRT200MWSurvey, AssignBiharSRT200MWSurvey as BiharSRT200MWSu
 export { ViewAssignBiharSRT200MWSurvey, ViewAssignBiharSRT200MWSurvey as BiharSRT200MWSurveyAssignView } from './Survey/SRT_200MW/ViewAssignSurvey';
 export { VerifyBiharSRT200Survey, VerifyBiharSRT200Survey as BiharSRT200MWSurveyVerify } from './Survey/SRT_200MW/VerifySurvey';
 export { BiharSRT200MWSurveyDashboard } from './Survey/SRT_200MW/SRT200MWSurveyDashboard';
+export { BiharSRT200MWSurveyStatusView } from './Survey/SRT_200MW/StatusView';
 export { BiharULASurveyViewData } from './Survey/ULA/ViewULASurvey';
 
 // Installation: SSL
@@ -27,6 +28,7 @@ export { BiharSRTInstallationViewPayment } from './Installation/SRT/ViewPayment'
 
 // Installation: ULA
 export { BiharULAInstallationDashboard } from './Installation/ULA/ULAInstallationDashboard';
+export { BiharULAInstallationStatusView } from './Installation/ULA/StatusView';
 export { BiharULAInstallationAssignSites } from './Installation/ULA/AssignSites';
 export { BiharULAInstallationViewAssignSites } from './Installation/ULA/ViewAssignSites';
 export { BiharULAInstallationStructureApproval } from './Installation/ULA/StructureApproval';
@@ -39,6 +41,7 @@ export { BiharULAInstallationViewPayment } from './Installation/ULA/ViewPayment'
 export { BiharSSLAMCDashboard } from './AMC/SSLAMCDashboard';
 export { BiharSSLAMCAssignSSL } from './AMC/AssignSSL';
 export { BiharSSLAMCVerrifyAMC } from './AMC/VerifyAMC';
+export { BiharSSLAMCStatusView } from './AMC/StatusView';
 
 // AMC: SRT
 export { BiharSRTAMCDashboard } from './AMC/SRTAMCDashboard';

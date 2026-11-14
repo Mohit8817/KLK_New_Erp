@@ -93,6 +93,14 @@ const PAGE_CSS = `
     box-shadow: var(--ax-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
     border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
   }
+  .solar-erp-page .asw-clickable-num {
+    cursor: pointer;
+    transition: color 0.15s ease, opacity 0.15s ease;
+  }
+  .solar-erp-page .asw-clickable-num:hover {
+    text-decoration: underline;
+    opacity: 0.85;
+  }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
@@ -337,8 +345,15 @@ const vendorLabel = (id: unknown) => {
 };
 const isRealVendor = (key: string) => !['none', 'NA', 'na', 'self'].includes(key);
 
-const NumTd = ({ v, color }: { v: number; color?: string }) => (
-  <td className="ax-table__td ax-table__td--num ax-num" style={{ color, fontWeight: 600 }}>{num(v)}</td>
+const NumTd = ({ v, color, onClick }: { v: number; color?: string; onClick?: () => void }) => (
+  <td
+    className={`ax-table__td ax-table__td--num ax-num ${onClick ? 'asw-clickable-num' : ''}`}
+    style={{ color, fontWeight: 600, cursor: onClick ? 'pointer' : undefined }}
+    onClick={onClick}
+    title={onClick ? 'Click to view matching sites' : undefined}
+  >
+    {num(v)}
+  </td>
 );
 
 export function BiharSSLAMCDashboard() {
@@ -555,6 +570,13 @@ export function BiharSSLAMCDashboard() {
 
   const go = (path: string) => navigate(`${BASE}/${path}`);
 
+  const toStatusView = (status: string, dist?: string) => {
+    const q = new URLSearchParams({ status });
+    const d = dist || (selectedDistrict !== 'All' ? selectedDistrict : undefined);
+    if (d) q.set('district', d);
+    navigate(`${BASE}/status-view?${q.toString()}`);
+  };
+
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
@@ -582,6 +604,9 @@ export function BiharSSLAMCDashboard() {
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadDashboardData} disabled={loading}>
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
+            <Link to={`${BASE}/status-view`} className="ax-btn ax-btn--secondary ax-btn--sm">
+              Status View
+            </Link>
             <Link to={`${BASE}/verify-amc`} className="ax-btn ax-btn--secondary ax-btn--sm">
               Verify AMC
             </Link>
@@ -716,34 +741,52 @@ export function BiharSSLAMCDashboard() {
                   {selectedDistrict !== 'All' ? 'Active Filter Scope' : 'Bihar Operational Scope'}
                 </small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => toStatusView('total')}
+                title="Click to view total sites in Status View"
+              >
                 <dt>Total Sites</dt>
                 <dd className="ax-num">{num(stats.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--asw-primary)' }}>Solar Street Light poles</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--asw-primary)' }}>Solar Street Light poles ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => toStatusView('assigned')}
+                title="Click to view assigned sites in Status View"
+              >
                 <dt>AMC Assigned</dt>
                 <dd className="ax-num">{num(stats.assigned)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>{pctAssigned}% Assigned</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>{pctAssigned}% Assigned ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => toStatusView('complete')}
+                title="Click to view complete sites in Status View"
+              >
                 <dt>AMC Complete</dt>
                 <dd className="ax-num">{num(stats.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(stats.pending)} Pending</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(stats.pending)} Pending ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
         {/* KPI Cards */}
-        <KpiCard icon={I_PIN} tone="accent" label="Total Sites" value={num(stats.site_count)} unit="Sites" sub="Solar Street Light poles" spark={siteSpark} onClick={() => go('verify-amc')} />
-        <KpiCard icon={I_DONE} tone="cyan" label="AMC Assigned" value={num(stats.assigned)} unit="Sites" sub="Assigned to vendors" badge={`${pctAssigned}%`} spark={assignedSpark} onClick={() => go('assign-vendor')} />
-        <KpiCard icon={I_CLOCK} tone="amber" label="Not Assigned" value={num(stats.not_assigned)} unit="Sites" sub="Awaiting vendor allotment" badge={`${pctNotAssigned}%`} onClick={() => go('assign-vendor')} />
-        <KpiCard icon={I_SHIELD} tone="emerald" label="AMC Complete" value={num(stats.complete)} unit="Sites" sub="Maintenance visits done" badge={`${pctComplete}%`} spark={completeSpark} onClick={() => go('verify-amc')} />
-        <KpiCard icon={I_X} tone="red" label="AMC Pending" value={num(stats.pending)} unit="Sites" sub="Visits still pending" spark={pendingSpark} onClick={() => go('verify-amc')} />
-        <KpiCard icon={I_BOLT} tone="violet" label="Completed Today" value={num(stats.today)} unit="Sites" sub="Field visits recorded today" onClick={() => go('verify-amc')} />
-        <KpiCard icon={I_DOC} tone="pink" label="Vendors Assigned" value={num(vendorCount)} unit="Vendors" sub="Active AMC vendors" onClick={() => go('assign-vendor')} />
-        <KpiCard icon={I_CREDIT} tone="accent" label="Districts" value={num(districtOptions.length)} unit="Districts" sub="Covered in Bihar SSL" />
+        <KpiCard icon={I_PIN} tone="accent" label="Total Sites" value={num(stats.site_count)} unit="Sites" sub="Solar Street Light poles" spark={siteSpark} onClick={() => toStatusView('total')} />
+        <KpiCard icon={I_DONE} tone="cyan" label="AMC Assigned" value={num(stats.assigned)} unit="Sites" sub="Assigned to vendors" badge={`${pctAssigned}%`} spark={assignedSpark} onClick={() => toStatusView('assigned')} />
+        <KpiCard icon={I_CLOCK} tone="amber" label="Not Assigned" value={num(stats.not_assigned)} unit="Sites" sub="Awaiting vendor allotment" badge={`${pctNotAssigned}%`} onClick={() => toStatusView('not-assigned')} />
+        <KpiCard icon={I_SHIELD} tone="emerald" label="AMC Complete" value={num(stats.complete)} unit="Sites" sub="Maintenance visits done" badge={`${pctComplete}%`} spark={completeSpark} onClick={() => toStatusView('complete')} />
+        <KpiCard icon={I_X} tone="red" label="AMC Pending" value={num(stats.pending)} unit="Sites" sub="Visits still pending" spark={pendingSpark} onClick={() => toStatusView('pending')} />
+        <KpiCard icon={I_BOLT} tone="violet" label="Completed Today" value={num(stats.today)} unit="Sites" sub="Field visits recorded today" onClick={() => toStatusView('today')} />
+        <KpiCard icon={I_DOC} tone="pink" label="Vendors Assigned" value={num(vendorCount)} unit="Vendors" sub="Active AMC vendors" onClick={() => toStatusView('assigned')} />
+        <KpiCard icon={I_CREDIT} tone="accent" label="Districts" value={num(districtOptions.length)} unit="Districts" sub="Covered in Bihar SSL" onClick={() => toStatusView('total')} />
 
         {/* Operations Header */}
         <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
@@ -762,10 +805,10 @@ export function BiharSSLAMCDashboard() {
           </div>
         </div>
 
-        <KpiCard icon={I_PIN} tone="cyan" label="Assignment Rate" value={`${pctAssigned}%`} sub={`${num(stats.assigned)} of ${num(stats.site_count)} sites assigned`} spark={assignRateSpark} onClick={() => go('assign-vendor')} />
-        <KpiCard icon={I_DONE} tone="emerald" label="AMC Completion Rate" value={`${pctComplete}%`} sub={`${num(stats.complete)} complete vs ${num(stats.assigned)} assigned`} badge="Complete" spark={completionRateSpark} onClick={() => go('verify-amc')} />
-        <KpiCard icon={I_CLOCK} tone="amber" label="Unassigned Share" value={`${pctNotAssigned}%`} sub={`${num(stats.not_assigned)} sites without vendor`} onClick={() => go('assign-vendor')} />
-        <KpiCard icon={I_BOLT} tone="violet" label="Today's Progress" value={`${pctToday}%`} sub={`${num(stats.today)} completed today`} onClick={() => go('verify-amc')} />
+        <KpiCard icon={I_PIN} tone="cyan" label="Assignment Rate" value={`${pctAssigned}%`} sub={`${num(stats.assigned)} of ${num(stats.site_count)} sites assigned`} spark={assignRateSpark} onClick={() => toStatusView('assigned')} />
+        <KpiCard icon={I_DONE} tone="emerald" label="AMC Completion Rate" value={`${pctComplete}%`} sub={`${num(stats.complete)} complete vs ${num(stats.assigned)} assigned`} badge="Complete" spark={completionRateSpark} onClick={() => toStatusView('complete')} />
+        <KpiCard icon={I_CLOCK} tone="amber" label="Unassigned Share" value={`${pctNotAssigned}%`} sub={`${num(stats.not_assigned)} sites without vendor`} onClick={() => toStatusView('not-assigned')} />
+        <KpiCard icon={I_BOLT} tone="violet" label="Today's Progress" value={`${pctToday}%`} sub={`${num(stats.today)} completed today`} onClick={() => toStatusView('today')} />
 
         {/* Charts */}
         <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="District wise AMC">
@@ -910,12 +953,21 @@ export function BiharSSLAMCDashboard() {
                 {pagedDistricts.map((d, idx) => (
                   <tr key={d.district} className="ax-table__row">
                     <td className="ax-table__td">{(currentPage - 1) * pageSize + idx + 1}</td>
-                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}><b>{d.district}</b></td>
-                    <NumTd v={d.site_count} />
-                    <NumTd v={d.assigned} color="var(--ax-viz-cyan, #0891b2)" />
-                    <NumTd v={d.not_assigned} color="var(--ax-viz-amber, #f59e0b)" />
-                    <NumTd v={d.complete} color="var(--ax-viz-emerald, #10b981)" />
-                    <NumTd v={d.pending} color="var(--ax-viz-red, #ef4444)" />
+                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                      <button
+                        type="button"
+                        onClick={() => toStatusView('total', d.district)}
+                        style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, color: '#2563eb', cursor: 'pointer', textAlign: 'left' }}
+                        title={`View sites for ${d.district}`}
+                      >
+                        {d.district} ↗
+                      </button>
+                    </td>
+                    <NumTd v={d.site_count} onClick={() => toStatusView('total', d.district)} />
+                    <NumTd v={d.assigned} color="var(--ax-viz-cyan, #0891b2)" onClick={() => toStatusView('assigned', d.district)} />
+                    <NumTd v={d.not_assigned} color="var(--ax-viz-amber, #f59e0b)" onClick={() => toStatusView('not-assigned', d.district)} />
+                    <NumTd v={d.complete} color="var(--ax-viz-emerald, #10b981)" onClick={() => toStatusView('complete', d.district)} />
+                    <NumTd v={d.pending} color="var(--ax-viz-red, #ef4444)" onClick={() => toStatusView('pending', d.district)} />
                   </tr>
                 ))}
                 {!loading && pagedDistricts.length === 0 && (
@@ -986,6 +1038,9 @@ export function BiharSSLAMCDashboard() {
               <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
                 Quick Module Actions
               </span>
+              <Link to={`${BASE}/status-view`} className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
+                <span>View Status Drilldown</span><span>📊</span>
+              </Link>
               <Link to={`${BASE}/assign-vendor`} className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
                 <span>Assign Vendor BiharSSL</span><span>+</span>
               </Link>
@@ -1033,11 +1088,20 @@ export function BiharSSLAMCDashboard() {
                 {pagedVendors.map((v, idx) => (
                   <tr key={v.key} className="ax-table__row">
                     <td className="ax-table__td">{(vendorCurrentPage - 1) * vendorPageSize + idx + 1}</td>
-                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}><b>{v.name}</b></td>
-                    <NumTd v={v.site_count} />
-                    <NumTd v={v.complete} color="var(--ax-viz-emerald, #10b981)" />
-                    <NumTd v={v.pending} color="var(--ax-viz-amber, #f59e0b)" />
-                    <NumTd v={v.today} color="var(--ax-viz-violet, #7c3aed)" />
+                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                      <button
+                        type="button"
+                        onClick={() => toStatusView('total')}
+                        style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, color: '#2563eb', cursor: 'pointer', textAlign: 'left' }}
+                        title={`View sites for ${v.name}`}
+                      >
+                        {v.name} ↗
+                      </button>
+                    </td>
+                    <NumTd v={v.site_count} onClick={() => toStatusView('total')} />
+                    <NumTd v={v.complete} color="var(--ax-viz-emerald, #10b981)" onClick={() => toStatusView('complete')} />
+                    <NumTd v={v.pending} color="var(--ax-viz-amber, #f59e0b)" onClick={() => toStatusView('pending')} />
+                    <NumTd v={v.today} color="var(--ax-viz-violet, #7c3aed)" onClick={() => toStatusView('today')} />
                   </tr>
                 ))}
                 {!loading && pagedVendors.length === 0 && (
