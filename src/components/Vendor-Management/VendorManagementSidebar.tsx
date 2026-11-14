@@ -46,6 +46,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'Assam',
     state: 'assam',
@@ -73,6 +74,64 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
+
+  // Punjab 
+
+    {
+    section: 'VENDOR · PUNJAB',
+    state: 'punjab',
+    items: [
+      {
+        id: 'grp.vm.punjab.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.punjab.inst.ssl',
+            title: 'Solar Street Light',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.punjab.ssl.dashboard', title: 'Dashboard', to: '/vendor-management/punjab/ssl/dashboard', iconType: 'analytics' },
+              { id: 'vm.punjab.ssl.assign', title: 'Assign Installation', to: '/vendor-management/punjab/ssl/assign-installation', iconType: 'assign' },
+              { id: 'vm.punjab.ssl.view-assign', title: 'View Assign Installation', to: '/vendor-management/punjab/ssl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.punjab.ssl.verify-install', title: 'Verify Installation', to: '/vendor-management/punjab/ssl/verify-installation', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // Arunachal Pradesh
+
+  {
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
+             
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // Uttar Pradesh------View SWP Installation Payment Data
 
 
   // {
@@ -286,6 +345,8 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
+
   // {
   //   section: 'Goa',
   //   state: 'goa',
@@ -348,6 +409,8 @@ const VENDOR_SECTIONS: NavSection[] = [
   //     },
   //   ],
   // },
+
+
   {
     section: 'Karnataka',
     state: 'karnataka',
@@ -391,9 +454,6 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-
-
-
 
 
     {
@@ -506,63 +566,6 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-
-
-
-
-
-  {
-    section: 'VENDOR · PUNJAB',
-    state: 'punjab',
-    items: [
-      {
-        id: 'grp.vm.punjab.inst',
-        title: 'Installation System',
-        icon: 'installation',
-        children: [
-          {
-            id: 'grp.vm.punjab.inst.ssl',
-            title: 'Solar Street Light',
-            tag: 'SSL',
-            children: [
-              { id: 'vm.punjab.ssl.dashboard', title: 'Dashboard', to: '/vendor-management/punjab/ssl/dashboard', iconType: 'analytics' },
-              { id: 'vm.punjab.ssl.assign', title: 'Assign Installation', to: '/vendor-management/punjab/ssl/assign-installation', iconType: 'assign' },
-              { id: 'vm.punjab.ssl.view-assign', title: 'View Assign Installation', to: '/vendor-management/punjab/ssl/view-assign-installation', iconType: 'view-assign' },
-              { id: 'vm.punjab.ssl.verify-install', title: 'Verify Installation', to: '/vendor-management/punjab/ssl/verify-installation', iconType: 'view-survey' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-
-
-  {
-    section: 'VENDOR · ARUNACHAL',
-    state: 'arunachal',
-    items: [
-      {
-        id: 'grp.vm.arunachal.inst',
-        title: 'Installation System',
-        icon: 'installation',
-        children: [
-          {
-            id: 'grp.vm.arunachal.inst.shl',
-            title: 'Solar Street Light',
-            tag: 'SHL',
-            children: [
-              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
-              { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
-              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
-              { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
-             
-            ],
-          },
-        ],
-      },
-    ],
-  },
-
 
         {
     section: 'VENDOR · JAMMU',

@@ -21,8 +21,8 @@ import {
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1162,14 +1162,11 @@ export function ViewAssignInstallation() {
         footer={
           <button
             type="button"
+            className="ax-btn ax-btn--primary"
             onClick={() => setSelectedAssignForSites(null)}
             style={{
               padding: '6px 16px',
               fontSize: 13,
-              borderRadius: 6,
-              background: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1354,12 +1351,10 @@ export function ViewAssignInstallation() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#fff',
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

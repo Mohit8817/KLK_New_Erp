@@ -21,7 +21,7 @@ import {
 /* ───────── Responsive page CSS (Exact Assam SWP View Assign Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
+    --asw-primary: var(--ax-accent, #2563eb);
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -315,7 +315,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -942,11 +942,8 @@ export function ViewAssignInstallation() {
                         <button
                           type="button"
                           onClick={() => setSelectedAssignForSites(row)}
+                          className="ax-btn ax-btn--secondary ax-btn--xs"
                           style={{
-                            background: 'rgba(37, 99, 235, 0.1)',
-                            color: '#2563eb',
-                            border: '1px solid rgba(37, 99, 235, 0.25)',
-                            borderRadius: 6,
                             padding: '2px 8px',
                             fontSize: 12,
                             fontWeight: 700,
@@ -1031,15 +1028,12 @@ export function ViewAssignInstallation() {
                               type="button"
                               onClick={() => handleApprove(row.id)}
                               disabled={approvingId === row.id}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 10px',
-                                borderRadius: 6,
-                                background: '#10b981',
-                                color: '#ffffff',
-                                border: 'none',
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
@@ -1062,18 +1056,16 @@ export function ViewAssignInstallation() {
                               type="button"
                               disabled
                               title="Accepted by Vendor (Locked for editing)"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 8px',
-                                borderRadius: 6,
-                                background: '#f1f5f9',
-                                color: '#94a3b8',
-                                border: '1px solid #cbd5e1',
                                 fontSize: 11,
                                 fontWeight: 600,
                                 cursor: 'not-allowed',
+                                opacity: 0.75,
                               }}
                             >
                               <svg
@@ -1096,15 +1088,12 @@ export function ViewAssignInstallation() {
                             <Link
                               to={`/vendor-management/karnataka/swp/assign-installation?edit=${row.id}`}
                               title="Edit Assignment"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 8px',
-                                borderRadius: 6,
-                                background: 'rgba(37, 99, 235, 0.08)',
-                                color: '#2563eb',
-                                border: '1px solid rgba(37, 99, 235, 0.2)',
                                 fontSize: 11,
                                 fontWeight: 600,
                                 textDecoration: 'none',
@@ -1132,12 +1121,9 @@ export function ViewAssignInstallation() {
                           <button
                             type="button"
                             onClick={() => setSelectedAssignForSites(row)}
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               padding: '4px 8px',
-                              borderRadius: 6,
-                              background: 'var(--ax-surface-subtle, #f1f5f9)',
-                              border: '1px solid var(--ax-border, #cbd5e1)',
-                              color: 'var(--ax-text-strong)',
                               fontSize: 11,
                               fontWeight: 600,
                               cursor: 'pointer',
@@ -1181,13 +1167,10 @@ export function ViewAssignInstallation() {
           <button
             type="button"
             onClick={() => setSelectedAssignForSites(null)}
+            className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
-              borderRadius: 6,
-              background: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1320,15 +1303,11 @@ export function ViewAssignInstallation() {
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
                     fontSize: 12,
-                    color: '#2563eb',
                     fontWeight: 600,
                     textDecoration: 'none',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #bfdbfe',
-                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1379,12 +1358,10 @@ export function ViewAssignInstallation() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#fff',
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

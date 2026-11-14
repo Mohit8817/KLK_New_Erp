@@ -72,7 +72,7 @@ function getStatusDisplayLabel(status?: string | null): string {
 /* ───────── Responsive page CSS (Exact Karnataka / Assam SWP Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
+    --asw-primary: var(--ax-accent, #2563eb);
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
