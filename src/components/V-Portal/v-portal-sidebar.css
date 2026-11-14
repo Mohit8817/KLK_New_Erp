@@ -16,15 +16,19 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding: 2px 4px 28px 4px;
+  box-sizing: border-box;
+  padding: 4px 8px 32px 8px;
   user-select: none;
   font-family: inherit;
+  gap: 2px;
 }
 
 /* ── Top Portal Switcher Card ── */
 .vp-sb__top-card {
   position: relative;
-  margin: 0 2px 14px 2px;
+  margin: 0 0 12px 0;
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -155,18 +159,24 @@
   transform: translateX(-3px);
 }
 
-/* ── Section Title ── */
+/* ── Section Title (Fallback / Eyebrow) ── */
 .vp-sb__section-group {
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .vp-sb__section {
-  margin: 14px 4px 6px 4px;
-  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 14px 0 6px 0;
+  padding: 0 10px;
 }
 
 .vp-sb__section-title {
+  width: 100%;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -174,7 +184,7 @@
   color: var(--ax-text-subtle, #94a3b8);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .vp-sb__section-title::after {
@@ -189,6 +199,7 @@
 .vp-sb__group {
   display: flex;
   flex-direction: column;
+  width: 100%;
   margin-bottom: 2px;
 }
 
@@ -200,6 +211,7 @@
   align-items: center;
   gap: 9px;
   width: 100%;
+  box-sizing: border-box;
   padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -215,8 +227,7 @@
   transition:
     background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
     color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
 }
 
@@ -224,7 +235,6 @@
 .vp-sb__item-link:hover {
   background: #f1f5f9;
   color: var(--ax-text-strong, #0f172a);
-  transform: translateX(2px);
 }
 
 [data-ax-theme='dark'] .vp-sb__item-btn:hover,
@@ -252,7 +262,6 @@
   background: #eff6ff;
   border-color: rgba(37, 99, 235, 0.3);
   color: #2563eb;
-  transform: translateX(2px);
 }
 
 [data-ax-theme='dark'] .vp-sb__item-link--dashboard:hover {
@@ -314,7 +323,7 @@
 .vp-sb__item-btn--group {
   font-weight: 600;
   color: var(--ax-text-default, #1e293b);
-  padding: 7px 9px;
+  padding: 7px 10px;
 }
 
 .vp-sb__item-btn--group.is-trail {
@@ -436,8 +445,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 3px 0 5px 12px;
-  padding-left: 10px;
+  margin: 3px 0 5px 10px;
+  padding-left: 8px;
   border-left: 1.5px solid #e2e8f0;
 }
 
@@ -451,7 +460,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 9px;
+  padding: 5px 8px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -459,14 +468,12 @@
   text-decoration: none;
   transition:
     background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    color 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .vp-sb__leaf-link:hover {
   background: #f1f5f9;
   color: #2563eb;
-  transform: translateX(3px);
 }
 
 [data-ax-theme='dark'] .vp-sb__leaf-link:hover {
@@ -577,24 +584,28 @@
 }
 
 .vp-sb__leaf-circle {
-  width: 13px;
-  height: 13px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   flex-shrink: 0;
-  opacity: 0.65;
+  opacity: 0.6;
   color: var(--ax-text-muted, #64748b);
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
   transition: all 0.18s ease;
 }
 
 .vp-sb__leaf-link:hover .vp-sb__leaf-circle {
   opacity: 1;
   color: #2563eb;
-  transform: scale(1.15);
+  transform: scale(1.2);
 }
 
 .vp-sb__leaf-link.is-active .vp-sb__leaf-circle {
   opacity: 1;
   color: #2563eb;
-  fill: rgba(37, 99, 235, 0.25);
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
 /* ── Leaf Tree Container (Indented under Subgroup) ── */
@@ -603,8 +614,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 2px 0 4px 10px;
-  padding-left: 10px;
+  margin: 2px 0 4px 8px;
+  padding-left: 8px;
   border-left: 1.5px dashed #cbd5e1;
 }
 

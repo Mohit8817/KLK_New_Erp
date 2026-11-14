@@ -19,8 +19,8 @@ import {
 /* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -995,12 +995,9 @@ export function VerifyClaim() {
                               setActionStatus(String(row.claim_status === 1 ? '2' : row.claim_status || '2'));
                               setActionRemarks(row.approved_remarks || '');
                             }}
+                            className="ax-btn ax-btn--primary ax-btn--sm"
                             style={{
                               padding: '4px 12px',
-                              borderRadius: 6,
-                              background: '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
                               fontSize: 11,
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -1050,15 +1047,16 @@ export function VerifyClaim() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setSelectedClaimForAction(null)}
               disabled={submittingAction}
-              style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer' }}
+              style={{ padding: '7px 14px', fontSize: 13 }}
             >
               Cancel
             </button>
             <button
               type="button"
+              className="ax-btn ax-btn--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{
@@ -1067,10 +1065,6 @@ export function VerifyClaim() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: '#2563eb',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -1126,14 +1120,11 @@ export function VerifyClaim() {
         footer={
           <button
             type="button"
+            className="ax-btn ax-btn--primary"
             onClick={() => setViewSitesClaim(null)}
             style={{
               padding: '6px 16px',
               fontSize: 13,
-              borderRadius: 6,
-              background: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1274,12 +1265,10 @@ export function VerifyClaim() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#fff',
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

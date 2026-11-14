@@ -185,27 +185,42 @@ export interface BiharSSLVerifyLightItem {
   uid: string;
   state: string;
   phase?: string;
+  volume?: string;
+  wo_no?: string;
   district: string;
   district_code?: string;
   block: string;
   block_code?: string;
   panchayat: string;
+  panchyat?: string;
   panchayat_code?: string;
+  village?: string | null;
   ward_no?: string;
   pole_no?: string;
   beneficiary_name?: string;
   beneficiary_contact?: string;
+  contact_no?: string;
   latitude?: string;
   longitude?: string;
   uuid_no?: string;
   imei_no?: string;
   light_no?: string;
   battery_no?: string;
+  battery_serial_no?: string;
   panel_no?: string;
+  module_no?: string;
+  light_file?: string;
   light_image?: string;
+  image?: string;
   remark?: string;
+  inst_remark?: string;
   verify_status: 'Pending' | 'Approved' | 'Rejected';
+  inst_verify_status?: number | string;
   reverify_status?: string;
+  date_of_installation?: string;
+  inst_date?: string;
+  created_at?: string;
+  [key: string]: any;
 }
 
 // ── SRT Installation ──

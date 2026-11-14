@@ -64,7 +64,7 @@ const fmtMoney = (val?: string | number | null): string => {
 /* ───────── Responsive page CSS (Exact Assam SWP / Bihar SRT reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
+    --asw-primary: var(--ax-accent, #2563eb);
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -352,11 +352,11 @@ function MediaFileThumbnail({
             padding: 2,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', marginTop: 1 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', marginTop: 1 }}>
             {ext || 'DOC'}
           </span>
         </div>
@@ -428,7 +428,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -983,18 +983,13 @@ export function ViewClaim() {
                               type="button"
                               disabled
                               title={`Claim has been ${claimStatusLabel(cState)} (Locked)`}
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 4,
-                                padding: '4px 10px',
-                                borderRadius: 6,
-                                background: '#f1f5f9',
-                                color: '#94a3b8',
-                                border: '1px solid #e2e8f0',
-                                fontSize: 11,
-                                fontWeight: 700,
+                                opacity: 0.65,
                                 cursor: 'not-allowed',
                               }}
                             >
@@ -1013,16 +1008,7 @@ export function ViewClaim() {
                                 setClaimRemarks('');
                                 setModalError('');
                               }}
-                              style={{
-                                padding: '4px 12px',
-                                borderRadius: 6,
-                                background: '#2563eb',
-                                color: '#ffffff',
-                                border: 'none',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
                             >
                               Verify Status
                             </button>
@@ -1037,16 +1023,7 @@ export function ViewClaim() {
                                 setDocRemarks('');
                                 setModalError('');
                               }}
-                              style={{
-                                padding: '4px 12px',
-                                borderRadius: 6,
-                                background: 'rgba(37, 99, 235, 0.1)',
-                                color: '#2563eb',
-                                border: '1px solid rgba(37, 99, 235, 0.25)',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
                             >
                               Verify Doc
                             </button>
@@ -1093,10 +1070,10 @@ export function ViewClaim() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setClaimTarget(null)}
               disabled={submittingClaim}
-              style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer' }}
+              style={{ padding: '7px 14px', fontSize: 13 }}
             >
               Cancel
             </button>
@@ -1104,18 +1081,13 @@ export function ViewClaim() {
               type="button"
               onClick={handleUpdateClaimStatus}
               disabled={submittingClaim}
+              className={`ax-btn ${newClaimStatus === '2' ? 'ax-btn--primary' : 'ax-btn--danger'}`}
               style={{
                 padding: '7px 18px',
                 fontSize: 13,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: newClaimStatus === '2' ? '#2563eb' : '#dc2626',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontWeight: 700,
-                cursor: 'pointer',
               }}
             >
               {submittingClaim && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
@@ -1160,7 +1132,7 @@ export function ViewClaim() {
                     fontSize: 12,
                     fontWeight: 700,
                     background: '#eff6ff',
-                    color: '#2563eb',
+                    color: 'var(--ax-accent, #2563eb)',
                   }}
                 >
                   {fmtMoney(claimTarget.inst_claim_amount)}
@@ -1240,10 +1212,10 @@ export function ViewClaim() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setDocTarget(null)}
               disabled={submittingDoc}
-              style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer' }}
+              style={{ padding: '7px 14px', fontSize: 13 }}
             >
               Cancel
             </button>
@@ -1251,18 +1223,13 @@ export function ViewClaim() {
               type="button"
               onClick={handleUpdateDocStatus}
               disabled={submittingDoc}
+              className={`ax-btn ${newDocStatus === '2' ? 'ax-btn--primary' : 'ax-btn--danger'}`}
               style={{
                 padding: '7px 18px',
                 fontSize: 13,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                background: newDocStatus === '2' ? '#2563eb' : '#dc2626',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontWeight: 700,
-                cursor: 'pointer',
               }}
             >
               {submittingDoc && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
@@ -1403,15 +1370,9 @@ export function ViewClaim() {
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
-                    fontSize: 12,
-                    color: '#2563eb',
-                    fontWeight: 600,
                     textDecoration: 'none',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #bfdbfe',
-                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1461,14 +1422,10 @@ export function ViewClaim() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
-                      borderRadius: 6,
-                      background: '#2563eb',
-                      color: '#fff',
-                      fontWeight: 700,
-                      fontSize: 13,
                       textDecoration: 'none',
                     }}
                   >
