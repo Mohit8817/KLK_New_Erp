@@ -14,10 +14,10 @@ import {
   printTableData,
   type ExportColumn,
 } from '../../../../../common';
-import { biharAdminService, resolveBiharMediaUrl } from '../../bihar-services/biharAdminService';
+import { biharAdminService, resolveBiharMediaUrl, getBiharMediaCandidates } from '../../bihar-services/biharAdminService';
 import type { BiharSSLVerifyLightItem } from '../../bihar-types';
 
-type Row = BiharSSLVerifyLightItem;
+type Row = BiharSSLVerifyLightItem & { light_raw_path?: string };
 type TabType = 'completed' | 'verified';
 
 const DASH = '—';
@@ -205,15 +205,52 @@ const REFRESH_ICON = (
   </svg>
 );
 
-function ImageThumbnail({ src, label, onOpen }: { src?: string | null; label: string; onOpen: (url: string, title: string) => void }) {
+function ImageThumbnail({
+  src,
+  rawPath,
+  label,
+  onOpen,
+}: {
+  src?: string | null;
+  rawPath?: string | null;
+  label: string;
+  onOpen: (url: string, title: string) => void;
+}) {
+  const pathForCandidates = rawPath || src;
+  const candidates = useMemo(() => getBiharMediaCandidates(pathForCandidates), [pathForCandidates]);
+  const [index, setIndex] = useState(0);
   const [broken, setBroken] = useState(false);
-  if (!src || src === DASH) return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
+
+  useEffect(() => {
+    setIndex(0);
+    setBroken(false);
+  }, [pathForCandidates]);
+
+  if (!pathForCandidates || pathForCandidates === DASH || candidates.length === 0) {
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
+  }
+
+  const currentSrc = candidates[index] || src || '';
+
+  const handleError = () => {
+    if (index + 1 < candidates.length) {
+      setIndex((prev) => prev + 1);
+    } else {
+      setBroken(true);
+    }
+  };
+
   return (
-    <button type="button" className="kswp-thumb" title={`View ${label}`} onClick={() => onOpen(src, label)}>
+    <button
+      type="button"
+      className="kswp-thumb"
+      title={`View ${label}`}
+      onClick={() => onOpen(currentSrc, label)}
+    >
       {broken ? (
         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--ax-accent)' }}>IMG</span>
       ) : (
-        <img src={src} alt={label} onError={() => setBroken(true)} />
+        <img src={currentSrc} alt={label} onError={handleError} />
       )}
     </button>
   );
@@ -262,52 +299,140 @@ export function BiharSSLInstallationVerifyLight() {
     biharAdminService
       .getViewSslInstallation()
       .then((res: any) => {
-        const rawCompleted = res?.data?.completed || res?.data?.verification || res?.completed || [];
-        const rawVerified = res?.data?.verified || res?.verified || [];
-        const allList = Array.isArray(res?.data?.installations)
-          ? res.data.installations
-          : Array.isArray(res?.data)
-          ? res.data
+        const d = res?.data || res || {};
+
+        // 1. Extract raw items from all possible response shapes
+        const rawCompleted = Array.isArray(d.verification)
+          ? d.verification
+          : Array.isArray(d.completed)
+          ? d.completed
+          : Array.isArray(d.verification?.data)
+          ? d.verification.data
+          : Array.isArray(res?.verification)
+          ? res.verification
+          : [];
+
+        const rawVerified = Array.isArray(d.verified?.data)
+          ? d.verified.data
+          : Array.isArray(d.verified)
+          ? d.verified
+          : Array.isArray(res?.verified?.data)
+          ? res.verified.data
+          : Array.isArray(res?.verified)
+          ? res.verified
+          : [];
+
+        const allList: any[] = Array.isArray(d.installations)
+          ? d.installations
+          : Array.isArray(d)
+          ? d
           : Array.isArray(res)
           ? res
           : [];
 
-        const compItems = Array.isArray(rawCompleted) && rawCompleted.length > 0
-          ? rawCompleted
-          : allList.filter((s: any) => !s.verify_status || s.verify_status === 'Pending' || s.verify_status === 0 || s.verify_status === '0');
+        const compItems =
+          rawCompleted.length > 0
+            ? rawCompleted
+            : allList.filter((s: any) => {
+                const st = s.inst_verify_status ?? s.verify_status;
+                return !st || st === 'Pending' || st === 0 || st === '0';
+              });
 
-        const verItems = Array.isArray(rawVerified) && rawVerified.length > 0
-          ? rawVerified
-          : allList.filter((s: any) => s.verify_status === 'Approved' || s.verify_status === 'Rejected' || s.verify_status === 1 || s.verify_status === 2);
+        const verItems =
+          rawVerified.length > 0
+            ? rawVerified
+            : allList.filter((s: any) => {
+                const st = s.inst_verify_status ?? s.verify_status;
+                return st === 'Approved' || st === 'Rejected' || st === 1 || st === '1' || st === 2 || st === '2';
+              });
 
-        const normalize = (item: any, idx: number): Row => ({
-          id: item.id || idx + 1,
-          vendor: item.vendor_name || item.vendor || 'Vendor',
-          uid: item.uid || item.unique_id || `SSL-${item.id || idx + 1}`,
-          state: item.state || 'Bihar',
-          phase: item.phase || 'Phase 1',
-          district: item.district || '—',
-          district_code: item.district_code || '',
-          block: item.block || '—',
-          block_code: item.block_code || '',
-          panchayat: item.panchayat || '—',
-          panchayat_code: item.panchayat_code || '',
-          ward_no: item.ward_no ? `Ward ${item.ward_no}` : 'Ward —',
-          pole_no: item.pole_no || '—',
-          beneficiary_name: item.beneficiary_name || item.farmer_name || '—',
-          beneficiary_contact: item.beneficiary_contact || item.contact || '—',
-          latitude: item.latitude || '—',
-          longitude: item.longitude || '—',
-          uuid_no: item.uuid_no || '—',
-          imei_no: item.imei_no || '—',
-          light_no: item.light_no || '—',
-          battery_no: item.battery_no || '—',
-          panel_no: item.panel_no || '—',
-          light_image: resolveBiharMediaUrl(item.light_image || item.image),
-          remark: item.remark || item.remarks || '—',
-          verify_status: item.verify_status === 1 || item.verify_status === 'Approved' ? 'Approved' : item.verify_status === 2 || item.verify_status === 'Rejected' ? 'Rejected' : 'Pending',
-          reverify_status: item.reverify_status || '',
-        });
+        const cleanCoord = (val?: string | number | null) => {
+          if (val === null || val === undefined || val === '') return DASH;
+          const str = String(val).replace(/^(latitude|longitude):\s*/i, '').trim();
+          return str || DASH;
+        };
+
+        const normalize = (item: any, idx: number): Row => {
+          const rawStatus =
+            item.inst_verify_status !== undefined && item.inst_verify_status !== null && item.inst_verify_status !== ''
+              ? Number(item.inst_verify_status)
+              : item.verify_status !== undefined && item.verify_status !== null && item.verify_status !== ''
+              ? item.verify_status === 'Approved'
+                ? 1
+                : item.verify_status === 'Rejected'
+                ? 2
+                : Number(item.verify_status)
+              : 0;
+
+          const verify_status: 'Pending' | 'Approved' | 'Rejected' =
+            rawStatus === 1 ? 'Approved' : rawStatus === 2 ? 'Rejected' : 'Pending';
+
+          const vendor =
+            item.vendor_name ||
+            item.firm_name ||
+            (item.installation_assigned_by
+              ? `${item.installation_assigned_by}${item.installation_vendor ? ` (#${item.installation_vendor})` : ''}`
+              : item.installation_vendor
+              ? `Vendor #${item.installation_vendor}`
+              : item.installed_by
+              ? `Vendor #${item.installed_by}`
+              : item.created_by
+              ? item.created_by
+              : 'Vendor');
+
+          const rawLightFile = item.light_file || item.light_image || item.image || item.luminary_file || '';
+
+          const wardStr = item.ward_no
+            ? String(item.ward_no).toLowerCase().startsWith('ward')
+              ? String(item.ward_no)
+              : `Ward ${item.ward_no}`
+            : 'Ward —';
+
+          return {
+            id: item.id || idx + 1,
+            vendor,
+            uid: item.unique_id || item.uid || (item.id ? `SSL-${item.id}` : `SSL-${idx + 1}`),
+            state: item.state || 'Bihar',
+            phase: item.phase || '—',
+            district: item.district || DASH,
+            district_code: item.district_code || item.district_id || '',
+            block: item.block || DASH,
+            block_code: item.block_code || item.block_id || '',
+            panchayat: item.panchayat || item.panchyat || DASH,
+            panchyat: item.panchyat,
+            panchayat_code: item.panchayat_code || item.panchyat_code || item.panchayat_id || '',
+            ward_no: wardStr,
+            pole_no: item.pole_no || DASH,
+            beneficiary_name: item.beneficiary_name || item.farmer_name || DASH,
+            beneficiary_contact: item.contact_no || item.beneficiary_contact || item.contact || DASH,
+            contact_no: item.contact_no,
+            latitude: cleanCoord(item.latitude),
+            longitude: cleanCoord(item.longitude),
+            uuid_no: item.uuid_no || DASH,
+            imei_no: item.imei_no || DASH,
+            light_no: item.light_no || DASH,
+            battery_no: item.battery_serial_no || item.battery_no || DASH,
+            battery_serial_no: item.battery_serial_no,
+            panel_no: item.module_no || item.panel_no || DASH,
+            module_no: item.module_no,
+            light_image: resolveBiharMediaUrl(rawLightFile),
+            light_file: rawLightFile,
+            light_raw_path: rawLightFile,
+            remark: item.inst_remark || item.remark || item.remarks || DASH,
+            inst_remark: item.inst_remark,
+            verify_status,
+            inst_verify_status: item.inst_verify_status ?? rawStatus,
+            reverify_status:
+              item.reverify_status ||
+              (item.cms_upload_status === 1 ? 'CMS Uploaded' : item.cms_upload_status === 0 ? 'CMS Pending' : ''),
+            installation_assigned_by: item.installation_assigned_by,
+            installation_vendor: item.installation_vendor,
+            installed_by: item.installed_by,
+            date_of_installation: item.date_of_installation || item.inst_date || '',
+            inst_date: item.inst_date,
+            wo_no: item.wo_no,
+          };
+        };
 
         const cList = compItems.map(normalize);
         const vList = verItems.map(normalize);
@@ -315,20 +440,73 @@ export function BiharSSLInstallationVerifyLight() {
         setCompletedList(cList);
         setVerifiedList(vList);
 
-        const summary = res?.data?.summary || res?.summary || {};
-        const total = summary.total_assigned !== undefined ? Number(summary.total_assigned) : cList.length + vList.length;
-        const comp = summary.complete !== undefined ? Number(summary.complete) : cList.length;
-        const pend = summary.pending !== undefined ? Number(summary.pending) : Math.max(0, total - comp);
+        // 2. Direct mapping from backend response root properties
+        const summary = d.summary || res?.summary || {};
+        const total =
+          d.totalsite !== undefined
+            ? Number(d.totalsite)
+            : summary.total_assigned !== undefined
+            ? Number(summary.total_assigned)
+            : cList.length + vList.length;
+
+        const comp =
+          d.complete !== undefined
+            ? Number(d.complete)
+            : summary.complete !== undefined
+            ? Number(summary.complete)
+            : cList.length;
+
+        const pend =
+          d.pendingsite !== undefined
+            ? Number(d.pendingsite)
+            : summary.pending !== undefined
+            ? Number(summary.pending)
+            : Math.max(0, total - comp);
+
+        const approved =
+          d.approvedsite !== undefined
+            ? Number(d.approvedsite)
+            : summary.approve !== undefined
+            ? Number(summary.approve)
+            : vList.filter((r: Row) => r.verify_status === 'Approved').length;
+
+        const rejected =
+          d.rejectsite !== undefined
+            ? Number(d.rejectsite)
+            : summary.reject !== undefined
+            ? Number(summary.reject)
+            : vList.filter((r: Row) => r.verify_status === 'Rejected').length;
+
+        const verifyPendingCount =
+          d.verifypending !== undefined
+            ? Number(d.verifypending)
+            : summary.verify_pending !== undefined
+            ? Number(summary.verify_pending)
+            : cList.length;
+
+        const claimCount =
+          d.claimedapplicable !== undefined
+            ? Number(d.claimedapplicable)
+            : summary.claim_applicable !== undefined
+            ? Number(summary.claim_applicable)
+            : 0;
+
+        const payCount =
+          d.paymentsitecount !== undefined
+            ? Number(d.paymentsitecount)
+            : summary.payment_done !== undefined
+            ? Number(summary.payment_done)
+            : 0;
 
         setKpis({
           totalAssignedLights: total,
           completeLights: comp,
           pendingLights: pend,
-          approveLights: summary.approve !== undefined ? Number(summary.approve) : vList.filter((r: Row) => r.verify_status === 'Approved').length,
-          rejectLights: summary.reject !== undefined ? Number(summary.reject) : vList.filter((r: Row) => r.verify_status === 'Rejected').length,
-          verifyPending: summary.verify_pending !== undefined ? Number(summary.verify_pending) : cList.length,
-          claimApplicable: summary.claim_applicable !== undefined ? Number(summary.claim_applicable) : 0,
-          paymentDone: summary.payment_done !== undefined ? Number(summary.payment_done) : 0,
+          approveLights: approved,
+          rejectLights: rejected,
+          verifyPending: verifyPendingCount,
+          claimApplicable: claimCount,
+          paymentDone: payCount,
         });
       })
       .catch((err: any) => {
@@ -358,9 +536,23 @@ export function BiharSSLInstallationVerifyLight() {
     const q = search.trim().toLowerCase();
     if (!q) return activeList;
     return activeList.filter((r) =>
-      [r.vendor, r.uid, r.district, r.block, r.panchayat, r.ward_no, r.pole_no, r.beneficiary_name].some((v) =>
-        String(v ?? '').toLowerCase().includes(q)
-      )
+      [
+        r.vendor,
+        r.uid,
+        r.district,
+        r.block,
+        r.panchayat,
+        r.ward_no,
+        r.pole_no,
+        r.beneficiary_name,
+        r.beneficiary_contact,
+        r.uuid_no,
+        r.imei_no,
+        r.light_no,
+        r.battery_no,
+        r.panel_no,
+        r.remark,
+      ].some((v) => String(v ?? '').toLowerCase().includes(q))
     );
   }, [activeList, search]);
 
@@ -392,7 +584,10 @@ export function BiharSSLInstallationVerifyLight() {
       await biharAdminService.verifySslInstallationStatus({
         id: actionItem.id,
         verify_status: verifyChoice,
+        inst_verify_status: Number(verifyChoice),
+        status: verifyChoice,
         remark: remarks,
+        inst_remark: remarks,
       });
       setSuccessMsg(`Light ${actionItem.uid} (${actionItem.pole_no}) marked as ${isApprove ? 'Approved' : 'Rejected'}!`);
       setActionItem(null);
@@ -420,9 +615,14 @@ export function BiharSSLInstallationVerifyLight() {
       { header: 'Pole No', accessor: (r) => r.pole_no },
       { header: 'Beneficiary Name', accessor: (r) => r.beneficiary_name },
       { header: 'Contact', accessor: (r) => r.beneficiary_contact },
+      { header: 'Latitude', accessor: (r) => r.latitude },
+      { header: 'Longitude', accessor: (r) => r.longitude },
       { header: 'UUID No', accessor: (r) => r.uuid_no },
       { header: 'IMEI No', accessor: (r) => r.imei_no },
       { header: 'Light No', accessor: (r) => r.light_no },
+      { header: 'Battery No', accessor: (r) => r.battery_no },
+      { header: 'Panel No', accessor: (r) => r.panel_no },
+      { header: 'Remark', accessor: (r) => r.remark },
       { header: 'Status', accessor: (r) => r.verify_status },
     ],
     []
@@ -637,7 +837,12 @@ export function BiharSSLInstallationVerifyLight() {
                         <td className="ax-table__td ax-num">{r.battery_no}</td>
                         <td className="ax-table__td ax-num">{r.panel_no}</td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <ImageThumbnail src={r.light_image} label={`Pole ${r.pole_no} - Light Image`} onOpen={openImage} />
+                          <ImageThumbnail
+                            src={r.light_image}
+                            rawPath={r.light_raw_path || r.light_file || r.light_image}
+                            label={`Pole ${r.pole_no} - Light Image`}
+                            onOpen={openImage}
+                          />
                         </td>
                         <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: 12 }}>{r.remark}</td>
                         <td className="ax-table__td">
@@ -716,11 +921,13 @@ export function BiharSSLInstallationVerifyLight() {
             <div style={{ background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8, padding: 12, fontSize: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
                 <div><b>Vendor:</b> {actionItem.vendor}</div>
-                <div><b>Beneficiary:</b> {actionItem.beneficiary_name}</div>
+                <div><b>Beneficiary:</b> {actionItem.beneficiary_name} ({actionItem.beneficiary_contact})</div>
                 <div><b>District:</b> {actionItem.district}</div>
                 <div><b>Block / Panchayat:</b> {actionItem.block} / {actionItem.panchayat}</div>
                 <div><b>Ward / Pole:</b> {actionItem.ward_no} / {actionItem.pole_no}</div>
                 <div><b>IMEI / Light No:</b> {actionItem.imei_no} / {actionItem.light_no}</div>
+                <div><b>Battery / Panel No:</b> {actionItem.battery_no} / {actionItem.panel_no}</div>
+                {actionItem.date_of_installation && <div><b>Installed On:</b> {actionItem.date_of_installation}</div>}
               </div>
             </div>
           )}

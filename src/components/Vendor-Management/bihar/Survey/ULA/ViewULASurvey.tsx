@@ -871,7 +871,7 @@ export function BiharULASurveyViewData() {
           }
           tone="cyan"
           label="Feasibility Status"
-          value={`${feasibleYes} Yes`}
+          value={`${feasibleYes}`}
           sub={`Non-feasible: ${feasibleNo} sites`}
         />
       </div>

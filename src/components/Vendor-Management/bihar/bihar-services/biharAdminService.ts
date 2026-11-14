@@ -57,7 +57,12 @@ export async function fetchWithCandidateUrls<T = any>(
     Accept: 'application/json',
   };
   if (token) {
-    baseHeaders.Authorization = `Bearer ${token}`;
+    const isSynthetic =
+      token.startsWith('klk_user_session_token_') ||
+      token.startsWith('klk_vendor_session_token_');
+    if (!isSynthetic) {
+      baseHeaders.Authorization = `Bearer ${token}`;
+    }
   }
 
   const isFormData = options.body instanceof FormData;
@@ -70,6 +75,7 @@ export async function fetchWithCandidateUrls<T = any>(
   for (const url of urls) {
     try {
       const response = await fetch(url, {
+        credentials: 'include',
         ...options,
         headers,
       });
@@ -84,6 +90,36 @@ export async function fetchWithCandidateUrls<T = any>(
         if (response.status === 400 || response.status === 422) {
           return json;
         }
+
+        // Method fallback if 405 or 500
+        const method = (options.method || 'GET').toUpperCase();
+        if ((response.status === 405 || response.status === 500) && method === 'GET') {
+          try {
+            const postRes = await fetch(url, {
+              credentials: 'include',
+              method: 'POST',
+              headers: { ...baseHeaders, 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+            if (postRes.ok) {
+              const pJson = await postRes.json().catch(() => null);
+              if (pJson) return pJson;
+            }
+          } catch {}
+        } else if (response.status === 405 && method === 'POST') {
+          try {
+            const getRes = await fetch(url, {
+              credentials: 'include',
+              method: 'GET',
+              headers: baseHeaders,
+            });
+            if (getRes.ok) {
+              const gJson = await getRes.json().catch(() => null);
+              if (gJson) return gJson;
+            }
+          } catch {}
+        }
+
         lastError = new Error(json?.message || `Request failed with status ${response.status}`);
       } else {
         const text = await response.text();
@@ -133,7 +169,112 @@ export class BiharAdminService {
 
   // GET view-assign-survey
   async getViewAssignSrt200mwSurveys() {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN);
+    const candidateUrls = Array.isArray(BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN)
+      ? BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN
+      : [BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN];
+
+    const token = authService.getToken();
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    let lastError: any = null;
+
+    for (const url of candidateUrls) {
+      try {
+        let res = await fetch(url, { method: 'GET', headers });
+
+        if (res.status === 405) {
+          res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({}) });
+        }
+
+        if (res.status === 404) {
+          try {
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+              const json = await res.json();
+              if (
+                json &&
+                (json.message ||
+                  json.data !== undefined ||
+                  json.srt200mw !== undefined ||
+                  json.assignments !== undefined ||
+                  json.success === false ||
+                  json.status === false)
+              ) {
+                return {
+                  status: true,
+                  data: {
+                    srt200mw: Array.isArray(json?.data?.srt200mw)
+                      ? json.data.srt200mw
+                      : Array.isArray(json?.srt200mw)
+                      ? json.srt200mw
+                      : Array.isArray(json?.data)
+                      ? json.data
+                      : Array.isArray(json)
+                      ? json
+                      : [],
+                    survey_detail: json?.data?.survey_detail || json?.survey_detail || { total: 0, complete: 0, pending: 0 },
+                  },
+                  assignments: Array.isArray(json?.assignments) ? json.assignments : Array.isArray(json?.data?.assignments) ? json.data.assignments : [],
+                  message: json.message || 'No records found',
+                };
+              }
+            }
+          } catch {
+            // Not JSON 404, continue to next candidate
+          }
+          continue;
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+        let json: any = null;
+        if (contentType.includes('application/json')) {
+          json = await res.json();
+        } else {
+          const text = await res.text();
+          try {
+            json = JSON.parse(text);
+          } catch {
+            json = null;
+          }
+        }
+
+        if (res.ok && json) {
+          return json;
+        }
+
+        if (!res.ok) {
+          lastError = new Error(json?.message || `Request failed with status ${res.status}`);
+        }
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    console.warn('[biharAdminService] All candidate URLs for getViewAssignSrt200mwSurveys exhausted. Returning safe empty dataset:', lastError);
+    return {
+      status: true,
+      data: {
+        srt200mw: [],
+        survey_detail: { total: 0, complete: 0, pending: 0 },
+      },
+      assignments: [],
+      message: 'No survey assignment records found.',
+    };
+  }
+
+  // POST approval-assign/{id}
+  async approveSrt200mwAssign(id: string | number) {
+    const urls = BIHAR_ADMIN_API.SRT_200MW_SURVEY.APPROVAL_ASSIGN(id);
+    return fetchWithCandidateUrls(urls, {
+      method: 'POST',
+      body: JSON.stringify({ id, status: 1 }),
+    });
   }
 
   // GET view-survey

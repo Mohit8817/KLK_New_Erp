@@ -17,7 +17,14 @@ export function buildCandidateUrls(path: string): string[] {
   // 2. Direct with ROOT_URL (web route or non-api prefixed backend route)
   candidates.push(`${ROOT_URL}${cleanPath}`);
 
-  // 3. Fallback with RAW_BASE
+  // 3. Without /admin prefix if path starts with /admin (e.g. /api/bihar/... and /bihar/...)
+  if (cleanPath.startsWith('/admin/')) {
+    const nonAdminPath = cleanPath.replace(/^\/admin/, '');
+    candidates.push(`${API_ROOT}${nonAdminPath}`);
+    candidates.push(`${ROOT_URL}${nonAdminPath}`);
+  }
+
+  // 4. Fallback with RAW_BASE
   if (RAW_BASE !== API_ROOT && RAW_BASE !== ROOT_URL) {
     candidates.push(`${RAW_BASE}${cleanPath}`);
   }
@@ -42,7 +49,41 @@ export const BIHAR_ADMIN_API = {
           : '/admin/bihar/srt200mw/survey/fetch-site'
       ),
     STORE_ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/store-assign-survey'),
-    VIEW_ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign-survey'),
+    VIEW_ASSIGN: Array.from(new Set([
+      // Primary standard endpoint patterns (view-assign)
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw/view-assign'),
+      ...buildCandidateUrls('/bihar/srt200mw/view-assign'),
+
+      // Controller-named patterns (view-assign-survey)
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign-survey'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw/view-assign-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw/view-assign-survey'),
+
+      // UI route matching patterns (assign-view)
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/assign-view'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw-survey-assign-view'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/assign-view'),
+      ...buildCandidateUrls('/bihar/srt200mw-survey-assign-view'),
+      ...buildCandidateUrls('/bihar/srt200mw-survey/assign-view'),
+
+      // Unified survey view & vendor portal endpoints
+      ...buildCandidateUrls('/bihar/srt200mw-view-survey'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/view-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw-survey'),
+      ...buildCandidateUrls('/v/bihar/view-srt200mw-survey'),
+      ...buildCandidateUrls('/bihar/view-srt200mw-survey'),
+    ])),
+    APPROVAL_ASSIGN: (id: string | number) =>
+      Array.from(new Set([
+        ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/approval-assign/${encodeURIComponent(id)}`),
+        ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/approvel-assign/${encodeURIComponent(id)}`),
+        ...buildCandidateUrls(`/bihar/srt200mw/survey/approval-assign/${encodeURIComponent(id)}`),
+        ...buildCandidateUrls(`/bihar/srt200mw/survey/approvel-assign/${encodeURIComponent(id)}`),
+      ])),
     VIEW_SURVEY: buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
     VERIFY_STATUS: buildCandidateUrls('/admin/bihar/srt200mw/survey/verify-survey-status'),
     DASHBOARD: buildCandidateUrls('/admin/bihar/srt200mw/survey/dashbboard'),

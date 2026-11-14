@@ -512,7 +512,7 @@ const VENDOR_SECTIONS: NavSection[] = [
 
 
   {
-    section: 'VENDOR · PUNJAB',
+    section: 'Punjab',
     state: 'punjab',
     items: [
       {
@@ -538,7 +538,7 @@ const VENDOR_SECTIONS: NavSection[] = [
 
 
   {
-    section: 'VENDOR · ARUNACHAL',
+    section: 'Arunachal Pradesh',
     state: 'arunachal',
     items: [
       {
@@ -564,8 +564,8 @@ const VENDOR_SECTIONS: NavSection[] = [
   },
 
 
-        {
-    section: 'VENDOR · JAMMU',
+  {
+    section: 'Jammu',
     state: 'jammu',
     items: [
       {
