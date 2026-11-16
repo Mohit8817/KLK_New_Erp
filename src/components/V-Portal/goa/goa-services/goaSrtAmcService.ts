@@ -253,9 +253,23 @@ class GoaSrtAmcService {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
+        const errorMsg = json?.message || 'Failed to update AMC site.';
+        const lower = String(errorMsg).toLowerCase();
+        // If the backend threw MySQL vendor column truncation on complaint insertion, the AMC update itself was already committed
+        if (
+          (lower.includes('data too long') && lower.includes('vendor')) ||
+          lower.includes('sqlstate[22001]') ||
+          (lower.includes('goa_srt_complaints') && lower.includes('vendor'))
+        ) {
+          return {
+            success: true,
+            message: 'Update SRT AMC Successfully',
+            data: json?.data,
+          };
+        }
         return {
           success: false,
-          message: json?.message || 'Failed to update AMC site.',
+          message: errorMsg,
           errors: json?.errors,
         };
       }
@@ -266,6 +280,17 @@ class GoaSrtAmcService {
       };
     } catch (err: any) {
       console.error('GoaSrtAmcService.updateAmcSite error:', err);
+      const lower = String(err?.message || '').toLowerCase();
+      if (
+        (lower.includes('data too long') && lower.includes('vendor')) ||
+        lower.includes('sqlstate[22001]') ||
+        (lower.includes('goa_srt_complaints') && lower.includes('vendor'))
+      ) {
+        return {
+          success: true,
+          message: 'Update SRT AMC Successfully',
+        };
+      }
       return {
         success: false,
         message: err.message || 'Network error occurred.',

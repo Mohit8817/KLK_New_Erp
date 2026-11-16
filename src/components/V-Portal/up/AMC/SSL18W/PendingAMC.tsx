@@ -35,7 +35,8 @@ export function UP_AMC_SSL18W_PendingAMC() {
         address: s.address || s.location || '',
         volume: s.volume || s.wattage || '18W',
         contractor_name: s.contractor_name || '',
-        amc_type: res?.amc_type_name || s.amc_type || 'Monthly',
+        amc_type: res?.amc_type_name || (s.amc_type === 3 || s.amc_type === '3' ? 'Quarterly' : s.amc_type === 12 || s.amc_type === '12' ? 'Yearly' : 'Monthly'),
+        pending_months: res?.pending_months || s?.pending_months || [],
       };
     }
     return null;

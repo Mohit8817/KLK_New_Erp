@@ -560,9 +560,27 @@ export function AssignBiharSRT200MWSurvey() {
       .getSrt200mwSites(district)
       .then((res: any) => {
         if (!isMounted) return;
-        const list = res?.sites || res?.data?.sites || res?.data || (Array.isArray(res) ? res : []);
+        const list = res?.sites || res?.data?.sites || res?.sitename || res?.data?.sitename || res?.data || (Array.isArray(res) ? res : []);
         if (Array.isArray(list) && list.length > 0) {
-          setSites(list);
+          const normalizedSites = list.map((item: any, i: number) => {
+            if (typeof item === 'string') {
+              return {
+                id: i + 1,
+                site_name: item,
+                ca_no: '—',
+                department: 'Energy / Discom',
+                address: `${item}, ${district}`,
+              };
+            }
+            return {
+              id: item.id ?? item.site_id ?? i + 1,
+              site_name: item.site_name || item.name || item.site || `Site #${item.id || i + 1}`,
+              ca_no: item.ca_no || item.consumer_no || '—',
+              department: item.department || item.dept_name || 'Energy / Discom',
+              address: item.address || item.location || `${item.site_name || 'Site'}, ${district}`,
+            };
+          });
+          setSites(normalizedSites);
         } else if (MOCK_SITES_BY_DISTRICT[district]) {
           setSites(MOCK_SITES_BY_DISTRICT[district]);
         } else {
@@ -652,13 +670,21 @@ export function AssignBiharSRT200MWSurvey() {
     try {
       const formData = new FormData();
       formData.append('vendor', vendor);
+      formData.append('vendor_id', vendor);
       formData.append('state', stateName);
       formData.append('district', district);
       selectedSiteIds.forEach((id) => {
         formData.append('site_name[]', String(id));
         formData.append('site[]', String(id));
       });
-      if (remarks) formData.append('remarks', remarks);
+      if (selectedSiteIds.length > 0) {
+        formData.append('site_name', selectedSiteIds.join(','));
+        formData.append('site_count', String(selectedSiteIds.length));
+      }
+      if (remarks) {
+        formData.append('remarks', remarks);
+        formData.append('remark', remarks);
+      }
       if (file) formData.append('file', file);
       if (editId) formData.append('id', editId);
 

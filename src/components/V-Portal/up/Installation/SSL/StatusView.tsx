@@ -163,7 +163,7 @@ export function UP_Installation_SSL_StatusView() {
       { header: 'UUID No.', accessor: (r) => r.uuid_no || DASH },
       { header: 'Battery No.', accessor: (r) => r.battery_serial_no || DASH },
       { header: 'Panel No.', accessor: (r) => r.panel_no || DASH },
-      { header: 'Verify Status', accessor: (r) => (r.verify_status === 1 ? 'Approved' : r.verify_status === 2 ? 'Rejected' : 'Pending') },
+      { header: 'Verify Status', accessor: (r) => (Number(r.inst_verify_status ?? r.verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status ?? r.verify_status) === 2 ? 'Rejected' : 'Pending') },
       { header: 'Claim Status', accessor: (r) => (r.claim_status === 1 ? 'Raised' : r.claim_status === 2 ? 'Approved' : 'Not Raised') },
       { header: 'Payment Status', accessor: (r) => (r.payment_status === 1 || r.inst_pay_status === 1 ? 'Paid' : 'Pending') },
       { header: 'Remarks', accessor: (r) => r.remark || r.inst_remarks || DASH },
@@ -404,7 +404,14 @@ export function UP_Installation_SSL_StatusView() {
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: 11 }}>{DASH}</span>
                           )}
                         </td>
-                        <td><VerifyBadge value={item.verify_status} /></td>
+                        <td>
+                          <VerifyBadge value={item.inst_verify_status ?? item.verify_status} />
+                          {item.inst_verify_remarks && (
+                            <div style={{ fontSize: 11, color: Number(item.inst_verify_status ?? item.verify_status) === 2 ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)', marginTop: 2 }}>
+                              {item.inst_verify_remarks}
+                            </div>
+                          )}
+                        </td>
                         <td><ClaimBadge status={item.claim_status || item.inst_claim_status} /></td>
                         <td><PaymentBadge status={item.payment_status || item.inst_pay_status} /></td>
                         <td style={{ textAlign: 'center' }}>
@@ -524,9 +531,17 @@ export function UP_Installation_SSL_StatusView() {
                   <div><b>Panel No.:</b> {viewDetailModal.panel_no || DASH}</div>
                   <div><b>Latitude:</b> {viewDetailModal.latitude || DASH}</div>
                   <div><b>Longitude:</b> {viewDetailModal.longitude || DASH}</div>
-                  <div><b>Verify Status:</b> <VerifyBadge value={viewDetailModal.verify_status} /></div>
+                  <div><b>Verify Status:</b> <VerifyBadge value={viewDetailModal.inst_verify_status ?? viewDetailModal.verify_status} /></div>
                   <div><b>Claim Status:</b> <ClaimBadge status={viewDetailModal.claim_status || viewDetailModal.inst_claim_status} /></div>
                   <div><b>Payment Status:</b> <PaymentBadge status={viewDetailModal.payment_status || viewDetailModal.inst_pay_status} /></div>
+                  {viewDetailModal.inst_verify_remarks && (
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <b>Verify Remarks:</b>{' '}
+                      <span style={{ color: Number(viewDetailModal.inst_verify_status ?? viewDetailModal.verify_status) === 2 ? 'var(--ax-danger, #ef4444)' : undefined }}>
+                        {viewDetailModal.inst_verify_remarks}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ gridColumn: 'span 2' }}>
                     <b>Remarks:</b> {viewDetailModal.remark || viewDetailModal.inst_remarks || DASH}
                   </div>

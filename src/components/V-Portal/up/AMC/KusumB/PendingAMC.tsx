@@ -47,6 +47,9 @@ export function UP_AMC_KusumB_PendingAMC() {
         volume: k.pump_capacity || k.volume || k.capacity || '',
         contractor_name: k.contractor_name || k.contractor || '',
         amc_type: k.amc_type || 'Monthly',
+        pending_months: res?.pending_months || k?.pending_months || [],
+        schedule: res?.schedule || k?.schedule || [],
+        current_due: res?.current_due || k?.current_due || null,
       };
     }
     return null;

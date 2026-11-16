@@ -75,174 +75,174 @@ const VENDOR_SECTIONS: NavSection[] = [
   },
 
 
-  // {
-  //   section: 'Uttar Pradesh',
-  //   state: 'up',
-  //   items: [
-  //     {
-  //       id: 'grp.vm.up.inst',
-  //       title: 'Installation',
-  //       icon: 'installation',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.up.inst.kusumc',
-  //           title: 'Kusum C',
-  //           tag: 'Kusum C',
-  //           children: [
-  //             { id: 'vm.up.inst.kusumc.dashboard', title: 'Dashboard', to: '/vendor-management/up/kusumc/installation/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.up.inst.kusumc.assign', title: 'Assign Installation', to: '/vendor-management/up/kusumc/installation/assign', iconType: 'assign' },
-  //             { id: 'vm.up.inst.kusumc.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/kusumc/installation/view-assign', iconType: 'view-assign' },
-  //             { id: 'vm.up.inst.kusumc.verify-install', title: 'Verify Installation', to: '/vendor-management/up/kusumc/installation/verify', iconType: 'view-survey' },
-  //             { id: 'vm.up.inst.kusumc.verify-doc', title: 'Verify Document', to: '/vendor-management/up/kusumc/installation/verify-doc', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.kusumc.verify-claim', title: 'Verify Claim', to: '/vendor-management/up/kusumc/installation/verify-claim', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.kusumc.view-payment', title: 'View Payment', to: '/vendor-management/up/kusumc/installation/view-payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.inst.resco',
-  //           title: 'Resco',
-  //           tag: 'RESCO',
-  //           children: [
-  //             { id: 'vm.up.inst.resco.dashboard', title: 'Dashboard', to: '/vendor-management/up/resco/installation/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.up.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/up/resco/installation/assign', iconType: 'assign' },
-  //             { id: 'vm.up.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/resco/installation/view-assign', iconType: 'view-assign' },
-  //             { id: 'vm.up.inst.resco.verify-install', title: 'Verify Installation', to: '/vendor-management/up/resco/installation/verify', iconType: 'view-survey' },
-  //             { id: 'vm.up.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/up/resco/installation/verify-doc', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.resco.view-claim', title: 'View Claim', to: '/vendor-management/up/resco/installation/view-claim', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.resco.view-payment', title: 'View Payment', to: '/vendor-management/up/resco/installation/view-payment', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.resco.view-create-bill', title: 'View Created Bills', to: '/vendor-management/up/resco/installation/view-create-bill', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.resco.view-assign-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/up/resco/installation/view-assign-vendor', iconType: 'view-assign' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.inst.ssl18w',
-  //           title: 'SSL 18W',
-  //           tag: 'SSL 18W',
-  //           children: [
-  //             { id: 'vm.up.inst.ssl18w.dashboard', title: 'Dashboard', to: '/vendor-management/up/ssl18w/installation/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.up.inst.ssl18w.assign', title: 'Assign Installation', to: '/vendor-management/up/ssl18w/installation/assign', iconType: 'assign' },
-  //             { id: 'vm.up.inst.ssl18w.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/ssl18w/installation/view-assign', iconType: 'view-assign' },
-  //             { id: 'vm.up.inst.ssl18w.verify-install', title: 'Verify Installation', to: '/vendor-management/up/ssl18w/installation/verify', iconType: 'view-survey' },
-  //             { id: 'vm.up.inst.ssl18w.view-claim', title: 'View Claim', to: '/vendor-management/up/ssl18w/installation/view-claim', iconType: 'view-data' },
-  //             { id: 'vm.up.inst.ssl18w.view-payment', title: 'View Payment', to: '/vendor-management/up/ssl18w/installation/view-payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       id: 'grp.vm.up.amc',
-  //       title: 'AMC',
-  //       icon: 'amc',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.up.amc.resco',
-  //           title: 'Resco',
-  //           tag: 'RESCO',
-  //           children: [
-  //             { id: 'vm.up.amc.resco.assign-site', title: 'Assign site', to: '/vendor-management/up/resco/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.resco.view-assign-site', title: 'View Assign Site', to: '/vendor-management/up/resco/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.resco.verify-site', title: 'Verify Site', to: '/vendor-management/up/resco/amc/verify-site', iconType: 'view-survey' },
-  //             { id: 'vm.up.amc.resco.claim-request', title: 'Claim Request', to: '/vendor-management/up/resco/amc/claim-request', iconType: 'view-data' },
-  //             { id: 'vm.up.amc.resco.view-payment', title: 'Payment', to: '/vendor-management/up/resco/amc/view-payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.ssl',
-  //           title: 'Up SSL',
-  //           tag: 'SSL',
-  //           children: [
-  //             { id: 'vm.up.amc.ssl.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl/amc/assign-light', iconType: 'assign' },
-  //             { id: 'vm.up.amc.ssl.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl/amc/view-assign-light', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.ssl.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl/amc/verify-assign-light', iconType: 'view-survey' },
-  //             { id: 'vm.up.amc.ssl.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl/amc/claim-request', iconType: 'view-data' },
-  //             { id: 'vm.up.amc.ssl.view-payment', title: 'Payment', to: '/vendor-management/up/ssl/amc/view-payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.ssl18w',
-  //           title: 'Up SSL 18w',
-  //           tag: 'SSL 18W',
-  //           children: [
-  //             { id: 'vm.up.amc.ssl18w.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl18w/amc/assign-light', iconType: 'assign' },
-  //             { id: 'vm.up.amc.ssl18w.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl18w/amc/view-assign-light', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.ssl18w.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl18w/amc/verify-assign-light', iconType: 'view-survey' },
-  //             { id: 'vm.up.amc.ssl18w.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl18w/amc/claim-request', iconType: 'view-data' },
-  //             { id: 'vm.up.amc.ssl18w.view-payment', title: 'Payment', to: '/vendor-management/up/ssl18w/amc/view-payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.kusumb',
-  //           title: 'Kusum B',
-  //           tag: 'Kusum B',
-  //           children: [
-  //             { id: 'vm.up.amc.kusumb.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumb/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.kusumb.view-assigne-site', title: 'View AMC', to: '/vendor-management/up/kusumb/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.kusumb.verify-site', title: 'Verify Amc', to: '/vendor-management/up/kusumb/amc/verify-site', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.kusumc',
-  //           title: 'Kusum C',
-  //           tag: 'Kusum C',
-  //           children: [
-  //             { id: 'vm.up.amc.kusumc.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumc/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.kusumc.view-assign-site', title: 'View Assign AMC', to: '/vendor-management/up/kusumc/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.kusumc.verify-site', title: 'Verify Site', to: '/vendor-management/up/kusumc/amc/verify-site', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.powerpack',
-  //           title: 'Power Pack',
-  //           tag: 'Power Pack',
-  //           children: [
-  //             { id: 'vm.up.amc.powerpack.assign-site', title: 'Assign AMC', to: '/vendor-management/up/powerpack/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.powerpack.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/powerpack/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.powerpack.verify-site', title: 'Verify Site', to: '/vendor-management/up/powerpack/amc/verify-site', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.ongrid',
-  //           title: 'Ongrid',
-  //           tag: 'Ongrid',
-  //           children: [
-  //             { id: 'vm.up.amc.ongrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/ongrid/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.ongrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/ongrid/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.ongrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/ongrid/amc/verify-site', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //         {
-  //           id: 'grp.vm.up.amc.offgrid',
-  //           title: 'Offgrid',
-  //           tag: 'Offgrid',
-  //           children: [
-  //             { id: 'vm.up.amc.offgrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/offgrid/amc/assign-site', iconType: 'assign' },
-  //             { id: 'vm.up.amc.offgrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/offgrid/amc/view-assign-site', iconType: 'view-assign' },
-  //             { id: 'vm.up.amc.offgrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/offgrid/amc/verify-site', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       id: 'grp.vm.up.survey',
-  //       title: 'Survey',
-  //       icon: 'survey',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.up.survey.resco',
-  //           title: 'Resco Survey',
-  //           tag: 'RESCO',
-  //           children: [
-  //             { id: 'vm.up.survey.resco.dashboard', title: 'Resco Dashboard', to: '/vendor-management/up/resco/survey/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.up.survey.resco.assign', title: 'Assign Survey', to: '/vendor-management/up/resco/survey/assign', iconType: 'assign' },
-  //             { id: 'vm.up.survey.resco.assign-view', title: 'Assign View Survey', to: '/vendor-management/up/resco/survey/assign-view', iconType: 'view-assign' },
-  //             { id: 'vm.up.survey.resco.verify', title: 'Verify Survey', to: '/vendor-management/up/resco/survey/verify', iconType: 'view-survey' },
-  //             { id: 'vm.up.survey.resco.assign-vendor', title: 'Assigned Sites Update', to: '/vendor-management/up/resco/survey/assign-vendor', iconType: 'view-data' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
+  {
+    section: 'Uttar Pradesh',
+    state: 'up',
+    items: [
+      {
+        id: 'grp.vm.up.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.up.inst.kusumc',
+            title: 'Kusum C',
+            tag: 'Kusum C',
+            children: [
+              { id: 'vm.up.inst.kusumc.dashboard', title: 'Dashboard', to: '/vendor-management/up/kusumc/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.up.inst.kusumc.assign', title: 'Assign Installation', to: '/vendor-management/up/kusumc/installation/assign', iconType: 'assign' },
+              { id: 'vm.up.inst.kusumc.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/kusumc/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.up.inst.kusumc.verify-install', title: 'Verify Installation', to: '/vendor-management/up/kusumc/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.up.inst.kusumc.verify-doc', title: 'Verify Document', to: '/vendor-management/up/kusumc/installation/verify-doc', iconType: 'view-data' },
+              { id: 'vm.up.inst.kusumc.verify-claim', title: 'Verify Claim', to: '/vendor-management/up/kusumc/installation/verify-claim', iconType: 'view-data' },
+              { id: 'vm.up.inst.kusumc.view-payment', title: 'View Payment', to: '/vendor-management/up/kusumc/installation/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.inst.resco',
+            title: 'Resco',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.up.inst.resco.dashboard', title: 'Dashboard', to: '/vendor-management/up/resco/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.up.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/up/resco/installation/assign', iconType: 'assign' },
+              { id: 'vm.up.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/resco/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.up.inst.resco.verify-install', title: 'Verify Installation', to: '/vendor-management/up/resco/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.up.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/up/resco/installation/verify-doc', iconType: 'view-data' },
+              { id: 'vm.up.inst.resco.view-claim', title: 'View Claim', to: '/vendor-management/up/resco/installation/view-claim', iconType: 'view-data' },
+              { id: 'vm.up.inst.resco.view-payment', title: 'View Payment', to: '/vendor-management/up/resco/installation/view-payment', iconType: 'view-data' },
+              { id: 'vm.up.inst.resco.view-create-bill', title: 'View Created Bills', to: '/vendor-management/up/resco/installation/view-create-bill', iconType: 'view-data' },
+              { id: 'vm.up.inst.resco.view-assign-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/up/resco/installation/view-assign-vendor', iconType: 'view-assign' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.inst.ssl18w',
+            title: 'SSL 18W',
+            tag: 'SSL 18W',
+            children: [
+              { id: 'vm.up.inst.ssl18w.dashboard', title: 'Dashboard', to: '/vendor-management/up/ssl18w/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.up.inst.ssl18w.assign', title: 'Assign Installation', to: '/vendor-management/up/ssl18w/installation/assign', iconType: 'assign' },
+              { id: 'vm.up.inst.ssl18w.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/ssl18w/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.up.inst.ssl18w.verify-install', title: 'Verify Installation', to: '/vendor-management/up/ssl18w/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.up.inst.ssl18w.view-claim', title: 'View Claim', to: '/vendor-management/up/ssl18w/installation/view-claim', iconType: 'view-data' },
+              { id: 'vm.up.inst.ssl18w.view-payment', title: 'View Payment', to: '/vendor-management/up/ssl18w/installation/view-payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.up.amc',
+        title: 'AMC',
+        icon: 'amc',
+        children: [
+          {
+            id: 'grp.vm.up.amc.resco',
+            title: 'Resco',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.up.amc.resco.assign-site', title: 'Assign site', to: '/vendor-management/up/resco/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.resco.view-assign-site', title: 'View Assign Site', to: '/vendor-management/up/resco/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.resco.verify-site', title: 'Verify Site', to: '/vendor-management/up/resco/amc/verify-site', iconType: 'view-survey' },
+              { id: 'vm.up.amc.resco.claim-request', title: 'Claim Request', to: '/vendor-management/up/resco/amc/claim-request', iconType: 'view-data' },
+              { id: 'vm.up.amc.resco.view-payment', title: 'Payment', to: '/vendor-management/up/resco/amc/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.ssl',
+            title: 'Up SSL',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.up.amc.ssl.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl/amc/assign-light', iconType: 'assign' },
+              { id: 'vm.up.amc.ssl.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl/amc/view-assign-light', iconType: 'view-assign' },
+              { id: 'vm.up.amc.ssl.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl/amc/verify-assign-light', iconType: 'view-survey' },
+              { id: 'vm.up.amc.ssl.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl/amc/claim-request', iconType: 'view-data' },
+              { id: 'vm.up.amc.ssl.view-payment', title: 'Payment', to: '/vendor-management/up/ssl/amc/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.ssl18w',
+            title: 'Up SSL 18w',
+            tag: 'SSL 18W',
+            children: [
+              { id: 'vm.up.amc.ssl18w.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl18w/amc/assign-light', iconType: 'assign' },
+              { id: 'vm.up.amc.ssl18w.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl18w/amc/view-assign-light', iconType: 'view-assign' },
+              { id: 'vm.up.amc.ssl18w.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl18w/amc/verify-assign-light', iconType: 'view-survey' },
+              { id: 'vm.up.amc.ssl18w.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl18w/amc/claim-request', iconType: 'view-data' },
+              { id: 'vm.up.amc.ssl18w.view-payment', title: 'Payment', to: '/vendor-management/up/ssl18w/amc/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.kusumb',
+            title: 'Kusum B',
+            tag: 'Kusum B',
+            children: [
+              { id: 'vm.up.amc.kusumb.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumb/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.kusumb.view-assigne-site', title: 'View AMC', to: '/vendor-management/up/kusumb/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.kusumb.verify-site', title: 'Verify Amc', to: '/vendor-management/up/kusumb/amc/verify-site', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.kusumc',
+            title: 'Kusum C',
+            tag: 'Kusum C',
+            children: [
+              { id: 'vm.up.amc.kusumc.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumc/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.kusumc.view-assign-site', title: 'View Assign AMC', to: '/vendor-management/up/kusumc/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.kusumc.verify-site', title: 'Verify Site', to: '/vendor-management/up/kusumc/amc/verify-site', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.powerpack',
+            title: 'Power Pack',
+            tag: 'Power Pack',
+            children: [
+              { id: 'vm.up.amc.powerpack.assign-site', title: 'Assign AMC', to: '/vendor-management/up/powerpack/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.powerpack.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/powerpack/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.powerpack.verify-site', title: 'Verify Site', to: '/vendor-management/up/powerpack/amc/verify-site', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.ongrid',
+            title: 'Ongrid',
+            tag: 'Ongrid',
+            children: [
+              { id: 'vm.up.amc.ongrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/ongrid/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.ongrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/ongrid/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.ongrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/ongrid/amc/verify-site', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.up.amc.offgrid',
+            title: 'Offgrid',
+            tag: 'Offgrid',
+            children: [
+              { id: 'vm.up.amc.offgrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/offgrid/amc/assign-site', iconType: 'assign' },
+              { id: 'vm.up.amc.offgrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/offgrid/amc/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.up.amc.offgrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/offgrid/amc/verify-site', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.up.survey',
+        title: 'Survey',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.up.survey.resco',
+            title: 'Resco Survey',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.up.survey.resco.dashboard', title: 'Resco Dashboard', to: '/vendor-management/up/resco/survey/dashboard', iconType: 'analytics' },
+              { id: 'vm.up.survey.resco.assign', title: 'Assign Survey', to: '/vendor-management/up/resco/survey/assign', iconType: 'assign' },
+              { id: 'vm.up.survey.resco.assign-view', title: 'Assign View Survey', to: '/vendor-management/up/resco/survey/assign-view', iconType: 'view-assign' },
+              { id: 'vm.up.survey.resco.verify', title: 'Verify Survey', to: '/vendor-management/up/resco/survey/verify', iconType: 'view-survey' },
+              { id: 'vm.up.survey.resco.assign-vendor', title: 'Assigned Sites Update', to: '/vendor-management/up/resco/survey/assign-vendor', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 
   {
     section: 'Kashmir',

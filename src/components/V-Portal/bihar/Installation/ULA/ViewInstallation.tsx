@@ -433,7 +433,7 @@ function RowActionDropdown({
               Edit Structure
             </Link>
             <Link
-              to={'/v/bihar/ula-installation-pending'}
+              to={site?.id ? `/v/bihar/ula-installation-pending/${site.id}` : '/v/bihar/ula-installation-pending'}
               state={{ site }}
               className="ula-menu__item"
               role="menuitem"

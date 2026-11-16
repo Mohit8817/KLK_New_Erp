@@ -783,6 +783,7 @@ export function UP_Installation_Resco_InstallationDetail() {
   const [docDate, setDocDate] = useState(new Date().toISOString().slice(0, 10));
   const [docRemarks, setDocRemarks] = useState('');
   const [submittingDoc, setSubmittingDoc] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
 
   // Import Panel Modal State
   const [importModalSite, setImportModalSite] = useState<Row | null>(null);
@@ -950,8 +951,10 @@ export function UP_Installation_Resco_InstallationDetail() {
       if (fetched?.resco) {
         const r = fetched.resco;
         if (r.inverter_no) setEditInverterNo(r.inverter_no);
-        if (r.solar_meter_no) setEditSolarMeterNo(r.solar_meter_no);
-        if (r.net_meter_smart_meter) setEditNetSmartMeterNo(r.net_meter_smart_meter);
+        const smNo = r.solarmeter_no || (r as any).solar_meter_no;
+        if (smNo) setEditSolarMeterNo(smNo);
+        const nmNo = r.nm_sm_no || (r as any).net_meter_smart_meter;
+        if (nmNo) setEditNetSmartMeterNo(nmNo);
         if (r.loger_no) setEditLogerNo(r.loger_no);
         if (r.inst_latitude) setEditLat(r.inst_latitude);
         if (r.inst_longitude) setEditLng(r.inst_longitude);
@@ -970,6 +973,8 @@ export function UP_Installation_Resco_InstallationDetail() {
 
     const fd = new FormData();
     fd.append('id', String(editModalSite.id));
+    fd.append('resco_id', String(editModalSite.id));
+    fd.append('site_id', String(editModalSite.id));
     fd.append('inverter_no', editInverterNo.trim());
     fd.append('solarmeter_no', editSolarMeterNo.trim());
     fd.append('nm_sm_no', editNetSmartMeterNo.trim());
@@ -1011,19 +1016,39 @@ export function UP_Installation_Resco_InstallationDetail() {
     setDocFile(null);
     setDocDate(new Date().toISOString().slice(0, 10));
     setDocRemarks('');
+    setDocError(null);
   };
 
   const handleDocSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docModalSite || !docFile) return;
+    if (!docRemarks.trim()) {
+      setDocError('Document remarks are required.');
+      return;
+    }
     setSubmittingDoc(true);
+    setDocError(null);
 
     const fd = new FormData();
-    fd.append('site_id', String(docModalSite.id));
+    const siteId = String(docModalSite.id);
+    const remarks = docRemarks.trim();
+
+    // Required by backend validator: resco_id, doc_file, doc_remarks
+    fd.append('resco_id', siteId);
+    fd.append('site_id', siteId);
+    fd.append('id', siteId);
+
+    fd.append('doc_file', docFile);
     fd.append('inst_doc_file', docFile);
     fd.append('document_file', docFile);
+
+    fd.append('doc_remarks', remarks);
+    fd.append('inst_doc_remarks', remarks);
+    fd.append('remarks', remarks);
+
     fd.append('date', docDate);
-    if (docRemarks.trim()) fd.append('inst_doc_remarks', docRemarks.trim());
+    fd.append('doc_date', docDate);
+    fd.append('inst_doc_date', docDate);
 
     try {
       const res = await upInstallationService.submitRescoDocument(fd);
@@ -1031,12 +1056,21 @@ export function UP_Installation_Resco_InstallationDetail() {
         setToastMsg({ type: 'success', text: res.message || 'Installation document submitted successfully!' });
         setDocModalSite(null);
         setDocFile(null);
+        setDocRemarks('');
+        setDocError(null);
         loadData();
       } else {
-        setToastMsg({ type: 'danger', text: res.message || 'Failed to submit document.' });
+        const errorDetails = res.errors
+          ? Object.values(res.errors).flat().join(' ')
+          : '';
+        const errMsg = errorDetails || res.message || 'Failed to submit document.';
+        setDocError(errMsg);
+        setToastMsg({ type: 'danger', text: errMsg });
       }
     } catch (err: any) {
-      setToastMsg({ type: 'danger', text: err?.message || 'Server error uploading document.' });
+      const errMsg = err?.message || 'Server error uploading document.';
+      setDocError(errMsg);
+      setToastMsg({ type: 'danger', text: errMsg });
     } finally {
       setSubmittingDoc(false);
     }
@@ -1615,6 +1649,21 @@ export function UP_Installation_Resco_InstallationDetail() {
               </div>
 
               <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {docError && (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#b91c1c',
+                      fontSize: 13,
+                    }}
+                  >
+                    {docError}
+                  </div>
+                )}
+
                 <div className="ax-modern-field">
                   <label className="ax-modern-label"><span>Document Date</span><span className="ax-modern-req">*</span></label>
                   <input type="date" required className="ax-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
@@ -1622,7 +1671,16 @@ export function UP_Installation_Resco_InstallationDetail() {
 
                 <div className="ax-modern-field">
                   <label className="ax-modern-label"><span>Document File (PDF / Image)</span><span className="ax-modern-req">*</span></label>
-                  <input type="file" required accept="application/pdf,image/*" className="ax-input" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
+                  <input
+                    type="file"
+                    required
+                    accept="application/pdf,image/*"
+                    className="ax-input"
+                    onChange={(e) => {
+                      setDocFile(e.target.files?.[0] || null);
+                      if (docError) setDocError(null);
+                    }}
+                  />
                   {docFile && (
                     <span style={{ fontSize: 11.5, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
                       Selected: {docFile.name} ({(docFile.size / 1024).toFixed(1)} KB)
@@ -1631,14 +1689,24 @@ export function UP_Installation_Resco_InstallationDetail() {
                 </div>
 
                 <div className="ax-modern-field">
-                  <label className="ax-modern-label"><span>Document Remarks</span></label>
-                  <input type="text" className="ax-input" value={docRemarks} onChange={(e) => setDocRemarks(e.target.value)} placeholder="Enter document remarks…" />
+                  <label className="ax-modern-label"><span>Document Remarks</span><span className="ax-modern-req">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    className="ax-input"
+                    value={docRemarks}
+                    onChange={(e) => {
+                      setDocRemarks(e.target.value);
+                      if (docError) setDocError(null);
+                    }}
+                    placeholder="Enter document remarks…"
+                  />
                 </div>
               </div>
 
               <div className="ax-modal__footer">
                 <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setDocModalSite(null)} disabled={submittingDoc}>Cancel</button>
-                <button type="submit" className="ax-btn ax-btn--primary ax-btn--sm" disabled={submittingDoc || !docFile}>
+                <button type="submit" className="ax-btn ax-btn--primary ax-btn--sm" disabled={submittingDoc || !docFile || !docRemarks.trim()}>
                   {submittingDoc ? 'Uploading…' : 'Submit Document'}
                 </button>
               </div>

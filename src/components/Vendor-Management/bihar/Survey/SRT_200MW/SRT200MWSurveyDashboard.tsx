@@ -602,19 +602,43 @@ export function BiharSRT200MWSurveyDashboard() {
             ? sData.surveys
             : Array.isArray(sData?.srt200mw)
             ? sData.srt200mw
+            : Array.isArray(sData?.verification)
+            ? sData.verification
             : Array.isArray(sData)
             ? sData
             : [];
           singleList.forEach((item: any) => {
-            const st = Number(item.survey_verify_status ?? 0);
+            const st = Number(item.survey_verify_status ?? item.inst_verify_status ?? 0);
             allSurveys.push({
               ...item,
               survey_verify_status: st,
               verify_status: st === 1 ? 'Approved' : st === 2 ? 'Rejected' : 'Pending',
-              vendor_display: vendorNameMap[String(item.survey_vendor || '')] || item.vendor_name || (item.survey_vendor ? `Vendor #${item.survey_vendor}` : 'Vendor Partner'),
+              vendor_display: vendorNameMap[String(item.survey_vendor || item.installation_vendor || '')] || item.vendor_name || (item.survey_vendor ? `Vendor #${item.survey_vendor}` : 'Vendor Partner'),
             });
           });
         }
+      }
+
+      // 2.1 Fallback from Dashboard response if surveys list is empty
+      if (allSurveys.length === 0 && dashRes.status === 'fulfilled' && dashRes.value) {
+        const dVal = dashRes.value;
+        const dData = dVal?.data || dVal;
+        const dVerif = Array.isArray(dData?.verification)
+          ? dData.verification
+          : Array.isArray(dData?.surveys)
+          ? dData.surveys
+          : Array.isArray(dData?.srt200mw)
+          ? dData.srt200mw
+          : [];
+        dVerif.forEach((item: any) => {
+          const st = Number(item.survey_verify_status ?? item.inst_verify_status ?? 0);
+          allSurveys.push({
+            ...item,
+            survey_verify_status: st,
+            verify_status: st === 1 ? 'Approved' : st === 2 ? 'Rejected' : 'Pending',
+            vendor_display: vendorNameMap[String(item.survey_vendor || item.installation_vendor || '')] || item.vendor_name || 'Vendor Partner',
+          });
+        });
       }
       setRawSurveys(allSurveys);
 
@@ -650,14 +674,14 @@ export function BiharSRT200MWSurveyDashboard() {
       if (dashRes.status === 'fulfilled' && dashRes.value) {
         const dVal = dashRes.value;
         const dData = dVal?.data || dVal;
-        const detail = dData?.survey_detail || dData?.summary || {};
+        const detail = dData?.survey_detail || dData?.summary || dData || {};
 
-        total = Number(detail.total ?? detail.assigned ?? detail.assignsite ?? detail.totalsite ?? 0);
-        completed = Number(detail.survey_done ?? detail.complete_survey ?? detail.complete ?? 0);
-        pending = Number(detail.survey_pending ?? detail.pending_survey ?? detail.pending ?? 0);
-        vPending = Number(detail.survey_verify_pending ?? detail.verifypending ?? 0);
-        vApproved = Number(detail.survey_verify_complete ?? detail.survey_verify ?? detail.approvedsite ?? 0);
-        vRejected = Number(detail.survey_verify_reject ?? detail.rejectsite ?? 0);
+        total = Number(detail.total ?? detail.assigned ?? detail.assignsite ?? detail.totalsite ?? dData?.totalsite ?? 0);
+        completed = Number(detail.survey_done ?? detail.complete_survey ?? detail.complete ?? dData?.complete ?? 0);
+        pending = Number(detail.survey_pending ?? detail.pending_survey ?? detail.pending ?? detail.pendingsite ?? dData?.pendingsite ?? 0);
+        vPending = Number(detail.survey_verify_pending ?? detail.verifypending ?? dData?.verifypending ?? 0);
+        vApproved = Number(detail.survey_verify_complete ?? detail.survey_verify ?? detail.approvedsite ?? dData?.approvedsite ?? 0);
+        vRejected = Number(detail.survey_verify_reject ?? detail.rejectsite ?? dData?.rejectsite ?? 0);
 
         if (Array.isArray(dData?.districtwise)) rawDistrictsApi = dData.districtwise;
         if (Array.isArray(dData?.vendorwises)) rawVendorsApi = dData.vendorwises;

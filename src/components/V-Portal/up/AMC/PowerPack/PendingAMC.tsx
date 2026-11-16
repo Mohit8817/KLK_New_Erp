@@ -47,6 +47,9 @@ export function UP_AMC_PowerPack_PendingAMC() {
         volume: p.capacity || p.plant_capacity || p.volume || '',
         contractor_name: p.contractor_name || '',
         amc_type: p.amc_type || 'Monthly',
+        pending_months: res?.pending_months || p?.pending_months || [],
+        schedule: res?.schedule || p?.schedule || [],
+        current_due: res?.current_due || p?.current_due || null,
       };
     }
     return null;

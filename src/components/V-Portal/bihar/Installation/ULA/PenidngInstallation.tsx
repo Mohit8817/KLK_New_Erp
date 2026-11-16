@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   biharUlaInstallationService,
@@ -150,15 +150,21 @@ const SINGLE_CARD_FORM_CSS = `
 `;
 
 export function Bihar_Installation_ULA_PendingInstallation() {
-  const { id } = useParams();
+  const { id: paramId } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [site, setSite] = useState<StructureSiteItem | null>(
-    (location.state as { site?: StructureSiteItem } | null)?.site ?? null
-  );
-  const [loadingSite, setLoadingSite] = useState(!site);
+  const stateSite = (location.state as { site?: StructureSiteItem } | null)?.site ?? null;
+  const targetId = paramId || searchParams.get('id') || searchParams.get('site_id') || (stateSite?.id ? String(stateSite.id) : '');
+
+  const [site, setSite] = useState<StructureSiteItem | null>(stateSite);
+  const [loadingSite, setLoadingSite] = useState(Boolean(targetId) && !stateSite);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Available sites list if user opened the page directly without a selected site
+  const [availableSites, setAvailableSites] = useState<StructureSiteItem[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
 
   // Form state
   const [inverterNo, setInverterNo] = useState('');
@@ -180,28 +186,53 @@ export function Bihar_Installation_ULA_PendingInstallation() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Fresh data from GET /bihar/ula/installation/pending-site/{id}; location.state is the instant placeholder
-  const loadSite = useCallback(async () => {
-    if (!id) return;
+  // Load available sites if no site is selected
+  useEffect(() => {
+    let active = true;
+    setLoadingAvailable(true);
+    biharUlaInstallationService.getViewInstalledSites()
+      .then((list) => {
+        if (!active) return;
+        setAvailableSites(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => console.error('[PendingInstallation] fetch available sites error:', err))
+      .finally(() => {
+        if (active) setLoadingAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load fresh site data by ID
+  const loadSiteById = useCallback(async (sid: string | number) => {
+    if (!sid) return;
+    setLoadingSite(true);
     setLoadError(null);
     try {
-      const fresh = await biharUlaInstallationService.getPendingInstallSite(id);
+      const fresh = await biharUlaInstallationService.getPendingInstallSite(sid);
       if (fresh) {
-        setSite((prev) => ({ ...(prev || {}), ...fresh }) as StructureSiteItem);
-      } else if (!site) {
-        setLoadError('Site not found.');
+        setSite(fresh);
+      } else {
+        const fallback = availableSites.find((s) => String(s.id) === String(sid));
+        if (fallback) {
+          setSite(fallback);
+        } else if (!site) {
+          setLoadError('Site details could not be loaded.');
+        }
       }
     } catch (err: any) {
       if (!site) setLoadError(err?.message || 'Failed to load site details.');
     } finally {
       setLoadingSite(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [availableSites, site]);
 
   useEffect(() => {
-    loadSite();
-  }, [loadSite]);
+    if (targetId) {
+      loadSiteById(targetId);
+    }
+  }, [targetId, loadSiteById]);
 
   // Prefill once per fresh site data
   useEffect(() => {
@@ -339,15 +370,66 @@ export function Bihar_Installation_ULA_PendingInstallation() {
         </div>
       )}
 
-      {!loadingSite && loadError && (
-        <div className="ax-alert ax-alert--danger" role="alert">
-          <div className="ax-alert__content">
-            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>{loadError}</h4>
-            <div style={{ marginTop: 8 }}>
-              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => navigate(LIST_ROUTE)}>
-                Back to list
-              </button>
+      {!loadingSite && !site && (
+        <div className="ax-card" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <div className="ax-card__header">
+            <div>
+              <h3 className="ax-card__title" style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                Select Site for Pending Installation
+              </h3>
+              <p className="ax-card__subtitle" style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                Choose a structure-completed site to enter final installation commissioning details and photos.
+              </p>
             </div>
+          </div>
+          <div className="ax-card__body">
+            {loadingAvailable ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ax-text-muted)' }}>
+                <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading available sites…
+              </div>
+            ) : availableSites.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 540 }}>
+                <label htmlFor="ula-pending-site-select" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text)' }}>
+                  Available Structure-Complete Sites ({availableSites.length})
+                </label>
+                <select
+                  id="ula-pending-site-select"
+                  className="ax-float__input"
+                  style={{ height: 46 }}
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      loadSiteById(e.target.value);
+                    }
+                  }}
+                >
+                  <option value="">-- Choose a Pending Site --</option>
+                  {availableSites.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.beneficiary_name ? `${s.beneficiary_name} (Site #${s.id})` : `Site #${s.id}`}
+                      {s.district ? ` - ${s.district}` : ''}
+                      {s.ca_no ? ` [CA: ${s.ca_no}]` : ''}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '11.5px', color: 'var(--ax-text-muted)' }}>
+                  Selecting a site will load its details and allow you to record electrical meters & photographs.
+                </span>
+              </div>
+            ) : (
+              <div style={{ padding: '12px 0' }}>
+                <p style={{ margin: '0 0 12px', color: 'var(--ax-text-muted)' }}>
+                  {loadError || 'No pending installation sites found. Please check if structure work has been submitted.'}
+                </p>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  onClick={() => navigate(LIST_ROUTE)}
+                >
+                  Go to Installation List
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -357,11 +439,24 @@ export function Bihar_Installation_ULA_PendingInstallation() {
           <div className="ax-card">
             {/* Card Header with Title and Section Pills */}
             <div className="ax-card__header">
-              <div>
-                <h2 className="ax-card__title" style={{ margin: 0 }}>Pending Installation</h2>
-                <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
-                  Site details, meter numbers and installation photos in one place.
-                </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <h2 className="ax-card__title" style={{ margin: 0 }}>Pending Installation</h2>
+                  <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
+                    Site details, meter numbers and installation photos in one place.
+                  </p>
+                </div>
+                {availableSites.length > 1 && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    onClick={() => setSite(null)}
+                    style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <span>⇄</span>
+                    <span>Change Site</span>
+                  </button>
+                )}
               </div>
 
               <div className="bihar-section-pills" role="navigation" aria-label="Jump to section">

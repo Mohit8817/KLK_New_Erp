@@ -4,6 +4,7 @@ import { PageHead } from '../../../../shell/PageHead';
 import { getCurrentUser } from '../../../../../services/authService';
 import {
   upInstallationService,
+  extractSiteIdsFromAssign,
   type UpRescoAssignSiteItem,
 } from '../../up-services';
 
@@ -108,12 +109,19 @@ const SECTIONS = [
 export function UP_Installation_Resco_InstallSite() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const preSelectedId = searchParams.get('site_id') || '';
+  const preSelectedId = searchParams.get('site_id') || searchParams.get('id') || searchParams.get('resco_id') || '';
+  const assignIdParam = searchParams.get('assign_id') || '';
 
   // Available sites
   const [sites, setSites] = useState<UpRescoAssignSiteItem[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState(preSelectedId);
   const [siteInfo, setSiteInfo] = useState<UpRescoAssignSiteItem | null>(null);
+  const [rescoId, setRescoId] = useState<string>(preSelectedId || '');
+
+  // Master validation state
+  const [siteVerified, setSiteVerified] = useState(false);
+  const [siteNotFound, setSiteNotFound] = useState(false);
+  const [siteNotFoundId, setSiteNotFoundId] = useState('');
 
   // Form fields
   const [vendorName, setVendorName] = useState('mohit');
@@ -130,6 +138,7 @@ export function UP_Installation_Resco_InstallSite() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [fetchingDetail, setFetchingDetail] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -169,26 +178,43 @@ export function UP_Installation_Resco_InstallSite() {
 
   // Apply fetched site detail to info card + prefilled form fields
   const applyDetail = (detail: any) => {
-    setSiteInfo({
-      id: detail.id,
-      site_name: detail.site_name,
-      district: detail.district,
-      location: detail.address,
-      firm_name: detail.firm_name,
-      ca_no: detail.ca_no,
-      sanction_load: detail.sanction_load,
-      plant_sc: detail.plant_sc,
-      wo_no: detail.wo_no,
+    const trueId = (detail.resco_id || detail.site_id || detail.id || rescoId || '').toString();
+    if (trueId) {
+      setRescoId(trueId);
+    }
+    setSiteVerified(true);
+    setSiteNotFound(false);
+    setSiteNotFoundId('');
+    clearError('resco_id');
+    clearError('site_id');
+
+    setSiteInfo((prev) => ({
+      ...(prev || {}),
+      id: detail.id || trueId,
+      assign_id: prev?.assign_id || detail.assign_id || assignIdParam || undefined,
+      resco_id: detail.resco_id || trueId,
+      site_id: detail.site_id || trueId,
+      site_name: detail.site_name || prev?.site_name,
+      district: detail.district || prev?.district,
+      location: detail.address || detail.location || prev?.location,
+      firm_name: detail.firm_name || prev?.firm_name,
+      ca_no: detail.ca_no || prev?.ca_no,
+      sanction_load: detail.sanction_load || prev?.sanction_load,
+      plant_sc: detail.plant_sc || prev?.plant_sc,
+      wo_no: detail.wo_no || prev?.wo_no,
       status: 2,
-    });
+    }));
     setFormData((prev) => ({
       ...prev,
       contact_person: detail.contact_person || prev.contact_person,
-      contact_no: detail.contact_number || prev.contact_no,
+      contact_no: detail.contact_number || detail.contact_no || prev.contact_no,
       inverter_no: detail.inverter_no || prev.inverter_no,
-      solar_meter_no: detail.solarmeter_no || prev.solar_meter_no,
-      net_meter_no: detail.nm_sm_no || prev.net_meter_no,
-      rms_loger_no: detail.loger_no || prev.rms_loger_no,
+      solar_meter_no: detail.solarmeter_no || detail.solar_meter_no || prev.solar_meter_no,
+      net_meter_no: detail.nm_sm_no || detail.net_meter_no || prev.net_meter_no,
+      rms_loger_no: detail.loger_no || detail.rms_loger_no || prev.rms_loger_no,
+      latitude: detail.inst_latitude || detail.latitude || prev.latitude,
+      longitude: detail.inst_longitude || detail.longitude || prev.longitude,
+      remarks: detail.inst_remarks || detail.remarks || prev.remarks,
     }));
   };
 
@@ -197,50 +223,234 @@ export function UP_Installation_Resco_InstallSite() {
     if (user?.name) setVendorName(user.name);
 
     setLoading(true);
-    // Endpoint 4: Fetch sites ready for installation
+    // 1. Try fetching available sites ready for installation
     upInstallationService
       .getRescoAvailableSites()
       .then(async (avail) => {
         if (Array.isArray(avail) && avail.length > 0) {
-          const mapped = avail.map((a) => ({
-            id: a.id,
-            site_name: a.site_name,
-            status: 2,
-          } as UpRescoAssignSiteItem));
+          const mapped = avail.map((a: any) => {
+            const rid = a.resco_id ?? a.site_id ?? a.id;
+            return {
+              id: String(a.id ?? rid),
+              resco_id: rid,
+              site_id: rid,
+              site_name: a.site_name || a.name || `Site #${rid}`,
+              district: a.district || '',
+              state: a.state || 'UP',
+              status: 2,
+              ...a,
+            } as UpRescoAssignSiteItem;
+          });
           setSites(mapped);
-          const targetId = preSelectedId || String(mapped[0]?.id || '');
-          if (targetId) {
-            setSelectedSiteId(targetId);
-            const detail = await upInstallationService.getRescoSiteDetail(targetId);
-            if (detail) applyDetail(detail);
+          const target = preSelectedId
+            ? mapped.find((m) => String(m.id) === preSelectedId || String(m.resco_id) === preSelectedId || String(m.site_id) === preSelectedId) || mapped[0]
+            : mapped[0];
+          if (target) {
+            setSelectedSiteId(String(target.id));
+            const targetRescoId = String(target.resco_id || target.site_id || target.id);
+            setRescoId(targetRescoId);
+            const detail = await upInstallationService.getRescoSiteDetail(targetRescoId);
+            if (detail) {
+              applyDetail(detail);
+            } else {
+              setSiteInfo(target);
+              setSiteVerified(false);
+              setSiteNotFound(true);
+              setSiteNotFoundId(targetRescoId);
+              setFieldErrors((prev) => ({
+                ...prev,
+                resco_id: `Site ID ${targetRescoId} not found in Resco Master database. Please enter a valid Resco ID.`,
+              }));
+            }
           }
         } else {
-          // Fallback to assigned sites
+          // 2. Fallback to assigned sites from assign_resc table
           const res = await upInstallationService.getRescoAssignSites();
           const list = res.data || [];
-          setSites(list);
-          if (preSelectedId) {
-            const matched = list.find((s) => String(s.id) === preSelectedId);
-            if (matched) setSiteInfo(matched);
+
+          // Expand multi-site batches so each individual site has its actual Resco ID
+          const expanded: UpRescoAssignSiteItem[] = [];
+          list.forEach((assign: any) => {
+            const extractedIds = extractSiteIdsFromAssign(assign);
+            let siteObj = assign.site_name;
+            if (typeof siteObj === 'string' && siteObj.trim().startsWith('{')) {
+              try {
+                siteObj = JSON.parse(siteObj);
+              } catch {
+                // keep string
+              }
+            }
+
+            if (siteObj && typeof siteObj === 'object' && !Array.isArray(siteObj) && Object.keys(siteObj).length > 0) {
+              const entries = Object.entries(siteObj);
+              entries.forEach(([k, dl], idx) => {
+                const isKeyNum = /^\d+$/.test(k.trim());
+                const candidateRescoId = isKeyNum ? k.trim() : (extractedIds[idx] || assign.resco_id || '');
+                const candidateName = isKeyNum ? `Site #${k.trim()}` : k.trim();
+                expanded.push({
+                  ...assign,
+                  id: isKeyNum ? k.trim() : (candidateRescoId ? candidateRescoId : `${assign.id}_${idx}`),
+                  assign_id: assign.id,
+                  resco_id: candidateRescoId,
+                  site_id: candidateRescoId,
+                  site_name: candidateName,
+                  deadline: dl ? String(dl) : assign.deadline,
+                });
+              });
+            } else if (extractedIds.length > 0) {
+              extractedIds.forEach((sid) => {
+                expanded.push({
+                  ...assign,
+                  id: extractedIds.length === 1 ? String(sid) : `${assign.id}_${sid}`,
+                  assign_id: assign.id,
+                  resco_id: sid,
+                  site_id: sid,
+                  site_name: assign.site_name || `Site #${sid}`,
+                });
+              });
+            } else {
+              expanded.push({
+                ...assign,
+                id: String(assign.id),
+                assign_id: assign.id,
+                resco_id: assign.resco_id || '',
+                site_id: assign.site_id || '',
+              });
+            }
+          });
+
+          setSites(expanded);
+
+          let matched = preSelectedId
+            ? expanded.find(
+                (s) =>
+                  String(s.id) === preSelectedId ||
+                  String(s.resco_id) === preSelectedId ||
+                  String(s.site_id) === preSelectedId ||
+                  String(s.assign_id) === preSelectedId
+              )
+            : undefined;
+
+          let targetRescoId = '';
+          if (matched) {
+            setSelectedSiteId(String(matched.id));
+            setSiteInfo(matched);
+            if (matched.resco_id && String(matched.resco_id).trim()) {
+              targetRescoId = String(matched.resco_id).trim();
+            } else if (assignIdParam || preSelectedId) {
+              const assignDetail = await upInstallationService.getRescoAssignDetail(assignIdParam || preSelectedId);
+              if (assignDetail?.data?.site_ids && assignDetail.data.site_ids.length > 0) {
+                targetRescoId = assignDetail.data.site_ids[0];
+              }
+            }
+          } else if (preSelectedId) {
+            targetRescoId = preSelectedId;
+          } else if (expanded.length > 0) {
+            const first = expanded[0];
+            setSelectedSiteId(String(first.id));
+            setSiteInfo(first);
+            if (first.resco_id) targetRescoId = String(first.resco_id);
+          }
+
+          if (targetRescoId) {
+            setRescoId(targetRescoId);
+            const detail = await upInstallationService.getRescoSiteDetail(targetRescoId);
+            if (detail) {
+              applyDetail(detail);
+            } else {
+              setSiteVerified(false);
+              setSiteNotFound(true);
+              setSiteNotFoundId(targetRescoId);
+              setFieldErrors((prev) => ({
+                ...prev,
+                resco_id: `Site ID ${targetRescoId} not found in Resco Master database. Please enter a valid Resco ID.`,
+              }));
+              setErrorMsg(`Resco ID "${targetRescoId}" was not found in the Resco Master database. Please verify the ID or enter the correct Master Resco Site ID in Section 1.`);
+            }
           }
         }
       })
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
-  }, [preSelectedId]);
+  }, [preSelectedId, assignIdParam]);
 
   const handleSelectSite = async (id: string) => {
     setSelectedSiteId(id);
     clearError('site_id');
-    const matched = sites.find((s) => String(s.id) === id);
+    clearError('resco_id');
+    setSiteNotFound(false);
+    setSiteNotFoundId('');
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const matched = sites.find((s) => String(s.id) === id || String(s.resco_id) === id);
     setSiteInfo(matched || null);
     if (!id) return;
 
+    let targetRescoId = '';
+    if (matched?.resco_id && String(matched.resco_id).trim()) {
+      targetRescoId = String(matched.resco_id).trim();
+    } else if (matched?.site_id && String(matched.site_id).trim()) {
+      targetRescoId = String(matched.site_id).trim();
+    } else if (/^\d+$/.test(id)) {
+      targetRescoId = id;
+    }
+
+    if (targetRescoId) {
+      setRescoId(targetRescoId);
+      try {
+        const detail = await upInstallationService.getRescoSiteDetail(targetRescoId);
+        if (detail) {
+          applyDetail(detail);
+        } else {
+          setSiteVerified(false);
+          setSiteNotFound(true);
+          setSiteNotFoundId(targetRescoId);
+          setFieldErrors((prev) => ({
+            ...prev,
+            resco_id: `Resco ID ${targetRescoId} not found in Master database.`,
+          }));
+          setErrorMsg(`Site details not found for Resco ID ${targetRescoId}. Please check or enter the Master Resco ID.`);
+        }
+      } catch (e) {
+        console.warn('Error fetching site detail:', e);
+      }
+    } else {
+      setRescoId('');
+      setSiteVerified(false);
+      setSiteNotFound(false);
+    }
+  };
+
+  const handleManualFetchDetail = async (overrideId?: string) => {
+    const queryId = (overrideId !== undefined ? overrideId : rescoId).trim();
+    if (!queryId) {
+      setFieldErrors((prev) => ({ ...prev, resco_id: 'Please enter a Resco Site ID' }));
+      return;
+    }
+    setFetchingDetail(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
     try {
-      const detail = await upInstallationService.getRescoSiteDetail(id);
-      if (detail) applyDetail(detail);
-    } catch (e) {
-      console.warn('Error fetching site detail:', e);
+      const detail = await upInstallationService.getRescoSiteDetail(queryId);
+      if (detail) {
+        applyDetail(detail);
+        setSuccessMsg(`✅ Master Site record verified and loaded for Resco ID: ${queryId}`);
+      } else {
+        setSiteVerified(false);
+        setSiteNotFound(true);
+        setSiteNotFoundId(queryId);
+        setFieldErrors((prev) => ({
+          ...prev,
+          resco_id: `Site ID ${queryId} was not found in Resco Master database.`,
+        }));
+        setErrorMsg(`Resco Master ID "${queryId}" was not found in master records (server returned null). Please verify the Site ID.`);
+      }
+    } catch (e: any) {
+      console.warn('Error fetching manual site detail:', e);
+      setErrorMsg(e?.message || 'Failed to verify site ID with server.');
+    } finally {
+      setFetchingDetail(false);
     }
   };
 
@@ -277,7 +487,13 @@ export function UP_Installation_Resco_InstallSite() {
   // Validation
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!selectedSiteId) errs.site_id = 'Please select Site ID';
+    const finalId = rescoId.trim() || selectedSiteId.trim();
+    if (!finalId) {
+      errs.site_id = 'Please select a Site';
+      errs.resco_id = 'Resco Site ID is required';
+    } else if (siteNotFound && siteNotFoundId === finalId) {
+      errs.resco_id = `Resco ID "${finalId}" does not exist in master records. Please enter a valid Resco Master Site ID.`;
+    }
     (Object.keys(REQUIRED_FIELDS) as FormKey[]).forEach((key) => {
       if (!formData[key].trim()) errs[key] = REQUIRED_FIELDS[key] as string;
     });
@@ -306,9 +522,19 @@ export function UP_Installation_Resco_InstallSite() {
     setSubmitting(true);
     try {
       const { contact_person, contact_no, inverter_no, solar_meter_no, net_meter_no, rms_loger_no, latitude, longitude, remarks } = formData;
+      const finalRescoId = (
+        rescoId.trim() ||
+        siteInfo?.resco_id ||
+        siteInfo?.site_id ||
+        selectedSiteId.trim() ||
+        siteInfo?.id ||
+        ''
+      ).toString();
+
       const fd = new FormData();
-      fd.append('resco_id', selectedSiteId);
-      fd.append('site_id', selectedSiteId);
+      fd.append('resco_id', finalRescoId);
+      fd.append('site_id', finalRescoId);
+      fd.append('id', finalRescoId);
       fd.append('vendor', vendorName);
       fd.append('contact_person', contact_person);
       fd.append('contact_number', contact_no);
@@ -330,6 +556,12 @@ export function UP_Installation_Resco_InstallSite() {
         fd.append('remarks', remarks);
       }
 
+      const currentAssignId = siteInfo?.assign_id || assignIdParam;
+      if (currentAssignId) {
+        fd.append('assign_id', String(currentAssignId));
+        fd.append('assignment_id', String(currentAssignId));
+      }
+
       if (files.panel_image) fd.append('panel_image', files.panel_image);
       if (files.system_image) fd.append('system_image', files.system_image);
       if (files.inverter_image) fd.append('inverter_image', files.inverter_image);
@@ -347,7 +579,32 @@ export function UP_Installation_Resco_InstallSite() {
           navigate('/v/up/resco-view-install-site');
         }, 1500);
       } else {
-        setErrorMsg(res.message || 'Failed to submit installation.');
+        let msg = res.message || 'Failed to submit installation.';
+        if (res.errors) {
+          if (res.errors.resco_id) {
+            const rescoErr = Array.isArray(res.errors.resco_id)
+              ? res.errors.resco_id.join(' ')
+              : String(res.errors.resco_id);
+            setFieldErrors((prev) => ({
+              ...prev,
+              resco_id: rescoErr,
+            }));
+            setSiteNotFound(true);
+            setSiteNotFoundId(finalRescoId);
+            setSiteVerified(false);
+            msg = `Resco ID "${finalRescoId}": ${rescoErr}. The ID was not found in the Resco Master Sites register. Please enter the correct Master Site ID in Section 1.`;
+            scrollToSection('sec-1');
+            setTimeout(() => {
+              document.getElementById('up-inst-resco-id')?.focus();
+            }, 100);
+          } else {
+            const errLines = Object.entries(res.errors)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? (v as any[]).join(', ') : v}`)
+              .join(' | ');
+            msg = `${msg}: ${errLines}`;
+          }
+        }
+        setErrorMsg(msg);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: any) {
@@ -379,10 +636,15 @@ export function UP_Installation_Resco_InstallSite() {
     return String(sn);
   };
 
-  const siteSelectOptions: Option[] = sites.map((s) => ({
-    value: String(s.id),
-    label: `${getSiteNameLabel(s.site_name, s.id)}${s.district ? ` (${s.district})` : ''}`,
-  }));
+  const siteSelectOptions: Option[] = sites.map((s) => {
+    const idLabel = s.resco_id ? `ID: ${s.resco_id}` : `ID: ${s.id}`;
+    const nameLabel = getSiteNameLabel(s.site_name, s.resco_id || s.id);
+    const distLabel = s.district ? ` (${s.district})` : '';
+    return {
+      value: String(s.id),
+      label: `${nameLabel}${distLabel} · [${idLabel}]`,
+    };
+  });
 
   return (
     <div className="up-single-card-form">
@@ -457,14 +719,19 @@ export function UP_Installation_Resco_InstallSite() {
           <div className="ax-card__body">
             {/* Section 1: Select Site */}
             <div id="sec-1" className="up-section-block">
-              <SectionHeader num="1" total={5} title="Site Information" desc="Choose the site ready for installation." />
+              <SectionHeader
+                num="1"
+                total={5}
+                title="Site Information"
+                desc="Choose assigned site from dropdown or verify/enter the Master Resco Site ID."
+              />
               <div className="up-form-grid up-form-grid--3col">
-                <div className="up-form-col-span-full" style={{ maxWidth: 540 }}>
+                <div style={{ gridColumn: 'span 2' }}>
                   <FloatingSelect
                     id="up-inst-site"
-                    label="Select Id"
+                    label="Select Site / Assignment"
                     required
-                    placeholder={loading ? 'Loading sites...' : '-- Select Id --'}
+                    placeholder={loading ? 'Loading sites...' : '-- Select Site --'}
                     value={selectedSiteId}
                     options={siteSelectOptions}
                     disabled={loading}
@@ -472,6 +739,69 @@ export function UP_Installation_Resco_InstallSite() {
                     error={fieldErrors.site_id}
                   />
                 </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <FloatingInput
+                      id="up-inst-resco-id"
+                      label="Resco Master ID"
+                      required
+                      placeholder="Resco ID (e.g. 142)"
+                      value={rescoId}
+                      onChange={(v) => {
+                        setRescoId(v);
+                        setSiteNotFound(false);
+                        setSiteVerified(false);
+                        clearError('resco_id');
+                        clearError('site_id');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleManualFetchDetail();
+                        }
+                      }}
+                      error={fieldErrors.resco_id}
+                    />
+                  </div>
+                  {rescoId && (
+                    <button
+                      type="button"
+                      onClick={() => handleManualFetchDetail()}
+                      disabled={fetchingDetail}
+                      className="ax-btn ax-btn--secondary"
+                      style={{ height: 46, padding: '0 12px', fontSize: 12, whiteSpace: 'nowrap', marginTop: 0 }}
+                      title="Fetch and verify site details from Resco Master database"
+                    >
+                      {fetchingDetail ? 'Verifying…' : 'Fetch / Verify'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Site Master Verification Status Banners */}
+                {siteNotFound && (
+                  <div
+                    className="ax-alert ax-alert--warning"
+                    role="alert"
+                    style={{ gridColumn: '1 / -1', margin: '4px 0 0', fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 10 }}
+                  >
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <div>
+                      <strong>Site Not Found in Resco Master Records:</strong> Resco ID <code>{rescoId || siteNotFoundId}</code> was rejected (server returned <code>data: null</code>).
+                      {siteInfo?.assign_id && (
+                        <span> This assignment is registered under Batch #{siteInfo.assign_id}. If this site has a separate Master Site ID (from your Work Order / Scheme records), please enter it in the <strong>Resco Master ID</strong> field and click <strong>Fetch / Verify</strong>.</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {siteVerified && (
+                  <div
+                    className="ax-alert ax-alert--success"
+                    role="status"
+                    style={{ gridColumn: '1 / -1', margin: '4px 0 0', fontSize: 12.5, padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8 }}
+                  >
+                    <span>✅ Resco Master ID <strong>{rescoId}</strong> verified in database. Site specifications auto-loaded into Section 2.</span>
+                  </div>
+                )}
               </div>
             </div>
 

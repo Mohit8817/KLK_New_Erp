@@ -371,11 +371,11 @@ export function BiharSSLInstallationVerifyLight() {
             item.vendor_name ||
             item.firm_name ||
             (item.installation_assigned_by
-              ? `${item.installation_assigned_by}${item.installation_vendor ? ` (#${item.installation_vendor})` : ''}`
+              ? `${item.installation_assigned_by}${item.installation_vendor ? `` : ''}`
               : item.installation_vendor
-              ? `Vendor #${item.installation_vendor}`
+              ? `Vendor ${item.installation_vendor}`
               : item.installed_by
-              ? `Vendor #${item.installed_by}`
+              ? `Vendor ${item.installed_by}`
               : item.created_by
               ? item.created_by
               : 'Vendor');

@@ -47,6 +47,9 @@ export function UP_AMC_Ongrid_PendingAMC() {
         volume: o.plant_capacity || o.sanction_load || o.volume || '',
         contractor_name: o.contractor_name || '',
         amc_type: o.amc_type || 'Monthly',
+        pending_months: res?.pending_months || o?.pending_months || [],
+        schedule: res?.schedule || o?.schedule || [],
+        current_due: res?.current_due || o?.current_due || null,
       };
     }
     return null;

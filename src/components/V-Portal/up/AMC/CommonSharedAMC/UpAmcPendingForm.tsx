@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 
@@ -180,6 +180,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingSites, setLoadingSites] = useState(false);
+  const [loadingSiteDetails, setLoadingSiteDetails] = useState(false);
+  const [sitePendingMonths, setSitePendingMonths] = useState<any[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -360,6 +362,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       volume: '',
       contractorName: '',
     });
+    setSitePendingMonths([]);
   };
 
   const normalizeSite = (det: any) => {
@@ -392,10 +395,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     const cName = d.contractor_name || d.contractor || d.vendor_name || d.vendor || '';
 
     let aType = d.amc_type || det.amc_type_name || d.amc_type_name || defaultAmcType;
-    if (aType === 'M') aType = 'Monthly';
-    else if (aType === 'Q') aType = 'Quarterly';
-    else if (aType === 'H') aType = 'Half-Yearly';
-    else if (aType === 'Y') aType = 'Yearly';
+    if (aType === 1 || aType === '1' || aType === 'M') aType = 'Monthly';
+    else if (aType === 3 || aType === '3' || aType === 'Q') aType = 'Quarterly';
+    else if (aType === 6 || aType === '6' || aType === 'H') aType = 'Half-Yearly';
+    else if (aType === 12 || aType === '12' || aType === 'Y') aType = 'Yearly';
 
     return {
       state: st,
@@ -424,6 +427,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       return;
     }
     let active = true;
+    setLoadingSiteDetails(true);
     onFetchSiteDetails(selectedSiteId, selectedYear ? Number(selectedYear) : undefined, selectedMonth || undefined)
       .then((det) => {
         if (!active || !det) return;
@@ -447,19 +451,122 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
           if (norm.contact) setBeneficiaryContact(norm.contact);
           if (norm.amcType) setAmcType(norm.amcType);
           if (norm.amcDate) setAmcDate(norm.amcDate);
-          if (norm.month && !selectedMonth) setSelectedMonth(String(norm.month));
           if (norm.latitude && !latitude) setLatitude(String(norm.latitude));
           if (norm.longitude && !longitude) setLongitude(String(norm.longitude));
+
+          // Extract pending months or schedule
+          const selectedSiteObj = sites.find((s) => String(s.id) === String(selectedSiteId));
+          const pMonths =
+            det?.pending_months ||
+            det?.data?.pending_months ||
+            det?.ssl_details?.pending_months ||
+            selectedSiteObj?.schedule ||
+            det?.schedule ||
+            (selectedSiteObj?.current_due ? [selectedSiteObj.current_due] : []);
+
+          if (Array.isArray(pMonths) && pMonths.length > 0) {
+            setSitePendingMonths(pMonths);
+            const first = pMonths[0];
+            if (typeof first === 'object' && first !== null) {
+              const m = String(first.month || first.report_month || '');
+              const y = String(first.year || first.report_year || selectedYear || '');
+              setSelectedMonth(y ? `${m.padStart(2, '0')}-${y}` : m);
+            } else {
+              setSelectedMonth(String(first));
+            }
+          } else if (norm.month) {
+            setSelectedMonth(String(norm.month));
+          } else {
+            setSitePendingMonths([]);
+          }
         }
       })
       .catch((err) => {
         console.error('Error fetching site details:', err);
+      })
+      .finally(() => {
+        if (active) setLoadingSiteDetails(false);
       });
 
     return () => {
       active = false;
     };
   }, [selectedSiteId]);
+
+  const monthOrPeriodLabel = useMemo(() => {
+    if (amcType === 'Quarterly') return 'Quarter *';
+    if (amcType === 'Half-Yearly') return 'Half-Year Period *';
+    if (amcType === 'Yearly') return 'AMC Year *';
+    return 'Month *';
+  }, [amcType]);
+
+  const monthOrPeriodPlaceholder = useMemo(() => {
+    if (!selectedSiteId) return '-- Select Site First --';
+    if (loadingSiteDetails) return 'Loading site details...';
+    if (amcType === 'Quarterly') return '-- Select Quarter --';
+    if (amcType === 'Half-Yearly') return '-- Select Half-Year --';
+    if (amcType === 'Yearly') return '-- Select Year --';
+    return '-- Select Month --';
+  }, [selectedSiteId, loadingSiteDetails, amcType]);
+
+  const periodOptions = useMemo<Option[]>(() => {
+    if (sitePendingMonths.length > 0) {
+      return sitePendingMonths.map((p) => {
+        if (typeof p === 'object' && p !== null) {
+          const item = p as any;
+          const m = String(item.month || item.report_month || '');
+          const y = String(item.year || item.report_year || selectedYear || '');
+          const found = MONTH_OPTIONS.find((mo) => mo.value === m);
+          const mName = found ? found.label : `Month ${m}`;
+          return {
+            value: y ? `${m.padStart(2, '0')}-${y}` : m,
+            label: y ? `${mName} ${y}` : mName,
+          };
+        }
+        const str = String(p);
+        if (str.includes('-')) {
+          const [mPart, yPart] = str.split('-');
+          const found = MONTH_OPTIONS.find((mo) => mo.value === String(parseInt(mPart, 10)) || mo.value === mPart);
+          const mName = found ? found.label : `Month ${mPart}`;
+          return {
+            value: str,
+            label: `${mName} ${yPart}`,
+          };
+        }
+        const found = MONTH_OPTIONS.find((mo) => mo.value === str);
+        return {
+          value: str,
+          label: found ? found.label : `Month ${str}`,
+        };
+      });
+    }
+
+    if (amcType === 'Quarterly') {
+      return [
+        { value: '1', label: 'Q1 (January – March)' },
+        { value: '2', label: 'Q2 (April – June)' },
+        { value: '3', label: 'Q3 (July – September)' },
+        { value: '4', label: 'Q4 (October – December)' },
+      ];
+    }
+
+    if (amcType === 'Half-Yearly') {
+      return [
+        { value: '1', label: 'H1 (First Half: April – September)' },
+        { value: '2', label: 'H2 (Second Half: October – March)' },
+      ];
+    }
+
+    if (amcType === 'Yearly') {
+      const currentY = selectedYear ? Number(selectedYear) : new Date().getFullYear();
+      return [
+        { value: String(currentY), label: `Annual / Full Year ${currentY}` },
+        { value: String(currentY - 1), label: `Annual / Full Year ${currentY - 1}` },
+      ];
+    }
+
+    return MONTH_OPTIONS;
+  }, [amcType, sitePendingMonths, selectedYear]);
 
   const handleReset = () => {
     setSelectedSiteId('');
@@ -486,7 +593,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     const errs: Record<string, string> = {};
     if (!selectedSiteId) errs.site = 'Please select a site';
     if (!amcType) errs.amcType = 'AMC Type is required';
-    if (!selectedMonth) errs.month = 'Please select month';
+    if (!selectedMonth) errs.month = 'Please select period/month';
     if (!amcDate) errs.amcDate = 'AMC Date is required';
     if (!beneficiaryName.trim()) errs.beneficiaryName = 'Beneficiary Name is required';
     if (!beneficiaryContact.trim()) {
@@ -496,10 +603,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     }
     if (!latitude.trim()) errs.latitude = 'AMC Latitude is required';
     if (!longitude.trim()) errs.longitude = 'AMC Longitude is required';
-    if (!documentFile) errs.documentFile = 'Document Upload is required';
     if (!image1) errs.image1 = 'AMC Image 1 is required';
-    if (!image2) errs.image2 = 'AMC Image 2 is required';
-    if (!image3) errs.image3 = 'AMC Image 3 is required';
     if (complaintImage && !complaintText.trim()) {
       errs.complaint = 'Please enter complaint description if uploading complaint image';
     }
@@ -532,20 +636,45 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       }
 
       if (selectedMonth) {
-        fd.append('month', String(selectedMonth));
-        fd.append('months', String(selectedMonth));
-        fd.append('amc_months', String(selectedMonth));
-        fd.append('report_month', String(selectedMonth));
-        if (selectedYear) {
-          fd.append('month_year', `${String(selectedMonth).padStart(2, '0')}-${selectedYear}`);
+        const strM = String(selectedMonth).trim();
+        if (strM.includes('-')) {
+          fd.append('month_year', strM);
+          const [mPart, yPart] = strM.split('-');
+          const numM = parseInt(mPart, 10);
+          fd.append('month', String(numM || mPart));
+          fd.append('months', String(numM || mPart));
+          fd.append('amc_months', String(numM || mPart));
+          fd.append('report_month', String(numM || mPart));
+          if (yPart) {
+            fd.append('year', yPart);
+            fd.append('report_year', yPart);
+            fd.append('amc_years', yPart);
+          }
+        } else {
+          fd.append('month', strM);
+          fd.append('months', strM);
+          fd.append('amc_months', strM);
+          fd.append('report_month', strM);
+          if (selectedYear) {
+            fd.append('month_year', `${strM.padStart(2, '0')}-${selectedYear}`);
+          }
         }
       }
 
       fd.append('amc_type', amcType);
-      if (amcType === 'Monthly') fd.append('amc_type_code', 'M');
-      else if (amcType === 'Quarterly') fd.append('amc_type_code', 'Q');
-      else if (amcType === 'Half-Yearly') fd.append('amc_type_code', 'H');
-      else if (amcType === 'Yearly') fd.append('amc_type_code', 'Y');
+      if (amcType === 'Monthly') {
+        fd.append('amc_type_code', 'M');
+        fd.append('amc_type_id', '1');
+      } else if (amcType === 'Quarterly') {
+        fd.append('amc_type_code', 'Q');
+        fd.append('amc_type_id', '3');
+      } else if (amcType === 'Half-Yearly') {
+        fd.append('amc_type_code', 'H');
+        fd.append('amc_type_id', '6');
+      } else if (amcType === 'Yearly') {
+        fd.append('amc_type_code', 'Y');
+        fd.append('amc_type_id', '12');
+      }
 
       const finalAmcDate = amcDate || new Date().toISOString().slice(0, 10);
       fd.append('amc_date', finalAmcDate);
@@ -740,7 +869,13 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                     value={selectedYear ? String(selectedYear) : ''}
                     options={years.map((y) => ({ value: String(y), label: String(y) }))}
                     disabled={loadingYears}
-                    onChange={(v) => setSelectedYear(v ? Number(v) : '')}
+                    onChange={(v) => {
+                      const nextY = v ? Number(v) : '';
+                      setSelectedYear(nextY);
+                      setSelectedSiteId('');
+                      setSelectedMonth('');
+                      clearSiteInfo();
+                    }}
                   />
                 )}
 
@@ -748,14 +883,19 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   <FloatingSelect
                     id="up-amc-site-month"
                     label="Filter Month"
-                    placeholder="-- Select Month --"
+                    placeholder={!selectedYear ? '-- Select Year First --' : '-- Select Month --'}
                     value={selectedMonth}
                     options={months.map((m) => {
                       const val = String(m);
                       const found = MONTH_OPTIONS.find((mo) => mo.value === val);
                       return { value: val, label: found ? found.label : `Month ${val}` };
                     })}
-                    onChange={(v) => setSelectedMonth(v)}
+                    disabled={!selectedYear}
+                    onChange={(v) => {
+                      setSelectedMonth(v);
+                      setSelectedSiteId('');
+                      clearSiteInfo();
+                    }}
                   />
                 )}
 
@@ -764,13 +904,19 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                     id="up-amc-site-name"
                     label="Select Site"
                     required
-                    placeholder={loadingSites ? 'Loading sites...' : '-- Select Site --'}
+                    placeholder={
+                      !selectedYear && years.length > 0
+                        ? '-- Select Year First --'
+                        : loadingSites
+                        ? 'Loading sites...'
+                        : '-- Select Site --'
+                    }
                     value={selectedSiteId}
                     options={sites.map((s) => ({
                       value: String(s.id),
                       label: s.label || s.site_name || s.farmer_name || s.beneficiary_name || `Site #${s.id}`,
                     }))}
-                    disabled={loadingSites}
+                    disabled={loadingSites || (years.length > 0 && !selectedYear)}
                     onChange={(v) => {
                       setSelectedSiteId(v);
                       if (errors.site) clearError('site');
@@ -791,19 +937,33 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 title="Information"
                 desc="Auto-populated site parameters, specifications, and contact records (Read-only)."
               />
-              <div className="up-form-grid up-form-grid--3col">
-                <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || 'UP'} />
-                <FloatingInput id="up-info-district" label="District" readOnly value={siteInfo.district || ''} />
-                <FloatingInput id="up-info-village" label="Village" readOnly value={siteInfo.village || ''} />
-                <FloatingInput id="up-info-beneficiary" label="Beneficiary Name" readOnly value={siteInfo.beneficiaryName || ''} />
-                <FloatingInput id="up-info-contact" label="Contact" readOnly value={siteInfo.contact || ''} />
-                <FloatingInput id="up-info-gender" label="Gender" readOnly value={siteInfo.gender || ''} />
-                <FloatingInput id="up-info-phase" label="Phase" readOnly value={siteInfo.phase || ''} />
-                <FloatingInput id="up-info-serial" label="Serial Number" readOnly value={siteInfo.serialNumber || ''} />
-                <FloatingInput id="up-info-address" label="Address" readOnly value={siteInfo.address || ''} />
-                <FloatingInput id="up-info-volume" label="Volume" readOnly value={siteInfo.volume || ''} />
-                <FloatingInput id="up-info-contractor" label="Contractor Name" readOnly value={siteInfo.contractorName || ''} />
-              </div>
+              {!selectedSiteId ? (
+                <div style={{
+                  padding: 'var(--ax-space-6)',
+                  textAlign: 'center',
+                  background: 'var(--ax-surface-subtle)',
+                  borderRadius: 'var(--ax-radius-lg)',
+                  border: '1px dashed var(--ax-border)',
+                  color: 'var(--ax-text-muted)',
+                  fontSize: 'var(--ax-text-sm)'
+                }}>
+                  Please select a site in <strong>Section 1 (Site Information)</strong> above to load its details and unlock the maintenance report form.
+                </div>
+              ) : (
+                <div className="up-form-grid up-form-grid--3col">
+                  <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || 'UP'} />
+                  <FloatingInput id="up-info-district" label="District" readOnly value={siteInfo.district || ''} />
+                  <FloatingInput id="up-info-village" label="Village" readOnly value={siteInfo.village || ''} />
+                  <FloatingInput id="up-info-beneficiary" label="Beneficiary Name" readOnly value={siteInfo.beneficiaryName || ''} />
+                  <FloatingInput id="up-info-contact" label="Contact" readOnly value={siteInfo.contact || ''} />
+                  <FloatingInput id="up-info-gender" label="Gender" readOnly value={siteInfo.gender || ''} />
+                  <FloatingInput id="up-info-phase" label="Phase" readOnly value={siteInfo.phase || ''} />
+                  <FloatingInput id="up-info-serial" label="Serial Number" readOnly value={siteInfo.serialNumber || ''} />
+                  <FloatingInput id="up-info-address" label="Address" readOnly value={siteInfo.address || ''} />
+                  <FloatingInput id="up-info-volume" label="Volume" readOnly value={siteInfo.volume || ''} />
+                  <FloatingInput id="up-info-contractor" label="Contractor Name" readOnly value={siteInfo.contractorName || ''} />
+                </div>
+              )}
             </div>
 
             <hr className="up-section-divider" />
@@ -823,19 +983,22 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   required
                   value={amcType}
                   options={AMC_TYPE_OPTIONS}
+                  disabled={!selectedSiteId}
                   onChange={(v) => {
                     setAmcType(v);
+                    setSelectedMonth('');
                     if (errors.amcType) clearError('amcType');
                   }}
                   error={errors.amcType}
                 />
                 <FloatingSelect
                   id="up-amc-month"
-                  label="Month"
+                  label={monthOrPeriodLabel}
                   required
-                  placeholder="-- Select Month --"
+                  placeholder={monthOrPeriodPlaceholder}
                   value={selectedMonth}
-                  options={MONTH_OPTIONS}
+                  options={periodOptions}
+                  disabled={!selectedSiteId || loadingSiteDetails}
                   onChange={(v) => {
                     setSelectedMonth(v);
                     if (errors.month) clearError('month');
@@ -847,6 +1010,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   label="AMC Date"
                   type="date"
                   required
+                  disabled={!selectedSiteId}
                   value={amcDate}
                   onChange={(v) => {
                     setAmcDate(v);
@@ -861,6 +1025,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   id="up-beneficiary-name-form"
                   label="Beneficiary Name"
                   required
+                  disabled={!selectedSiteId}
                   placeholder="Enter Beneficiary Name"
                   value={beneficiaryName}
                   onChange={(v) => {
@@ -874,6 +1039,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   label="Beneficiary Contact"
                   type="tel"
                   required
+                  disabled={!selectedSiteId}
                   placeholder="Enter Contact Number"
                   value={beneficiaryContact}
                   onChange={(v) => {
@@ -1062,6 +1228,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'up-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
                   <span className="ax-btn__label">Submitting...</span>
                 </>
+              ) : !selectedSiteId ? (
+                <span className="ax-btn__label">Select Site to Submit</span>
               ) : (
                 <>
                   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>

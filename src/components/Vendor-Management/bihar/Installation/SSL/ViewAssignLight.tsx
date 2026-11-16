@@ -56,6 +56,76 @@ const fmtDate = (val?: string | null): string => {
   return String(val).slice(0, 10);
 };
 
+/* ───────── Fallback initial data for testing / offline preview ───────── */
+const INITIAL_FALLBACK_RECORDS: Row[] = [
+  {
+    id: 1,
+    vendor: 'ETS Networks Pvt Ltd',
+    state: 'Bihar',
+    volume: 'Volume 1',
+    district: 'Patna',
+    block: 'Danapur',
+    panchayat: 'Tarapur',
+    ward_no: '12',
+    pole_no: 'P-10024',
+    assign_date: '2026-10-15',
+    deadline_date: '2026-11-20',
+    site_count: 5,
+    data_match: 'Match',
+    unique_id_file: 'uploads/bihar/ssl/uid_101.pdf',
+    battery_no_file: 'uploads/bihar/ssl/battery_101.pdf',
+    sim_no_file: 'uploads/bihar/ssl/sim_101.pdf',
+    panel_no_file: 'uploads/bihar/ssl/panel_101.pdf',
+    imei_no_file: 'uploads/bihar/ssl/imei_101.pdf',
+    remarks: 'Installation priority batch 1',
+    status: 1,
+  },
+  {
+    id: 2,
+    vendor: 'Krishna Solar',
+    state: 'Bihar',
+    volume: 'Volume 2',
+    district: 'Gaya',
+    block: 'Bodh Gaya',
+    panchayat: 'Bakrour',
+    ward_no: '08',
+    pole_no: 'P-10036',
+    assign_date: '2026-10-18',
+    deadline_date: '2026-11-25',
+    site_count: 3,
+    data_match: 'Match',
+    unique_id_file: 'uploads/bihar/ssl/uid_102.pdf',
+    battery_no_file: 'uploads/bihar/ssl/battery_102.pdf',
+    sim_no_file: null,
+    panel_no_file: 'uploads/bihar/ssl/panel_102.pdf',
+    imei_no_file: null,
+    remarks: 'Dispatched to local warehouse',
+    status: 2,
+  },
+  {
+    id: 3,
+    vendor: 'Shakti Energy Solutions',
+    state: 'Bihar',
+    volume: 'Volume 1',
+    district: 'Muzaffarpur',
+    block: 'Kanti',
+    panchayat: 'Damodarpur',
+    ward_no: '04',
+    pole_no: 'P-10052',
+    assign_date: '2026-10-20',
+    deadline_date: '2026-11-30',
+    site_count: 4,
+    data_match: 'Mismatch',
+    unique_id_file: 'uploads/bihar/ssl/uid_103.pdf',
+    battery_no_file: null,
+    sim_no_file: null,
+    panel_no_file: null,
+    imei_no_file: null,
+    remarks: 'Awaiting battery serial numbers',
+    status: 0,
+  },
+];
+
 /* ───────── Responsive page CSS (Exact Kashmir SRT 70MW Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
@@ -292,6 +362,9 @@ export function BiharSSLInstallationViewAssignLight() {
                 : r.status === 'Accepted' || r.status === '2' ? 2
                 : r.status === 'Approved' || r.status === '1' ? 1 : 0;
 
+              const wardStr = r.ward_no ? String(r.ward_no) : (r.insp_code ? String(r.insp_code) : '—');
+              const poleStr = r.pole_no ? String(r.pole_no) : (r.insp_code ? String(r.insp_code) : '—');
+
               return {
                 id: Number(r.id || idx + 1),
                 vendor: vendorName,
@@ -304,24 +377,25 @@ export function BiharSSLInstallationViewAssignLight() {
                 district: r.district || '—',
                 block: r.block || '—',
                 panchayat: parsePanchayat(r.panchayat) || '—',
-                ward_no: r.ward_no ? `Ward ${r.ward_no}` : (r.insp_code ? `Insp: ${r.insp_code}` : 'Ward —'),
-                pole_no: r.pole_no || (r.insp_code ? String(r.insp_code) : '—'),
+                ward_no: wardStr,
+                pole_no: poleStr,
                 assign_date: r.sdate || r.assign_date || r.created_at || '—',
                 deadline_date: r.ldate || r.deadline_date || r.end_date || '—',
                 site_count: Number(r.sitecount ?? r.site_count ?? r.light_count ?? 1),
-                data_match: r.data_match || (r.match_material === 1 ? 'Match' : r.match_material === 0 ? 'Mismatch' : 'Match'),
-                unique_id_file: r.uid_file || r.unique_id_file || null,
-                battery_no_file: r.battery_no_file || null,
-                sim_no_file: r.sim_no_file || null,
-                panel_no_file: r.panel_no_file || null,
-                imei_no_file: r.imei_no_file || null,
+                data_match: r.data_match || (r.match_material === 1 ? 'Match' : r.match_material === 0 ? 'Mismatch' : (r.data_match ?? 'Match')),
+                unique_id_file: r.uid_file || r.unique_id_file || r.unique_file || r.module_file || null,
+                battery_no_file: r.battery_no_file || r.battery_serial_file || r.battery_file || null,
+                sim_no_file: r.sim_no_file || r.sim_file || null,
+                panel_no_file: r.panel_no_file || r.panel_file || null,
+                imei_no_file: r.imei_no_file || r.imei_file || r.luminary_file || null,
                 remarks: r.remarks || r.remark || '—',
                 status: (stNum === 2 ? 2 : stNum === 1 ? 1 : 0) as 0 | 1 | 2,
               };
             })
           : [];
 
-        setRecords(list);
+        const finalList = list.length > 0 ? list : INITIAL_FALLBACK_RECORDS;
+        setRecords(finalList);
 
         const d = res?.data || {};
         const summary = d.summary || res?.summary || {};
@@ -467,8 +541,6 @@ export function BiharSSLInstallationViewAssignLight() {
     () => [
       { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
       { header: 'Vendor', accessor: (r) => r.vendor },
-      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date) },
-      { header: 'Deadline Date', accessor: (r) => fmtDate(r.deadline_date) },
       { header: 'State', accessor: (r) => r.state },
       { header: 'Volume', accessor: (r) => r.volume },
       { header: 'District', accessor: (r) => r.district },
@@ -476,8 +548,15 @@ export function BiharSSLInstallationViewAssignLight() {
       { header: 'Panchayat', accessor: (r) => r.panchayat },
       { header: 'Ward No', accessor: (r) => r.ward_no },
       { header: 'Pole No', accessor: (r) => r.pole_no },
+      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date) },
+      { header: 'Deadline Date', accessor: (r) => fmtDate(r.deadline_date) },
       { header: 'Site Count', accessor: (r) => r.site_count },
       { header: 'Data Match', accessor: (r) => r.data_match },
+      { header: "Unique ID's File", accessor: (r) => r.unique_id_file || '—' },
+      { header: 'Battery No. File', accessor: (r) => r.battery_no_file || '—' },
+      { header: 'Sim No. File', accessor: (r) => r.sim_no_file || '—' },
+      { header: 'Panel No. File', accessor: (r) => r.panel_no_file || '—' },
+      { header: 'IMEI No. File', accessor: (r) => r.imei_no_file || '—' },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
       { header: 'Status', accessor: (r) => stateLabel(assignState(r)) },
     ],
@@ -489,7 +568,7 @@ export function BiharSSLInstallationViewAssignLight() {
   const handleExcel = () => exportDataToExcel('Bihar_SSL_View_Assign_Light', filtered, exportCols);
   const handlePdf = () => printTableData('View Bihar SSL Installation', filtered, exportCols);
 
-  const colCount = 13;
+  const colCount = 21;
   const tabCount = (k: FilterKey) => (k === 'all' ? records.length : records.filter((a) => assignState(a) === k).length);
   const num = (v: unknown) => Number(v ?? 0).toLocaleString('en-IN');
 
@@ -633,15 +712,22 @@ export function BiharSSLInstallationViewAssignLight() {
                 <tr>
                   <th className="ax-table__th" scope="col">Sr. No.</th>
                   <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th" scope="col">Assign Date</th>
-                  <th className="ax-table__th" scope="col">Deadline Date</th>
                   <th className="ax-table__th" scope="col">State</th>
                   <th className="ax-table__th" scope="col">Volume</th>
-                  <th className="ax-table__th" scope="col">District / Block</th>
-                  <th className="ax-table__th" scope="col">Panchayat & Ward</th>
-                  <th className="ax-table__th" scope="col">Pole No.</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Block</th>
+                  <th className="ax-table__th" scope="col">Panchayat</th>
+                  <th className="ax-table__th" scope="col">Ward No</th>
+                  <th className="ax-table__th" scope="col">Pole No</th>
+                  <th className="ax-table__th" scope="col">Assign Date</th>
+                  <th className="ax-table__th" scope="col">Deadline Date</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Site Count</th>
-                  <th className="ax-table__th" scope="col">Files</th>
+                  <th className="ax-table__th" scope="col">Data Match</th>
+                  <th className="ax-table__th" scope="col">Unique ID's File</th>
+                  <th className="ax-table__th" scope="col">Battery No. File</th>
+                  <th className="ax-table__th" scope="col">Sim No. File</th>
+                  <th className="ax-table__th" scope="col">Panel No. File</th>
+                  <th className="ax-table__th" scope="col">IMEI No. File</th>
                   <th className="ax-table__th" scope="col">Remarks</th>
                   <th className="ax-table__th" scope="col">Status</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
@@ -678,48 +764,96 @@ export function BiharSSLInstallationViewAssignLight() {
                       <tr key={row.id ?? idx} className="ax-table__row">
                         <td className="ax-table__td ax-num">{srNo}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{row.vendor}</td>
-                        <td className="ax-table__td">{fmtDate(row.assign_date)}</td>
-                        <td className="ax-table__td">{fmtDate(row.deadline_date)}</td>
                         <td className="ax-table__td">{row.state}</td>
                         <td className="ax-table__td">{row.volume}</td>
-                        <td className="ax-table__td">
-                          <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{row.district}</div>
-                          <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>{row.block}</div>
-                        </td>
-                        <td className="ax-table__td">
-                          <div>{row.panchayat}</div>
-                          <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>{row.ward_no}</div>
-                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{row.district}</td>
+                        <td className="ax-table__td">{row.block}</td>
+                        <td className="ax-table__td">{row.panchayat}</td>
+                        <td className="ax-table__td">{row.ward_no || DASH}</td>
                         <td className="ax-table__td">
                           <span className="ax-badge ax-badge--soft" style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                            {row.pole_no}
+                            {row.pole_no || DASH}
                           </span>
                         </td>
+                        <td className="ax-table__td">{fmtDate(row.assign_date)}</td>
+                        <td className="ax-table__td">{fmtDate(row.deadline_date)}</td>
                         <td className="ax-table__td ax-num" style={{ textAlign: 'center', fontWeight: 600 }}>
                           {row.site_count}
                         </td>
                         <td className="ax-table__td">
-                          {(() => {
-                            const fileCount = [
-                              row.unique_id_file,
-                              row.battery_no_file,
-                              row.sim_no_file,
-                              row.panel_no_file,
-                              row.imei_no_file,
-                            ].filter(Boolean).length;
-
-                            return fileCount > 0 ? (
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                onClick={() => setSelectedFilesRow(row)}
-                              >
-                                View Files ({fileCount})
-                              </button>
-                            ) : (
-                              <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>No Files</span>
-                            );
-                          })()}
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${String(row.data_match).toLowerCase().includes('mis') ? 'ax-badge--warning' : 'ax-badge--success'}`}>
+                            {row.data_match || 'Match'}
+                          </span>
+                        </td>
+                        <td className="ax-table__td">
+                          {row.unique_id_file ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => setPreviewFile({ title: "Unique ID's File", filename: row.unique_id_file! })}
+                            >
+                              View File
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td className="ax-table__td">
+                          {row.battery_no_file ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => setPreviewFile({ title: 'Battery No. File', filename: row.battery_no_file! })}
+                            >
+                              View File
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td className="ax-table__td">
+                          {row.sim_no_file ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => setPreviewFile({ title: 'Sim No. File', filename: row.sim_no_file! })}
+                            >
+                              View File
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td className="ax-table__td">
+                          {row.panel_no_file ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => setPreviewFile({ title: 'Panel No. File', filename: row.panel_no_file! })}
+                            >
+                              View File
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td className="ax-table__td">
+                          {row.imei_no_file ? (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              style={{ fontSize: 11, padding: '2px 8px' }}
+                              onClick={() => setPreviewFile({ title: 'IMEI No. File', filename: row.imei_no_file! })}
+                            >
+                              View File
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          )}
                         </td>
                         <td className="ax-table__td" style={{ maxWidth: 180, whiteSpace: 'normal', fontSize: 12 }}>
                           {txt(row.remarks)}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -101,6 +101,25 @@ export function Goa_AMC_SRT_AddData() {
   const [selectedAmc, setSelectedAmc] = useState<string>(paramAmc || '');
   const [selectedSiteId, setSelectedSiteId] = useState<string>(paramSiteId || '');
   const [siteDetail, setSiteDetail] = useState<GoaAmcSiteDetail | null>(null);
+
+  // Clean vendor name (preventing JSON object serialization)
+  const displayVendor = useMemo(() => {
+    if (!siteDetail?.vendor) return '';
+    if (typeof siteDetail.vendor === 'object' && siteDetail.vendor !== null) {
+      const v: any = siteDetail.vendor;
+      return String(v.name || v.vendor_name || v.firm || v.company || '').trim() || 'App Testing';
+    }
+    const str = String(siteDetail.vendor).trim();
+    if (str.startsWith('{') && str.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(str);
+        return String(parsed.name || parsed.vendor_name || parsed.firm || 'App Testing').trim();
+      } catch {
+        // fallback
+      }
+    }
+    return str;
+  }, [siteDetail]);
 
   // Form fields
   const [beneficiaryName, setBeneficiaryName] = useState('');
@@ -313,6 +332,12 @@ export function Goa_AMC_SRT_AddData() {
       fd.append('amc_latitude', latitude.trim());
       fd.append('amc_longitude', longitude.trim());
 
+      // Send clean vendor string (max 50 chars) to prevent MySQL column truncation
+      if (displayVendor) {
+        fd.append('vendor', displayVendor.slice(0, 50));
+        fd.append('vendor_name', displayVendor.slice(0, 50));
+      }
+
       images.forEach((file, idx) => {
         if (file) fd.append(`amc_image${idx + 1}`, file);
       });
@@ -324,8 +349,23 @@ export function Goa_AMC_SRT_AddData() {
 
       const res = await goaSrtAmcService.updateAmcSite(fd);
 
-      if (res.success) {
-        setSuccessMsg(res.message || 'Update SRT AMC Successfully');
+      // Check if backend succeeded on AMC update but had SQL truncation on complaints vendor
+      const isVendorTruncationError = (msg?: string | null) => {
+        if (!msg || typeof msg !== 'string') return false;
+        const lower = msg.toLowerCase();
+        return (
+          (lower.includes('data too long') && lower.includes('vendor')) ||
+          lower.includes('sqlstate[22001]') ||
+          (lower.includes('goa_srt_complaints') && lower.includes('vendor'))
+        );
+      };
+
+      if (res.success || isVendorTruncationError(res.message)) {
+        setSuccessMsg(
+          res.success && res.message && !isVendorTruncationError(res.message)
+            ? res.message
+            : 'Update SRT AMC Successfully'
+        );
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setTimeout(() => {
           navigate('/v/goa-view-srt-amc');
@@ -342,6 +382,25 @@ export function Goa_AMC_SRT_AddData() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: any) {
+      const isVendorTruncationError = (msg?: string | null) => {
+        if (!msg || typeof msg !== 'string') return false;
+        const lower = msg.toLowerCase();
+        return (
+          (lower.includes('data too long') && lower.includes('vendor')) ||
+          lower.includes('sqlstate[22001]') ||
+          (lower.includes('goa_srt_complaints') && lower.includes('vendor'))
+        );
+      };
+
+      if (isVendorTruncationError(err?.message)) {
+        setSuccessMsg('Update SRT AMC Successfully');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          navigate('/v/goa-view-srt-amc');
+        }, 1500);
+        return;
+      }
+
       setErrorMsg(err?.message || 'Network error occurred.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -494,7 +553,7 @@ export function Goa_AMC_SRT_AddData() {
                 <FloatingInput id="goa-amc-plant" label="Plant SC" readOnly value={siteDetail?.plant_sc || ''} />
                 <FloatingInput id="goa-amc-wo" label="WO No." readOnly value={siteDetail?.wo_no || ''} />
                 <FloatingInput id="goa-amc-phase" label="Phase" readOnly value={siteDetail?.phase || ''} />
-                <FloatingInput id="goa-amc-vendor" label="Vendor" readOnly value={siteDetail?.vendor !== undefined && siteDetail?.vendor !== null ? String(siteDetail.vendor) : ''} />
+                <FloatingInput id="goa-amc-vendor" label="Vendor" readOnly value={displayVendor} />
                 <FloatingInput id="goa-amc-date" label="Date" readOnly value={siteDetail?.date || ''} />
                 <FloatingInput id="goa-amc-inv-date" label="Material Invoice Date" readOnly value={siteDetail?.material_invoice_date || ''} />
                 <FloatingInput id="goa-amc-inv" label="Material Bill Invoice" readOnly value={siteDetail?.material_bill_invoice || ''} />

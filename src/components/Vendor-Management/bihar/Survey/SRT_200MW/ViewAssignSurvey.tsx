@@ -615,16 +615,19 @@ export function ViewAssignBiharSRT200MWSurvey() {
           res?.data?.srt200mw ||
           res?.data?.assignments ||
           res?.data?.assign_data ||
+          res?.data?.verification ||
+          res?.data?.surveys ||
           res?.data?.data ||
           res?.data ||
           res?.assignments ||
+          res?.srt200mw ||
           (Array.isArray(res) ? res : []);
 
         if (Array.isArray(rawList) && rawList.length > 0) {
           list = rawList;
         }
-        if (res?.data?.survey_detail || res?.survey_detail || res?.data?.summary || res?.summary) {
-          summary = res?.data?.survey_detail || res?.survey_detail || res?.data?.summary || res?.summary;
+        if (res?.data?.survey_detail || res?.survey_detail || res?.data?.summary || res?.summary || res?.data) {
+          summary = res?.data?.survey_detail || res?.survey_detail || res?.data?.summary || res?.summary || res?.data;
         }
       }
     } catch (err: any) {
@@ -641,8 +644,11 @@ export function ViewAssignBiharSRT200MWSurvey() {
 
         if (dashRes.status === 'fulfilled' && dashRes.value) {
           const dVal = dashRes.value?.data || dashRes.value;
-          if (dVal?.survey_detail || dVal?.summary) {
-            summary = dVal.survey_detail || dVal.summary;
+          if (dVal?.survey_detail || dVal?.summary || dVal) {
+            summary = dVal.survey_detail || dVal.summary || dVal;
+          }
+          if (Array.isArray(dVal?.verification) && dVal.verification.length > 0) {
+            list = dVal.verification;
           }
         }
 
@@ -652,14 +658,15 @@ export function ViewAssignBiharSRT200MWSurvey() {
             sVal?.srt200mw ||
             sVal?.pending ||
             sVal?.verify ||
+            sVal?.verification ||
             sVal?.surveys ||
             (Array.isArray(sVal) ? sVal : []);
 
           if (Array.isArray(sList) && sList.length > 0) {
             list = sList;
           }
-          if (!summary && (sVal?.survey_detail || sVal?.summary)) {
-            summary = sVal.survey_detail || sVal.summary;
+          if (!summary && (sVal?.survey_detail || sVal?.summary || sVal)) {
+            summary = sVal.survey_detail || sVal.summary || sVal;
           }
         }
       } catch (err2) {
@@ -726,10 +733,10 @@ export function ViewAssignBiharSRT200MWSurvey() {
     setRecords(mapped);
 
     // Dynamic KPIs from API detail or counts
-    const total = Number(summary?.total ?? summary?.assigned ?? summary?.assignsite ?? mapped.length);
+    const total = Number(summary?.total ?? summary?.assigned ?? summary?.assignsite ?? summary?.totalsite ?? mapped.length);
     const complete = Number(summary?.complete ?? summary?.survey_done ?? summary?.complete_survey ?? mapped.filter((r) => r.status === 1 || r.status === 2).length);
-    const pending = Number(summary?.pending ?? summary?.survey_pending ?? summary?.pending_survey ?? Math.max(0, total - complete));
-    const pendingAssign = Number(summary?.pending_assign ?? summary?.not_assigned ?? 0);
+    const pending = Number(summary?.pending ?? summary?.survey_pending ?? summary?.pending_survey ?? summary?.pendingsite ?? Math.max(0, total - complete));
+    const pendingAssign = Number(summary?.pending_assign ?? summary?.not_assigned ?? summary?.pendingsite ?? 0);
 
     setKpiCounts({
       totalSites: total,

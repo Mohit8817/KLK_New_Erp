@@ -427,14 +427,27 @@ function SiteDetailModal({
           <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Sites & Deadlines</h4>
           {siteEntries.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {siteEntries.map(([name, dl], idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--ax-surface, #ffffff)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 12.5 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{name}</span>
-                  <span style={{ color: 'var(--ax-text-muted)', fontSize: 11.5 }}>
-                    Deadline: <strong>{String(dl || DASH)}</strong>
-                  </span>
-                </div>
-              ))}
+              {siteEntries.map(([name, dl], idx) => {
+                const isNumeric = /^\d+$/.test(name.trim());
+                const targetId = isNumeric ? name.trim() : (item.resco_id || item.site_id || item.id);
+                return (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--ax-surface, #ffffff)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 12.5 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{name}</span>
+                      <span style={{ color: 'var(--ax-text-muted)', fontSize: 11.5 }}>
+                        Deadline: <strong>{String(dl || DASH)}</strong>
+                      </span>
+                    </div>
+                    <Link
+                      to={`/v/up/resco-install-site?site_id=${targetId}&assign_id=${item.id}`}
+                      className="ax-btn ax-btn--primary ax-btn--xs"
+                      style={{ padding: '2px 8px', fontSize: 11 }}
+                    >
+                      Install Site
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div style={{ fontSize: 12.5 }}>
@@ -475,7 +488,7 @@ function SiteDetailModal({
 
       <div className="ax-modal__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Link
-          to={`/v/up/resco-install-site?site_id=${item.id}`}
+          to={`/v/up/resco-install-site?site_id=${item.resco_id || item.site_id || item.id}&assign_id=${item.id}`}
           className="ax-btn ax-btn--primary"
           style={{ padding: '7px 18px', borderRadius: 8, fontSize: 13 }}
         >
@@ -1007,7 +1020,7 @@ export function UP_Installation_Resco_AssignedSites() {
                               </button>
                             )}
                             <Link
-                              to={`/v/up/resco-install-site?site_id=${item.id}`}
+                              to={`/v/up/resco-install-site?site_id=${item.resco_id || item.site_id || item.id}&assign_id=${item.id}`}
                               className="ax-btn ax-btn--primary ax-btn--xs"
                               style={{ padding: '3px 8px', fontSize: 11 }}
                             >

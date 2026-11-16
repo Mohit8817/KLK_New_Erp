@@ -519,10 +519,14 @@ export function BiharULASurveyViewData() {
     biharAdminService
       .getViewUlaSurveys()
       .then((res: any) => {
-        const rawPending = res?.data?.verification || res?.verification || [];
-        const rawVerified = res?.data?.verified || res?.verified || [];
+        const rawPending = res?.data?.verification || res?.verification || res?.data?.pending || res?.pending || [];
+        const rawVerified = res?.data?.verified || res?.verified || res?.data?.verify || res?.verify || [];
         const allSurveys = Array.isArray(res?.data?.surveys)
           ? res.data.surveys
+          : Array.isArray(res?.data?.ula)
+          ? res.data.ula
+          : Array.isArray(res?.data?.data)
+          ? res.data.data
           : Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res)
@@ -574,13 +578,13 @@ export function BiharULASurveyViewData() {
         setPendingList(pList);
         setVerifiedList(vList);
 
-        const kpi = res?.data?.kpis || res?.kpis || {};
-        const total = kpi.total !== undefined ? Number(kpi.total) : allList.length;
+        const kpi = res?.data?.kpis || res?.kpis || res?.data?.summary || res?.data || {};
+        const total = kpi.total !== undefined ? Number(kpi.total) : (kpi.totalsite !== undefined ? Number(kpi.totalsite) : allList.length);
         const comp = kpi.complete !== undefined ? Number(kpi.complete) : allList.length;
-        const pend = kpi.pending !== undefined ? Number(kpi.pending) : 0;
-        const app = kpi.approved !== undefined ? Number(kpi.approved) : vList.filter((r) => r.verify_status === 'Approved').length;
-        const pv = kpi.verify_pending !== undefined ? Number(kpi.verify_pending) : pList.length;
-        const rej = kpi.rejected !== undefined ? Number(kpi.rejected) : vList.filter((r) => r.verify_status === 'Rejected').length;
+        const pend = kpi.pending !== undefined ? Number(kpi.pending) : (kpi.pendingsite !== undefined ? Number(kpi.pendingsite) : 0);
+        const app = kpi.approved !== undefined ? Number(kpi.approved) : (kpi.approvedsite !== undefined ? Number(kpi.approvedsite) : vList.filter((r) => r.verify_status === 'Approved').length);
+        const pv = kpi.verify_pending !== undefined ? Number(kpi.verify_pending) : (kpi.verifypending !== undefined ? Number(kpi.verifypending) : pList.length);
+        const rej = kpi.rejected !== undefined ? Number(kpi.rejected) : (kpi.rejectsite !== undefined ? Number(kpi.rejectsite) : vList.filter((r) => r.verify_status === 'Rejected').length);
         const fy = kpi.feasible_yes !== undefined ? Number(kpi.feasible_yes) : allList.filter((r) => r.feasible === 'Yes').length;
         const fn = kpi.feasible_no !== undefined ? Number(kpi.feasible_no) : allList.filter((r) => r.feasible === 'No').length;
 

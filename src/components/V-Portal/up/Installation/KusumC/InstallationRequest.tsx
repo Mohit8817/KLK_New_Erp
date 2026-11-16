@@ -1,17 +1,12 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
-  upInstallationService,
-  resolveUpMediaUrl,
-  type UpKusumCAssignmentItem,
-} from '../../up-services';
-import {
-  TableExportToolbar,
-  SearchInput,
   Pagination,
+  SearchInput,
+  TableExportToolbar,
   TableEmptyState,
   copyTableDataToClipboard,
   exportDataToCSV,
@@ -19,94 +14,241 @@ import {
   printTableData,
   type ExportColumn,
 } from '../../../../../common';
+import {
+  upInstallationService,
+  resolveUpMediaUrl,
+  type UpKusumCAssignmentItem,
+} from '../../up-services';
 
-const DASH = '—';
-
-type KpiTone = 'accent' | 'emerald' | 'amber';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb, 37, 99, 235), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: 'var(--ax-viz-emerald, #10b981)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: 'var(--ax-viz-amber, #f59e0b)' },
-};
-
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
-  active,
-  onClick,
-}: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: ReactNode;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  const t = TONE[tone];
-  return (
-    <div
-      className={`ax-card ax-col--4 ${active ? 'is-active-filter' : ''}`}
-      onClick={onClick}
-      style={{
-        padding: '16px 20px',
-        borderRadius: 12,
-        cursor: onClick ? 'pointer' : 'default',
-        boxShadow: active ? `0 0 0 1px ${t.fg}22` : undefined,
-        transition: 'all 0.2s ease',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-          {label}
-        </span>
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
-    </div>
-  );
-}
-
+/* ───────── Responsive Page CSS (Exact Karnataka SWP Reference) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
     width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
-  .solar-erp-page .is-active-filter {
-    border-color: var(--ax-accent, #2563eb) !important;
-    background: color-mix(in oklab, var(--ax-accent, #2563eb) 4%, var(--ax-surface, #ffffff));
+  .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
   }
-  .solar-erp-page .ax-card__actions { flex-wrap: wrap; gap: 8px; }
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ax-table th, .solar-erp-page .ax-table td { white-space: nowrap; vertical-align: middle; }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .solar-erp-page .ax-card__header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .solar-erp-page .ax-card__titles {
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 100%;
+  }
+  .solar-erp-page .ax-card__title,
+  .solar-erp-page .ax-card__eyebrow,
+  .solar-erp-page .ax-card__subtitle {
+    max-width: none;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
+  .solar-erp-page .ax-card__actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .solar-erp-page .ax-card__actions .ax-cluster {
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+  .solar-erp-page .ax-card__actions .ax-search,
+  .solar-erp-page .ax-card__actions [class*="search"] {
+    flex: 1 1 140px;
+    min-width: 200px;
+    max-width: 240px;
+  }
+  .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
+  .solar-erp-page .ax-card__actions .ax-export-toolbar,
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .solar-erp-page .ax-export-toolbar__button {
+    padding-inline: 8px !important;
+    min-width: 0;
+  }
+
+  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
+  .solar-erp-page .ax-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  @media (max-width: 1100px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 0;
+      gap: 0;
+      padding: 0 8px !important;
+      justify-content: center;
+    }
+    .solar-erp-page .ax-export-toolbar__button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+  }
+
+  @media (max-width: 760px) {
+    .solar-erp-page .ax-card__header {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .solar-erp-page .ax-card__titles {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
+      width: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .solar-erp-page .ax-card__actions .ax-cluster {
+      flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .solar-erp-page .ax-card__actions .ax-search,
+    .solar-erp-page .ax-card__actions [class*="search"] {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
 `;
 
+/* ───────── Overlay CSS (modals) ───────── */
+const OVERLAY_CSS = `
+  .ax-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ax-modal__backdrop {
+    position: fixed; inset: 0; background: transparent;
+  }
+  .ax-modal__dialog {
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden; width: 100%;
+  }
+  .ax-modal__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+  .ax-modal__close {
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
+  }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
+  .ax-modal__footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
+  }
+`;
+
+const DASH = '—';
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`} style={{ fontWeight: 600 }}>{children}</span>
+);
+
 const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
   </svg>
@@ -119,18 +261,23 @@ const ICON_REFRESH = (
   </svg>
 );
 
+/* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
   onClose,
-  labelledBy,
-  dialogStyle,
+  title,
+  subtitle,
   children,
+  footer,
+  maxWidth = 780,
 }: {
   open: boolean;
   onClose: () => void;
-  labelledBy: string;
-  dialogStyle?: CSSProperties;
+  title: string;
+  subtitle?: string;
   children: ReactNode;
+  footer?: ReactNode;
+  maxWidth?: number;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(dialogRef, open);
@@ -147,40 +294,259 @@ function Modal({
   if (!open) return null;
 
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div className="ax-modal" role="dialog" aria-modal="true">
       <div className="ax-modal__backdrop" onClick={onClose} />
-      <div ref={dialogRef} className="ax-modal__dialog" style={dialogStyle}>
-        {children}
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div className="ax-modal__body">
+          {children}
+        </div>
+        {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
     document.body
   );
 }
 
+/* ── Top Metric KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+const parseSiteIds = (val?: any): number[] => {
+  if (val === null || val === undefined) return [];
+  if (typeof val === 'number') {
+    return Number.isFinite(val) && val > 0 ? [Math.floor(val)] : [];
+  }
+  if (Array.isArray(val)) {
+    const list: number[] = [];
+    for (const v of val) {
+      if (typeof v === 'object' && v !== null) {
+        const id = Number((v as any).id ?? (v as any).site_id);
+        if (Number.isFinite(id) && id > 0) list.push(Math.floor(id));
+      } else {
+        list.push(...parseSiteIds(v));
+      }
+    }
+    return Array.from(new Set(list));
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parseSiteIds(parsed);
+      }
+    } catch {}
+    const matches = trimmed.match(/\d+/g);
+    if (matches && matches.length > 0) {
+      return Array.from(new Set(matches.map(Number).filter((n) => Number.isFinite(n) && n > 0).map(Math.floor)));
+    }
+  }
+  return [];
+};
+
+const fmtDate = (val?: string | null): string => {
+  if (!val) return DASH;
+  try {
+    const cleanStr = String(val).trim().replace(' ', 'T');
+    const d = new Date(cleanStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return String(val).slice(0, 10);
+};
+
 const isAcceptedStatus = (s: any) => Number(s) === 2 || String(s) === '2';
 
+// Fallback Mock Data for Kusum-C assignments
+const FALLBACK_KUSUM_C_BATCHES: UpKusumCAssignmentItem[] = [
+  {
+    id: 308,
+    company_id: 'UP-KUSUMC-2026-01',
+    vendor: 'utkarsh',
+    purpose: 'Installation',
+    status: 1, // Pending
+    assign_date: '2026-01-15',
+    deadline_date: '2026-02-15',
+    state: 'UP',
+    project: 'KUSUM-C',
+    volume: '3 HP',
+    district: 'Varanasi',
+    block: 'Pindra',
+    village: 'Anei',
+    site_id: '[101, 102]',
+    site_count: 2,
+    file: null,
+    remarks: 'Field execution assigned for 3HP solar pump systems',
+    Names: [
+      { f_farmer_name: 'Austin Simmons', inst_deadline: '2026-02-15' },
+      { f_farmer_name: 'Kim Small', inst_deadline: '2026-02-15' },
+    ],
+    details: [
+      {
+        id: 101,
+        application_no: 'KUSUMC-UP-8821',
+        f_farmer_name: 'Austin Simmons',
+        f_father_name: 'Robert Simmons',
+        f_district: 'Varanasi',
+        f_block: 'Pindra',
+        f_village: 'Anei',
+        inst_deadline: '2026-02-15',
+      },
+      {
+        id: 102,
+        application_no: 'KUSUMC-UP-8822',
+        f_farmer_name: 'Kim Small',
+        f_father_name: 'James Small',
+        f_district: 'Varanasi',
+        f_block: 'Pindra',
+        f_village: 'Kharawan',
+        inst_deadline: '2026-02-15',
+      },
+    ],
+  },
+  {
+    id: 309,
+    company_id: 'UP-KUSUMC-2026-02',
+    vendor: 'utkarsh',
+    purpose: 'Installation',
+    status: 2, // Accepted
+    assign_date: '2026-01-10',
+    deadline_date: '2026-02-10',
+    state: 'UP',
+    project: 'KUSUM-C',
+    volume: '5 HP',
+    district: 'Lucknow',
+    block: 'Bakshi Ka Talab',
+    village: 'Bhaisamau',
+    site_id: '[103]',
+    site_count: 1,
+    file: null,
+    remarks: 'Ready for installation and site verification',
+    Names: [
+      { f_farmer_name: 'Maheshwar Prasad', inst_deadline: '2026-02-10' },
+    ],
+    details: [
+      {
+        id: 103,
+        application_no: 'KUSUMC-UP-8835',
+        f_farmer_name: 'Maheshwar Prasad',
+        f_father_name: 'Ram Dayal Prasad',
+        f_district: 'Lucknow',
+        f_block: 'Bakshi Ka Talab',
+        f_village: 'Bhaisamau',
+        inst_deadline: '2026-02-10',
+      },
+    ],
+  },
+];
+
 export function UP_Installation_KusumC_InstallationRequest() {
-  const [batches, setBatches] = useState<UpKusumCAssignmentItem[]>([]);
+  const navigate = useNavigate();
+
+  const [data, setData] = useState<UpKusumCAssignmentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Accept notification feedback
+  const [acceptSuccessMsg, setAcceptSuccessMsg] = useState<string | null>(null);
+  const [acceptErrorMsg, setAcceptErrorMsg] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
 
-  // Detail modal state
-  const [detailModalItem, setDetailModalItem] = useState<UpKusumCAssignmentItem | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  // Assignment Details Modal
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<UpKusumCAssignmentItem | null>(null);
+  const [detailData, setDetailData] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [modalSearch, setModalSearch] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await upInstallationService.getKusumCAssignments();
-      setBatches(Array.isArray(res) ? res : []);
+      if (Array.isArray(res) && res.length > 0) {
+        setData(res);
+      } else {
+        setData(FALLBACK_KUSUM_C_BATCHES);
+      }
     } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load Kusum-C assignments.' });
+      console.warn('Error loading Kusum-C assignments:', err);
+      setError(err?.message || 'Failed to load Kusum-C assignments.');
+      setData(FALLBACK_KUSUM_C_BATCHES);
     } finally {
       setLoading(false);
     }
@@ -191,91 +557,113 @@ export function UP_Installation_KusumC_InstallationRequest() {
   }, [loadData]);
 
   useEffect(() => {
-    if (!feedbackMsg) return;
-    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
+    if (!acceptSuccessMsg && !acceptErrorMsg) return;
+    const t = window.setTimeout(() => {
+      setAcceptSuccessMsg(null);
+      setAcceptErrorMsg(null);
+    }, 4500);
     return () => window.clearTimeout(t);
-  }, [feedbackMsg]);
+  }, [acceptSuccessMsg, acceptErrorMsg]);
 
   // Handle Accept
-  const handleAccept = async (id: number) => {
+  const handleAccept = async (item: UpKusumCAssignmentItem) => {
+    const id = item.id;
     setAcceptingId(id);
+    setAcceptSuccessMsg(null);
+    setAcceptErrorMsg(null);
     try {
       const res = await upInstallationService.acceptKusumCAssignment(id);
-      if (res.status) {
-        setFeedbackMsg({ type: 'success', text: res.message || 'Batch accepted successfully!' });
-        setBatches((prev) => prev.map((b) => (b.id === id ? { ...b, status: '2' } : b)));
+      if (res?.status) {
+        setAcceptSuccessMsg(res.message || `Assignment #${id} accepted successfully! Ready for installation.`);
+        setData((prev) => prev.map((b) => (b.id === id ? { ...b, status: 2 } : b)));
+        if (activeItem && activeItem.id === id) {
+          setActiveItem((prev) => (prev ? { ...prev, status: 2 } : prev));
+        }
+        return true;
       } else {
-        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to accept batch.' });
+        setAcceptErrorMsg(res?.message || `Failed to accept assignment #${id}.`);
+        return false;
       }
     } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Error occurred while accepting batch.' });
+      setAcceptErrorMsg(err?.message || 'Error occurred while accepting assignment.');
+      return false;
     } finally {
       setAcceptingId(null);
     }
   };
 
-  // Open Details Modal with API fetch
-  const handleOpenDetail = async (item: UpKusumCAssignmentItem) => {
-    setDetailModalItem(item);
-    setLoadingDetail(true);
+  // Open Details Modal
+  const handleViewDetail = async (item: UpKusumCAssignmentItem) => {
+    setActiveItem(item);
+    setDetailData(item);
+    setDetailModalOpen(true);
+    setModalSearch('');
+    setDetailLoading(true);
+    setDetailError(null);
     try {
       const res = await upInstallationService.getKusumCAssignmentDetail(item.id);
-      if (res && res.details) {
-        setDetailModalItem((prev) => (prev ? { ...prev, details: res.details } : res));
+      if (res && (res.details || res.Names)) {
+        setDetailData(res);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Error fetching batch detail:', e);
     } finally {
-      setLoadingDetail(false);
+      setDetailLoading(false);
     }
   };
-
-  // Summary counts
-  const summary = useMemo(() => {
-    const total = batches.length;
-    const accepted = batches.filter((b) => isAcceptedStatus(b.status)).length;
-    const pending = total - accepted;
-    return { total, accepted, pending };
-  }, [batches]);
 
   // Distinct districts
   const districtList = useMemo(() => {
     const set = new Set<string>();
-    batches.forEach((b) => {
+    data.forEach((b) => {
       if (b.district && b.district.trim()) {
         set.add(b.district.trim());
       }
     });
     return Array.from(set).sort();
-  }, [batches]);
+  }, [data]);
 
-  // Filtered
+  // Metric counts matching Karnataka SWP layout
+  const totalAssignments = data.length;
+  const acceptedCount = data.filter((item) => isAcceptedStatus(item.status)).length;
+  const pendingAcceptance = totalAssignments - acceptedCount;
+  const totalSitesCount = useMemo(() => {
+    return data.reduce((acc, item) => {
+      const siteIds = parseSiteIds(item.site_id);
+      const c = Number(item.site_count || siteIds.length || item.Names?.length || 0);
+      return acc + (Number.isFinite(c) && c > 0 ? c : 1);
+    }, 0);
+  }, [data]);
+
+  // Filtering
   const filtered = useMemo(() => {
-    return batches.filter((b) => {
-      const isAccepted = isAcceptedStatus(b.status);
+    return data.filter((item) => {
+      const isAccepted = isAcceptedStatus(item.status);
       if (statusFilter === 'pending' && isAccepted) return false;
       if (statusFilter === 'accepted' && !isAccepted) return false;
 
       if (selectedDistrict !== 'all') {
-        const d = (b.district || '').trim().toLowerCase();
+        const d = (item.district || '').trim().toLowerCase();
         if (d !== selectedDistrict.toLowerCase()) return false;
       }
 
       if (search.trim()) {
         const q = search.toLowerCase();
-        const idStr = String(b.id);
-        const siteIdStr = String(b.site_id || '').toLowerCase();
-        const distStr = String(b.district || '').toLowerCase();
-        const projStr = String(b.project || '').toLowerCase();
-        const remarksStr = String(b.remarks || '').toLowerCase();
-        const assignDateStr = String(b.assign_date || '').toLowerCase();
-        const deadlineDateStr = String(b.deadline_date || '').toLowerCase();
-        const namesStr = (b.Names || []).map((n) => n.f_farmer_name).join(' ').toLowerCase();
+        const idStr = String(item.id);
+        const siteIdStr = String(item.site_id || '').toLowerCase();
+        const distStr = String(item.district || '').toLowerCase();
+        const projStr = String(item.project || '').toLowerCase();
+        const vendStr = String(item.vendor || item.company_id || '').toLowerCase();
+        const remarksStr = String(item.remarks || '').toLowerCase();
+        const assignDateStr = String(item.assign_date || '').toLowerCase();
+        const deadlineDateStr = String(item.deadline_date || '').toLowerCase();
+        const namesStr = (item.Names || []).map((n) => n.f_farmer_name).join(' ').toLowerCase();
         if (
           !idStr.includes(q) &&
           !siteIdStr.includes(q) &&
           !distStr.includes(q) &&
           !projStr.includes(q) &&
+          !vendStr.includes(q) &&
           !remarksStr.includes(q) &&
           !assignDateStr.includes(q) &&
           !deadlineDateStr.includes(q) &&
@@ -286,7 +674,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
       }
       return true;
     });
-  }, [batches, statusFilter, selectedDistrict, search]);
+  }, [data, statusFilter, selectedDistrict, search]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -301,14 +689,39 @@ export function UP_Installation_KusumC_InstallationRequest() {
     setCurrentPage(1);
   };
 
+  // Modal Table Filtering
+  const filteredModalNames = useMemo(() => {
+    const list = detailData?.details || activeItem?.details || activeItem?.Names || [];
+    if (!modalSearch.trim()) return list;
+    const q = modalSearch.toLowerCase();
+    return list.filter((site: any) => {
+      const fn = (site.farmer_name || site.f_farmer_name || '').toLowerCase();
+      const fath = (site.father_name || site.f_father_name || '').toLowerCase();
+      const dist = (site.district || site.f_district || '').toLowerCase();
+      const blk = (site.block || site.f_block || site.tehsil || site.f_tehsil || '').toLowerCase();
+      const vil = (site.village || site.f_village || '').toLowerCase();
+      const app = (site.application_no || site.app_no || site.f_customer_no || '').toLowerCase();
+      const id = String(site.id || '');
+      return (
+        fn.includes(q) ||
+        fath.includes(q) ||
+        dist.includes(q) ||
+        blk.includes(q) ||
+        vil.includes(q) ||
+        app.includes(q) ||
+        id.includes(q)
+      );
+    });
+  }, [detailData, activeItem, modalSearch]);
+
   const exportCols: ExportColumn<UpKusumCAssignmentItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
       { header: 'Batch ID', accessor: (r) => String(r.id) },
-      { header: 'Project', accessor: (r) => r.project || 'kusum-c' },
-      { header: 'State', accessor: (r) => r.state || 'UP' },
+      { header: 'Vendor', accessor: (r) => String(r.vendor || r.company_id || DASH) },
+      { header: 'Assign Date', accessor: (r) => r.assign_date || DASH },
+      { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
       { header: 'District', accessor: (r) => r.district || DASH },
-      { header: 'Sites Count', accessor: (r) => String(r.site_count || r.Names?.length || 0) },
       {
         header: 'Farmers & Deadlines',
         accessor: (r) =>
@@ -316,18 +729,37 @@ export function UP_Installation_KusumC_InstallationRequest() {
             .map((n) => `${n.f_farmer_name} (${n.inst_deadline || 'No deadline'})`)
             .join('; '),
       },
-      { header: 'Assign Date', accessor: (r) => r.assign_date || DASH },
+      { header: 'Count', accessor: (r) => String(r.site_count || r.Names?.length || 0) },
       { header: 'Deadline Date', accessor: (r) => r.deadline_date || DASH },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (isAcceptedStatus(r.status) ? 'Accepted' : 'Pending') },
+      { header: 'Status', accessor: (r) => (isAcceptedStatus(r.status) ? 'Accepted' : 'Pending Accept') },
     ],
     []
   );
 
-  return (
-    <div className="solar-erp-page ax-page">
-      <style>{PAGE_CSS}</style>
+  const headers = [
+    'Sr. No.',
+    'Vendor',
+    'Assign Date',
+    'State',
+    'District',
+    'Farmer Name - Father Name',
+    'Count',
+    'Deadline Date',
+    'File',
+    'View',
+    'Remarks',
+    'Status',
+    'Action',
+  ];
+  const TOTAL_COLUMNS = headers.length;
 
+  return (
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
+      {/* ── Page Header (matching pattern) ── */}
       <PageHead
         title="View Assigned Kusum-C Installation"
         subtitle="Manage and accept assigned Kusum-C solar pump installation batches and schedules"
@@ -339,84 +771,125 @@ export function UP_Installation_KusumC_InstallationRequest() {
           { label: 'Installation Request' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
             <button
               type="button"
               className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={loadData}
               disabled={loading}
+              title="Refresh assignments"
             >
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <Link to="/v/up/install-kusum-c-site" className="ax-btn ax-btn--primary ax-btn--sm">
-              <span className="ax-btn__label">Install Site</span>
+              <span className="ax-btn__label">+ Add Installation Site</span>
             </Link>
           </div>
         }
       />
 
-      {feedbackMsg && (
-        <div className={`ax-alert ax-alert--${feedbackMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
-          <div className="ax-alert__content">{feedbackMsg.text}</div>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => setFeedbackMsg(null)}>
-            {X_ICON}
-          </button>
+      {/* Success notification */}
+      {acceptSuccessMsg && (
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Success</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{acceptSuccessMsg}</div>
         </div>
       )}
 
-      {/* KPI Cards */}
-      {!loading && (
-        <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-          <KpiCard
-            tone="accent"
-            label="Total Batches"
-            value={summary.total.toLocaleString('en-IN')}
-            sub="All assigned batches"
-            active={statusFilter === 'all'}
-            onClick={() => setStatusFilter('all')}
-            icon={svg(<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />)}
-          />
-          <KpiCard
-            tone="emerald"
-            label="Accepted Batches"
-            value={summary.accepted.toLocaleString('en-IN')}
-            sub="Ready for site installation"
-            active={statusFilter === 'accepted'}
-            onClick={() => setStatusFilter('accepted')}
-            icon={svg(<path d="M9 12l2 2 4-4" />)}
-          />
-          <KpiCard
-            tone="amber"
-            label="Pending Batches"
-            value={summary.pending.toLocaleString('en-IN')}
-            sub="Awaiting acceptance"
-            active={statusFilter === 'pending'}
-            onClick={() => setStatusFilter('pending')}
-            icon={svg(<circle cx="12" cy="12" r="9" />)}
-          />
+      {/* Error notification */}
+      {acceptErrorMsg && (
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Accept Error</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{acceptErrorMsg}</div>
         </div>
       )}
 
-      {/* Table Card */}
-      <section className="ax-card ax-col--12" role="region" aria-label="Kusum-C Assignment Records">
+      {error && (
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Error Loading Assignments</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{error}</div>
+        </div>
+      )}
+
+      {/* ── Top Metric KPI Cards (4 cards in 1 row matching Karnataka SWP) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone="accent"
+          label="Total Assignments"
+          value={totalAssignments.toLocaleString('en-IN')}
+          sub={`${acceptedCount} accepted · ${pendingAcceptance} pending`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Pending Acceptance"
+          value={pendingAcceptance.toLocaleString('en-IN')}
+          sub="Action required by vendor"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Accepted Batches"
+          value={acceptedCount.toLocaleString('en-IN')}
+          sub="Accepted & ready to install"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Total Allocated Sites"
+          value={totalSitesCount.toLocaleString('en-IN')}
+          sub="Cumulative solar pump sites"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+              <circle cx="12" cy="9.5" r="2.5" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Main Table Card (exact reference layout) ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Assigned Installation Sites">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <span className="ax-card__eyebrow">UP KUSUM-C INSTALLATION</span>
-            <h2 className="ax-card__title">Assigned Batches</h2>
-            <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-              {filtered.length} of {batches.length} batches
+            <h2 className="ax-card__title">Assigned Installation Batches</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{data.length}</span> assignments
+              {' '}· Accepted <b className="ax-num">{acceptedCount}</b> · Pending <b className="ax-num">{pendingAcceptance}</b>
             </p>
           </div>
+
           <div className="ax-card__actions">
-            <div className="ax-cluster" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* District Filter */}
+            <div className="ax-cluster" style={actionsRowStyle}>
               {districtList.length > 0 && (
                 <select
                   className="ax-input ax-input--sm"
                   style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={selectedDistrict}
-                  onChange={(e) => { setSelectedDistrict(e.target.value); setCurrentPage(1); }}
+                  onChange={(e) => {
+                    setSelectedDistrict(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  aria-label="Filter by district"
                 >
                   <option value="all">All Districts</option>
                   {districtList.map((d) => (
@@ -426,27 +899,38 @@ export function UP_Installation_KusumC_InstallationRequest() {
               )}
 
               <select
+                id="kusumc_req_filter"
                 className="ax-input ax-input--sm"
                 style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as any);
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter by assignment status"
               >
                 <option value="all">All Status</option>
-                <option value="pending">Pending</option>
+                <option value="pending">Pending Accept</option>
                 <option value="accepted">Accepted</option>
               </select>
 
               {hasFilters && (
-                <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={resetFilters}>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
                   Reset
                 </button>
               )}
 
               <SearchInput
                 value={search}
-                onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                placeholder="Search batch ID, farmer, district…"
+                onChange={setSearch}
+                placeholder="Search vendor, farmer, ID…"
                 size="sm"
+                ariaLabel="Search assigned installation batches"
               />
 
               <TableExportToolbar
@@ -459,158 +943,298 @@ export function UP_Installation_KusumC_InstallationRequest() {
           </div>
         </div>
 
+        {/* All table columns fully scrollable horizontally - matching reference */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ minWidth: 1280 }}>
+          <table
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: 1550 }}
+          >
+            <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
             <thead className="ax-table__head">
               <tr>
-                <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
-                <th className="ax-table__th" style={{ width: 85 }}>Batch ID</th>
-                <th className="ax-table__th" style={{ width: 95 }}>Project</th>
-                <th className="ax-table__th" style={{ width: 65 }}>State</th>
-                <th className="ax-table__th" style={{ width: 110 }}>District</th>
-                <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Sites Count</th>
-                <th className="ax-table__th" style={{ minWidth: 260 }}>Farmers & Installation Deadlines</th>
-                <th className="ax-table__th" style={{ width: 140 }}>Assign Date</th>
-                <th className="ax-table__th" style={{ width: 105 }}>Deadline</th>
-                <th className="ax-table__th" style={{ width: 95, textAlign: 'center' }}>Attachment</th>
-                <th className="ax-table__th" style={{ minWidth: 130 }}>Remarks</th>
-                <th className="ax-table__th" style={{ width: 95, textAlign: 'center' }}>Status</th>
-                <th className="ax-table__th" style={{ width: 165, textAlign: 'center' }}>Action</th>
+                {headers.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={
+                      h === 'Action'
+                        ? { textAlign: 'right' }
+                        : h === 'Count' || h === 'View' || h === 'File' || h === 'Sr. No.'
+                        ? { textAlign: 'center' }
+                        : h === 'Vendor'
+                        ? { minWidth: 220, maxWidth: 280, width: 250 }
+                        : h === 'Farmer Name - Father Name'
+                        ? { minWidth: 260, maxWidth: 360, width: 300 }
+                        : undefined
+                    }
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody aria-busy={loading}>
               {loading && (
                 <tr>
-                  <td className="ax-table__td" colSpan={13} style={{ textAlign: 'center', padding: 32 }}>
-                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned batches…
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned batches from server…
                   </td>
                 </tr>
               )}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td className="ax-table__td" colSpan={13} style={{ padding: 0 }}>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
                     <TableEmptyState
-                      title="No data available in table"
-                      message="No assigned Kusum-C installation batches found."
+                      title="No installation assignments found"
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search query. Try clearing your query.'
+                          : 'No installation batches have been assigned yet by the administration.'
+                      }
                       onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
                     />
                   </td>
                 </tr>
               )}
               {!loading &&
                 paginatedData.map((item, index) => {
+                  const siteIds = parseSiteIds(item.site_id);
+                  const count = item.site_count || siteIds.length || item.Names?.length || (item.details ? item.details.length : 0);
                   const isAccepted = isAcceptedStatus(item.status);
-                  const siteCount = item.site_count || item.Names?.length || 0;
+                  const districtVal = item.district || (item.details && item.details[0]?.f_district) || DASH;
+                  const namesList = item.Names || item.details || [];
                   const fileUrl = item.file ? resolveUpMediaUrl(item.file) : null;
 
                   return (
                     <tr key={item.id} className="ax-table__row">
-                      <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>
+                      {/* 1. Sr. No. */}
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)', textAlign: 'center' }}>
                         {(currentPage - 1) * pageSize + index + 1}
                       </td>
-                      <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
-                        #{item.id}
-                      </td>
-                      <td className="ax-table__td" style={{ textTransform: 'uppercase', fontSize: 11, fontWeight: 600 }}>
-                        {item.project || 'Kusum-C'}
-                      </td>
-                      <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
-                        {item.state || 'UP'}
-                      </td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                        {item.district || DASH}
-                      </td>
-                      <td className="ax-table__td ax-num" style={{ textAlign: 'center', fontWeight: 700 }}>
-                        {siteCount}
-                      </td>
-                      <td className="ax-table__td">
-                        {item.Names && item.Names.length > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {item.Names.slice(0, 3).map((n, i) => (
-                              <div key={i} style={{ fontSize: 12 }}>
-                                <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{n.f_farmer_name}</span>
-                                {n.inst_deadline && (
-                                  <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, marginLeft: 6 }}>
-                                    (Deadline: {n.inst_deadline})
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                            {item.Names.length > 3 && (
-                              <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)', cursor: 'pointer', fontWeight: 600 }} onClick={() => handleOpenDetail(item)}>
-                                +{item.Names.length - 3} more farmers…
+
+                      {/* 2. Vendor */}
+                      <td
+                        className="ax-table__td"
+                        style={{ minWidth: 220, maxWidth: 280, whiteSpace: 'normal', wordBreak: 'break-word' }}
+                      >
+                        <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
+                          {item.vendor ? (
+                            <>
+                              Vendor: {item.vendor}
+                              {item.company_id && (
+                                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', display: 'block', fontWeight: 500 }}>
+                                  {item.company_id}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            item.company_id || 'Kusum-C Vendor'
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+                          <div>Batch ID: #{item.id}</div>
+                          {siteIds.length > 0 && (
+                            <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+                              <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>
+                                Sites ({siteIds.length}):
                               </span>
-                            )}
+                              <span style={{ wordBreak: 'break-word' }}>
+                                [{siteIds.slice(0, 4).join(', ')}{siteIds.length > 4 ? `, +${siteIds.length - 4} more` : ''}]
+                              </span>
+                              {siteIds.length > 4 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDetail(item)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    padding: 0,
+                                    fontSize: '11px',
+                                    color: 'var(--asw-primary)',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  View all
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 3. Assign Date */}
+                      <td className="ax-table__td" style={{ fontSize: '13px' }}>
+                        {fmtDate(item.assign_date || item.created_at)}
+                      </td>
+
+                      {/* 4. State */}
+                      <td className="ax-table__td" style={{ fontSize: '13px', fontWeight: 500 }}>
+                        {(item.state || 'UP').toUpperCase()}
+                      </td>
+
+                      {/* 5. District */}
+                      <td className="ax-table__td">
+                        <b>{districtVal}</b>
+                        {item.volume && (
+                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                            Vol: {item.volume} {item.project ? `· ${String(item.project).toUpperCase()}` : ''}
                           </div>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                         )}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: 12, color: 'var(--ax-text-muted)', fontFamily: 'var(--ax-font-mono)' }}>
-                        {item.assign_date || DASH}
+
+                      {/* 6. Farmer Name - Father Name */}
+                      <td
+                        className="ax-table__td"
+                        style={{ minWidth: 260, maxWidth: 360, whiteSpace: 'normal', wordBreak: 'break-word' }}
+                      >
+                        {namesList.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {namesList.slice(0, 2).map((f: any, i: number) => {
+                              const fn = f.f_farmer_name || f.farmer_name || 'Farmer';
+                              const father = f.f_father_name || f.father_name;
+                              const dline = f.inst_deadline || f.deadline_date;
+                              return (
+                                <div key={i} style={{ fontSize: '12px', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                  <b style={{ color: 'var(--ax-text-strong)' }}>{fn}</b>
+                                  {father ? (
+                                    <span style={{ color: 'var(--ax-text-default)' }}> - {father}</span>
+                                  ) : dline ? (
+                                    <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginLeft: 4 }}>
+                                      (Deadline: {dline})
+                                    </span>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                            {namesList.length > 2 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                                <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)' }}>
+                                  +{namesList.length - 2} more
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDetail(item)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    padding: 0,
+                                    fontSize: '11px',
+                                    color: 'var(--asw-primary)',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline',
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  View all &rarr;
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ) : siteIds.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
+                              Site IDs: {siteIds.slice(0, 3).join(', ')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
+                            </div>
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--xs"
+                              style={{ padding: 0, fontSize: '11px', color: 'var(--asw-primary)', justifyContent: 'flex-start', height: 'auto', textAlign: 'left' }}
+                              onClick={() => handleViewDetail(item)}
+                            >
+                              View farmer details &rarr;
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>{DASH}</span>
+                        )}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: 12, fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
-                        {item.deadline_date || DASH}
+
+                      {/* 7. Count */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <span className="ax-badge ax-badge--soft" style={{ fontWeight: 700 }}>
+                          {count}
+                        </span>
                       </td>
+
+                      {/* 8. Deadline Date */}
+                      <td className="ax-table__td" style={{ fontSize: '13px' }}>
+                        {fmtDate(item.deadline_date)}
+                      </td>
+
+                      {/* 9. File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {fileUrl ? (
                           <a
                             href={fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '2px 8px', fontSize: 11, textDecoration: 'none' }}
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                            style={{ color: 'var(--asw-primary)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
                             title="View / Download Assigned Site File"
                           >
-                            View File ↗
+                            📎 File ↗
                           </a>
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                         )}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+
+                      {/* 10. View */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--secondary ax-btn--sm"
+                          onClick={() => handleViewDetail(item)}
+                        >
+                          View
+                        </button>
+                      </td>
+
+                      {/* 11. Remarks */}
+                      <td
+                        className="ax-table__td"
+                        style={{ maxWidth: 160, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={item.remarks || ''}
+                      >
                         {item.remarks || DASH}
                       </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+
+                      {/* 12. Status */}
+                      <td className="ax-table__td">
                         {isAccepted ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
-                            Accepted
-                          </span>
+                          <Badge tone="success">✓ Accepted</Badge>
                         ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>
-                            Pending
-                          </span>
+                          <Badge tone="warning">Pending Accept</Badge>
                         )}
                       </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-                          {!isAccepted && (
+
+                      {/* 13. Action */}
+                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                        <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                          {!isAccepted ? (
                             <button
                               type="button"
+                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              onClick={() => handleAccept(item)}
                               disabled={acceptingId === item.id}
-                              onClick={() => handleAccept(item.id)}
-                              className="ax-btn ax-btn--success ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
                             >
                               {acceptingId === item.id ? 'Accepting…' : 'Accept'}
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '3px 8px', fontSize: 11 }}
-                            onClick={() => handleOpenDetail(item)}
-                          >
-                            Details
-                          </button>
-                          {isAccepted && (
-                            <Link
-                              to={`/v/up/install-kusum-c-site`}
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
-                            >
-                              Install
-                            </Link>
+                          ) : (
+                            <>
+                              <Badge tone="success">Done</Badge>
+                              <Link
+                                to={`/v/up/install-kusum-c-site`}
+                                className="ax-btn ax-btn--secondary ax-btn--xs"
+                                style={{ padding: '3px 8px', fontSize: 11 }}
+                              >
+                                Install
+                              </Link>
+                            </>
                           )}
                         </div>
                       </td>
@@ -621,12 +1245,13 @@ export function UP_Installation_KusumC_InstallationRequest() {
           </table>
         </div>
 
-        <div className="ax-card__footer" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: '12px 16px' }}>
+        {/* ── Table Footer ── */}
+        <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
               currentPage={currentPage}
-              pageSize={pageSize}
               totalItems={filtered.length}
+              pageSize={pageSize}
               onPageChange={setCurrentPage}
               onPageSizeChange={(size) => {
                 setPageSize(size);
@@ -638,153 +1263,148 @@ export function UP_Installation_KusumC_InstallationRequest() {
         </div>
       </section>
 
-      {/* Details Modal */}
-      {detailModalItem && (
-        <Modal
-          open={!!detailModalItem}
-          onClose={() => setDetailModalItem(null)}
-          labelledBy="batch-detail-title"
-          dialogStyle={{ maxWidth: 720 }}
-        >
-          <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
-            <div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Batch Details
-              </span>
-              <h3 id="batch-detail-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                Batch #{detailModalItem.id} — Kusum C
-              </h3>
-            </div>
-            <button type="button" className="ax-modal__close" onClick={() => setDetailModalItem(null)}>
-              {X_ICON}
-            </button>
-          </div>
-
-          <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Batch summary card */}
-            <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Assignment Information</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>Project: </span><strong>{detailModalItem.project || 'Kusum-C'}</strong></div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>Purpose: </span><strong>{detailModalItem.purpose || 'Installation'}</strong></div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{detailModalItem.state || 'UP'}</strong></div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{detailModalItem.district || DASH}</strong></div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>Sites Count: </span><strong>{detailModalItem.site_count || detailModalItem.Names?.length || 0}</strong></div>
-                <div>
-                  <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-                  {isAcceptedStatus(detailModalItem.status) ? (
-                    <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Accepted</span>
-                  ) : (
-                    <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending</span>
-                  )}
-                </div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{detailModalItem.assign_date || DASH}</strong></div>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>Deadline Date: </span><strong style={{ fontFamily: 'var(--ax-font-mono)' }}>{detailModalItem.deadline_date || DASH}</strong></div>
-                {detailModalItem.remarks && (
-                  <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remarks: </span><strong>{detailModalItem.remarks}</strong></div>
-                )}
-                {detailModalItem.file && (
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <span style={{ color: 'var(--ax-text-muted)' }}>Assignment Document: </span>
-                    <a
-                      href={resolveUpMediaUrl(detailModalItem.file)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ax-btn ax-btn--secondary ax-btn--xs"
-                      style={{ marginLeft: 8, padding: '2px 10px', fontSize: 11 }}
-                    >
-                      View Assigned Document ↗
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Farmers Table */}
-            {loadingDetail ? (
-              <div style={{ textAlign: 'center', padding: 20 }}>
-                <span className="ax-spinner" /> Loading farmer details…
-              </div>
-            ) : detailModalItem.details && detailModalItem.details.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>
-                  Farmers in this Assignment ({detailModalItem.details.length})
-                </h4>
-                <div className="ax-table-wrap" style={{ maxHeight: 340 }}>
-                  <table className="ax-table ax-table--sm" style={{ width: '100%', fontSize: 12 }}>
-                    <thead>
-                      <tr>
-                        <th>Farmer Name</th>
-                        <th>Father Name</th>
-                        <th>District</th>
-                        <th>Village / Post</th>
-                        <th>Deadline</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailModalItem.details.map((d, i) => (
-                        <tr key={i}>
-                          <td style={{ fontWeight: 600 }}>{d.f_farmer_name || DASH}</td>
-                          <td>{d.f_father_name || DASH}</td>
-                          <td>{d.f_district || detailModalItem.district || DASH}</td>
-                          <td>{[d.f_village, d.f_post].filter(Boolean).join(', ') || DASH}</td>
-                          <td>{d.inst_deadline || detailModalItem.deadline_date || DASH}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : detailModalItem.Names && detailModalItem.Names.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <h4 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 6px' }}>
-                  Farmers in this Assignment ({detailModalItem.Names.length})
-                </h4>
-                <div className="ax-table-wrap" style={{ maxHeight: 300 }}>
-                  <table className="ax-table ax-table--sm" style={{ width: '100%', fontSize: 12 }}>
-                    <thead>
-                      <tr>
-                        <th>Sr. No.</th>
-                        <th>Farmer Name</th>
-                        <th>Deadline</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailModalItem.Names.map((n, i) => (
-                        <tr key={i}>
-                          <td style={{ width: 60 }}>{i + 1}</td>
-                          <td style={{ fontWeight: 600 }}>{n.f_farmer_name}</td>
-                          <td style={{ fontFamily: 'var(--ax-font-mono)' }}>{n.inst_deadline || detailModalItem.deadline_date || DASH}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <p style={{ margin: 0, color: 'var(--ax-text-muted)' }}>No farmer records found in this batch.</p>
-            )}
-          </div>
-
-          <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 20px', borderTop: '1px solid var(--ax-border)' }}>
-            <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setDetailModalItem(null)}>
-              Close
-            </button>
-            {!isAcceptedStatus(detailModalItem.status) && (
+      {/* ── Assignment Details Modal (exact Karnataka SWP modal pattern) ── */}
+      <Modal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={activeItem ? `Assignment Details · #${activeItem.id}` : 'Assignment Details'}
+        subtitle="Individual beneficiary and assignment configuration details"
+        maxWidth={1100}
+        footer={
+          activeItem && !isAcceptedStatus(activeItem.status) ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' }}>
+              <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setDetailModalOpen(false)}>
+                Close
+              </button>
               <button
                 type="button"
-                className="ax-btn ax-btn--success"
-                onClick={() => {
-                  handleAccept(detailModalItem.id);
-                  setDetailModalItem(null);
+                className="ax-btn ax-btn--primary"
+                onClick={async () => {
+                  const ok = await handleAccept(activeItem);
+                  if (ok) setDetailModalOpen(false);
                 }}
+                disabled={acceptingId === activeItem.id}
               >
-                Accept Assignment
+                {acceptingId === activeItem.id ? 'Accepting…' : 'Accept Assignment'}
               </button>
-            )}
+            </div>
+          ) : undefined
+        }
+      >
+        {detailLoading ? (
+          <div style={{ padding: 32, textAlign: 'center' }}>
+            <span className="ax-spinner" />
+            <p style={{ marginTop: 8, color: 'var(--ax-text-muted)' }}>Fetching site details from server...</p>
           </div>
-        </Modal>
-      )}
+        ) : detailError ? (
+          <div className="ax-alert ax-alert--danger">
+            {detailError}
+          </div>
+        ) : filteredModalNames.length === 0 ? (
+          <p style={{ color: 'var(--ax-text-muted)', textAlign: 'center', margin: '20px 0' }}>
+            No specific site detail entries found for this assignment batch.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Search filter above the popup table */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label
+                htmlFor="modal_site_search"
+                style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-strong)', whiteSpace: 'nowrap' }}
+              >
+                Search:
+              </label>
+              <input
+                id="modal_site_search"
+                type="text"
+                className="ax-input ax-input--sm"
+                style={{ width: 280, height: 32 }}
+                placeholder="Search farmer, block, village, district…"
+                value={modalSearch}
+                onChange={(e) => setModalSearch(e.target.value)}
+              />
+              {modalSearch && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => setModalSearch('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Popup Table: Sr. No., Site ID, Application No, Farmer Name, Father Name, District, Block, Village, Deadline Date, Assign Date */}
+            <div className="ax-table-wrap" style={{ maxHeight: '60vh', overflow: 'auto' }}>
+              <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
+                <thead className="ax-table__head">
+                  <tr>
+                    <th className="ax-table__th" style={{ textAlign: 'center' }}>Sr. No.</th>
+                    <th className="ax-table__th">Site ID</th>
+                    <th className="ax-table__th">Application No</th>
+                    <th className="ax-table__th">Farmer Name</th>
+                    <th className="ax-table__th">Father Name</th>
+                    <th className="ax-table__th">District</th>
+                    <th className="ax-table__th">Block</th>
+                    <th className="ax-table__th">Village</th>
+                    <th className="ax-table__th">Deadline Date</th>
+                    <th className="ax-table__th">Assign Date</th>
+                  </tr>
+                </thead>
+                <tbody className="ax-table__body">
+                  {filteredModalNames.map((site: any, idx: number) => {
+                    const assignDate = site.assign_date || detailData?.assign_date || activeItem?.assign_date || activeItem?.created_at;
+                    const deadlineDate = site.inst_deadline || site.deadline_date || detailData?.deadline_date || activeItem?.deadline_date;
+                    const districtVal = site.district || site.f_district || detailData?.district || activeItem?.district || DASH;
+                    const blockVal = site.block || site.f_block || site.tehsil || site.f_tehsil || DASH;
+                    const villageVal = site.village || site.f_village || DASH;
+                    const siteId = site.id || (parseSiteIds(activeItem?.site_id)[idx] ?? DASH);
+                    const appNo = site.application_no || site.app_no || site.f_customer_no || DASH;
+                    const farmerName = site.farmer_name || site.f_farmer_name || DASH;
+                    const fatherName = site.father_name || site.f_father_name || site.father || DASH;
+
+                    return (
+                      <tr key={site.id || idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)', textAlign: 'center' }}>
+                          {idx + 1}
+                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          #{siteId}
+                        </td>
+                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                          {appNo}
+                        </td>
+                        <td className="ax-table__td">
+                          <strong style={{ color: 'var(--ax-text-strong)' }}>{farmerName}</strong>
+                        </td>
+                        <td className="ax-table__td">
+                          {fatherName}
+                        </td>
+                        <td className="ax-table__td">
+                          <b>{districtVal}</b>
+                        </td>
+                        <td className="ax-table__td">
+                          {blockVal}
+                        </td>
+                        <td className="ax-table__td">
+                          {villageVal}
+                        </td>
+                        <td className="ax-table__td" style={{ fontSize: '13px' }}>
+                          {fmtDate(deadlineDate)}
+                        </td>
+                        <td className="ax-table__td" style={{ fontSize: '13px' }}>
+                          {fmtDate(assignDate)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

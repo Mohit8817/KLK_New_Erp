@@ -498,6 +498,16 @@ export function VerifyBiharSRT200Survey() {
 
         const allSites = Array.isArray(res?.data?.srt200mw)
           ? res.data.srt200mw
+          : Array.isArray(res?.data?.surveys)
+          ? res.data.surveys
+          : Array.isArray(res?.data?.survey)
+          ? res.data.survey
+          : Array.isArray(res?.data?.data)
+          ? res.data.data
+          : Array.isArray(res?.surveys)
+          ? res.surveys
+          : Array.isArray(res?.srt200mw)
+          ? res.srt200mw
           : Array.isArray(res?.data)
           ? res.data
           : Array.isArray(res)
@@ -654,7 +664,11 @@ export function VerifyBiharSRT200Survey() {
       await biharAdminService.verifySrt200mwSurveyStatus({
         id: actionItem.id,
         survey_verify_status: verifyStatusAction,
+        verify_status: verifyStatusAction,
+        status: verifyStatusAction,
         verify_remarks: remarksInput.trim(),
+        remarks: remarksInput.trim(),
+        remark: remarksInput.trim(),
       });
       setSuccessMsg(
         `Site ${actionItem.site_name} (${actionItem.uid}) has been ${isApprove ? 'Approved' : 'Rejected'} successfully!`

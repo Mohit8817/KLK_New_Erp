@@ -236,8 +236,35 @@ export function BiharSRT200MWSurveyStatusView() {
       } else {
         res = await biharAdminService.getSrt200mwViewDashboard(statusParam);
       }
-      const raw = res?.data ?? res ?? [];
-      const list = Array.isArray(raw) ? raw : [];
+      const raw = res?.data ?? res;
+      let list: any[] = [];
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (raw && typeof raw === 'object') {
+        const candidate = raw.surveys || raw.srt200mw || raw.data || raw.verification || raw.pending || raw.verify || raw.records || raw.items;
+        if (Array.isArray(candidate)) {
+          list = candidate;
+        }
+      }
+
+      // If drilldown API didn't return a list, fallback to full surveys register
+      if (list.length === 0) {
+        try {
+          const fallbackRes = await biharAdminService.getViewSrt200mwSurveys();
+          const fRaw = fallbackRes?.data ?? fallbackRes;
+          let fList: any[] = [];
+          if (Array.isArray(fRaw)) {
+            fList = fRaw;
+          } else if (fRaw && typeof fRaw === 'object') {
+            const cand = fRaw.srt200mw || fRaw.surveys || fRaw.verification || fRaw.pending || fRaw.verify || fRaw.data || [];
+            if (Array.isArray(cand)) fList = cand;
+          }
+          if (fList.length > 0) {
+            list = fList;
+          }
+        } catch {}
+      }
+
       setItems(list);
     } catch (err: any) {
       console.error('Bihar SRT 200MW StatusView load error:', err);

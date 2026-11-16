@@ -40,6 +40,9 @@ export function UP_AMC_KusumC_PendingAMC() {
         volume: d.pump_capacity || d.volume || d.capacity || '',
         contractor_name: d.contractor_name || d.contractor || '',
         amc_type: d.amc_type || 'Monthly',
+        pending_months: res?.pending_months || d?.pending_months || [],
+        schedule: res?.schedule || d?.schedule || [],
+        current_due: res?.current_due || d?.current_due || null,
       };
     }
     return null;

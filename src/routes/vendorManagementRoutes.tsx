@@ -118,53 +118,53 @@ const UPRescoSurveyAssignVendor = lazy(() => import('../components/Vendor-Manage
 // SUPER ADMIN: BIHAR
 // ═══════════════════════════════════════════════════════════════════════════
 // Survey
-const BiharSRT200MWSurveyDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyDashboard })));
-const BiharSRT200MWSurveyStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyStatusView })));
-const BiharSRT200MWSurveyAssign = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyAssign })));
-const BiharSRT200MWSurveyAssignView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyAssignView })));
-const BiharSRT200MWSurveyVerify = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRT200MWSurveyVerify })));
-const BiharULASurveyViewData = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULASurveyViewData })));
+const BiharSRT200MWSurveyDashboard = lazy(() => import('../components/Vendor-Management/bihar/Survey/SRT_200MW/SRT200MWSurveyDashboard'));
+const BiharSRT200MWSurveyStatusView = lazy(() => import('../components/Vendor-Management/bihar/Survey/SRT_200MW/StatusView'));
+const BiharSRT200MWSurveyAssign = lazy(() => import('../components/Vendor-Management/bihar/Survey/SRT_200MW/AssignSurvey'));
+const BiharSRT200MWSurveyAssignView = lazy(() => import('../components/Vendor-Management/bihar/Survey/SRT_200MW/ViewAssignSurvey'));
+const BiharSRT200MWSurveyVerify = lazy(() => import('../components/Vendor-Management/bihar/Survey/SRT_200MW/VerifySurvey'));
+const BiharULASurveyViewData = lazy(() => import('../components/Vendor-Management/bihar/Survey/ULA/ViewULASurvey'));
 
 // Installation: SSL
-const BiharSSLInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationDashboard })));
-const BiharSSLInstallationAssignLight = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationAssignLight })));
-const BiharSSLInstallationViewAssignLight = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationViewAssignLight })));
-const BiharSSLInstallationVerifyLight = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationVerifyLight })));
-const BiharSSLInstallationClaimRequest = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationClaimRequest })));
-const BiharSSLInstallationPaymentRequest = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationPaymentRequest })));
-const BiharSSLInstallationSupplyInspection = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationSupplyInspection })));
-const BiharSSLInstallationInspectionRequest = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLInstallationInspectionRequest })));
+const BiharSSLInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/SSLInstallationDashboard'));
+const BiharSSLInstallationAssignLight = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/AssignLight'));
+const BiharSSLInstallationViewAssignLight = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/ViewAssignLight'));
+const BiharSSLInstallationVerifyLight = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/VerifyLight'));
+const BiharSSLInstallationClaimRequest = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/ClaimRequest'));
+const BiharSSLInstallationPaymentRequest = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/PaymentRequest'));
+const BiharSSLInstallationSupplyInspection = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/SupplyInspection').then(m => ({ default: m.BiharSSLInstallationSupplyInspection })));
+const BiharSSLInstallationInspectionRequest = lazy(() => import('../components/Vendor-Management/bihar/Installation/SSL/InstallationInspection').then(m => ({ default: m.BiharSSLInstallationInspectionRequest })));
 
 // Installation: SRT
-const BiharSRTInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationDashboard })));
-const BiharSRTInstallationAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationAssignSites })));
-const BiharSRTInstallationViewAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationViewAssignSites })));
-const BiharSRTInstallationVerifySites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationVerifySites })));
-const BiharSRTInstallationViewClaim = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationViewClaim })));
-const BiharSRTInstallationViewPayment = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTInstallationViewPayment })));
+const BiharSRTInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/SRTInstallationDashboard'));
+const BiharSRTInstallationAssignSites = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/AssignSites').then(m => ({ default: m.BiharSRTInstallationAssignSites })));
+const BiharSRTInstallationViewAssignSites = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/ViewAssignSites'));
+const BiharSRTInstallationVerifySites = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/VerifySites'));
+const BiharSRTInstallationViewClaim = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/ViewClaim').then(m => ({ default: m.BiharSRTInstallationViewClaim })));
+const BiharSRTInstallationViewPayment = lazy(() => import('../components/Vendor-Management/bihar/Installation/SRT/ViewPayment'));
 
 // Installation: ULA
-const BiharVMULAInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationDashboard })));
-const BiharULAInstallationStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationStatusView })));
-const BiharULAInstallationAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationAssignSites })));
-const BiharULAInstallationViewAssignSites = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewAssignSites })));
-const BiharULAInstallationStructureApproval = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationStructureApproval })));
-const BiharULAInstallationViewSite = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewSite })));
-const BiharULAInstallationViewDocument = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewDocument })));
-const BiharULAInstallationViewClaim = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewClaim })));
-const BiharULAInstallationViewPayment = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharULAInstallationViewPayment })));
+const BiharVMULAInstallationDashboard = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/ULAInstallationDashboard'));
+const BiharULAInstallationStatusView = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/StatusView'));
+const BiharULAInstallationAssignSites = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/AssignSites'));
+const BiharULAInstallationViewAssignSites = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/ViewAssignSites'));
+const BiharULAInstallationStructureApproval = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/StructureApproval'));
+const BiharULAInstallationViewSite = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/VerifyInstallation'));
+const BiharULAInstallationViewDocument = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/ViewDocument').then(m => ({ default: m.BiharULAInstallationViewDocument })));
+const BiharULAInstallationViewClaim = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/ViewClaim'));
+const BiharULAInstallationViewPayment = lazy(() => import('../components/Vendor-Management/bihar/Installation/ULA/ViewPayment'));
 
 // AMC: SSL
-const BiharSSLAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCDashboard })));
-const BiharSSLAMCAssignSSL = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCAssignSSL })));
-const BiharSSLAMCVerrifyAMC = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCVerrifyAMC })));
-const BiharSSLAMCStatusView = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSSLAMCStatusView })));
+const BiharSSLAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar/AMC/SSLAMCDashboard'));
+const BiharSSLAMCAssignSSL = lazy(() => import('../components/Vendor-Management/bihar/AMC/AssignSSL'));
+const BiharSSLAMCVerrifyAMC = lazy(() => import('../components/Vendor-Management/bihar/AMC/VerifyAMC'));
+const BiharSSLAMCStatusView = lazy(() => import('../components/Vendor-Management/bihar/AMC/StatusView'));
 
 // AMC: SRT
-const BiharSRTAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTAMCDashboard })));
-const BiharSRTAMCAssignSRT = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTAMCAssignSRT })));
-const BiharSRTAMCAssignViewSite = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTAMCAssignViewSite })));
-const BiharSRTAMCVerifySite = lazy(() => import('../components/Vendor-Management/bihar').then(m => ({ default: m.BiharSRTAMCVerifySite })));
+const BiharSRTAMCDashboard = lazy(() => import('../components/Vendor-Management/bihar/AMC/SRTAMCDashboard'));
+const BiharSRTAMCAssignSRT = lazy(() => import('../components/Vendor-Management/bihar/AMC/AssignSRT'));
+const BiharSRTAMCAssignViewSite = lazy(() => import('../components/Vendor-Management/bihar/AMC/ViewAssignSRT'));
+const BiharSRTAMCVerifySite = lazy(() => import('../components/Vendor-Management/bihar/AMC/VerifySRT'));
 
 
 
@@ -744,8 +744,10 @@ export const vendorManagementRoutes: ReactElement[] = [
 
   // Bihar Survey: SRT 200MW
   <Route key="vm.bihar.srt200.db" path="vendor-management/bihar/srt200mw/survey/dashboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+  <Route key="vm.bihar.srt200.db_typo" path="vendor-management/bihar/srt200mw/survey/dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
   <Route key="vm.bihar.srt200.db2" path="vendor-management/bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
   <Route key="vm.bihar.srt200.db3" path="bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+  <Route key="vm.bihar.srt200.db4" path="bihar/srt200mw/survey/dashboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
 
   <Route key="vm.bihar.srt200.status" path="vendor-management/bihar/srt200mw/survey/status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
   <Route key="vm.bihar.srt200.status2" path="vendor-management/bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
@@ -753,20 +755,29 @@ export const vendorManagementRoutes: ReactElement[] = [
   <Route key="vm.bihar.srt200.status4" path="bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
 
   <Route key="vm.bihar.srt200.assign" path="vendor-management/bihar/srt200mw/survey/assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
+  <Route key="vm.bihar.srt200.assign_alias" path="vendor-management/bihar/srt200mw/survey/assign-survey" element={wrap(BiharSRT200MWSurveyAssign)} />,
   <Route key="vm.bihar.srt200.assign2" path="vendor-management/bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
   <Route key="vm.bihar.srt200.assign3" path="bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
 
   <Route key="vm.bihar.srt200.vassign" path="vendor-management/bihar/srt200mw/survey/assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+  <Route key="vm.bihar.srt200.vassign_alias1" path="vendor-management/bihar/srt200mw/survey/view-assign" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+  <Route key="vm.bihar.srt200.vassign_alias2" path="vendor-management/bihar/srt200mw/survey/view-assign-survey" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+  <Route key="vm.bihar.srt200.vassign_alias3" path="vendor-management/bihar/srt200mw/survey/view-assign-sites" element={wrap(BiharSRT200MWSurveyAssignView)} />,
   <Route key="vm.bihar.srt200.vassign2" path="vendor-management/bihar/srt200mw-survey-assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
   <Route key="vm.bihar.srt200.vassign3" path="bihar/srt200mw-survey-assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
 
   <Route key="vm.bihar.srt200.verify" path="vendor-management/bihar/srt200mw/survey/verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
+  <Route key="vm.bihar.srt200.verify_alias1" path="vendor-management/bihar/srt200mw/survey/view-survey" element={wrap(BiharSRT200MWSurveyVerify)} />,
+  <Route key="vm.bihar.srt200.verify_alias2" path="vendor-management/bihar/srt200mw/survey/verify-survey" element={wrap(BiharSRT200MWSurveyVerify)} />,
   <Route key="vm.bihar.srt200.verify2" path="vendor-management/bihar/srt200mw-survey-verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
   <Route key="vm.bihar.srt200.verify3" path="bihar/srt200mw-survey-verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
 
   // Bihar Survey: ULA
   <Route key="vm.bihar.ula.survey.view" path="vendor-management/bihar/ula/survey/view" element={wrap(BiharULASurveyViewData)} />,
+  <Route key="vm.bihar.ula.survey.view_survey" path="vendor-management/bihar/ula/survey/view-survey" element={wrap(BiharULASurveyViewData)} />,
+  <Route key="vm.bihar.ula.survey.verify" path="vendor-management/bihar/ula/survey/verify" element={wrap(BiharULASurveyViewData)} />,
   <Route key="vm.bihar.ula.survey.view2" path="bihar/ula/survey/view" element={wrap(BiharULASurveyViewData)} />,
+  <Route key="vm.bihar.ula.survey.view_survey2" path="bihar/ula/survey/view-survey" element={wrap(BiharULASurveyViewData)} />,
 
   // Bihar Installation: SSL
   <Route key="vm.bihar.ssl.inst.db" path="vendor-management/bihar/ssl/installation/dashboard" element={wrap(BiharSSLInstallationDashboard)} />,

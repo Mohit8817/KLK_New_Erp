@@ -43,68 +43,113 @@ export const BIHAR_ADMIN_API = {
   SRT_200MW_SURVEY: {
     ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/assign'),
     FETCH_SITE: (district?: string) =>
-      buildCandidateUrls(
-        district
-          ? `/admin/bihar/srt200mw/survey/fetch-site?district=${encodeURIComponent(district)}`
-          : '/admin/bihar/srt200mw/survey/fetch-site'
-      ),
+      Array.from(new Set([
+        ...(district
+          ? [
+              ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/fetch-site?district=${encodeURIComponent(district)}`),
+              ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/fetch-site/${encodeURIComponent(district)}`),
+              ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/fetch-site?district_name=${encodeURIComponent(district)}`),
+            ]
+          : []),
+        ...buildCandidateUrls('/admin/bihar/srt200mw/survey/fetch-site'),
+        ...buildCandidateUrls('/bihar/srt200mw/survey/fetch-site'),
+      ])),
     STORE_ASSIGN: buildCandidateUrls('/admin/bihar/srt200mw/survey/store-assign-survey'),
     VIEW_ASSIGN: Array.from(new Set([
-      // Primary standard endpoint patterns (view-assign)
-      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign'),
-      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign'),
-      ...buildCandidateUrls('/admin/bihar/srt200mw/view-assign'),
-      ...buildCandidateUrls('/bihar/srt200mw/view-assign'),
-
-      // Controller-named patterns (view-assign-survey)
+      // Primary documented controller endpoint: view-assign-survey
       ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign-survey'),
       ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign-survey'),
       ...buildCandidateUrls('/admin/bihar/srt200mw/view-assign-survey'),
       ...buildCandidateUrls('/bihar/srt200mw/view-assign-survey'),
 
+      // Alternative standard endpoint patterns (view-assign)
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-assign'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/view-assign'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw/view-assign'),
+      ...buildCandidateUrls('/bihar/srt200mw/view-assign'),
+
       // UI route matching patterns (assign-view)
       ...buildCandidateUrls('/admin/bihar/srt200mw/survey/assign-view'),
       ...buildCandidateUrls('/admin/bihar/srt200mw-survey-assign-view'),
       ...buildCandidateUrls('/bihar/srt200mw/survey/assign-view'),
-      ...buildCandidateUrls('/bihar/srt200mw-survey-assign-view'),
-      ...buildCandidateUrls('/bihar/srt200mw-survey/assign-view'),
 
       // Unified survey view & vendor portal endpoints
       ...buildCandidateUrls('/bihar/srt200mw-view-survey'),
       ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
       ...buildCandidateUrls('/bihar/srt200mw/survey/view-survey'),
       ...buildCandidateUrls('/bihar/srt200mw-survey'),
-      ...buildCandidateUrls('/v/bihar/view-srt200mw-survey'),
-      ...buildCandidateUrls('/bihar/view-srt200mw-survey'),
     ])),
     APPROVAL_ASSIGN: (id: string | number) =>
       Array.from(new Set([
         ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/approval-assign/${encodeURIComponent(id)}`),
         ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/approvel-assign/${encodeURIComponent(id)}`),
         ...buildCandidateUrls(`/bihar/srt200mw/survey/approval-assign/${encodeURIComponent(id)}`),
-        ...buildCandidateUrls(`/bihar/srt200mw/survey/approvel-assign/${encodeURIComponent(id)}`),
       ])),
-    VIEW_SURVEY: buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
-    VERIFY_STATUS: buildCandidateUrls('/admin/bihar/srt200mw/survey/verify-survey-status'),
-    DASHBOARD: buildCandidateUrls('/admin/bihar/srt200mw/survey/dashbboard'),
+    VIEW_SURVEY: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/view-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw-view-survey'),
+      ...buildCandidateUrls('/bihar/srt200mw-survey'),
+    ])),
+    VERIFY_STATUS: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/verify-survey-status'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/verify-survey-status'),
+    ])),
+    DASHBOARD: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/dashbboard'),
+      ...buildCandidateUrls('/admin/bihar/srt200mw/survey/dashboard'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/dashbboard'),
+      ...buildCandidateUrls('/bihar/srt200mw/survey/dashboard'),
+      ...buildCandidateUrls('/bihar/srt200mw-survey-dashbboard'),
+    ])),
     VIEW_DASHBOARD: (status?: string) =>
-      buildCandidateUrls(
-        status
-          ? `/admin/bihar/srt200mw/survey/view-dashbboard/${encodeURIComponent(status)}`
-          : '/admin/bihar/srt200mw/survey/view-dashbboard'
-      ),
+      Array.from(new Set([
+        ...(status
+          ? [
+              ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/view-dashbboard/${encodeURIComponent(status)}`),
+              ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/view-dashboard/${encodeURIComponent(status)}`),
+              ...buildCandidateUrls(`/bihar/srt200mw/survey/view-dashbboard/${encodeURIComponent(status)}`),
+            ]
+          : [
+              ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-dashbboard'),
+              ...buildCandidateUrls('/admin/bihar/srt200mw/survey/view-dashboard'),
+              ...buildCandidateUrls('/bihar/srt200mw/survey/view-dashbboard'),
+            ]),
+      ])),
     VENDORWISE_DATA: (status: string, vendor: string) =>
-      buildCandidateUrls(`/admin/bihar/srt200mw/survey/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`),
+      Array.from(new Set([
+        ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`),
+        ...buildCandidateUrls(`/bihar/srt200mw/survey/vendorwise-data/${encodeURIComponent(status)}/${encodeURIComponent(vendor)}`),
+      ])),
     DISTRICTWISE_DATA: (status: string, district: string) =>
-      buildCandidateUrls(`/admin/bihar/srt200mw/survey/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`),
+      Array.from(new Set([
+        ...buildCandidateUrls(`/admin/bihar/srt200mw/survey/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`),
+        ...buildCandidateUrls(`/bihar/srt200mw/survey/districtwise-data/${encodeURIComponent(status)}/${encodeURIComponent(district)}`),
+      ])),
   },
 
   // ── 4. Bihar ULA Survey ──
   // Controller: BiharUlaSurveyController · Prefix: /admin/bihar/ula/survey/
   ULA_SURVEY: {
-    VIEW_SURVEY: buildCandidateUrls('/admin/bihar/ula/survey/view-survey'),
-    VERIFY_STATUS: buildCandidateUrls('/admin/bihar/ula/survey/verify-survey-status'),
-    AJAX_VERIFY_STATUS: buildCandidateUrls('/admin/bihar/ula/survey/ajax-verify-survey-status'),
+    VIEW_SURVEY: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/ula/survey/view-survey'),
+      ...buildCandidateUrls('/admin/bihar/ula/survey/view'),
+      ...buildCandidateUrls('/admin/bihar/ula-surveys/view'),
+      ...buildCandidateUrls('/bihar/ula-surveys/view'),
+      ...buildCandidateUrls('/bihar/ula/survey/view-survey'),
+      ...buildCandidateUrls('/bihar/ula/survey/view'),
+      ...buildCandidateUrls('/admin/bihar/ula/view-survey'),
+    ])),
+    VERIFY_STATUS: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/ula/survey/verify-survey-status'),
+      ...buildCandidateUrls('/admin/bihar/ula/survey/ajax-verify-survey-status'),
+      ...buildCandidateUrls('/admin/bihar/ula-surveys/verify-survey-status'),
+      ...buildCandidateUrls('/bihar/ula/survey/verify-survey-status'),
+    ])),
+    AJAX_VERIFY_STATUS: Array.from(new Set([
+      ...buildCandidateUrls('/admin/bihar/ula/survey/ajax-verify-survey-status'),
+      ...buildCandidateUrls('/admin/bihar/ula/survey/verify-survey-status'),
+    ])),
   },
 
   // ── 5. Bihar SSL Installation ──

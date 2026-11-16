@@ -31,8 +31,14 @@ const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 
 /* ── Status helpers ── */
-const isVerified = (r: Row) => Number(r.verify_status) === 1;
-const isVerifyRejected = (r: Row) => Number(r.verify_status) === 2;
+export const getVerifyStatus = (r: Row): number => {
+  const s = r.inst_verify_status !== undefined && r.inst_verify_status !== null
+    ? Number(r.inst_verify_status)
+    : (r.verify_status !== undefined && r.verify_status !== null ? Number(r.verify_status) : 0);
+  return Number.isNaN(s) ? 0 : s;
+};
+const isVerified = (r: Row) => getVerifyStatus(r) === 1;
+const isVerifyRejected = (r: Row) => getVerifyStatus(r) === 2;
 const isLocked = (r: Row) => isVerified(r);
 
 /* ───────── Responsive page CSS (Exact Arunachal / Solar ERP Reference) ───────── */
@@ -554,7 +560,15 @@ const EXPORT_COLS: ExportColumn<Row>[] = [
   { header: 'Remark', accessor: (r) => r.remark || r.inst_remarks || DASH },
   {
     header: 'Verify Status',
-    accessor: (r) => (Number(r.verify_status) === 1 ? 'Approved' : Number(r.verify_status) === 2 ? 'Rejected' : 'Pending'),
+    accessor: (r) => (getVerifyStatus(r) === 1 ? 'Approved' : getVerifyStatus(r) === 2 ? 'Rejected' : 'Pending'),
+  },
+  {
+    header: 'Verify Remarks',
+    accessor: (r) => r.inst_verify_remarks || DASH,
+  },
+  {
+    header: 'Verify Date',
+    accessor: (r) => r.inst_verify_date || DASH,
   },
   {
     header: 'Claim Status',
@@ -1234,6 +1248,20 @@ export function UP_Installation_SSL_InstallationDetail() {
                             <span className="ax-badge__dot" />
                             {locked ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
                           </span>
+                          {item.inst_verify_remarks && (
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: isRejected ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)',
+                                marginTop: 3,
+                                maxWidth: 170,
+                                lineHeight: 1.25,
+                              }}
+                              title={item.inst_verify_remarks}
+                            >
+                              {item.inst_verify_remarks}
+                            </div>
+                          )}
                         </td>
 
                         {/* Claim Status Badge (payment tab only) */}
@@ -1373,6 +1401,35 @@ export function UP_Installation_SSL_InstallationDetail() {
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>Battery No:</span> <b>{detailModalItem.battery_serial_no || '—'}</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>Latitude:</span> <b>{detailModalItem.latitude || '—'}</b></div>
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>Longitude:</span> <b>{detailModalItem.longitude || '—'}</b></div>
+                <div>
+                  <span style={{ color: 'var(--ax-text-muted)' }}>Verify Status:</span>{' '}
+                  <span
+                    className={`ax-badge ax-badge--soft ax-badge--pill ${
+                      isVerified(detailModalItem)
+                        ? 'ax-badge--success'
+                        : isVerifyRejected(detailModalItem)
+                        ? 'ax-badge--danger'
+                        : 'ax-badge--warning'
+                    }`}
+                    style={{ marginLeft: 6 }}
+                  >
+                    <span className="ax-badge__dot" />
+                    {isVerified(detailModalItem) ? 'Approved' : isVerifyRejected(detailModalItem) ? 'Rejected' : 'Pending'}
+                  </span>
+                </div>
+                {detailModalItem.inst_verify_date ? (
+                  <div><span style={{ color: 'var(--ax-text-muted)' }}>Verify Date:</span> <b>{detailModalItem.inst_verify_date}</b></div>
+                ) : (
+                  <div />
+                )}
+                {detailModalItem.inst_verify_remarks && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <span style={{ color: 'var(--ax-text-muted)' }}>Verify Remarks:</span>{' '}
+                    <b style={{ color: isVerifyRejected(detailModalItem) ? 'var(--ax-danger, #ef4444)' : undefined }}>
+                      {detailModalItem.inst_verify_remarks}
+                    </b>
+                  </div>
+                )}
                 <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ax-text-muted)' }}>Remark:</span> <b>{detailModalItem.remark || detailModalItem.inst_remarks || '—'}</b></div>
               </div>
 

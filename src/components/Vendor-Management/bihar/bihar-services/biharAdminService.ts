@@ -127,7 +127,9 @@ export async function fetchWithCandidateUrls<T = any>(
           try {
             return JSON.parse(text);
           } catch {
-            return text as any;
+            // Received HTML or non-JSON content, skip to next candidate URL
+            lastError = new Error(`Received non-JSON response from ${url}`);
+            continue;
           }
         }
         lastError = new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
@@ -169,103 +171,7 @@ export class BiharAdminService {
 
   // GET view-assign-survey
   async getViewAssignSrt200mwSurveys() {
-    const candidateUrls = Array.isArray(BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN)
-      ? BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN
-      : [BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN];
-
-    const token = authService.getToken();
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    let lastError: any = null;
-
-    for (const url of candidateUrls) {
-      try {
-        let res = await fetch(url, { method: 'GET', headers });
-
-        if (res.status === 405) {
-          res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({}) });
-        }
-
-        if (res.status === 404) {
-          try {
-            const contentType = res.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-              const json = await res.json();
-              if (
-                json &&
-                (json.message ||
-                  json.data !== undefined ||
-                  json.srt200mw !== undefined ||
-                  json.assignments !== undefined ||
-                  json.success === false ||
-                  json.status === false)
-              ) {
-                return {
-                  status: true,
-                  data: {
-                    srt200mw: Array.isArray(json?.data?.srt200mw)
-                      ? json.data.srt200mw
-                      : Array.isArray(json?.srt200mw)
-                      ? json.srt200mw
-                      : Array.isArray(json?.data)
-                      ? json.data
-                      : Array.isArray(json)
-                      ? json
-                      : [],
-                    survey_detail: json?.data?.survey_detail || json?.survey_detail || { total: 0, complete: 0, pending: 0 },
-                  },
-                  assignments: Array.isArray(json?.assignments) ? json.assignments : Array.isArray(json?.data?.assignments) ? json.data.assignments : [],
-                  message: json.message || 'No records found',
-                };
-              }
-            }
-          } catch {
-            // Not JSON 404, continue to next candidate
-          }
-          continue;
-        }
-
-        const contentType = res.headers.get('content-type') || '';
-        let json: any = null;
-        if (contentType.includes('application/json')) {
-          json = await res.json();
-        } else {
-          const text = await res.text();
-          try {
-            json = JSON.parse(text);
-          } catch {
-            json = null;
-          }
-        }
-
-        if (res.ok && json) {
-          return json;
-        }
-
-        if (!res.ok) {
-          lastError = new Error(json?.message || `Request failed with status ${res.status}`);
-        }
-      } catch (err: any) {
-        lastError = err;
-      }
-    }
-
-    console.warn('[biharAdminService] All candidate URLs for getViewAssignSrt200mwSurveys exhausted. Returning safe empty dataset:', lastError);
-    return {
-      status: true,
-      data: {
-        srt200mw: [],
-        survey_detail: { total: 0, complete: 0, pending: 0 },
-      },
-      assignments: [],
-      message: 'No survey assignment records found.',
-    };
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_200MW_SURVEY.VIEW_ASSIGN);
   }
 
   // POST approval-assign/{id}

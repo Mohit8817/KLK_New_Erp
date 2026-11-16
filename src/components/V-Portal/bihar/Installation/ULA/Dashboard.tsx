@@ -819,15 +819,7 @@ export function Bihar_Installation_ULA_Dashboard() {
           </div>
         </section>
 
-        {/* ══════════════════════════════════════════════════════════════
-            4. THE 13 EXACT DLE-STYLE KPI CARDS (ALL REQUIRED METRICS)
-            ══════════════════════════════════════════════════════════════ */}
-        <div className="ax-col--12">
-          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={sectionHeadStyle}>ULA Operational Metrics &amp; Approval Status</h4>
-            <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Click card to inspect matching sites</span>
-          </div>
-        </div>
+
 
 
 

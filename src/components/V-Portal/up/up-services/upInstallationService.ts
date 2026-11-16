@@ -199,6 +199,10 @@ export interface UpSsl18wInstalledLightItem {
   remark?: string;
   inst_remarks?: string;
   verify_status?: number;
+  inst_verify_status?: number;
+  inst_verify_by?: string | number;
+  inst_verify_date?: string;
+  inst_verify_remarks?: string;
   claim_status?: number;
   inst_claim_status?: number;
   inst_pay_status?: number;
@@ -270,7 +274,11 @@ export interface UpSsl18wDashboardData {
  * ═════════════════════════════════════════════════════════════════════ */
 
 export interface UpRescoAssignSiteItem {
-  id: number;
+  id: number | string;
+  assign_id?: number | string;
+  resco_id?: number | string;
+  site_id?: number | string;
+  site_ids?: string[];
   company_id?: string;
   volume?: number;
   purpose?: string;
@@ -332,7 +340,9 @@ export interface UpRescoAssignSiteItem {
 }
 
 export interface UpRescoSiteDetail {
-  id: number;
+  id: number | string;
+  resco_id?: number | string;
+  site_id?: number | string;
   state?: string;
   district?: string;
   dept_name?: string;
@@ -430,18 +440,46 @@ export interface UpRescoPanelItem {
 export interface UpRescoVerifiedSite {
   id: number;
   site_name: string;
+  state?: string;
   district?: string;
-  sanction_load?: string;
+  dept_name?: string;
+  address?: string;
+  sanction_load?: string | number;
+  plant_sc?: string | number;
+  capacity?: string | number;
+  contact_person?: string | null;
+  contact_number?: string | null;
+  inverter_no?: string | null;
+  solarmeter_no?: string | null;
+  solar_meter_no?: string | null;
+  nm_sm_no?: string | null;
+  net_smart_meter_no?: string | null;
+  loger_no?: string | null;
   inst_status?: number;
   inst_verify_status?: number;
+  vendor?: string;
+  firm_name?: string;
+  vendors?: {
+    name?: string;
+    firm?: string;
+    company?: string;
+    contact?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
 }
+
+export type UpRescoMonthlyBillItem = UpRescoVerifiedSite;
 
 export interface UpRescoBillInverterReading {
   inverter_no: string;
-  previous_reading: number;
-  current_reading: number;
-  generated_reading: number;
-  amount: number;
+  previous_reading: number | string;
+  current_reading: number | string;
+  generated_reading: number | string;
+  amount: number | string;
+  file?: string | null;
+  remarks?: string | null;
+  [key: string]: any;
 }
 
 export interface UpRescoBillItem {
@@ -452,9 +490,15 @@ export interface UpRescoBillItem {
   billing_to?: string;
   due_date?: string;
   bill_amount: number | string;
-  per_unit_price?: number;
+  total_reading?: number | string;
+  reading?: number | string;
+  per_unit_price?: number | string;
   bill_status?: number;
+  verify_status?: number;
+  file?: string | null;
+  remarks?: string | null;
   readings?: UpRescoBillInverterReading[];
+  [key: string]: any;
 }
 
 export interface UpRescoDashboardCounts {
@@ -773,6 +817,82 @@ export interface UpKusumCDashboardData {
  * SERVICE IMPLEMENTATION (19 Resco + 17 Kusum-C + 17 SSL 18W)
  * ═════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Robust extractor for all individual Resco site IDs inside an assignment row.
+ * Handles arrays, JSON-encoded array strings (e.g. '["7223"]'), numbers, and numeric JSON object keys.
+ */
+export function extractSiteIdsFromAssign(assign: any): string[] {
+  const ids: string[] = [];
+  if (!assign) return ids;
+
+  const pushIfValid = (val: any) => {
+    if (val === null || val === undefined) return;
+    const str = String(val).trim();
+    if (!str || str === 'null' || str === 'undefined') return;
+    if (!ids.includes(str)) ids.push(str);
+  };
+
+  // 1. Direct resco_id / up_resco_id
+  pushIfValid(assign.resco_id);
+  pushIfValid(assign.up_resco_id);
+
+  // 2. Check site_id (could be array, JSON array string like '["7223"]', number, or string)
+  if (assign.site_id) {
+    if (Array.isArray(assign.site_id)) {
+      assign.site_id.forEach(pushIfValid);
+    } else if (typeof assign.site_id === 'string') {
+      const trimmed = assign.site_id.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(pushIfValid);
+          }
+        } catch {
+          // not valid json array
+        }
+      } else if (trimmed) {
+        pushIfValid(trimmed);
+      }
+    } else if (typeof assign.site_id === 'number') {
+      pushIfValid(assign.site_id);
+    }
+  }
+
+  // 3. Check site_ids
+  if (assign.site_ids) {
+    if (Array.isArray(assign.site_ids)) {
+      assign.site_ids.forEach(pushIfValid);
+    } else if (typeof assign.site_ids === 'string') {
+      const trimmed = assign.site_ids.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) parsed.forEach(pushIfValid);
+        } catch {}
+      }
+    }
+  }
+
+  // 4. Check site_name if it has JSON map with numeric keys e.g. {"7223": "2026-11-20"}
+  let siteNameObj = assign.site_name;
+  if (typeof siteNameObj === 'string' && siteNameObj.trim().startsWith('{')) {
+    try {
+      siteNameObj = JSON.parse(siteNameObj);
+    } catch {}
+  }
+  if (siteNameObj && typeof siteNameObj === 'object' && !Array.isArray(siteNameObj)) {
+    Object.keys(siteNameObj).forEach((k) => {
+      const trimmed = k.trim();
+      if (/^\d+$/.test(trimmed)) {
+        pushIfValid(trimmed);
+      }
+    });
+  }
+
+  return ids;
+}
+
 class UpInstallationService {
   /* ─────────────────────────────────────────────────────────────
    * 1. UP SSL 18W INSTALLATION APIs (Endpoints 1-17)
@@ -856,10 +976,37 @@ class UpInstallationService {
       payment_partially: Number(d.payment_partially ?? 0),
       ...d,
     };
+
+    const normalizeRow = (r: any): UpSsl18wInstalledLightItem => {
+      const vStatus = r.inst_verify_status !== undefined && r.inst_verify_status !== null
+        ? Number(r.inst_verify_status)
+        : (r.verify_status !== undefined && r.verify_status !== null ? Number(r.verify_status) : 0);
+      const parsedStatus = Number.isNaN(vStatus) ? 0 : vStatus;
+      return {
+        ...r,
+        verify_status: parsedStatus,
+        inst_verify_status: parsedStatus,
+        inst_verify_by: r.inst_verify_by ?? r.verify_by,
+        inst_verify_date: r.inst_verify_date ?? r.verify_date,
+        inst_verify_remarks: r.inst_verify_remarks ?? r.verify_remarks,
+        remark: r.remark || r.inst_remarks || '',
+        inst_remarks: r.inst_remarks || r.remark || '',
+        installation_date: r.installation_date || r.inst_date || '',
+        inst_date: r.inst_date || r.installation_date || '',
+      };
+    };
+
+    const rawPayment = Array.isArray(res.payment_sites)
+      ? res.payment_sites
+      : (Array.isArray(res.data?.payment_sites) ? res.data.payment_sites : []);
+    const rawCompleted = Array.isArray(res.completed_sites)
+      ? res.completed_sites
+      : (Array.isArray(res.data?.completed_sites) ? res.data.completed_sites : []);
+
     return {
       install_details,
-      payment_sites: Array.isArray(res.payment_sites) ? res.payment_sites : (Array.isArray(res.data?.payment_sites) ? res.data.payment_sites : []),
-      completed_sites: Array.isArray(res.completed_sites) ? res.completed_sites : (Array.isArray(res.data?.completed_sites) ? res.data.completed_sites : []),
+      payment_sites: rawPayment.map(normalizeRow),
+      completed_sites: rawCompleted.map(normalizeRow),
     };
   }
 
@@ -921,21 +1068,57 @@ class UpInstallationService {
   /** SSL 16: Lights by status */
   async getSsl18wDashboardByStatus(status: string): Promise<UpSsl18wInstalledLightItem[]> {
     const res = await apiRequest(`up/ssl18w/installation-view-dashboard/${status}`);
-    return res.data?.ssl && Array.isArray(res.data.ssl)
+    const rawList = res.data?.ssl && Array.isArray(res.data.ssl)
       ? res.data.ssl
       : Array.isArray(res.data)
       ? res.data
       : [];
+    return rawList.map((r: any) => {
+      const vStatus = r.inst_verify_status !== undefined && r.inst_verify_status !== null
+        ? Number(r.inst_verify_status)
+        : (r.verify_status !== undefined && r.verify_status !== null ? Number(r.verify_status) : 0);
+      const parsedStatus = Number.isNaN(vStatus) ? 0 : vStatus;
+      return {
+        ...r,
+        verify_status: parsedStatus,
+        inst_verify_status: parsedStatus,
+        inst_verify_by: r.inst_verify_by ?? r.verify_by,
+        inst_verify_date: r.inst_verify_date ?? r.verify_date,
+        inst_verify_remarks: r.inst_verify_remarks ?? r.verify_remarks,
+        remark: r.remark || r.inst_remarks || '',
+        inst_remarks: r.inst_remarks || r.remark || '',
+        installation_date: r.installation_date || r.inst_date || '',
+        inst_date: r.inst_date || r.installation_date || '',
+      };
+    });
   }
 
   /** SSL 17: Lights by status and district */
   async getSsl18wDashboardByDistrict(status: string, district: string): Promise<UpSsl18wInstalledLightItem[]> {
     const res = await apiRequest(`up/ssl18w/installation-view-districtwise/${status}/${encodeURIComponent(district)}`);
-    return res.data?.ssl && Array.isArray(res.data.ssl)
+    const rawList = res.data?.ssl && Array.isArray(res.data.ssl)
       ? res.data.ssl
       : Array.isArray(res.data)
       ? res.data
       : [];
+    return rawList.map((r: any) => {
+      const vStatus = r.inst_verify_status !== undefined && r.inst_verify_status !== null
+        ? Number(r.inst_verify_status)
+        : (r.verify_status !== undefined && r.verify_status !== null ? Number(r.verify_status) : 0);
+      const parsedStatus = Number.isNaN(vStatus) ? 0 : vStatus;
+      return {
+        ...r,
+        verify_status: parsedStatus,
+        inst_verify_status: parsedStatus,
+        inst_verify_by: r.inst_verify_by ?? r.verify_by,
+        inst_verify_date: r.inst_verify_date ?? r.verify_date,
+        inst_verify_remarks: r.inst_verify_remarks ?? r.verify_remarks,
+        remark: r.remark || r.inst_remarks || '',
+        inst_remarks: r.inst_remarks || r.remark || '',
+        installation_date: r.installation_date || r.inst_date || '',
+        inst_date: r.inst_date || r.installation_date || '',
+      };
+    });
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -947,9 +1130,21 @@ class UpInstallationService {
     const res = await apiRequest('up/resco/installation/view-assign-sites');
     let items: UpRescoAssignSiteItem[] = [];
 
-    if (Array.isArray(res.data)) {
-      items = res.data.map((row: any) => {
-        const assign = row.assign_resc || row;
+    const rawList = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.sites)
+      ? res.sites
+      : Array.isArray(res.resco)
+      ? res.resco
+      : Array.isArray(res.assign_resc)
+      ? res.assign_resc
+      : (res.data && typeof res.data === 'object' && Array.isArray((res.data as any).sites))
+      ? (res.data as any).sites
+      : [];
+
+    if (rawList.length > 0) {
+      items = rawList.map((row: any) => {
+        const assign = row.assign_resc || row.assign || row;
 
         let siteNameObj: Record<string, string> | string = assign.site_name;
         if (typeof siteNameObj === 'string' && siteNameObj.trim().startsWith('{')) {
@@ -964,22 +1159,39 @@ class UpInstallationService {
         }
 
         let extractedDeadline = '';
+        let inferredRescoId: string | undefined;
         if (siteNameObj && typeof siteNameObj === 'object') {
           const deadlines = Object.values(siteNameObj).filter(Boolean);
           if (deadlines.length > 0) {
             extractedDeadline = String(deadlines[0]);
           }
+          const numKey = Object.keys(siteNameObj).find((k) => /^\d+$/.test(k.trim()));
+          if (numKey) {
+            inferredRescoId = numKey.trim();
+          }
         }
+
+        const extractedIds = extractSiteIdsFromAssign(assign);
+        const resolvedRescoId =
+          (extractedIds.length > 0 ? extractedIds[0] : undefined) ??
+          assign.resco_id ??
+          assign.up_resco_id ??
+          row.resco_id ??
+          inferredRescoId;
 
         const countNum =
           Number(
             assign.sitecount ??
             assign.volume ??
-            (typeof siteNameObj === 'object' && siteNameObj !== null ? Object.keys(siteNameObj).length : 1)
+            (extractedIds.length > 0 ? extractedIds.length : (typeof siteNameObj === 'object' && siteNameObj !== null ? Object.keys(siteNameObj).length : 1))
           ) || 1;
 
         return {
           id: assign.id,
+          assign_id: assign.id,
+          resco_id: resolvedRescoId,
+          site_id: resolvedRescoId,
+          site_ids: extractedIds,
           company_id: assign.company_id,
           volume: assign.volume,
           purpose: assign.purpose || 'installation',
@@ -1022,7 +1234,7 @@ class UpInstallationService {
   /** Resco 2: View assigned site detail */
   async getRescoAssignDetail(id: number | string): Promise<{ status: boolean; data?: UpRescoAssignSiteItem }> {
     const res = await apiRequest(`up/resco/installation/view-assign-detail/${id}`);
-    const assign = res.data?.assign_resc || res.data;
+    const assign = res.data?.assign_resc || res.data?.assign || res.data || res.assign_resc || res;
     if (!assign) {
       return { status: res.status, data: undefined };
     }
@@ -1040,15 +1252,32 @@ class UpInstallationService {
     }
 
     let extractedDeadline = '';
+    let inferredRescoId: string | undefined;
     if (siteNameObj && typeof siteNameObj === 'object') {
       const deadlines = Object.values(siteNameObj).filter(Boolean);
       if (deadlines.length > 0) {
         extractedDeadline = String(deadlines[0]);
       }
+      const numKey = Object.keys(siteNameObj).find((k) => /^\d+$/.test(k.trim()));
+      if (numKey) {
+        inferredRescoId = numKey.trim();
+      }
     }
 
+    const extractedIds = extractSiteIdsFromAssign(assign);
+    const resolvedRescoId =
+      (extractedIds.length > 0 ? extractedIds[0] : undefined) ??
+      assign.resco_id ??
+      assign.up_resco_id ??
+      res.data?.resco_id ??
+      inferredRescoId;
+
     const item: UpRescoAssignSiteItem = {
-      id: assign.id,
+      id: assign.id || id,
+      assign_id: assign.id || id,
+      resco_id: resolvedRescoId,
+      site_id: resolvedRescoId,
+      site_ids: extractedIds,
       company_id: assign.company_id,
       volume: assign.volume,
       purpose: assign.purpose || 'installation',
@@ -1060,7 +1289,7 @@ class UpInstallationService {
       site_name: siteNameObj,
       assign_date: assign.assign_date || '',
       sitecount: assign.sitecount,
-      count: Number(assign.sitecount ?? assign.volume ?? 1) || 1,
+      count: Number(assign.sitecount ?? assign.volume ?? (extractedIds.length > 0 ? extractedIds.length : 1)) || 1,
       file: assign.file || null,
       panel_no_file: assign.panel_no_file || null,
       created_by: assign.created_by,
@@ -1091,15 +1320,101 @@ class UpInstallationService {
   }
 
   /** Resco 4: Fetch sites ready for installation (dropdown) */
-  async getRescoAvailableSites(): Promise<{ id: number; site_name: string }[]> {
-    const res = await apiRequest('up/resco/installation/fetch-site');
-    return Array.isArray(res.data) ? res.data : [];
+  async getRescoAvailableSites(): Promise<{ id: number | string; site_name: string; resco_id?: number | string; site_id?: number | string; district?: string; state?: string; [key: string]: any }[]> {
+    const endpoints = [
+      'up/resco/installation/fetch-site',
+      'up/resco/installation/fetch-site-name',
+      'up/resco/installation/fetch-sites',
+      'up/resco/installation/fetch-sites-name',
+      'up/resco-installation-fetch-site',
+      'up/resco-install-site',
+      'up/resco/fetch-site',
+      'up/resco/fetch-site-name',
+      'up/resco-survey',
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep);
+        let list: any[] = [];
+        if (Array.isArray(res)) list = res;
+        else if (Array.isArray(res.data)) list = res.data;
+        else if (Array.isArray(res.sites)) list = res.sites;
+        else if (Array.isArray(res.site)) list = res.site;
+        else if (Array.isArray(res.resco)) list = res.resco;
+        else if (Array.isArray(res.rescos)) list = res.rescos;
+        else if (res.data && typeof res.data === 'object') {
+          if (Array.isArray(res.data.sites)) list = res.data.sites;
+          else if (Array.isArray(res.data.site)) list = res.data.site;
+          else if (Array.isArray(res.data.resco)) list = res.data.resco;
+          else if (Array.isArray(res.data.rescos)) list = res.data.rescos;
+          else if (Array.isArray(res.data.data)) list = res.data.data;
+        }
+
+        if (list.length > 0) {
+          return list.map((item: any) => {
+            const rawId = item.id ?? item.resco_id ?? item.site_id;
+            const rescoId = item.resco_id ?? item.site_id ?? item.id;
+            return {
+              id: rawId,
+              resco_id: rescoId,
+              site_id: rescoId,
+              site_name: item.site_name || item.name || `Site #${rawId}`,
+              district: item.district || '',
+              state: item.state || 'UP',
+              ...item,
+            };
+          });
+        }
+      } catch {
+        // try next endpoint
+      }
+    }
+    return [];
   }
 
   /** Resco 5: Fetch site detail */
   async getRescoSiteDetail(id: number | string): Promise<UpRescoSiteDetail | null> {
-    const res = await apiRequest<UpRescoSiteDetail>(`up/resco/installation/fetch-site-detail/${id}`);
-    return res.status && res.data ? res.data : null;
+    const cleanId = String(id || '').trim();
+    if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return null;
+    try {
+      const res = await apiRequest(`up/resco/installation/fetch-site-detail/${cleanId}`);
+
+      // Critical fix: If backend returns { status: true, data: null }, site does NOT exist in master!
+      if (res.data === null && !res.resco && !res.site) {
+        return null;
+      }
+      if (res.status === false && !res.data && !res.resco && !res.site) {
+        return null;
+      }
+
+      let detail: any = null;
+      if (res.resco && typeof res.resco === 'object') detail = res.resco;
+      else if (res.site && typeof res.site === 'object') detail = res.site;
+      else if (res.data && typeof res.data === 'object' && res.data !== null) {
+        if (res.data.resco && typeof res.data.resco === 'object') detail = res.data.resco;
+        else if (res.data.site && typeof res.data.site === 'object') detail = res.data.site;
+        else if (!Array.isArray(res.data)) detail = res.data;
+      } else if (res && typeof res === 'object' && !Array.isArray(res)) {
+        // Only accept if res contains actual site record properties
+        if (res.site_name || res.district || res.ca_no || res.firm_name || res.sanction_load || res.plant_sc) {
+          detail = res;
+        }
+      }
+
+      if (detail && typeof detail === 'object' && Object.keys(detail).length > 0) {
+        const resolvedId = detail.id ?? detail.resco_id ?? detail.site_id ?? cleanId;
+        return {
+          ...detail,
+          id: resolvedId,
+          resco_id: detail.resco_id ?? resolvedId,
+          site_id: detail.site_id ?? resolvedId,
+        } as UpRescoSiteDetail;
+      }
+    } catch (err) {
+      console.warn(`[getRescoSiteDetail] Failed for id ${cleanId}:`, err);
+    }
+    return null;
   }
 
   /** Resco 6: Submit an installation (multipart) */
@@ -1174,6 +1489,11 @@ class UpInstallationService {
   async getRescoVerifiedSites(): Promise<UpRescoVerifiedSite[]> {
     const res = await apiRequest('up/resco/view-install');
     return Array.isArray(res.data) ? res.data : [];
+  }
+
+  /** Alias for Resco 13: Monthly billing verified sites */
+  async getRescoMonthlyBill(): Promise<UpRescoVerifiedSite[]> {
+    return this.getRescoVerifiedSites();
   }
 
   /** Resco 14: Data for the bill form */
