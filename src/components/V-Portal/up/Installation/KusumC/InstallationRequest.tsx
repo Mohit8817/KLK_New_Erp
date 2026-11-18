@@ -1227,13 +1227,7 @@ export function UP_Installation_KusumC_InstallationRequest() {
                           ) : (
                             <>
                               <Badge tone="success">Done</Badge>
-                              <Link
-                                to={`/v/up/install-kusum-c-site`}
-                                className="ax-btn ax-btn--secondary ax-btn--xs"
-                                style={{ padding: '3px 8px', fontSize: 11 }}
-                              >
-                                Install
-                              </Link>
+                           
                             </>
                           )}
                         </div>

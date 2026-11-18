@@ -16,14 +16,15 @@ const T = (h: string, keys: string[], o?: Parameters<typeof textCol>[2]) => text
 
 const COLUMNS: ComplaintColumn<Row>[] = [
   T('Complaint ID', ['complaint_id', 'id'], { accent: true }),
-  T('Complaint Date', ['complaint_date', 'created_date', 'created_at']),
+  T('UID No', ['uid', 'uid_no', 'uuid_no', 'system_id'], { accent: true }),
+  T('Complaint Date', ['start_date', 'complaint_date', 'created_date', 'created_at']),
   T('Complaint Issue', ['complaint_issue', 'issue', 'complaint']),
   T('Complaint', ['complaint', 'complaint_issue'], { clamp: true }),
   T('Complaint Source', ['complaint_source']),
   T('State', ['state'], { fallback: 'Uttar Pradesh' }),
   T('District', ['district'], { strong: true }),
   T('Block', ['block']),
-  T('Panchayat', ['panchayat']),
+  T('Panchayat', ['panchyat', 'panchayat', 'panchayt']),
   T('Phase', ['phase']),
   T('Address', ['address'], { clamp: true }),
   T('Ward No', ['ward_no']),
@@ -66,6 +67,7 @@ export function UPComplaintSSLAssigned() {
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),
+        pick(c, ['uid', 'uid_no', 'uuid_no', 'system_id'], ''),
         pick(c, ['pole_no'], ''),
         pick(c, ['luminary_no'], ''),
         pick(c, ['light_no'], ''),
@@ -73,11 +75,12 @@ export function UPComplaintSSLAssigned() {
         pick(c, ['contact_no', 'contact_number'], ''),
         pick(c, ['district'], ''),
         pick(c, ['block'], ''),
-        pick(c, ['panchayat'], ''),
+        pick(c, ['panchyat', 'panchayat', 'panchayt'], ''),
         pick(c, ['ward_no'], ''),
         pick(c, ['battery_serial_no', 'battery_no'], ''),
         pick(c, ['module_no', 'panel_no'], ''),
         pick(c, ['complaint_issue', 'issue', 'complaint'], ''),
+        pick(c, ['start_date', 'complaint_date', 'created_at'], ''),
       ]}
       exportName="UP_SSL_Assigned"
       exportTitle="UP SSL Assigned Complaints"
@@ -85,10 +88,11 @@ export function UPComplaintSSLAssigned() {
       detail={{
         eyebrow: 'Solar Street Light',
         fields: (r: Row): DetailField[] => [
+          { label: 'UID No', value: pick(r, ['uid', 'uid_no', 'uuid_no', 'system_id']) },
           { label: 'State', value: pick(r, ['state'], 'Uttar Pradesh') },
           { label: 'District', value: pick(r, ['district']) },
           { label: 'Block', value: pick(r, ['block']) },
-          { label: 'Panchayat', value: pick(r, ['panchayat']) },
+          { label: 'Panchayat', value: pick(r, ['panchyat', 'panchayat', 'panchayt']) },
           { label: 'Pole No', value: pick(r, ['pole_no']) },
           { label: 'Light No', value: pick(r, ['light_no']) },
           { label: 'Luminary No', value: pick(r, ['luminary_no']) },

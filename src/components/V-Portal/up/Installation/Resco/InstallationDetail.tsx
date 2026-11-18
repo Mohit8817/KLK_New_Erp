@@ -750,7 +750,7 @@ export function UP_Installation_Resco_InstallationDetail() {
   const [verifyFilter, setVerifyFilter] = useState<VerifyFilter>('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
 
   // Photo Preview Modal (Lightbox)
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);

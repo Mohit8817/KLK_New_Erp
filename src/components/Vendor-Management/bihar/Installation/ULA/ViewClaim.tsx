@@ -658,8 +658,12 @@ export function BiharULAInstallationViewClaim() {
               return {
                 id: item.id || idx + 1,
                 payment_type: item.payment_type || (item.claim_percent ? `${item.claim_percent}% Tranche` : '50% First Tranche (Supply & MMS)'),
-                vendor: item.vendor_name || item.vendor || 'ETS Networks Pvt Ltd',
-                vendor_id: item.vendor_id || item.vendor,
+                vendor: typeof item.vendor_name === 'string' && item.vendor_name
+                  ? item.vendor_name
+                  : typeof item.vendor === 'object' && item.vendor !== null
+                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
+                  : (item.vendor || 'ETS Networks Pvt Ltd'),
+                vendor_id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor_id || item.vendor),
                 date: item.date || item.created_at ? fmtDate(item.date || item.created_at) : '02-11-2024',
                 sites: item.sites || item.site_id || item.site_count || 4,
                 site_id: item.site_id || item.sites,

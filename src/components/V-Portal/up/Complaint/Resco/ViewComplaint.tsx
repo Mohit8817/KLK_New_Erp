@@ -38,8 +38,8 @@ const formatDate = (v: string) => {
 const COLUMNS: ComplaintColumn<Row>[] = [
   {
     header: 'Complaint ID',
-    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>#{complaintId(r)}</b>,
-    exportValue: (r) => `#${complaintId(r)}`,
+    cell: (r) => <b style={{ color: 'var(--ax-primary-default, #2563eb)' }}>{complaintId(r)}</b>,
+    exportValue: (r) => `${complaintId(r)}`,
   },
   {
     header: 'Complaint Date',

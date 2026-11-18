@@ -8,6 +8,34 @@ export const ADMIN_BASE_URL = `${API_ROOT}/admin`;
 export const ROOT_URL = RAW_BASE.replace(/\/api\/?$/, '');
 
 /**
+ * Build candidate URLs for a given route path (supporting both /api/admin/... and /admin/...)
+ */
+export function buildCandidateUrls(path: string): string[] {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const candidates: string[] = [];
+
+  // 1. With /api/admin prefix (standard API route)
+  candidates.push(`${API_ROOT}${cleanPath}`);
+
+  // 2. Direct with ROOT_URL (web route or non-api prefixed backend route)
+  candidates.push(`${ROOT_URL}${cleanPath}`);
+
+  // 3. Without /admin prefix if path starts with /admin (e.g. /api/punjab/... and /punjab/...)
+  if (cleanPath.startsWith('/admin/')) {
+    const nonAdminPath = cleanPath.replace(/^\/admin/, '');
+    candidates.push(`${API_ROOT}${nonAdminPath}`);
+    candidates.push(`${ROOT_URL}${nonAdminPath}`);
+  }
+
+  // 4. Fallback with RAW_BASE
+  if (RAW_BASE !== API_ROOT && RAW_BASE !== ROOT_URL) {
+    candidates.push(`${RAW_BASE}${cleanPath}`);
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+/**
  * ═══════════════════════════════════════════════════════════════════════════
  * PUNJAB - V-PORTAL (EXTERNAL VENDOR) APIS
  * ═══════════════════════════════════════════════════════════════════════════
@@ -30,6 +58,7 @@ export const PUNJAB_ADMIN_SSL_API = {
   // GET /admin/punjab/ssl/installation/assign
   ASSIGN_FORM_DATA: `${ADMIN_BASE_URL}/punjab/ssl/installation/assign`,
   ASSIGN_FORM_DATA_ROOT: `${BASE_URL}/punjab/ssl/installation/assign`,
+  ASSIGN_FORM_DATA_CANDIDATES: () => buildCandidateUrls('/admin/punjab/ssl/installation/assign'),
 
   // ── 2. Districts by volume ──
   // GET /admin/punjab/ssl/installation/fetch-district/{volume}
@@ -96,7 +125,6 @@ export const PUNJAB_ADMIN_SSL_API = {
   // ── 5. Save assignment ──
   // POST /admin/punjab/ssl/installation/store-assign
   STORE_ASSIGN: `${ADMIN_BASE_URL}/punjab/ssl/installation/store-assign`,
-  STORE_ASSIGN_ROOT: `${BASE_URL}/punjab/ssl/installation/store-assign`,
 
   // ── 6. Edit form ──
   // GET /admin/punjab/ssl/installation/edit-assign/{id}

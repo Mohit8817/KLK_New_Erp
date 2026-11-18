@@ -801,9 +801,6 @@ export function UPKusumCVerifyDocument() {
       )}
 
       {/* Footer copyright */}
-      <footer className="up-page-footer" style={{ marginTop: 28, padding: 16, textAlign: 'center', fontSize: 12.5, color: '#64748b', borderTop: '1px solid #e2e8f0' }}>
-        Copyright © ETS NETWORKS. All rights reserved.
-      </footer>
     </div>
   );
 }

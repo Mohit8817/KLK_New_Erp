@@ -2103,10 +2103,6 @@ export function BiharSRT200MWSurveyDashboard() {
         </section>
       </div>
 
-      <footer style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--ax-border, #e2e8f0)', textAlign: 'center', color: 'var(--ax-text-muted)', fontSize: 13 }}>
-        Copyright © ETS NETWORKS. All rights reserved.
-      </footer>
-
       {/* 11. Interactive Status / Site Drilldown Modal matching Karnataka SWP standard */}
       <Modal
         open={modalOpen}

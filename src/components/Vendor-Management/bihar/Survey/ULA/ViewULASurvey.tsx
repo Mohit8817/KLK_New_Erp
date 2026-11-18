@@ -541,35 +541,44 @@ export function BiharULASurveyViewData() {
           ? rawVerified
           : allSurveys.filter((s: any) => s.verify_status === 'Approved' || s.verify_status === 'Rejected' || s.verify_status === 1 || s.verify_status === 2);
 
-        const normalize = (item: any, idx: number): Row => ({
-          id: item.id || idx + 1,
-          survey_date: item.survey_date || item.created_at || '—',
-          vendor_name: item.vendor_name || item.vendor || 'Vendor',
-          district: item.district || '—',
-          block: item.block || '—',
-          panchayat: item.panchayat || '—',
-          village: item.village || '—',
-          address: item.address || '—',
-          consumer_name: item.consumer_name || item.name || `Consumer #${item.id || idx + 1}`,
-          gender: item.gender || '—',
-          contact_no: item.contact_no || item.phone || '—',
-          aadhar_no: item.aadhar_no || item.aadhaar_no || '—',
-          ca_number: item.ca_number || item.ca_no || '—',
-          smart_meter: item.smart_meter || 'Yes',
-          smart_meter_no: item.smart_meter_no || '—',
-          meter_functional: item.meter_functional || 'Yes',
-          feasible: item.feasible === 'No' || item.feasible === 0 || item.feasible === '0' ? 'No' : 'Yes',
-          latitude: item.latitude || '—',
-          longitude: item.longitude || '—',
-          electricity_bill_photo: resolveBiharMediaUrl(item.electricity_bill_photo || item.bill_photo),
-          consent_form_photo: resolveBiharMediaUrl(item.consent_form_photo || item.consent_photo),
-          aadhar_card_photo: resolveBiharMediaUrl(item.aadhar_card_photo || item.aadhar_photo),
-          remarks: item.remarks || '—',
-          status: item.status !== undefined ? String(item.status) : 'Completed',
-          verify_status: item.verify_status === 1 || item.verify_status === 'Approved' ? 'Approved' : item.verify_status === 2 || item.verify_status === 'Rejected' ? 'Rejected' : 'Pending',
-          verify_remarks: item.verify_remarks || '',
-          verify_by: item.verify_by || '',
-        });
+        const normalize = (item: any, idx: number): Row => {
+          const rawVendor = item.vendor_name || item.vendor;
+          const vendorName = typeof rawVendor === 'object' && rawVendor !== null
+            ? (rawVendor.name || rawVendor.firm || rawVendor.company || (rawVendor.id ? `Vendor #${rawVendor.id}` : 'Vendor'))
+            : (typeof rawVendor === 'string' && rawVendor.trim() ? rawVendor.trim() : (item.agency_name || item.firm || 'Vendor'));
+
+          return {
+            id: item.id || idx + 1,
+            survey_date: typeof item.survey_date === 'string' ? item.survey_date : (typeof item.created_at === 'string' ? item.created_at : '—'),
+            vendor_name: vendorName,
+            district: typeof item.district === 'object' && item.district !== null ? (item.district.name || '—') : (item.district || '—'),
+            block: typeof item.block === 'object' && item.block !== null ? (item.block.name || '—') : (item.block || '—'),
+            panchayat: typeof item.panchayat === 'object' && item.panchayat !== null ? (item.panchayat.name || '—') : (item.panchayat || item.panchyat || '—'),
+            village: typeof item.village === 'object' && item.village !== null ? (item.village.name || '—') : (item.village || '—'),
+            address: typeof item.address === 'object' && item.address !== null ? (item.address.address || '—') : (item.address || '—'),
+            consumer_name: typeof item.consumer_name === 'object' && item.consumer_name !== null
+              ? (item.consumer_name.name || `Consumer #${item.id || idx + 1}`)
+              : (item.consumer_name || item.name || item.beneficiary_name || `Consumer #${item.id || idx + 1}`),
+            gender: typeof item.gender === 'string' ? item.gender : '—',
+            contact_no: typeof item.contact_no === 'object' && item.contact_no !== null ? (item.contact_no.contact || item.contact_no.phone || '—') : (item.contact_no || item.phone || item.mobile || '—'),
+            aadhar_no: typeof item.aadhar_no === 'object' && item.aadhar_no !== null ? (item.aadhar_no.aadhar || '—') : (item.aadhar_no || item.aadhaar_no || '—'),
+            ca_number: typeof item.ca_number === 'object' && item.ca_number !== null ? (item.ca_number.ca_number || '—') : (item.ca_number || item.ca_no || '—'),
+            smart_meter: item.smart_meter || 'Yes',
+            smart_meter_no: typeof item.smart_meter_no === 'object' && item.smart_meter_no !== null ? (item.smart_meter_no.no || '—') : (item.smart_meter_no || '—'),
+            meter_functional: item.meter_functional || 'Yes',
+            feasible: item.feasible === 'No' || item.feasible === 0 || item.feasible === '0' ? 'No' : 'Yes',
+            latitude: item.latitude || '—',
+            longitude: item.longitude || '—',
+            electricity_bill_photo: resolveBiharMediaUrl(item.electricity_bill_photo || item.bill_photo),
+            consent_form_photo: resolveBiharMediaUrl(item.consent_form_photo || item.consent_photo),
+            aadhar_card_photo: resolveBiharMediaUrl(item.aadhar_card_photo || item.aadhar_photo),
+            remarks: typeof item.remarks === 'object' && item.remarks !== null ? (item.remarks.remarks || '—') : (item.remarks || '—'),
+            status: item.status !== undefined ? String(item.status) : 'Completed',
+            verify_status: item.verify_status === 1 || item.verify_status === 'Approved' ? 'Approved' : item.verify_status === 2 || item.verify_status === 'Rejected' ? 'Rejected' : 'Pending',
+            verify_remarks: typeof item.verify_remarks === 'object' && item.verify_remarks !== null ? (item.verify_remarks.remarks || '') : (item.verify_remarks || ''),
+            verify_by: typeof item.verify_by === 'object' && item.verify_by !== null ? (item.verify_by.name || '') : (item.verify_by || ''),
+          };
+        };
 
         const pList = pending.map(normalize);
         const vList = verified.map(normalize);
@@ -1022,7 +1031,11 @@ export function BiharULASurveyViewData() {
                     <tr key={r.id}>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{srNo}</td>
                       <td className="ax-table__td">{r.survey_date}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{r.vendor_name}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                        {typeof r.vendor_name === 'object' && r.vendor_name !== null
+                          ? ((r.vendor_name as any).name || (r.vendor_name as any).firm || (r.vendor_name as any).company || 'Vendor')
+                          : String(r.vendor_name || 'Vendor')}
+                      </td>
                       <td className="ax-table__td">{r.district}</td>
                       <td className="ax-table__td">{r.block}</td>
                       <td className="ax-table__td">{r.panchayat}</td>
@@ -1455,7 +1468,11 @@ export function BiharULASurveyViewData() {
                   Survey Date: <strong>{selectedConsumer.survey_date}</strong>
                 </span>
                 <span style={{ marginLeft: 16, fontSize: 12, color: '#64748b' }}>
-                  Vendor: <strong>{selectedConsumer.vendor_name}</strong>
+                  Vendor: <strong>
+                    {typeof selectedConsumer.vendor_name === 'object' && selectedConsumer.vendor_name !== null
+                      ? ((selectedConsumer.vendor_name as any).name || (selectedConsumer.vendor_name as any).firm || (selectedConsumer.vendor_name as any).company || 'Vendor')
+                      : String(selectedConsumer.vendor_name || 'Vendor')}
+                  </strong>
                 </span>
               </div>
               <div>

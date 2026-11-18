@@ -89,11 +89,28 @@ export function getUpMediaCandidates(path?: string | null): string[] {
     candidates.push(`${BACKEND_BASE}/${normalized}`);
   }
 
+  // File prefix specific folders
+  if (/^sslcomp|^ssl/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
+  }
+  if (/^kusumb/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/kusumb/${filename}`);
+  }
+  if (/^resco/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/resco/${filename}`);
+  }
+  if (/^ongrid/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ongrid/${filename}`);
+  }
+  if (/^swp/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/swp/${filename}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/up/complaint/swp/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/up/complaint/kusumb/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ongrid/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/up/complaint/resco/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/up/complaint/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
   candidates.push(`${BACKEND_BASE}/${normalized}`);
@@ -214,18 +231,29 @@ export interface UpRescoSiteDetails {
    ───────────────────────────────────────────────────────────── */
 export interface UpSslComplaintItem {
   id: number;
+  company_id?: string | null;
+  uid?: string | number | null;
+  uid_no?: string | number | null;
+  uuid_no?: string | number | null;
   ssl_type?: string | null;
   type?: string | null;
+  complaint_type?: string | null;
+  vendor?: string | number | null;
   complaint_id?: string | number | null;
   complaint_date?: string | null;
+  start_date?: string | null;
+  close_date?: string | null;
+  manual_close_date?: string | null;
   complaint_issue?: string | null;
   issue?: string | null;
   complaint?: string | null;
   complaint_source?: string | null;
+  complaint_raised_by?: string | number | null;
   state?: string | null;
   district?: string | null;
   block?: string | null;
   panchayat?: string | null;
+  panchyat?: string | null;
   phase?: string | null;
   address?: string | null;
   ward_no?: string | null;
@@ -244,11 +272,20 @@ export interface UpSslComplaintItem {
   installation_date?: string | null;
   file?: string | null;
   document?: string | null;
+  r_file?: string | null;
+  r_file2?: string | null;
+  close_beneficiary_name?: string | null;
+  close_beneficiary_contact?: string | null;
+  sms?: string | null;
+  close_sms?: string | null;
+  assigned_to?: string | null;
+  close_status?: string | number | null;
   status?: number | string | null;
   complaint_status?: string | null;
   created_by?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  remarks?: string | null;
   [key: string]: any;
 }
 
@@ -292,15 +329,27 @@ export interface UpKusumCComplaintItem {
   post?: string | null;
   village?: string | null;
   farmer_name?: string | null;
+  f_name?: string | null;
+  beneficiary_name?: string | null;
   father_name?: string | null;
+  f_father_name?: string | null;
   contact_no?: string | null;
+  f_contact?: string | null;
+  f_mobile?: string | null;
+  contact_number?: string | null;
   lot_no?: string | null;
   invoice_no?: string | null;
+  f_invoice_no?: string | null;
   pump_capacity?: string | null;
+  pump_capicity?: string | null;
   contractor_name?: string | null;
+  c_contractor_name?: string | null;
   contractor_no?: string | null;
+  c_contact_no?: string | null;
+  contractor_mo_no?: string | null;
   contractor_mobile_no?: string | null;
   installation_date?: string | null;
+  inst_date?: string | null;
   document?: string | null;
   file?: string | null;
   assigned_date?: string | null;
@@ -315,18 +364,37 @@ export interface UpKusumCComplaintItem {
 export interface UpKusumCDetails {
   id?: number | string;
   farmer_name?: string;
+  f_name?: string;
+  beneficiary_name?: string;
+  name?: string;
   contact_no?: string;
+  f_contact?: string;
+  f_mobile?: string;
+  contact_number?: string;
+  mobile?: string;
+  c_contact?: string;
   father_name?: string;
+  f_father_name?: string;
   lot_no?: string;
   invoice_no?: string;
+  f_invoice_no?: string;
   pump_capacity?: string;
+  pump_capicity?: string;
   contractor_name?: string;
+  c_contractor_name?: string;
   contractor_mobile_no?: string;
   contractor_no?: string;
+  c_contact_no?: string;
+  contractor_mo_no?: string;
   installation_date?: string;
+  inst_date?: string;
+  date_of_installation?: string;
   district?: string;
+  f_district?: string;
   post?: string;
+  f_post?: string;
   village?: string;
+  f_village?: string;
   [key: string]: any;
 }
 
@@ -402,8 +470,12 @@ export interface UpKusumBDetails {
    ───────────────────────────────────────────────────────────── */
 export interface UpOngridComplaintItem {
   id: number;
+  company_id?: string | null;
+  ogid?: number | string | null;
+  og_id?: number | string | null;
   complaint_id?: string | number | null;
   complaint_date?: string | null;
+  created_date?: string | null;
   complaint?: string | null;
   state?: string | null;
   district?: string | null;
@@ -419,9 +491,23 @@ export interface UpOngridComplaintItem {
   contractor_name?: string | null;
   contractor_number?: string | null;
   contractor_no?: string | null;
+  raised_complaint?: number | null;
+  r_mobile?: string | null;
+  r_email?: string | null;
+  sms?: string | null;
+  close_sms?: string | null;
   document?: string | null;
   file?: string | null;
+  r_file?: string | null;
+  r_file2?: string | null;
+  close_date?: string | null;
+  manual_close_date?: string | null;
+  close_complaint_date?: string | null;
+  resolved_by?: string | null;
+  assigned_to?: string | null;
   assigned_date?: string | null;
+  remarks?: string | null;
+  close_status?: number | string | null;
   complaint_status?: string | null;
   status?: number | string | null;
   created_by?: string | null;
@@ -452,11 +538,13 @@ export interface UpOffgridComplaintItem {
   id: number | string;
   complaint_id?: string | number | null;
   ogid?: string | number | null;
+  offgrid_id?: string | number | null;
   complaint_date?: string | null;
   complaint?: string | null;
   state?: string | null;
   district?: string | null;
   beneficiary_name?: string | null;
+  mobile_no?: string | null;
   contact_number?: string | null;
   contact_no?: string | null;
   plant_capacity?: string | null;
@@ -479,7 +567,9 @@ export interface UpOffgridComplaintItem {
 export interface UpOffgridDetails {
   id?: number | string;
   ogid?: number | string;
+  offgrid_id?: number | string;
   beneficiary_name?: string;
+  mobile_no?: string;
   contact_no?: string;
   contact_number?: string;
   plant_capacity?: string;
@@ -1131,14 +1221,16 @@ export const upComplaintService = {
 
   async getSslViewComplaints(): Promise<UpSslComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.VIEW_DATA);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data as UpSslComplaintItem[];
-      }
-      if (Array.isArray((res.data as any).complaints)) {
-        return (res.data as any).complaints;
-      }
+    if (!res) return [];
+    if (Array.isArray(res)) return res as UpSslComplaintItem[];
+    if (res.data) {
+      if (Array.isArray(res.data)) return res.data as UpSslComplaintItem[];
+      if (Array.isArray((res.data as any).data)) return (res.data as any).data as UpSslComplaintItem[];
+      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
+      if (Array.isArray((res.data as any).ssl)) return (res.data as any).ssl;
     }
+    if (Array.isArray((res as any).complaints)) return (res as any).complaints;
+    if (Array.isArray((res as any).ssl)) return (res as any).ssl;
     return [];
   },
 
@@ -1234,7 +1326,7 @@ export const upComplaintService = {
 
   async getKusumCDetails(farmerIdOrName: string | number): Promise<UpKusumCDetails | null> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_BENEFICIARY_DETAILS(farmerIdOrName));
-    return extractDetailObject<UpKusumCDetails>(res, ['farmer', 'details', 'detail', 'beneficiary']);
+    return extractDetailObject<UpKusumCDetails>(res, ['farmer', 'details', 'detail', 'beneficiary', 'vendor', 'data']);
   },
 
   async storeKusumCComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1468,9 +1560,25 @@ export const upComplaintService = {
       }
       if (Array.isArray(res.data)) {
         const arr = res.data as UpOngridComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
+        const isClosed = (r: UpOngridComplaintItem) =>
+          Number(r.status) === 2 ||
+          Number(r.close_status) === 1 ||
+          Number(r.close_status) === 2 ||
+          String(r.complaint_status || '').toLowerCase() === 'closed' ||
+          String(r.complaint_status || '').toLowerCase() === 'resolved' ||
+          Boolean(
+            (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
+            (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
+            (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
+          );
+        const isApproved = (r: UpOngridComplaintItem) =>
+          !isClosed(r) &&
+          (Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
+        const isOpen = (r: UpOngridComplaintItem) => !isClosed(r) && !isApproved(r);
+
+        const open = arr.filter(isOpen);
+        const approved = arr.filter(isApproved);
+        const close = arr.filter(isClosed);
         return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
       }
     }

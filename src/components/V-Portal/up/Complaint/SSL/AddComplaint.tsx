@@ -19,6 +19,20 @@ const SECTIONS: SectionItem[] = [
   { id: 'ssl-sec-3', num: '3', title: 'Complaint & Attachment' },
 ];
 
+/** Map UI label → backend-accepted type value */
+const SSL_TYPE_MAP: Record<string, string> = {
+  'SSL 18W': 'upssl18w',
+  'SSL 12W': 'upssl12w',
+  'ssl 18w': 'upssl18w',
+  'ssl 12w': 'upssl12w',
+  'upssl18w': 'upssl18w',
+  'upssl12w': 'upssl12w',
+};
+
+/** Convert any form type value to the API-accepted slug */
+const toApiType = (t: string): string =>
+  SSL_TYPE_MAP[t] ?? SSL_TYPE_MAP[t.toLowerCase().trim()] ?? t;
+
 const INITIAL_FORM = {
   type: 'SSL 18W',
   district: '',
@@ -84,7 +98,7 @@ useEffect(() => {
   const loadDistricts = async () => {
     try {
       if (typeof upComplaintService.getSslDistricts === 'function') {
-        const list = await upComplaintService.getSslDistricts(form.type);
+        const list = await upComplaintService.getSslDistricts(toApiType(form.type));
         if (active && Array.isArray(list) && list.length > 0) {
           setDistricts(list);
         }
@@ -228,7 +242,10 @@ useEffect(() => {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => {
-        if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
+        if (v !== '' && v !== null && v !== undefined) {
+          // 'type' field: backend expects 'upssl18w' / 'upssl12w'
+          fd.append(k, k === 'type' ? toApiType(String(v)) : String(v));
+        }
       });
       if (file) {
         fd.append('file', file);

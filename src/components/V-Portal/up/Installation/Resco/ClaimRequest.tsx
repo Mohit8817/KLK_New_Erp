@@ -655,7 +655,7 @@ export function UP_Installation_Resco_ClaimRequest() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
 
   // Claim Modal — opens with pre-filled claim type and milestone from button
   const [claimModalOpen, setClaimModalOpen] = useState(false);

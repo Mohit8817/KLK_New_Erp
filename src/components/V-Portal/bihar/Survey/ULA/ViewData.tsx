@@ -57,21 +57,17 @@ const X_ICON = (
   </svg>
 );
 
-/* ───────── KPI Card (Kashmir pattern) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+/* ───────── KPI Card (Static / Non-clickable, matching View Bihar SRT Installation & SRT 200MW) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  danger: { bg: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
 };
-
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
 
 function KpiCard({
   icon,
@@ -84,17 +80,29 @@ function KpiCard({
   tone: KpiTone;
   label: string;
   value: ReactNode;
-  sub: ReactNode;
+  sub?: string;
 }) {
   const t = TONE[tone];
+
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '16px 20px', borderRadius: 12, transition: 'all 0.2s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div
+      className="ax-card"
+      style={{
+        padding: '12px 14px',
+        borderRadius: 10,
+        minWidth: 0,
+        cursor: 'default',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface, #ffffff)',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
+            width: 26,
+            height: 26,
+            borderRadius: 7,
             background: t.bg,
             color: t.fg,
             display: 'inline-flex',
@@ -103,20 +111,52 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+          <span style={{ width: 14, height: 14, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={label}
+        >
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: t.fg, marginTop: 2, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--ax-text-muted)',
+            marginTop: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={sub}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ───────── Responsive page CSS (Kashmir pattern) ───────── */
+/* ───────── Responsive page CSS (Exact View Bihar SRT Installation & SRT 200MW pattern) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -212,12 +252,6 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
 
-  @media (max-width: 900px) {
-    .solar-erp-page .ax-dash-grid > .ax-card {
-      grid-column: span 12 !important;
-    }
-  }
-
   @media (max-width: 760px) {
     .solar-erp-page .ax-card__header {
       flex-direction: column;
@@ -231,19 +265,80 @@ const PAGE_CSS = `
       width: 100%;
       max-width: 100%;
     }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
     .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
       width: 100%;
-      justify-content: stretch;
       margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .solar-erp-page .ax-card__actions .ax-cluster {
-      width: 100%;
       flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] {
       flex: 1 1 100%;
+      width: 100%;
       max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+
+  .solar-erp-page .srt-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    margin-top: 4px;
+  }
+  @media (max-width: 1400px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 960px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 420px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: 1fr;
     }
   }
 `;
@@ -674,8 +769,27 @@ export function Bihar_Survey_ULA_ViewData() {
   const handleExcel = () => exportDataToExcel('Bihar_ULA_Surveys', filteredSurveys, activeExportCols);
   const handlePdf = () => printTableData('Bihar ULA Survey Records', filteredSurveys, activeExportCols);
 
-  const feasiblePct = kpis.total > 0 ? Math.round((kpis.feasible / kpis.total) * 100) : 0;
-  const verifiedPct = kpis.total > 0 ? Math.round((kpis.verified / kpis.total) * 100) : 0;
+  const totalSurveys = kpis.total || surveys.length;
+  const surveyCompleted = useMemo(
+    () => surveys.filter((s) => Number(s.survey_status) === 1).length || kpis.feasible,
+    [surveys, kpis]
+  );
+  const surveyPending = useMemo(
+    () => surveys.filter((s) => !s.survey_status || Number(s.survey_status) === 0).length || kpis.not_feasible,
+    [surveys, kpis]
+  );
+  const approvedCount = useMemo(
+    () => (kpis.verified !== undefined ? kpis.verified : surveys.filter((s) => Number(s.verify_status) === 1).length),
+    [surveys, kpis]
+  );
+  const rejectedCount = useMemo(
+    () => (kpis.rejected !== undefined ? kpis.rejected : surveys.filter((s) => Number(s.verify_status) === 2).length),
+    [surveys, kpis]
+  );
+  const verifyPendingCount = useMemo(
+    () => (kpis.pending !== undefined ? kpis.pending : surveys.filter((s) => Number(s.verify_status) !== 1 && Number(s.verify_status) !== 2).length),
+    [surveys, kpis]
+  );
 
   const colCount =
     1 +
@@ -704,125 +818,153 @@ export function Bihar_Survey_ULA_ViewData() {
           { label: 'Bihar' },
           { label: 'Survey' },
           { label: 'ULA' },
+          { label: 'Survey Records' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/ula-surveys/create')}>
-              <svg className="ax-btn__icon" {...ICON_PROPS}>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span className="ax-btn__label">Add Survey</span>
+              <span className="ax-btn__label">+ Add Survey</span>
             </button>
           </div>
         }
       />
 
-      {/* ── Feedback Alert (Kashmir pattern — auto-dismiss + dismiss button) ── */}
+      {/* ── Feedback Alert ── */}
       {feedbackMsg && (
-        <div
-          className={`ax-alert ax-alert--${feedbackMsg.type}`}
-          style={{ marginBottom: 'var(--ax-space-4)' }}
-          role="status"
-        >
-          <div className="ax-alert__content">{feedbackMsg.text}</div>
-          <button
-            type="button"
-            className="ax-btn ax-btn--ghost ax-btn--xs"
-            onClick={() => setFeedbackMsg(null)}
-            aria-label="Dismiss alert"
-          >
-            {X_ICON}
-          </button>
+        <div className={`ax-alert ax-alert--${feedbackMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">{feedbackMsg.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{feedbackMsg.text}</div>
         </div>
       )}
 
-      {/* ── KPI Cards (separated dash-grid with marginBottom) ── */}
-      <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-        {loading ? (
-          <KpiSkeleton count={4} />
-        ) : (
-          <>
-            <KpiCard
-              tone="accent"
-              label="Total Surveys"
-              value={kpis.total.toLocaleString('en-IN')}
-              sub="Total ULA surveys recorded"
-              icon={svg(<><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 14l2 2 4-4" /></>)}
-            />
-            <KpiCard
-              tone="emerald"
-              label="Feasible Sites"
-              value={kpis.feasible.toLocaleString('en-IN')}
-              sub={`${feasiblePct}% feasible · ${kpis.not_feasible} not feasible`}
-              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M9 12l2 2 4-4" /></>)}
-            />
-            <KpiCard
-              tone="amber"
-              label="Verification Approved"
-              value={kpis.verified.toLocaleString('en-IN')}
-              sub={`${verifiedPct}% verified · ${kpis.pending} pending`}
-              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
-            />
-            <KpiCard
-              tone="pink"
-              label="Verification Rejected"
-              value={kpis.rejected.toLocaleString('en-IN')}
-              sub="Need re-survey / correction"
-              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M15 9l-6 6M9 9l6 6" /></>)}
-            />
-          </>
-        )}
+      {/* ── 6 KPI Stat Cards (matching Bihar SRT 200 MW Survey) ── */}
+      <div className="srt-kpi-grid">
+        <KpiCard
+          tone="accent"
+          label="Total Assigned"
+          value={loading ? '…' : totalSurveys.toLocaleString('en-IN')}
+          sub="Total assigned rooftop sites"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="emerald"
+          label="Survey Completed"
+          value={loading ? '…' : surveyCompleted.toLocaleString('en-IN')}
+          sub="Survey work completed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Survey Pending"
+          value={loading ? '…' : surveyPending.toLocaleString('en-IN')}
+          sub="Awaiting site survey"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="cyan"
+          label="Approve Sites"
+          value={loading ? '…' : approvedCount.toLocaleString('en-IN')}
+          sub="Verified & approved"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="danger"
+          label="Reject Sites"
+          value={loading ? '…' : rejectedCount.toLocaleString('en-IN')}
+          sub="Inspection rejected"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Verify Pending"
+          value={loading ? '…' : verifyPendingCount.toLocaleString('en-IN')}
+          sub="Awaiting verification"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
       </div>
 
-      {/* ── Main Table Card (separate dash-grid) ── */}
-      <div className="ax-dash-grid">
-        <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">SITE SURVEY</span>
-              <h2 className="ax-card__title">Bihar ULA Survey Records</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredSurveys.length} of {surveys.length} records
-              </p>
-            </div>
+      {/* ── Main Table Card (exact reference design) ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA Survey Records">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Bihar ULA Survey Records</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filteredSurveys.length}</span> of <span className="ax-num">{surveys.length}</span> records
+              {' '}· Completed <b className="ax-num">{surveyCompleted}</b> / {totalSurveys} · Approved <b className="ax-num">{approvedCount}</b> · Pending Verify <b className="ax-num">{verifyPendingCount}</b> · Rejected <b className="ax-num">{rejectedCount}</b>
+            </p>
+          </div>
 
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={districtFilter}
-                  onChange={(e) => {
-                    setDistrictFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by district"
-                >
-                  <option value="all">All Districts</option>
-                  {districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="ula_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
 
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by verification status"
-                >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+              <select
+                id="ula_status_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter by verification status"
+              >
+                <option value="all">All Verification</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
 
                 {hasFilters && (
                   <button
@@ -1061,7 +1203,6 @@ export function Bihar_Survey_ULA_ViewData() {
             </div>
           </div>
         </section>
-      </div>
 
       {/* ── Image Preview Modal ── */}
       {previewImage && (

@@ -546,9 +546,17 @@ export function BiharULAInstallationViewPayment() {
           id: item.id || idx + 1,
           date: item.date || item.created_at || item.claim_date || '',
           created_at: item.created_at || '',
-          vendor: item.vendor_name || item.vendor || '—',
-          vendor_id: item.vendor_id || item.vendor || '',
-          vendor_name: item.vendor_name || item.vendor || '',
+          vendor: typeof item.vendor_name === 'string' && item.vendor_name
+            ? item.vendor_name
+            : typeof item.vendor === 'object' && item.vendor !== null
+            ? (item.vendor.name || item.vendor.firm || item.vendor.company || '—')
+            : (item.vendor || '—'),
+          vendor_id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor_id || item.vendor || ''),
+          vendor_name: typeof item.vendor_name === 'string' && item.vendor_name
+            ? item.vendor_name
+            : typeof item.vendor === 'object' && item.vendor !== null
+            ? (item.vendor.name || item.vendor.firm || item.vendor.company || '')
+            : (item.vendor || ''),
           state: item.state || 'bihar',
           district: item.district || '',
           block: item.block || '',

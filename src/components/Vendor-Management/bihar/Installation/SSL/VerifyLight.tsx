@@ -15,12 +15,34 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import { biharAdminService, resolveBiharMediaUrl, getBiharMediaCandidates } from '../../bihar-services/biharAdminService';
-import type { BiharSSLVerifyLightItem } from '../../bihar-types';
+import { BIHAR_DISTRICTS, type BiharSSLVerifyLightItem } from '../../bihar-types';
 
 type Row = BiharSSLVerifyLightItem & { light_raw_path?: string };
 type TabType = 'completed' | 'verified';
 
 const DASH = '—';
+
+const NORMALIZED_BIHAR_DISTRICTS = new Set<string>([
+  ...BIHAR_DISTRICTS.map((d) => d.toLowerCase()),
+  'purnea',
+  'purbi champaran',
+  'paschim champaran',
+  'east champaran (motihari)',
+  'west champaran (bettiah)',
+  'kaimur (bhabua)',
+  'bhabua',
+  'monghyr',
+  'chhapra',
+  'saran (chhapra)',
+  'aurangabad (bihar)',
+  'vaishali (hajipur)',
+]);
+
+const isValidBiharDistrict = (district?: string | null): boolean => {
+  if (!district || district === DASH) return false;
+  const clean = district.trim().toLowerCase().replace(/\s+/g, ' ');
+  return NORMALIZED_BIHAR_DISTRICTS.has(clean);
+};
 
 const statusTone = (s: string): 'success' | 'danger' | 'warning' =>
   s === 'Approved' ? 'success' : s === 'Rejected' ? 'danger' : 'warning';
@@ -578,23 +600,37 @@ export function BiharSSLInstallationVerifyLight() {
     if (!actionItem) return;
 
     const isApprove = verifyChoice === '1';
+    const trimmedRemarks = remarks.trim();
     setSubmittingAction(true);
     setModalError('');
     try {
-      await biharAdminService.verifySslInstallationStatus({
+      const payload: Record<string, any> = {
         id: actionItem.id,
         verify_status: verifyChoice,
         inst_verify_status: Number(verifyChoice),
         status: verifyChoice,
-        remark: remarks,
-        inst_remark: remarks,
-      });
-      setSuccessMsg(`Light ${actionItem.uid} (${actionItem.pole_no}) marked as ${isApprove ? 'Approved' : 'Rejected'}!`);
+        remark: trimmedRemarks,
+        remarks: trimmedRemarks,
+        inst_remark: trimmedRemarks,
+      };
+      if (actionItem.district_code) payload.district_code = actionItem.district_code;
+      if (actionItem.block_code) payload.block_code = actionItem.block_code;
+      if (actionItem.panchayat_code) payload.panchayat_code = actionItem.panchayat_code;
+
+      const res: any = await biharAdminService.verifySslInstallationStatus(payload);
+      if (res?.status === 'error' || res?.status === false || res?.success === false) {
+        throw new Error(res?.message || res?.error || 'Verification failed on server.');
+      }
+
+      setSuccessMsg(
+        res?.message ||
+          `Light ${actionItem.uid} (${actionItem.pole_no}) marked as ${isApprove ? 'Approved' : 'Rejected'}!`
+      );
       setActionItem(null);
       setRemarks('');
       loadInstallations();
     } catch (err: any) {
-      setModalError(`Failed to update verification: ${err?.message || 'Server error'}`);
+      setModalError(err?.message || 'Failed to update verification status. Please try again.');
     } finally {
       setSubmittingAction(false);
     }
@@ -819,12 +855,30 @@ export function BiharSSLInstallationVerifyLight() {
                         <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--ax-accent)' }}>{r.uid}</td>
                         <td className="ax-table__td">{r.state}</td>
                         <td className="ax-table__td">{r.phase}</td>
-                        <td className="ax-table__td">{r.district}</td>
-                        {isCompletedTab && <td className="ax-table__td ax-num">{r.district_code}</td>}
+                        <td className="ax-table__td">
+                          <span>{r.district}</span>
+                          {!r.district_code && !isValidBiharDistrict(r.district) && (
+                            <span
+                              title="Unrecognized Bihar district — backend approval requires a valid Bihar district code"
+                              style={{
+                                marginLeft: 6,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: 'rgba(245, 158, 11, 0.16)',
+                                color: '#b45309',
+                              }}
+                            >
+                              Invalid
+                            </span>
+                          )}
+                        </td>
+                        {isCompletedTab && <td className="ax-table__td ax-num">{r.district_code || DASH}</td>}
                         <td className="ax-table__td">{r.block}</td>
-                        {isCompletedTab && <td className="ax-table__td ax-num">{r.block_code}</td>}
+                        {isCompletedTab && <td className="ax-table__td ax-num">{r.block_code || DASH}</td>}
                         <td className="ax-table__td">{r.panchayat}</td>
-                        {isCompletedTab && <td className="ax-table__td ax-num">{r.panchayat_code}</td>}
+                        {isCompletedTab && <td className="ax-table__td ax-num">{r.panchayat_code || DASH}</td>}
                         <td className="ax-table__td">{r.ward_no}</td>
                         <td className="ax-table__td ax-num">{r.pole_no}</td>
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{r.beneficiary_name}</td>
@@ -917,12 +971,20 @@ export function BiharSSLInstallationVerifyLight() {
             </div>
           )}
 
+          {actionItem && verifyChoice === '1' && !actionItem.district_code && !isValidBiharDistrict(actionItem.district) && (
+            <div className="ax-alert ax-alert--warning" role="status" style={{ fontSize: 12 }}>
+              <div className="ax-alert__content">
+                <b>Invalid District for BREDA Approval:</b> District &ldquo;{actionItem.district}&rdquo; is not a recognized Bihar district and has no District Code mapped. Server approval may fail with <i>&ldquo;District code not found&rdquo;</i>. Please fix the district on the assignment/record first, or select <b>Reject Light</b> if this is invalid/test data.
+              </div>
+            </div>
+          )}
+
           {actionItem && (
             <div style={{ background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 8, padding: 12, fontSize: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
                 <div><b>Vendor:</b> {actionItem.vendor}</div>
                 <div><b>Beneficiary:</b> {actionItem.beneficiary_name} ({actionItem.beneficiary_contact})</div>
-                <div><b>District:</b> {actionItem.district}</div>
+                <div><b>District:</b> {actionItem.district} {actionItem.district_code ? `(${actionItem.district_code})` : ''}</div>
                 <div><b>Block / Panchayat:</b> {actionItem.block} / {actionItem.panchayat}</div>
                 <div><b>Ward / Pole:</b> {actionItem.ward_no} / {actionItem.pole_no}</div>
                 <div><b>IMEI / Light No:</b> {actionItem.imei_no} / {actionItem.light_no}</div>
@@ -936,11 +998,27 @@ export function BiharSSLInstallationVerifyLight() {
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Verification Decision *</label>
             <div style={{ display: 'flex', gap: 20 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                <input type="radio" name="ssl_verify_choice" checked={verifyChoice === '1'} onChange={() => setVerifyChoice('1')} />
+                <input
+                  type="radio"
+                  name="ssl_verify_choice"
+                  checked={verifyChoice === '1'}
+                  onChange={() => {
+                    setVerifyChoice('1');
+                    setModalError('');
+                  }}
+                />
                 <span style={{ fontWeight: 600, color: 'var(--ax-success, #10b981)' }}>Approve Light</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                <input type="radio" name="ssl_verify_choice" checked={verifyChoice === '2'} onChange={() => setVerifyChoice('2')} />
+                <input
+                  type="radio"
+                  name="ssl_verify_choice"
+                  checked={verifyChoice === '2'}
+                  onChange={() => {
+                    setVerifyChoice('2');
+                    setModalError('');
+                  }}
+                />
                 <span style={{ fontWeight: 600, color: 'var(--ax-danger, #ef4444)' }}>Reject Light</span>
               </label>
             </div>

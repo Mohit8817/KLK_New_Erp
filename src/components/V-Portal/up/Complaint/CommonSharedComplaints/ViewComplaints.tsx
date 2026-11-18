@@ -45,7 +45,8 @@ export const statusKey = (row: unknown): StatusKey => {
   const cs = String(r.close_status || '').toLowerCase().trim();
   const hasCloseDate = !!(
     (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
-    (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null')
+    (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
+    (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
   );
   if (s === '2' || s === 'closed' || s === 'resolved' || cs === '1' || cs === '2' || cs === 'closed' || hasCloseDate) {
     return 'resolved';
@@ -95,7 +96,7 @@ export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => 
 export const docUrlOf = (row: unknown): string => {
   const r = asRec(row);
   if (!r) return '';
-  return getMediaUrl(r.file1 || r.document || r.file || r.file2 || r.r_file1 || r.r_file) || '';
+  return getMediaUrl(r.file1 || r.document || r.file || r.file2 || r.r_file1 || r.r_file || r.r_file2) || '';
 };
 
 /* ───────── Column helpers ───────── */
@@ -622,7 +623,16 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
   const [rows, setRows] = useState<T[]>([]);
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || 'All');
-  const [selectedStatus, setSelectedStatus] = useState(() => searchParams.get('status') || 'All');
+  const [selectedStatus, setSelectedStatus] = useState(() => {
+    const s = searchParams.get('status');
+    if (!s) return 'All';
+    const lower = s.toLowerCase().trim();
+    if (lower === 'all' || lower === 'total') return 'All';
+    if (lower === 'open' || lower === '0') return 'Open';
+    if (lower === 'pending' || lower === '1') return 'Pending';
+    if (lower === 'resolved' || lower === 'closed' || lower === '2') return 'Resolved';
+    return s;
+  });
 
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, t: string) => setPreview({ url, title: t }), []);
@@ -663,7 +673,8 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
   const districtList = useMemo(() => {
     const set = new Set<string>();
     rows.forEach((r) => {
-      const d = asRec(r).district;
+      const rec = asRec(r);
+      const d = rec.district || rec.district_name || rec.d_name;
       if (d) {
         const str = String(d).trim();
         if (str && str !== 'null' && str !== 'undefined') set.add(str);
@@ -676,11 +687,13 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (selectedDistrict !== 'All') {
-        const rowDist = String(asRec(r).district || '').trim();
-        if (rowDist !== selectedDistrict) return false;
+        const rec = asRec(r);
+        const rowDist = String(rec.district || rec.district_name || rec.d_name || '').trim().toLowerCase();
+        if (rowDist !== selectedDistrict.trim().toLowerCase()) return false;
       }
       if (selectedStatus !== 'All') {
-        const want = selectedStatus === 'Open' ? 'open' : selectedStatus === 'Pending' ? 'pending' : 'resolved';
+        const s = selectedStatus.toLowerCase().trim();
+        const want = (s === 'open' || s === '0') ? 'open' : (s === 'pending' || s === '1') ? 'pending' : 'resolved';
         if (statusKey(r) !== want) return false;
       }
       if (!q) return true;
@@ -909,7 +922,7 @@ export function ComplaintViewPage<T extends object>(props: ComplaintViewProps<T>
               <div>
                 <p className="ula-m-field__label" style={{ margin: 0 }}>{detailEyebrow}</p>
                 <h2 className="ax-modal__title" id="up-complaint-detail-title">
-                  Complaint #{pick(detailRow, ['complaint_id', 'id'])}
+                  Complaint {pick(detailRow, ['complaint_id', 'id'])}
                 </h2>
               </div>
               <button type="button" className="ax-modal__close" onClick={closeDetail} aria-label="Close dialog">{X_ICON}</button>

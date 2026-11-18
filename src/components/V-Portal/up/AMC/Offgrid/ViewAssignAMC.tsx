@@ -76,11 +76,6 @@ export function UP_AMC_Offgrid_ViewAssignAMC() {
 
   const columns: AmcColumn<any>[] = [
     {
-      header: 'Assign ID',
-      cell: (r: any) => <span style={{ fontWeight: 700, color: '#1e293b' }}>#{r.id}</span>,
-      exportValue: (r: any) => `#${r.id}`,
-    },
-    {
       header: 'AMC Type',
       cell: (r: any) => {
         const label = formatAmcType(r.amc_type);

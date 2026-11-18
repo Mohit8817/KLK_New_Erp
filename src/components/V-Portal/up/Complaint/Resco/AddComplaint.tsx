@@ -140,7 +140,13 @@ export function UP_Complaint_Resco_AddComplaint() {
     if (!val) return;
 
     try {
-      const details: UpRescoSiteDetails | null = await upComplaintService.getRescoSiteDetails(siteId);
+      // FIX: API needs district + site_id + site_name (previously only the id was sent,
+      // which caused 422 "The district field is required").
+      const details: UpRescoSiteDetails | null = await (upComplaintService as any).getRescoSiteDetails(
+        siteId,
+        siteName,
+        form.district,
+      );
       if (details) {
         setForm((prev) => ({
           ...prev,
@@ -162,8 +168,8 @@ export function UP_Complaint_Resco_AddComplaint() {
           phase: details.phase || prev.phase,
         }));
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      console.warn('Failed to load Resco site details:', err);
     }
   };
 
@@ -205,7 +211,7 @@ export function UP_Complaint_Resco_AddComplaint() {
       const fd = new FormData();
       fd.append('district', form.district);
       fd.append('site_name', form.site_name);
-     if (form.site_id) fd.append('resco_id', form.site_id);
+      if (form.site_id) fd.append('resco_id', form.site_id);
       if (form.department) fd.append('dept_name', form.department);
       if (form.address) fd.append('address', form.address);
       if (form.contact_person) fd.append('contact_person', form.contact_person);
@@ -219,7 +225,7 @@ export function UP_Complaint_Resco_AddComplaint() {
       if (form.inverter_no) fd.append('inverter_no', form.inverter_no);
       if (form.solarmeter_no) fd.append('solarmeter_no', form.solarmeter_no);
       if (form.nm_sm_no) fd.append('nm_sm_no', form.nm_sm_no);
-     if (form.logger_no) fd.append('loger_no', form.logger_no);
+      if (form.logger_no) fd.append('loger_no', form.logger_no);
       if (form.panel_no) fd.append('panel_no', form.panel_no);
       if (form.wo_no) fd.append('wo_no', form.wo_no);
       if (form.latitude) fd.append('latitude', form.latitude);

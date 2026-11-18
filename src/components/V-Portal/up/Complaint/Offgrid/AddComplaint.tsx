@@ -24,10 +24,10 @@ const INITIAL_FORM = {
   district: '',
   ogid: '',
   beneficiary_name: '',
-  contact_no: '',
+  mobile_no: '',
   plant_capacity: '',
-  wo_no: '',
-  wo_date: '',
+  work_order_no: '',
+  work_order_date: '',
   contractor_name: '',
   complaint: '',
   sms: 'No',
@@ -39,9 +39,14 @@ export function UPComplaintOffgridAdd() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState(INITIAL_FORM);
+  const [selectedBeneficiary, setSelectedBeneficiary] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [fileKey, setFileKey] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [districts, setDistricts] = useState<string[]>([]);
@@ -62,74 +67,118 @@ export function UPComplaintOffgridAdd() {
 
   useEffect(() => {
     let active = true;
-    upComplaintService.getOffgridAddData().then((res) => {
-      if (active && res.districts && res.districts.length > 0) {
-        setDistricts(res.districts);
-      }
-    });
+    setLoadingDistricts(true);
+    upComplaintService
+      .getOffgridAddData()
+      .then((res) => {
+        if (active && res.districts && res.districts.length > 0) {
+          setDistricts(res.districts);
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingDistricts(false);
+      });
     return () => {
       active = false;
     };
   }, []);
 
   const handleDistrictChange = async (d: string) => {
+    setSelectedBeneficiary('');
     setForm((p) => ({
       ...p,
       district: d,
       ogid: '',
       beneficiary_name: '',
-      contact_no: '',
+      mobile_no: '',
       plant_capacity: '',
-      wo_no: '',
-      wo_date: '',
+      work_order_no: '',
+      work_order_date: '',
       contractor_name: '',
     }));
     clearErr('district');
     setBeneficiaries([]);
     if (!d) return;
 
+    setLoadingBeneficiaries(true);
     try {
       const list = await upComplaintService.getOffgridBeneficiaryNames(d);
       setBeneficiaries(list);
     } catch {
       setBeneficiaries([]);
+    } finally {
+      setLoadingBeneficiaries(false);
     }
   };
 
   const handleBeneficiaryChange = async (idOrName: string) => {
-    const chosen = beneficiaries.find((b) => String(b.id) === idOrName);
-    setForm((p) => ({ ...p, ogid: idOrName, beneficiary_name: chosen ? chosen.name : idOrName }));
+    setSelectedBeneficiary(idOrName);
+    const chosen = beneficiaries.find((b) => String(b.id) === idOrName) as any;
+    const initialOgid = chosen?.ogid ?? chosen?.offgrid_id ?? chosen?.id ?? idOrName;
+
+    setForm((p) => ({
+      ...p,
+      ogid: idOrName ? String(initialOgid) : '',
+      beneficiary_name: idOrName ? (chosen ? chosen.name : idOrName) : '',
+      mobile_no: '',
+      plant_capacity: '',
+      work_order_no: '',
+      work_order_date: '',
+      contractor_name: '',
+    }));
     clearErr('beneficiary_name');
+    clearErr('ogid');
 
     if (!idOrName) return;
 
+    setLoadingDetails(true);
     try {
       const det: UpOffgridDetails | null = await upComplaintService.getOffgridDetails(idOrName);
       if (det) {
+        const resolvedId = det.id ?? det.ogid ?? det.offgrid_id ?? initialOgid;
+        const resolvedMobile = det.mobile_no ?? det.contact_no ?? det.contact_number ?? '';
+        const resolvedWoNo = det.work_order_no ?? det.wo_no ?? '';
+        const resolvedWoDate = det.work_order_date ?? det.wo_date ?? '';
+        const formattedWoDate = resolvedWoDate ? String(resolvedWoDate).split('T')[0].split(' ')[0] : '';
+
         setForm((p) => ({
           ...p,
-          contact_no: det.contact_no ? String(det.contact_no) : p.contact_no,
-          plant_capacity: det.plant_capacity ? String(det.plant_capacity) : p.plant_capacity,
-          wo_no: det.wo_no || det.work_order_no ? String(det.wo_no || det.work_order_no) : p.wo_no,
-          wo_date: det.wo_date || det.work_order_date ? String(det.wo_date || det.work_order_date).split('T')[0] : p.wo_date,
-          contractor_name: det.contractor_name ? String(det.contractor_name) : p.contractor_name,
+          ogid: resolvedId !== undefined && resolvedId !== null && String(resolvedId).trim() !== '' ? String(resolvedId) : p.ogid,
+          beneficiary_name: det.beneficiary_name ? String(det.beneficiary_name) : p.beneficiary_name,
+          mobile_no: resolvedMobile !== '' && resolvedMobile !== null ? String(resolvedMobile) : '',
+          plant_capacity: det.plant_capacity !== undefined && det.plant_capacity !== null ? String(det.plant_capacity) : '',
+          work_order_no: resolvedWoNo !== '' && resolvedWoNo !== null ? String(resolvedWoNo) : '',
+          work_order_date: formattedWoDate,
+          contractor_name: det.contractor_name !== undefined && det.contractor_name !== null ? String(det.contractor_name) : '',
         }));
+
+        if (resolvedMobile) {
+          clearErr('mobile_no');
+          clearErr('contact_no');
+        }
       }
-    } catch {}
+    } catch {
+      // keep manually editable if lookup fails
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   const handleReset = () => {
     setForm(INITIAL_FORM);
+    setSelectedBeneficiary('');
     setFile(null);
+    setFileKey((k) => k + 1);
     setErrors({});
     setBeneficiaries([]);
   };
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    if (!form.complaint_date) errs.complaint_date = 'Complaint Date is required.';
     if (!form.district) errs.district = 'District is required.';
-    if (!form.ogid && !form.beneficiary_name) errs.beneficiary_name = 'Beneficiary Name is required.';
-    if (!form.contact_no.trim()) errs.contact_no = 'Contact Number is required.';
+    if (!selectedBeneficiary && !form.ogid && !form.beneficiary_name) errs.beneficiary_name = 'Beneficiary Name is required.';
+    if (!form.mobile_no.trim()) errs.mobile_no = 'Mobile Number is required.';
     if (!form.complaint.trim()) errs.complaint = 'Complaint description is required.';
     if (!file) errs.document = 'Document / Photo is required.';
 
@@ -150,18 +199,40 @@ export function UPComplaintOffgridAdd() {
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => {
-        if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v));
+        if (v !== '' && v !== null && v !== undefined) fd.set(k, String(v));
       });
-      if (form.ogid) {
-        fd.append('beneficiary_id', form.ogid);
-        fd.append('id', form.ogid);
+
+      const resolvedId = form.ogid || selectedBeneficiary;
+      if (resolvedId) {
+        fd.set('id', String(resolvedId));
+        fd.set('ogid', String(resolvedId));
+        fd.set('offgrid_id', String(resolvedId));
+        fd.set('beneficiary_id', String(resolvedId));
       }
-      if (form.wo_no) fd.append('work_order_no', form.wo_no);
-      if (form.wo_date) fd.append('work_order_date', form.wo_date);
-      if (form.contact_no) fd.append('contact_number', form.contact_no);
+
+      if (form.mobile_no) {
+        fd.set('mobile_no', form.mobile_no);
+        fd.set('contact_no', form.mobile_no);
+        fd.set('contact_number', form.mobile_no);
+      }
+
+      if (form.work_order_no) {
+        fd.set('work_order_no', form.work_order_no);
+        fd.set('wo_no', form.work_order_no);
+      }
+
+      if (form.work_order_date) {
+        fd.set('work_order_date', form.work_order_date);
+        fd.set('wo_date', form.work_order_date);
+      }
+
+      const smsVal = form.sms && String(form.sms).toLowerCase() === 'yes' ? 'Yes' : 'No';
+      fd.set('sms', smsVal);
+      fd.set('send_sms', smsVal === 'Yes' ? '1' : '0');
+
       if (file) {
-        fd.append('document', file);
-        fd.append('file', file);
+        fd.set('document', file);
+        fd.set('file', file);
       }
 
       const res = await upComplaintService.saveOffgridComplaint(fd);
@@ -172,7 +243,32 @@ export function UPComplaintOffgridAdd() {
           navigate('/v/complaint/up/offgrid-view-complaint');
         }, 1500);
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        if (res.errors) {
+          const mapped: Record<string, string> = {};
+          Object.entries(res.errors).forEach(([k, v]) => {
+            mapped[k] = Array.isArray(v) ? v[0] : String(v);
+          });
+          if ((mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id) && !mapped.beneficiary_name) {
+            mapped.beneficiary_name = mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id;
+          }
+          if ((mapped.contact_no || mapped.contact_number) && !mapped.mobile_no) {
+            mapped.mobile_no = mapped.contact_no || mapped.contact_number;
+          }
+          if (mapped.wo_no && !mapped.work_order_no) {
+            mapped.work_order_no = mapped.wo_no;
+          }
+          if (mapped.wo_date && !mapped.work_order_date) {
+            mapped.work_order_date = mapped.wo_date;
+          }
+          if (mapped.file && !mapped.document) {
+            mapped.document = mapped.file;
+          }
+          setErrors(mapped);
+          const firstErr = Object.values(mapped)[0];
+          setToast({ type: 'error', message: firstErr || res.message || 'Validation failed.' });
+        } else {
+          setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        }
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred.' });
@@ -202,19 +298,41 @@ export function UPComplaintOffgridAdd() {
     >
       {/* ── Section 1: District & Beneficiary ── */}
       <div id="og-sec-1" className="up-section-block">
-        <SectionHeader num="1" total={3} title="District & Beneficiary Selection" desc="Pick the district to find eligible Offgrid system beneficiaries." />
+        <SectionHeader
+          num="1"
+          total={3}
+          title="District & Beneficiary Selection"
+          desc={loadingDetails ? 'Loading beneficiary & plant details...' : 'Pick the district to find eligible Offgrid system beneficiaries.'}
+        />
         <div className="up-form-grid up-form-grid--3col">
-          <FloatingInput id="og-date" label="Complaint Date" type="date" required value={form.complaint_date} onChange={(v) => setVal('complaint_date', v)} />
-          <FloatingSelect id="og-district" label="District" required value={form.district} options={opts(districts)} onChange={handleDistrictChange} error={errors.district} />
+          <FloatingInput
+            id="og-date"
+            label="Complaint Date"
+            type="date"
+            required
+            value={form.complaint_date}
+            onChange={(v) => setVal('complaint_date', v)}
+            error={errors.complaint_date}
+          />
+          <FloatingSelect
+            id="og-district"
+            label={`District${loadingDistricts ? ' (Loading...)' : ''}`}
+            required
+            disabled={loadingDistricts}
+            value={form.district}
+            options={opts(districts)}
+            onChange={handleDistrictChange}
+            error={errors.district}
+          />
           <FloatingSelect
             id="og-ben"
-            label="Beneficiary Name"
+            label={`Beneficiary Name${loadingBeneficiaries ? ' (Loading...)' : ''}`}
             required
-            disabled={!form.district}
-            value={form.ogid}
+            disabled={!form.district || loadingBeneficiaries}
+            value={selectedBeneficiary}
             options={beneficiaries.map((b) => ({ value: String(b.id), label: b.name }))}
             onChange={handleBeneficiaryChange}
-            error={errors.beneficiary_name}
+            error={errors.beneficiary_name || errors.ogid}
           />
         </div>
       </div>
@@ -225,11 +343,44 @@ export function UPComplaintOffgridAdd() {
       <div id="og-sec-2" className="up-section-block">
         <SectionHeader num="2" total={3} title="Plant & Work Order Details" desc="Auto-populated from installation records." />
         <div className="up-form-grid up-form-grid--3col">
-          <FloatingInput id="og-contact" label="Contact No." type="tel" required value={form.contact_no} onChange={(v) => setVal('contact_no', v)} error={errors.contact_no} />
-          <FloatingInput id="og-cap" label="Plant Capacity" value={form.plant_capacity} onChange={(v) => setVal('plant_capacity', v)} />
-          <FloatingInput id="og-wo" label="Work Order No." value={form.wo_no} onChange={(v) => setVal('wo_no', v)} />
-          <FloatingInput id="og-wodate" label="Work Order Date" type="date" value={form.wo_date} onChange={(v) => setVal('wo_date', v)} />
-          <FloatingInput id="og-cont" label="Contractor Name" value={form.contractor_name} onChange={(v) => setVal('contractor_name', v)} />
+          <FloatingInput
+            id="og-contact"
+            label="Mobile No."
+            type="tel"
+            required
+            value={form.mobile_no}
+            onChange={(v) => setVal('mobile_no', v)}
+            error={errors.mobile_no || errors.contact_no}
+          />
+          <FloatingInput
+            id="og-cap"
+            label="Plant Capacity"
+            value={form.plant_capacity}
+            onChange={(v) => setVal('plant_capacity', v)}
+            error={errors.plant_capacity}
+          />
+          <FloatingInput
+            id="og-wo"
+            label="Work Order No."
+            value={form.work_order_no}
+            onChange={(v) => setVal('work_order_no', v)}
+            error={errors.work_order_no || errors.wo_no}
+          />
+          <FloatingInput
+            id="og-wodate"
+            label="Work Order Date"
+            type="date"
+            value={form.work_order_date}
+            onChange={(v) => setVal('work_order_date', v)}
+            error={errors.work_order_date || errors.wo_date}
+          />
+          <FloatingInput
+            id="og-cont"
+            label="Contractor Name"
+            value={form.contractor_name}
+            onChange={(v) => setVal('contractor_name', v)}
+            error={errors.contractor_name}
+          />
         </div>
       </div>
 
@@ -239,9 +390,35 @@ export function UPComplaintOffgridAdd() {
       <div id="og-sec-3" className="up-section-block">
         <SectionHeader num="3" total={3} title="Complaint Description & Supporting File" desc="Detail the fault and upload photographic proof." />
         <div className="up-form-grid up-form-grid--3col">
-          <FloatingFileInput id="og-file" label="Upload Document / Photo" required file={file} onChange={setFile} error={errors.document} />
-          <FloatingSelect id="og-sms" label="Send SMS" value={form.sms} options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]} onChange={(v) => setVal('sms', v)} />
-          <FloatingTextarea id="og-text" label="Complaint" required className="ax-col--span-3" value={form.complaint} onChange={(v) => setVal('complaint', v)} error={errors.complaint} />
+          <FloatingFileInput
+            key={fileKey}
+            id="og-file"
+            label="Upload Document / Photo"
+            required
+            file={file}
+            onChange={(f) => {
+              setFile(f);
+              if (f) clearErr('document');
+            }}
+            error={errors.document}
+          />
+          <FloatingSelect
+            id="og-sms"
+            label="Send SMS"
+            value={form.sms}
+            options={[{ value: 'Yes', label: 'Yes' }, { value: 'No', label: 'No' }]}
+            onChange={(v) => setVal('sms', v)}
+            error={errors.sms || errors.send_sms}
+          />
+          <FloatingTextarea
+            id="og-text"
+            label="Complaint"
+            required
+            className="ax-col--span-3"
+            value={form.complaint}
+            onChange={(v) => setVal('complaint', v)}
+            error={errors.complaint}
+          />
         </div>
       </div>
     </ComplaintFormLayout>

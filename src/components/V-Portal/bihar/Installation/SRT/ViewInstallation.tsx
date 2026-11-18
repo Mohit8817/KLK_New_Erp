@@ -8,6 +8,7 @@ import {
   getSrtInstallationImageCandidates,
   type SrtViewInstallSummary,
   type SrtInstalledSiteItem,
+  type SrtInstallClaimItem,
 } from '../../bihar-services/biharSrtInstallationService';
 import {
   Pagination,
@@ -46,8 +47,74 @@ const txt = (row: SrtInstalledSiteItem, key: string): string => {
   return String(v);
 };
 
-const claimRaised = (row: SrtInstalledSiteItem): boolean =>
-  Number((row as Record<string, any>).inst_claim_status ?? (row as Record<string, any>).claim_status ?? 0) === 1;
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+
+function parseDateMs(dateStr?: string | null): number | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const s = dateStr.trim();
+  if (!s || s === '0000-00-00' || s === '0000-00-00 00:00:00') return null;
+
+  const ddmmyyyy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (ddmmyyyy) {
+    const [, d, m, y] = ddmmyyyy;
+    const t = new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+    if (!isNaN(t)) return t;
+  }
+
+  const isoStr = s.replace(' ', 'T');
+  const t = new Date(isoStr).getTime();
+  if (!isNaN(t)) return t;
+
+  return null;
+}
+
+function computeDurationDays(startStr?: string | null, endStr?: string | null): number | null {
+  const startMs = parseDateMs(startStr);
+  if (startMs === null) return null;
+  const endMs = endStr ? parseDateMs(endStr) : Date.now();
+  if (endMs === null) return null;
+  const diffMs = endMs - startMs;
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+function formatDurationLabel(days: number | null): string {
+  if (days === null) return '—';
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 Day';
+  return `${days} Days`;
+}
+
+function getSiteDuration(row: SrtInstalledSiteItem, claim?: SrtInstallClaimItem): {
+  days: number | null;
+  label: string;
+} {
+  let days: number | null = null;
+  if ((row as any).duration !== undefined && (row as any).duration !== null && (row as any).duration !== '') {
+    const d = Number((row as any).duration);
+    if (!isNaN(d)) days = d;
+  } else if ((row as any).claim_duration !== undefined && (row as any).claim_duration !== null && (row as any).claim_duration !== '') {
+    const d = Number((row as any).claim_duration);
+    if (!isNaN(d)) days = d;
+  }
+
+  if (days === null) {
+    const installDate = row.inst_date || (row as any).created_at || (row as any).date;
+    const claimDate = claim?.inst_claim_date || (row as any).inst_claim_date;
+    if (claimDate && installDate) {
+      days = computeDurationDays(installDate, claimDate);
+    } else if (installDate) {
+      days = computeDurationDays(installDate);
+    }
+  }
+
+  return {
+    days,
+    label: formatDurationLabel(days),
+  };
+}
+
 
 /* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
 const X_ICON = (
@@ -170,6 +237,295 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/* ── Raise Claim Modal ── */
+function RaiseClaimModal({
+  site,
+  onClose,
+  onSuccess,
+}: {
+  site: SrtInstalledSiteItem;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}) {
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claimAmount || Number(claimAmount) <= 0) {
+      setError('Please enter a valid claim amount.');
+      return;
+    }
+    if (!claimInvoiceFile) {
+      setError('Please upload the claim invoice file (PDF/Image).');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const fd = new FormData();
+      fd.append('srt_id', String(site.id));
+      fd.append('claim_amount', claimAmount.trim());
+      fd.append('claim_invoice', claimInvoiceFile);
+
+      const res = await biharSrtInstallationService.raiseInstallClaim(fd);
+      onSuccess(res?.message || 'Claim request submitted successfully!');
+    } catch (err: any) {
+      console.error('[RaiseClaimModal] submit error:', err);
+      setError(err?.message || 'Failed to submit claim request. Please check inputs and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      labelledBy="raise-claim-modal-title"
+      dialogClass="ax-dialog--md"
+      dialogStyle={{ maxWidth: 540, width: '100%', borderRadius: 8 }}
+    >
+      <form onSubmit={handleSubmit} style={{ margin: 0 }}>
+        <div
+          className="ax-modal__header"
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <h3
+              id="raise-claim-modal-title"
+              style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}
+            >
+              Raise Installation Claim
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+              Submit claim invoice for completed installation
+            </p>
+          </div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--icon"
+            onClick={onClose}
+            aria-label="Close dialog"
+            style={{ width: 32, height: 32, padding: 0 }}
+          >
+            {X_ICON}
+          </button>
+        </div>
+
+        <div className="ax-modal__body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 6,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="10" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Site Overview Details Card */}
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 6,
+              background: 'var(--ax-surface-subtle, #f8fafc)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              fontSize: 12,
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>Site Name:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.site_name || DASH}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>CA Number:</span>
+                <strong style={{ fontFamily: 'var(--ax-font-mono, monospace)', color: 'var(--ax-text-strong, #0f172a)' }}>
+                  {site.ca_no || DASH}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>District / State:</span>
+                <span>{txt(site, 'district') || DASH}, {txt(site, 'state') || 'Bihar'}</span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>Contact Person:</span>
+                <span>{site.contact_person || DASH} {site.contact_number ? `(${site.contact_number})` : ''}</span>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>Install Date:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.inst_date || (site as any).created_at || DASH}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)', display: 'block' }}>Duration Elapsed:</span>
+                <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span>⏱</span>
+                  <span>{getSiteDuration(site).label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Claim Amount Field */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-amount" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Claim Amount (₹) <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ax-text-muted, #64748b)',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ₹
+              </span>
+              <input
+                id="modal-claim-amount"
+                type="number"
+                min="1"
+                step="any"
+                className="ax-input"
+                style={{ paddingLeft: 28, width: '100%' }}
+                placeholder="e.g. 50000"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Claim Invoice Document Upload */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-invoice" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Claim Invoice Document <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <input
+              id="modal-claim-invoice"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,image/png,image/jpeg,image/jpg"
+              className="ax-input"
+              style={{ width: '100%', padding: '8px' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setClaimInvoiceFile(f);
+              }}
+              required
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+              Allowed formats: PDF, JPG, PNG (Max 10MB)
+            </p>
+            {claimInvoiceFile && (
+              <div
+                style={{
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  color: 'var(--ax-primary-default, #2563eb)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>{claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="ax-modal__footer"
+          style={{
+            padding: '14px 20px',
+            borderTop: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 10,
+          }}
+        >
+          <button
+            type="button"
+            className="ax-btn ax-btn--secondary"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="ax-btn ax-btn--primary"
+            disabled={isSubmitting}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            {isSubmitting ? (
+              <>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                >
+                  <circle cx="12" cy="12" r="10" strokeOpacity={0.25} />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Submit Claim Request</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }
@@ -430,6 +786,34 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
+
+  .solar-erp-page .srt-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    margin-top: 4px;
+  }
+  @media (max-width: 1400px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 960px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 420px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -455,11 +839,105 @@ const TABS: { key: TabKey; label: string; hash: string }[] = [
 
 // Columns shared by both tabs, in the requested order
 const COMMON_HEADERS = [
-  'Sr. No.', 'State', 'District', 'Site Name', 'Contact Person', 'Contact Number', 'CA No.',
+  'Sr. No.', 'State', 'District', 'Site Name', 'Install Date', 'Duration / Aging',
+  'Contact Person', 'Contact Number', 'CA No.',
   'Solar Meter No.', 'Inverter No.', 'Net/Smart Meter No.', 'Loger No.',
   'System Image', 'Inverter Image', 'Panel Image', 'Net Meter/Smart Meter Image', 'Loger Image',
   'Latitude', 'Longitude', 'Remark',
 ];
+
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  danger: { bg: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub?: string;
+}) {
+  const t = TONE[tone];
+
+  return (
+    <div
+      className="ax-card"
+      style={{
+        padding: '12px 14px',
+        borderRadius: 10,
+        minWidth: 0,
+        cursor: 'default',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface, #ffffff)',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 7,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 14, height: 14, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={label}
+        >
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: t.fg, marginTop: 2, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--ax-text-muted)',
+            marginTop: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={sub}
+        >
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Bihar_Installation_SRT_ViewInstallation() {
   const location = useLocation();
@@ -474,13 +952,19 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const [data, setData] = useState<SrtViewInstallSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(() => searchParams.get('district') || searchParams.get('search') || '');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+  const [claimFilter, setClaimFilter] = useState<'all' | 'due' | 'raised' | 'pending'>('all');
+  const [claimRecords, setClaimRecords] = useState<SrtInstallClaimItem[]>([]);
   const [hiddenByTab, setHiddenByTab] = useState<Record<TabKey, string[]>>({ completed: [], payment: [] });
 
   // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
+
+  // Claim modal state
+  const [claimModalSite, setClaimModalSite] = useState<SrtInstalledSiteItem | null>(null);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -491,11 +975,49 @@ export function Bihar_Installation_SRT_ViewInstallation() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
+  // Lookup map for claim data from GET /bihar/srt/view-install-claim
+  const claimsMap = useMemo(() => {
+    const map = new Map<number | string, SrtInstallClaimItem>();
+    claimRecords.forEach((c) => {
+      if (c.id !== undefined && c.id !== null) map.set(c.id, c);
+      if ((c as any).srt_id !== undefined && (c as any).srt_id !== null) map.set((c as any).srt_id, c);
+      if (c.site_name) map.set(`name:${c.site_name.trim().toLowerCase()}`, c);
+    });
+    return map;
+  }, [claimRecords]);
+
+  const getSiteClaim = useCallback(
+    (row: SrtInstalledSiteItem): SrtInstallClaimItem | undefined => {
+      if (claimsMap.has(row.id)) return claimsMap.get(row.id);
+      if (row.site_name && claimsMap.has(`name:${row.site_name.trim().toLowerCase()}`)) {
+        return claimsMap.get(`name:${row.site_name.trim().toLowerCase()}`);
+      }
+      return undefined;
+    },
+    [claimsMap]
+  );
+
+  const isSiteClaimRaised = useCallback(
+    (row: SrtInstalledSiteItem): boolean => {
+      if (getSiteClaim(row)) return true;
+      const st = Number((row as Record<string, any>).inst_claim_status ?? (row as Record<string, any>).claim_status ?? 0);
+      return st !== 0;
+    },
+    [getSiteClaim]
+  );
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await biharSrtInstallationService.getViewInstalledSites();
-      setData(res);
+      const [resSites, resClaims] = await Promise.all([
+        biharSrtInstallationService.getViewInstalledSites(),
+        biharSrtInstallationService.getViewInstallClaims().catch((err) => {
+          console.warn('[SRT ViewInstallation] view-install-claim fallback:', err);
+          return [] as SrtInstallClaimItem[];
+        }),
+      ]);
+      setData(resSites);
+      setClaimRecords(Array.isArray(resClaims) ? resClaims : []);
     } catch (err: any) {
       console.error('[SRT ViewInstallation] load error:', err);
       setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites.' });
@@ -503,6 +1025,15 @@ export function Bihar_Installation_SRT_ViewInstallation() {
       setLoading(false);
     }
   }, []);
+
+  const handleClaimSuccess = useCallback(
+    (message: string) => {
+      setToastMsg({ type: 'success', text: message });
+      setClaimModalSite(null);
+      loadData();
+    },
+    [loadData]
+  );
 
   useEffect(() => {
     loadData();
@@ -520,33 +1051,132 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   const activeSites = tab === 'completed' ? completeSites : paymentSites;
   const isCompleted = tab === 'completed';
 
-  // Filtered (verify-status filter applies to the Completed tab only)
+  // Summary counts
+  const approvedCount = useMemo(
+    () => (data?.approvedsite ?? completeSites.filter((s) => Number(s.inst_verify_status) === 1).length),
+    [data, completeSites]
+  );
+  const pendingCount = useMemo(
+    () => (data?.verifypending ?? completeSites.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0).length),
+    [data, completeSites]
+  );
+  const rejectedCount = useMemo(
+    () => (data?.rejectsite ?? completeSites.filter((s) => Number(s.inst_verify_status) === 2).length),
+    [data, completeSites]
+  );
+  const claimRaisedCount = useMemo(
+    () => completeSites.filter((s) => isSiteClaimRaised(s)).length,
+    [completeSites, isSiteClaimRaised]
+  );
+  // Sites that are approved but whose claim has not been raised yet
+  const readyToClaimCount = useMemo(
+    () => completeSites.filter((s) => Number(s.inst_verify_status) === 1 && !isSiteClaimRaised(s)).length,
+    [completeSites, isSiteClaimRaised]
+  );
+  const paymentCount = paymentSites.length;
+
+  // Summary counts for 11 KPIs
+  const totalAssignedSitesCount = useMemo(
+    () => (data?.totalsite !== undefined ? data.totalsite : completeSites.length + (data?.pendingsite || 0)),
+    [data, completeSites]
+  );
+  const completeSitesCount = useMemo(
+    () => (data?.complete !== undefined ? data.complete : completeSites.length),
+    [data, completeSites]
+  );
+  const pendingSitesCount = useMemo(
+    () => (data?.pendingsite !== undefined ? data.pendingsite : 0),
+    [data]
+  );
+  const approvedSitesCount = useMemo(
+    () => (data?.approvedsite !== undefined ? data.approvedsite : approvedCount),
+    [data, approvedCount]
+  );
+  const rejectSitesCount = useMemo(
+    () => (data?.rejectsite !== undefined ? data.rejectsite : rejectedCount),
+    [data, rejectedCount]
+  );
+  const verifyPendingCount = useMemo(
+    () => (data?.verifypending !== undefined ? data.verifypending : pendingCount),
+    [data, pendingCount]
+  );
+  const claimApplicableCount = useMemo(
+    () => (data?.claimedapplicable !== undefined ? data.claimedapplicable : readyToClaimCount),
+    [data, readyToClaimCount]
+  );
+  const claimRaisedCountTotal = useMemo(
+    () => (data?.claimraised !== undefined ? data.claimraised : claimRaisedCount),
+    [data, claimRaisedCount]
+  );
+  const docSubmitCount = useMemo(
+    () => (data?.docsubmit !== undefined ? data.docsubmit : 0),
+    [data]
+  );
+  const payment70Count = useMemo(
+    () => (data?.payment1 !== undefined ? data.payment1 : paymentSites.filter((s: any) => s.payment1_status).length),
+    [data, paymentSites]
+  );
+  const payment15Count = useMemo(
+    () => (data?.payment2 !== undefined ? data.payment2 : paymentSites.filter((s: any) => s.payment2_status).length),
+    [data, paymentSites]
+  );
+
+  // Available districts for dropdown
+  const districts = useMemo(() => {
+    const set = new Set<string>();
+    activeSites.forEach((s) => {
+      const d = txt(s, 'district')?.trim();
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [activeSites]);
+
+  // Filtered sites
   const filteredSites = useMemo(() => {
     let list = activeSites;
+
+    if (districtFilter !== 'all') {
+      list = list.filter((s) => txt(s, 'district').toLowerCase() === districtFilter.toLowerCase());
+    }
+
     if (isCompleted) {
-      if (statusFilter === 'approved') list = list.filter((s) => s.inst_verify_status === 1);
-      else if (statusFilter === 'rejected') list = list.filter((s) => s.inst_verify_status === 2);
-      else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || s.inst_verify_status === 0);
+      if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status) === 1);
+      else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status) === 2);
+      else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0);
+
+      if (claimFilter === 'due') {
+        list = list.filter((s) => Number(s.inst_verify_status) === 1 && !isSiteClaimRaised(s));
+      } else if (claimFilter === 'raised') {
+        list = list.filter((s) => isSiteClaimRaised(s));
+      } else if (claimFilter === 'pending') {
+        list = list.filter((s) => !isSiteClaimRaised(s));
+      }
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
-      list = list.filter((s) =>
-        String(s.id).includes(q) ||
-        txt(s, 'state').toLowerCase().includes(q) ||
-        txt(s, 'district').toLowerCase().includes(q) ||
-        String(s.site_name || '').toLowerCase().includes(q) ||
-        String(s.contact_person || '').toLowerCase().includes(q) ||
-        String(s.contact_number || '').toLowerCase().includes(q) ||
-        String(s.ca_no || '').toLowerCase().includes(q) ||
-        String(s.solarmeter_no || '').toLowerCase().includes(q) ||
-        String(s.inverter_no || '').toLowerCase().includes(q) ||
-        String(s.nm_sm_no || '').toLowerCase().includes(q) ||
-        String(s.loger_no || '').toLowerCase().includes(q)
-      );
+      list = list.filter((s) => {
+        const claim = getSiteClaim(s);
+        return (
+          String(s.id).includes(q) ||
+          txt(s, 'state').toLowerCase().includes(q) ||
+          txt(s, 'district').toLowerCase().includes(q) ||
+          String(s.site_name || '').toLowerCase().includes(q) ||
+          String(s.contact_person || '').toLowerCase().includes(q) ||
+          String(s.contact_number || '').toLowerCase().includes(q) ||
+          String(s.ca_no || '').toLowerCase().includes(q) ||
+          String(s.solarmeter_no || '').toLowerCase().includes(q) ||
+          String(s.inverter_no || '').toLowerCase().includes(q) ||
+          String(s.nm_sm_no || '').toLowerCase().includes(q) ||
+          String(s.loger_no || '').toLowerCase().includes(q) ||
+          String(s.inst_date || '').toLowerCase().includes(q) ||
+          String(claim?.inst_claim_amount || '').toLowerCase().includes(q) ||
+          String(claim?.inst_claim_date || '').toLowerCase().includes(q)
+        );
+      });
     }
     return list;
-  }, [activeSites, isCompleted, search, statusFilter]);
+  }, [activeSites, districtFilter, isCompleted, statusFilter, claimFilter, search, isSiteClaimRaised, getSiteClaim]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredSites, initialPageSize: 100 });
@@ -554,20 +1184,16 @@ export function Bihar_Installation_SRT_ViewInstallation() {
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, tab]);
+  }, [search, districtFilter, statusFilter, claimFilter, tab]);
 
-  const hasFilters = search.trim() !== '' || (isCompleted && statusFilter !== 'all');
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || (isCompleted && (statusFilter !== 'all' || claimFilter !== 'all'));
   const resetFilters = () => {
     setSearch('');
+    setDistrictFilter('all');
     setStatusFilter('all');
+    setClaimFilter('all');
     setPage(1);
   };
-
-  // Summary counts (API totals, fall back to list)
-  const approvedCount = data?.approvedsite ?? completeSites.filter((s) => s.inst_verify_status === 1).length;
-  const pendingCount = data?.verifypending ?? completeSites.filter((s) => !s.inst_verify_status || s.inst_verify_status === 0).length;
-  const rejectedCount = data?.rejectsite ?? completeSites.filter((s) => s.inst_verify_status === 2).length;
-  const paymentCount = paymentSites.length;
 
   // Export Columns (per tab)
   const exportCols: ExportColumn<SrtInstalledSiteItem>[] = useMemo(() => {
@@ -576,6 +1202,14 @@ export function Bihar_Installation_SRT_ViewInstallation() {
       { header: 'State', accessor: (r) => txt(r, 'state') || 'Bihar' },
       { header: 'District', accessor: (r) => txt(r, 'district') },
       { header: 'Site Name', accessor: (r) => r.site_name || '' },
+      { header: 'Install Date', accessor: (r) => r.inst_date || (r as any).created_at || '' },
+      {
+        header: 'Duration / Aging',
+        accessor: (r) => {
+          const d = getSiteDuration(r, getSiteClaim(r));
+          return d.label;
+        },
+      },
       { header: 'Contact Person', accessor: (r) => r.contact_person || '' },
       { header: 'Contact Number', accessor: (r) => r.contact_number || '' },
       { header: 'CA No.', accessor: (r) => r.ca_no || '' },
@@ -598,11 +1232,18 @@ export function Bihar_Installation_SRT_ViewInstallation() {
       {
         header: 'Verify Status',
         accessor: (r) =>
-          r.inst_verify_status === 1 ? 'Approved' : r.inst_verify_status === 2 ? 'Rejected' : 'Pending',
+          Number(r.inst_verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status) === 2 ? 'Rejected' : 'Pending',
       },
-      { header: 'Claim Status', accessor: (r) => (claimRaised(r) ? 'Raised' : 'Not Raised') },
+      {
+        header: 'Claim Status',
+        accessor: (r) => (isSiteClaimRaised(r) ? 'Claim Raised' : 'Not Raised'),
+      },
+      {
+        header: 'Claim Amount',
+        accessor: (r) => (getSiteClaim(r)?.inst_claim_amount ? String(getSiteClaim(r)?.inst_claim_amount) : ''),
+      },
     ];
-  }, [tab]);
+  }, [tab, isSiteClaimRaised, getSiteClaim]);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileBase = isCompleted ? 'Bihar_SRT_Completed' : 'Bihar_SRT_Payment';
@@ -701,7 +1342,7 @@ export function Bihar_Installation_SRT_ViewInstallation() {
           { label: 'View Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
@@ -720,48 +1361,222 @@ export function Bihar_Installation_SRT_ViewInstallation() {
         </div>
       )}
 
-      <div className="ax-dash-grid">
-        {/* ── Tabs: Completed SRT Data / Payment SRT Data ── */}
-        <div className="ax-col--12">
-          <div className="ax-cluster" role="tablist" aria-label="SRT data" style={{ gap: 'var(--ax-space-2)' }}>
-            {TABS.map((t) => {
-              const active = t.key === tab;
-              const count = t.key === 'completed' ? completeSites.length : paymentCount;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  id={`srt-tab-${t.key}`}
-                  aria-selected={active}
-                  aria-controls="srt-tabpanel"
-                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-                  onClick={() => setTab(t.key)}
-                >
-                  <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* ── 11 KPI Stat Cards ── */}
+      {/* ── 11 KPI Stat Cards (Static / Non-clickable) ── */}
+      <div className="srt-kpi-grid">
+        <KpiCard
+          tone="accent"
+          label="Total Assigned Sites"
+          value={loading ? '…' : Number(totalAssignedSitesCount).toLocaleString('en-IN')}
+          sub="Total assigned rooftop sites"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
 
-        {/* ── Main Table Card ── */}
-        <section className="ax-card ax-col--12" id="srt-tabpanel" role="tabpanel" aria-labelledby={`srt-tab-${tab}`}>
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <h2 className="ax-card__title">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</h2>
-              <p className="ax-card__subtitle">
-                <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{activeSites.length}</span> installations
-                {isCompleted && (
-                  <>
-                    {' '}· Approved <b className="ax-num">{approvedCount}</b> · Pending <b className="ax-num">{pendingCount}</b> · Rejected <b className="ax-num">{rejectedCount}</b>
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                {isCompleted && (
+        <KpiCard
+          tone="emerald"
+          label="Complete Sites"
+          value={loading ? '…' : Number(completeSitesCount).toLocaleString('en-IN')}
+          sub="Installation completed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Pending"
+          value={loading ? '…' : Number(pendingSitesCount).toLocaleString('en-IN')}
+          sub="Installation pending"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Approve Sites"
+          value={loading ? '…' : Number(approvedSitesCount).toLocaleString('en-IN')}
+          sub="Verified & approved"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="danger"
+          label="Reject Sites"
+          value={loading ? '…' : Number(rejectSitesCount).toLocaleString('en-IN')}
+          sub="Inspection rejected"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Verifiy Pending"
+          value={loading ? '…' : Number(verifyPendingCount).toLocaleString('en-IN')}
+          sub="Awaiting verification"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Claim Applicable"
+          value={loading ? '…' : Number(claimApplicableCount).toLocaleString('en-IN')}
+          sub="Eligible for claim"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="violet"
+          label="Claim Raised"
+          value={loading ? '…' : Number(claimRaisedCountTotal).toLocaleString('en-IN')}
+          sub="Invoices lodged"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="DOC Submit"
+          value={loading ? '…' : Number(docSubmitCount).toLocaleString('en-IN')}
+          sub="Documents submitted"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Payment 70%"
+          value={loading ? '…' : Number(payment70Count).toLocaleString('en-IN')}
+          sub="70% disbursed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Payment 15%"
+          value={loading ? '…' : Number(payment15Count).toLocaleString('en-IN')}
+          sub="15% disbursed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 14 14" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Tabs ABOVE Table (per requirement) ── */}
+      <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
+        <div className="ax-cluster" role="tablist" aria-label="Installed SRT tabs" style={{ gap: 'var(--ax-space-2)' }}>
+          {TABS.map((t) => {
+            const active = t.key === tab;
+            const count = t.key === 'completed' ? completeSites.length : paymentCount;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`srt-tab-${t.key}`}
+                aria-selected={active}
+                aria-controls="srt-tabpanel"
+                className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                onClick={() => setTab(t.key)}
+              >
+                <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Main Table Card (exact reference design) ── */}
+      <section className="ax-card ax-col--12" id="srt-tabpanel" role="tabpanel" aria-labelledby={`srt-tab-${tab}`}>
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{activeSites.length}</span> installations
+              {isCompleted && (
+                <>
+                  {' '}· Completed <b className="ax-num">{completeSitesCount}</b> / {totalAssignedSitesCount} · Approved <b className="ax-num">{approvedCount}</b> · Pending Verify <b className="ax-num">{pendingCount}</b> · Claims Raised <b className="ax-num">{claimRaisedCount}</b> / {claimApplicableCount} · Rejected <b className="ax-num">{rejectSitesCount}</b>
+                </>
+              )}
+              {!isCompleted && (
+                <>
+                  {' '}· 70% Payment <b className="ax-num">{payment70Count}</b> · 15% Payment <b className="ax-num">{payment15Count}</b>
+                </>
+              )}
+            </p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="srt_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              {isCompleted && (
+                <>
                   <select
                     id="srt_status_filter"
                     className="ax-input ax-input--sm"
@@ -773,49 +1588,70 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                     }}
                     aria-label="Filter by verify status"
                   >
-                    <option value="all">All Status</option>
+                    <option value="all">All Verification</option>
                     <option value="approved">Approved</option>
                     <option value="pending">Pending</option>
                     <option value="rejected">Rejected</option>
                   </select>
-                )}
 
-                {hasFilters && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={resetFilters}
-                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                  <select
+                    id="srt_claim_filter"
+                    className="ax-input ax-input--sm"
+                    style={{
+                      width: 160,
+                      height: 32,
+                      fontSize: 'var(--ax-text-xs)',
+                    }}
+                    value={claimFilter}
+                    onChange={(e) => {
+                      setClaimFilter(e.target.value as any);
+                      setPage(1);
+                    }}
+                    aria-label="Filter by claim status"
                   >
-                    Reset
-                  </button>
-                )}
+                    <option value="all">All Claim Status</option>
+                    <option value="due">Claim Applicable (Ready)</option>
+                    <option value="raised">Claim Raised</option>
+                    <option value="pending">Awaiting Approval</option>
+                  </select>
+                </>
+              )}
 
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Search site, CA no, person, meter…"
-                  size="sm"
-                  ariaLabel="Search installed sites"
-                />
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
 
-                <TableExportToolbar
-                  onCopy={() => copyToClipboard(filteredSites, activeCols)}
-                  onExportCSV={() => exportToCSV(filteredSites, activeCols, `${fileBase}_${stamp}`)}
-                  onExportExcel={() => exportToExcel(filteredSites, activeCols, `${fileBase}_${stamp}`)}
-                  onExportPDF={() => exportToPDF(filteredSites, activeCols, fileTitle)}
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search site, CA no, person, meter…"
+                size="sm"
+                ariaLabel="Search installed sites"
+              />
 
-                />
-              </div>
+              <TableExportToolbar
+                onCopy={() => copyToClipboard(filteredSites, activeCols)}
+                onExportCSV={() => exportToCSV(filteredSites, activeCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filteredSites, activeCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filteredSites, activeCols, fileTitle)}
+              />
             </div>
           </div>
+        </div>
 
-          <div className="ax-table-wrap">
-            <table
-              className="ax-table ax-table--hover ula-table--wide"
-              style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2900 : 2500 }}
-            >
-              <caption className="ax-visually-hidden">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</caption>
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2800 : 2200 }}
+          >
+            <caption className="ax-visually-hidden">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</caption>
               <thead className="ax-table__head">
                 <tr>
                   {headers.map((h) => (
@@ -862,15 +1698,72 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                     const lng = txt(row, 'inst_longitude');
                     const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
                     const siteLabel = row.site_name || 'Site';
+                    const siteClaim = getSiteClaim(row);
+                    const siteClaimRaised = isSiteClaimRaised(row);
+                    const isApproved = Number(row.inst_verify_status) === 1;
+                    const isClaimDue = isApproved && !siteClaimRaised;
+                    const siteDuration = getSiteDuration(row, siteClaim);
+                    const installDateStr = row.inst_date || (row as any).created_at || (row as any).date;
+                    const fmtInstallDate = installDateStr ? String(installDateStr).slice(0, 10) : DASH;
 
                     return (
-                      <tr key={row.id} className="ax-table__row">
+                      <tr
+                        key={row.id}
+                        className="ax-table__row"
+                        style={isClaimDue ? { background: 'rgba(245, 158, 11, 0.04)' } : undefined}
+                      >
                         <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
                         <td className="ax-table__td">{txt(row, 'state') || 'Bihar'}</td>
                         <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
                         <td className="ax-table__td">
                           <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{row.site_name || DASH}</span>
                         </td>
+
+                        {/* Install Date */}
+                        <td className="ax-table__td" style={monoCell}>
+                          {fmtInstallDate}
+                        </td>
+
+                        {/* Duration / Aging */}
+                        <td className="ax-table__td">
+                          {isClaimDue ? (
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--warning"
+                              style={{
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '3px 8px',
+                                fontSize: 11,
+                                border: '1px solid #fde68a',
+                              }}
+                              title={`Installation completed ${siteDuration.label} ago. Approved by admin and ready for claim.`}
+                            >
+                              <span style={{ fontSize: 12 }}>⚡</span>
+                              <span>{siteDuration.label} elapsed</span>
+                            </span>
+                          ) : siteClaimRaised ? (
+                            <span
+                              style={{
+                                color: 'var(--ax-text-muted)',
+                                fontSize: 12,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                              title={`Claim raised. Installation duration: ${siteDuration.label}`}
+                            >
+                              <span>⏱</span>
+                              <span>{siteDuration.label}</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>
+                              {siteDuration.label !== '—' ? `${siteDuration.label} elapsed` : DASH}
+                            </span>
+                          )}
+                        </td>
+
                         <td className="ax-table__td">{row.contact_person || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>{row.contact_number || DASH}</td>
                         <td className="ax-table__td" style={monoCell}>{row.ca_no || DASH}</td>
@@ -921,8 +1814,59 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                             <td className="ax-table__td">
                               <VerifyBadge value={Number(row.inst_verify_status)} />
                             </td>
-                            <td className="ax-table__td">
-                              {claimRaised(row) ? <Badge tone="success">Raised</Badge> : <Badge tone="neutral">Not Raised</Badge>}
+                            <td className="ax-table__td" style={{ whiteSpace: 'nowrap' }}>
+                              {siteClaimRaised ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                                  <Badge tone="success">
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      <span>Claim Raised</span>
+                                    </span>
+                                  </Badge>
+                            
+                                </div>
+                              ) : isClaimDue ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                  <button
+                                    type="button"
+                                    className="ax-btn ax-btn--primary ax-btn--xs"
+                                    onClick={() => setClaimModalSite(row)}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 5,
+                                      padding: '3px 9px',
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      lineHeight: 1.2,
+                                      whiteSpace: 'nowrap',
+                                      background: 'var(--ax-primary-default, #2563eb)',
+                                      color: '#fff',
+                                    }}
+                                    title={`Raise claim request for ${row.site_name || 'site'}`}
+                                  >
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                      <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                    <span>Raise Claim</span>
+                                  </button>
+                                </div>
+                              ) : Number(row.inst_verify_status) === 2 ? (
+                                <Badge tone="danger">
+                                  <span>Rejected</span>
+                                </Badge>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                                  <Badge tone="neutral">
+                                    <span>Awaiting Approval</span>
+                                  </Badge>
+                                  <span style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+                                    Claim unlocks after verify
+                                  </span>
+                                </div>
+                              )}
                             </td>
                             <td className="ax-table__td" style={{ textAlign: 'center' }}>
                               {Number(row.inst_verify_status) === 1 ? (
@@ -998,15 +1942,23 @@ export function Bihar_Installation_SRT_ViewInstallation() {
                 pageSize={pageSize}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>
         </section>
-      </div>
 
       {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
+
+      {/* ── Raise Claim Modal ── */}
+      {claimModalSite && (
+        <RaiseClaimModal
+          site={claimModalSite}
+          onClose={() => setClaimModalSite(null)}
+          onSuccess={handleClaimSuccess}
+        />
+      )}
     </div>
   );
 }

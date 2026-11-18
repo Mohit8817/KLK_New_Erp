@@ -255,6 +255,14 @@ export function Bihar_Installation_ULA_PendingInstallation() {
 
   const capturedCount = PHOTO_FIELDS.filter((p) => files[p.key] || existingPath(p.existing)).length;
 
+  const isSiteApproved = Boolean(
+    site && (
+      Number((site as any).inst_verify_status ?? (site as any).verify_status) === 1 ||
+      String((site as any).inst_verify_status ?? (site as any).verify_status ?? '').toLowerCase() === 'approved' ||
+      Number((site as any).status) === 1
+    )
+  );
+
   const handleFileChange = (key: PhotoKey, file: File | null) => {
     setErrorMsg(null);
     clearError(key);
@@ -280,6 +288,11 @@ export function Bihar_Installation_ULA_PendingInstallation() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!site) return;
+    if (isSiteApproved) {
+      setErrorMsg('This site installation is already Approved. Editing is locked.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setErrorMsg(null);
     setSuccessMsg(null);
     setFieldErrors({});
@@ -358,6 +371,24 @@ export function Bihar_Installation_ULA_PendingInstallation() {
           </span>
           <div className="ax-alert__content">
             <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>{errorMsg}</h4>
+          </div>
+        </div>
+      )}
+
+      {/* Approved Lock Warning */}
+      {isSiteApproved && (
+        <div className="ax-alert ax-alert--warning" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <span className="ax-alert__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          <div className="ax-alert__content">
+            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>Installation Approved — Editing Locked</h4>
+            <p className="ax-alert__message" style={{ margin: '4px 0 0' }}>
+              This site installation has already been approved by administration. Editing is locked.
+            </p>
           </div>
         </div>
       )}
@@ -552,11 +583,25 @@ export function Bihar_Installation_ULA_PendingInstallation() {
               <button type="button" className="ax-btn ax-btn--secondary" onClick={() => navigate(-1)} disabled={submitting}>
                 <span className="ax-btn__label">Cancel</span>
               </button>
-              <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+              <button
+                type="submit"
+                disabled={submitting || isSiteApproved}
+                className="ax-btn ax-btn--primary"
+                style={{ minWidth: 200, ...(isSiteApproved ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+                title={isSiteApproved ? 'Installation is approved — editing locked' : undefined}
+              >
                 {submitting ? (
                   <>
                     <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
                     <span className="ax-btn__label">Saving Installation...</span>
+                  </>
+                ) : isSiteApproved ? (
+                  <>
+                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span className="ax-btn__label">Approved (Locked)</span>
                   </>
                 ) : (
                   <>
@@ -569,10 +614,6 @@ export function Bihar_Installation_ULA_PendingInstallation() {
           </div>
         </form>
       )}
-
-      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
-      </footer>
     </div>
   );
 }

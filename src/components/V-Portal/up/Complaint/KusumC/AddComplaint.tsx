@@ -15,8 +15,8 @@ import { upComplaintService, type UpKusumCDetails } from '../../up-services';
 
 const SECTIONS: SectionItem[] = [
   { id: 'kc-sec-1', num: '1', title: 'Date & Farmer' },
-  { id: 'kc-sec-2', num: '2', title: 'Demographics' },
-  { id: 'kc-sec-3', num: '3', title: 'Pump Specs' },
+  { id: 'kc-sec-2', num: '2', title: 'Farmer & Allotment' },
+  { id: 'kc-sec-3', num: '3', title: 'Pump & Contractor' },
   { id: 'kc-sec-4', num: '4', title: 'Complaint & Files' },
 ];
 
@@ -30,21 +30,26 @@ const INITIAL_FORM = {
   farmer_name: '',
   father_name: '',
   contact_no: '',
+  lot_no: '',
+  invoice_no: '',
+  pump_capacity: '',
+  installation_date: '',
+  contractor_name: '',
+  contractor_no: '',
+  complaint: '',
+  sms: 'No',
+  // Optional / backwards-compatibility fields
   gender: '',
   category: '',
   aadhar_status: '',
   location: '',
   application_no: '',
   saral_id: '',
-  pump_capacity: '',
   pump_type: '',
   pump_make: '',
   controller_make: '',
   module_make: '',
   spv_capacity: '',
-  installation_date: '',
-  complaint: '',
-  sms: 'No',
 };
 
 type FormKey = keyof typeof INITIAL_FORM;
@@ -95,22 +100,27 @@ export function UPComplaintKCAdd() {
       post: '',
       village: '',
       farmer_id: '',
+      kcid: '',
       farmer_name: '',
       father_name: '',
       contact_no: '',
+      lot_no: '',
+      invoice_no: '',
+      pump_capacity: '',
+      installation_date: '',
+      contractor_name: '',
+      contractor_no: '',
       gender: '',
       category: '',
       aadhar_status: '',
       location: '',
       application_no: '',
       saral_id: '',
-      pump_capacity: '',
       pump_type: '',
       pump_make: '',
       controller_make: '',
       module_make: '',
       spv_capacity: '',
-      installation_date: '',
     }));
     clearErr('district');
     setPosts([]);
@@ -127,7 +137,22 @@ export function UPComplaintKCAdd() {
   };
 
   const handlePostChange = async (post: string) => {
-    setForm((p) => ({ ...p, post, village: '', farmer_id: '', farmer_name: '' }));
+    setForm((p) => ({
+      ...p,
+      post,
+      village: '',
+      farmer_id: '',
+      kcid: '',
+      farmer_name: '',
+      father_name: '',
+      contact_no: '',
+      lot_no: '',
+      invoice_no: '',
+      pump_capacity: '',
+      installation_date: '',
+      contractor_name: '',
+      contractor_no: '',
+    }));
     clearErr('post');
     setVillages([]);
     setFarmers([]);
@@ -142,7 +167,21 @@ export function UPComplaintKCAdd() {
   };
 
   const handleVillageChange = async (v: string) => {
-    setForm((p) => ({ ...p, village: v, farmer_id: '', farmer_name: '' }));
+    setForm((p) => ({
+      ...p,
+      village: v,
+      farmer_id: '',
+      kcid: '',
+      farmer_name: '',
+      father_name: '',
+      contact_no: '',
+      lot_no: '',
+      invoice_no: '',
+      pump_capacity: '',
+      installation_date: '',
+      contractor_name: '',
+      contractor_no: '',
+    }));
     clearErr('village');
     setFarmers([]);
     if (!v || !form.district || !form.post) return;
@@ -172,30 +211,45 @@ export function UPComplaintKCAdd() {
       const det: UpKusumCDetails | null = await upComplaintService.getKusumCDetails(fId);
       if (det) {
         const finalKcid = det.kcid || det.kc_id || det.id || resolvedKcid;
+        const farmerName = det.farmer_name || det.f_name || det.beneficiary_name || det.name || (chosen ? chosen.name : fId);
+        const fatherName = det.f_father_name ?? det.father_name ?? '';
+        const contactNo = det.f_contact ?? det.contact_no ?? det.f_mobile ?? det.contact_number ?? det.mobile ?? '';
+        const lotNo = det.lot_no ?? '';
+        const invoiceNo = det.f_invoice_no ?? det.invoice_no ?? '';
+        const pumpCapacity = det.pump_capacity ?? det.pump_capicity ?? det.spv_capacity ?? '';
+        const contractorName = det.c_contractor_name ?? det.contractor_name ?? '';
+        const contractorNo = det.c_contact_no ?? det.contractor_no ?? det.contractor_mo_no ?? det.contractor_mobile_no ?? '';
+        const rawInstDate = det.inst_date ?? det.installation_date ?? det.date_of_installation ?? '';
+        const installationDate = rawInstDate ? String(rawInstDate).split('T')[0] : '';
+
         setForm((p) => ({
           ...p,
           kcid: String(finalKcid),
           farmer_id: String(det.farmer_id || det.id || fId),
-          farmer_name: det.farmer_name || det.f_name || det.beneficiary_name || det.name || p.farmer_name,
-          father_name: det.father_name || det.f_father_name ? String(det.father_name || det.f_father_name) : p.father_name,
-          contact_no: det.contact_no || det.f_mobile || det.contact_number ? String(det.contact_no || det.f_mobile || det.contact_number) : p.contact_no,
+          farmer_name: farmerName || p.farmer_name,
+          father_name: fatherName !== '' ? String(fatherName) : p.father_name,
+          contact_no: contactNo !== '' ? String(contactNo) : p.contact_no,
+          lot_no: lotNo !== '' ? String(lotNo) : p.lot_no,
+          invoice_no: invoiceNo !== '' ? String(invoiceNo) : p.invoice_no,
+          pump_capacity: pumpCapacity !== '' ? String(pumpCapacity) : p.pump_capacity,
+          installation_date: installationDate !== '' ? installationDate : p.installation_date,
+          contractor_name: contractorName !== '' ? String(contractorName) : p.contractor_name,
+          contractor_no: contractorNo !== '' ? String(contractorNo) : p.contractor_no,
+          // Optional/backwards-compatible fields
           gender: det.gender ? String(det.gender) : p.gender,
           category: det.category ? String(det.category) : p.category,
           aadhar_status: det.aadhar_status ? String(det.aadhar_status) : p.aadhar_status,
           location: det.location ? String(det.location) : p.location,
           application_no: det.application_no ? String(det.application_no) : p.application_no,
           saral_id: det.saral_id ? String(det.saral_id) : p.saral_id,
-          lot_no: det.lot_no ? String(det.lot_no) : p.lot_no,
-          contractor_name: det.contractor_name ? String(det.contractor_name) : p.contractor_name,
-          contractor_no: det.contractor_no || det.contractor_mo_no || det.contractor_mobile_no ? String(det.contractor_no || det.contractor_mo_no || det.contractor_mobile_no) : p.contractor_no,
-          pump_capacity: det.pump_capacity || det.pump_capicity ? String(det.pump_capacity || det.pump_capicity) : p.pump_capacity,
           pump_type: det.pump_type ? String(det.pump_type) : p.pump_type,
           pump_make: det.pump_make ? String(det.pump_make) : p.pump_make,
           controller_make: det.controller_make ? String(det.controller_make) : p.controller_make,
           module_make: det.module_make ? String(det.module_make) : p.module_make,
           spv_capacity: det.spv_capacity ? String(det.spv_capacity) : p.spv_capacity,
-          installation_date: det.installation_date ? String(det.installation_date).split('T')[0] : p.installation_date,
         }));
+
+        if (contactNo) clearErr('contact_no');
       }
     } catch {}
   };
@@ -245,6 +299,7 @@ export function UPComplaintKCAdd() {
         fd.set('kc_id', String(kcidVal));
         fd.set('farmer_id', String(kcidVal));
         fd.set('beneficiary_id', String(kcidVal));
+        fd.set('id', String(kcidVal));
       }
 
       const smsVal = form.sms && String(form.sms).toLowerCase() === 'yes' ? 'Yes' : 'No';
@@ -259,15 +314,34 @@ export function UPComplaintKCAdd() {
         fd.append('f_father_name', form.father_name);
       }
       if (form.contact_no) {
+        fd.append('f_contact', form.contact_no);
         fd.append('f_mobile', form.contact_no);
         fd.append('contact_number', form.contact_no);
       }
+      if (form.lot_no) {
+        fd.append('lot_no', form.lot_no);
+      }
+      if (form.invoice_no) {
+        fd.append('f_invoice_no', form.invoice_no);
+        fd.append('invoice_no', form.invoice_no);
+      }
       if (form.pump_capacity) {
         fd.append('pump_capicity', form.pump_capacity);
+        fd.append('pump_capacity', form.pump_capacity);
+      }
+      if (form.contractor_name) {
+        fd.append('c_contractor_name', form.contractor_name);
+        fd.append('contractor_name', form.contractor_name);
       }
       if (form.contractor_no) {
+        fd.append('c_contact_no', form.contractor_no);
+        fd.append('contractor_no', form.contractor_no);
         fd.append('contractor_mo_no', form.contractor_no);
         fd.append('contractor_mobile_no', form.contractor_no);
+      }
+      if (form.installation_date) {
+        fd.append('inst_date', form.installation_date);
+        fd.append('installation_date', form.installation_date);
       }
       if (file) {
         fd.append('document', file);
@@ -343,34 +417,27 @@ export function UPComplaintKCAdd() {
 
       <hr className="up-section-divider" />
 
-      {/* ── Section 2: Demographics ── */}
+      {/* ── Section 2: Farmer & Allotment ── */}
       <div id="kc-sec-2" className="up-section-block">
-        <SectionHeader num="2" total={4} title="Farmer Demographics" desc="Auto-populated beneficiary details; editable if updated." />
-        <div className="up-form-grid up-form-grid--3col">
+        <SectionHeader num="2" total={4} title="Farmer Demographics & Allotment" desc="Auto-populated beneficiary details & allotment information; editable if updated." />
+        <div className="up-form-grid up-form-grid--4col">
           <FloatingInput id="kc-father" label="Father Name" value={form.father_name} onChange={(v) => setVal('father_name', v)} />
           <FloatingInput id="kc-contact" label="Contact No." type="tel" required value={form.contact_no} onChange={(v) => setVal('contact_no', v)} error={errors.contact_no} />
-          <FloatingSelect id="kc-gender" label="Gender" options={opts(['Male', 'Female', 'Other'])} value={form.gender} onChange={(v) => setVal('gender', v)} />
-          <FloatingInput id="kc-cat" label="Category" value={form.category} onChange={(v) => setVal('category', v)} />
-          <FloatingInput id="kc-aadhar" label="Aadhar Status" value={form.aadhar_status} onChange={(v) => setVal('aadhar_status', v)} />
-          <FloatingInput id="kc-loc" label="Location" value={form.location} onChange={(v) => setVal('location', v)} />
-          <FloatingInput id="kc-appno" label="Application No." value={form.application_no} onChange={(v) => setVal('application_no', v)} />
-          <FloatingInput id="kc-saral" label="Saral ID" value={form.saral_id} onChange={(v) => setVal('saral_id', v)} />
+          <FloatingInput id="kc-lot" label="Lot No." value={form.lot_no} onChange={(v) => setVal('lot_no', v)} />
+          <FloatingInput id="kc-invoice" label="Invoice No." value={form.invoice_no} onChange={(v) => setVal('invoice_no', v)} />
         </div>
       </div>
 
       <hr className="up-section-divider" />
 
-      {/* ── Section 3: Pump Specs ── */}
+      {/* ── Section 3: Pump & Contractor Specifications ── */}
       <div id="kc-sec-3" className="up-section-block">
-        <SectionHeader num="3" total={4} title="Pump & Technical Specifications" desc="Equipment specifications from site records." />
-        <div className="up-form-grid up-form-grid--3col">
+        <SectionHeader num="3" total={4} title="Pump & Contractor Specifications" desc="Pump capacity, installation date, and assigned contractor details." />
+        <div className="up-form-grid up-form-grid--4col">
           <FloatingInput id="kc-cap" label="Pump Capacity" value={form.pump_capacity} onChange={(v) => setVal('pump_capacity', v)} />
-          <FloatingInput id="kc-type" label="Pump Type" value={form.pump_type} onChange={(v) => setVal('pump_type', v)} />
-          <FloatingInput id="kc-pmake" label="Pump Make" value={form.pump_make} onChange={(v) => setVal('pump_make', v)} />
-          <FloatingInput id="kc-cmake" label="Controller Make" value={form.controller_make} onChange={(v) => setVal('controller_make', v)} />
-          <FloatingInput id="kc-mmake" label="Module Make" value={form.module_make} onChange={(v) => setVal('module_make', v)} />
-          <FloatingInput id="kc-spv" label="SPV Capacity" value={form.spv_capacity} onChange={(v) => setVal('spv_capacity', v)} />
           <FloatingInput id="kc-inst" label="Installation Date" type="date" value={form.installation_date} onChange={(v) => setVal('installation_date', v)} />
+          <FloatingInput id="kc-cname" label="Contractor Name" value={form.contractor_name} onChange={(v) => setVal('contractor_name', v)} />
+          <FloatingInput id="kc-cno" label="Contractor Contact No." type="tel" value={form.contractor_no} onChange={(v) => setVal('contractor_no', v)} />
         </div>
       </div>
 

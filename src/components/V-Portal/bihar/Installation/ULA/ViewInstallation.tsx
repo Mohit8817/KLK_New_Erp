@@ -331,9 +331,9 @@ function ThumbnailGroup({
 }
 
 /* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ──
-   Only 3 actions: Edit Structure, Pending Installation, Document */
-const MENU_W = 180;
-const MENU_H = 118;
+   Only 3 actions: Edit Structure, Pending Installation, Document.
+   When site or structure/installation is Approved, editing is locked/hidden. */
+const MENU_W = 195;
 
 function RowActionDropdown({
   site,
@@ -347,6 +347,29 @@ function RowActionDropdown({
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Status checks for editing restrictions (1 = Approved)
+  const isApprovedVal = (val: unknown) => {
+    if (val === 1 || val === '1') return true;
+    if (typeof val === 'string' && val.trim().toLowerCase() === 'approved') return true;
+    return false;
+  };
+
+  const isStructureApproved = isApprovedVal(site.structure_verify_status);
+  const isInstallationApproved = isApprovedVal(site.inst_verify_status ?? site.verify_status);
+  const isOverallApproved = isApprovedVal(site.status);
+
+  // Structure can only be edited if structure is NOT approved AND installation is NOT approved AND overall site is NOT approved
+  const canEditStructure = !isStructureApproved && !isInstallationApproved && !isOverallApproved;
+
+  // Pending installation can only be submitted/edited if installation is NOT approved AND overall site is NOT approved
+  const canEditInstallation = !isInstallationApproved && !isOverallApproved;
+
+  const hasAnyEdit = canEditStructure || canEditInstallation;
+  const isLocked = !hasAnyEdit;
+
+  const totalItems = (canEditStructure ? 1 : 0) + (canEditInstallation ? 1 : 0) + 1 + (!hasAnyEdit || !canEditStructure ? 1 : 0);
+  const estimatedH = totalItems * 36 + 12;
+
   const toggle = () => {
     if (open) {
       setOpen(false);
@@ -356,7 +379,7 @@ function RowActionDropdown({
     if (!b) return;
     const r = b.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const top = spaceBelow < estimatedH + 8 && r.top > estimatedH + 8 ? r.top - estimatedH - 4 : r.bottom + 4;
     const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
     setPos({ top, left });
     setOpen(true);
@@ -394,6 +417,7 @@ function RowActionDropdown({
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
+        title={isLocked ? 'Approved — Editing is locked' : undefined}
       >
         <span>Action</span>
         <svg
@@ -423,24 +447,28 @@ function RowActionDropdown({
             role="menu"
             style={{ top: pos.top, left: pos.left, width: MENU_W }}
           >
-            <Link
-              to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
-              state={{ site }}
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-            >
-              Edit Structure
-            </Link>
-            <Link
-              to={site?.id ? `/v/bihar/ula-installation-pending/${site.id}` : '/v/bihar/ula-installation-pending'}
-              state={{ site }}
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-            >
-              Pending Installation
-            </Link>
+            {canEditStructure && (
+              <Link
+                to={`/v/bihar/ula-installation-structure-edit-site/${site.id}`}
+                state={{ site }}
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                Edit Structure
+              </Link>
+            )}
+            {canEditInstallation && (
+              <Link
+                to={site?.id ? `/v/bihar/ula-installation-pending/${site.id}` : '/v/bihar/ula-installation-pending'}
+                state={{ site }}
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                Pending Installation
+              </Link>
+            )}
             <button
               type="button"
               className="ula-menu__item"
@@ -452,6 +480,44 @@ function RowActionDropdown({
             >
               Document
             </button>
+
+            {(!canEditStructure || !canEditInstallation) && (
+              <div
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: 'var(--ax-text-muted, #64748b)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>
+                  {isLocked
+                    ? 'Editing Locked (Approved)'
+                    : !canEditStructure
+                    ? 'Structure Locked (Approved)'
+                    : 'Installation Locked (Approved)'}
+                </span>
+              </div>
+            )}
           </div>,
           document.body
         )}

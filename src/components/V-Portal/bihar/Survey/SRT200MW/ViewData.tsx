@@ -70,21 +70,17 @@ const X_ICON = (
   </svg>
 );
 
-/* ───────── KPI Card (Kashmir pattern) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink';
+/* ───────── KPI Card (Static / Non-clickable, matching View Bihar SRT Installation) ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  danger: { bg: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
 };
-
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
 
 function KpiCard({
   icon,
@@ -97,17 +93,29 @@ function KpiCard({
   tone: KpiTone;
   label: string;
   value: ReactNode;
-  sub: ReactNode;
+  sub?: string;
 }) {
   const t = TONE[tone];
+
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '16px 20px', borderRadius: 12, transition: 'all 0.2s ease' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+    <div
+      className="ax-card"
+      style={{
+        padding: '12px 14px',
+        borderRadius: 10,
+        minWidth: 0,
+        cursor: 'default',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface, #ffffff)',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
+            width: 26,
+            height: 26,
+            borderRadius: 7,
             background: t.bg,
             color: t.fg,
             display: 'inline-flex',
@@ -116,20 +124,52 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+          <span style={{ width: 14, height: 14, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={label}
+        >
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 4 }}>{sub}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: t.fg, marginTop: 2, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--ax-text-muted)',
+            marginTop: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={sub}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ───────── Responsive page CSS (Kashmir pattern) ───────── */
+/* ───────── Responsive page CSS (Exact View Bihar SRT Installation pattern) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -225,12 +265,6 @@ const PAGE_CSS = `
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
 
-  @media (max-width: 900px) {
-    .solar-erp-page .ax-dash-grid > .ax-card {
-      grid-column: span 12 !important;
-    }
-  }
-
   @media (max-width: 760px) {
     .solar-erp-page .ax-card__header {
       flex-direction: column;
@@ -244,19 +278,80 @@ const PAGE_CSS = `
       width: 100%;
       max-width: 100%;
     }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display);
+      font-size: var(--ax-text-md);
+      line-height: var(--ax-leading-md);
+    }
     .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
       width: 100%;
-      justify-content: stretch;
       margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .solar-erp-page .ax-card__actions .ax-cluster {
-      width: 100%;
       flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] {
       flex: 1 1 100%;
+      width: 100%;
       max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
+    }
+  }
+
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+
+  .solar-erp-page .srt-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    margin-top: 4px;
+  }
+  @media (max-width: 1400px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 960px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 420px) {
+    .solar-erp-page .srt-kpi-grid {
+      grid-template-columns: 1fr;
     }
   }
 `;
@@ -777,147 +872,175 @@ export function Bihar_Survey_SRT200MW_ViewData() {
           { label: 'Bihar' },
           { label: 'Survey' },
           { label: 'SRT 200MW' },
+          { label: 'Survey Records' },
         ]}
         actions={
-          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
             <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
             <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={() => navigate('/v/bihar/srt200mw-survey')}>
-              <svg className="ax-btn__icon" {...ICON_PROPS}>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span className="ax-btn__label">Add Survey</span>
+              <span className="ax-btn__label">+ Add Survey</span>
             </button>
           </div>
         }
       />
 
-      {/* ── Feedback Alert (Kashmir pattern — auto-dismiss + dismiss button) ── */}
+      {/* ── Feedback Alert ── */}
       {feedbackMsg && (
-        <div
-          className={`ax-alert ax-alert--${feedbackMsg.type}`}
-          style={{ marginBottom: 'var(--ax-space-4)' }}
-          role="status"
-        >
-          <div className="ax-alert__content">{feedbackMsg.text}</div>
-          <button
-            type="button"
-            className="ax-btn ax-btn--ghost ax-btn--xs"
-            onClick={() => setFeedbackMsg(null)}
-            aria-label="Dismiss alert"
-          >
-            {X_ICON}
-          </button>
+        <div className={`ax-alert ax-alert--${feedbackMsg.type}`} style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
+          <div className="ax-alert__title">{feedbackMsg.type === 'success' ? 'Success' : 'Error'}</div>
+          <div className="ax-alert__text">{feedbackMsg.text}</div>
         </div>
       )}
 
-      {/* ── KPI Cards (separated dash-grid with marginBottom) ── */}
-      <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-        {loading ? (
-          <KpiSkeleton count={4} />
-        ) : (
-          <>
-            <KpiCard
-              tone="accent"
-              label="Total Assigned"
-              value={kpis.total.toLocaleString('en-IN')}
-              sub={`${kpis.complete} surveyed · ${kpis.pending} remaining`}
-              icon={svg(<><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>)}
-            />
-            <KpiCard
-              tone="emerald"
-              label="Survey Completed"
-              value={kpis.complete.toLocaleString('en-IN')}
-              sub={`${surveyDonePct}% done · ${kpis.pending} pending`}
-              icon={svg(<><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1" /><path d="M9 13l2 2 4-4" /></>)}
-            />
-            <KpiCard
-              tone="amber"
-              label="Verification Approved"
-              value={kpis.verify_complete.toLocaleString('en-IN')}
-              sub={`${verifyDonePct}% verified · ${kpis.verify_pending} pending`}
-              icon={svg(<><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>)}
-            />
-            <KpiCard
-              tone="pink"
-              label="Verification Rejected"
-              value={kpis.verify_reject.toLocaleString('en-IN')}
-              sub="Need re-survey / correction"
-              icon={svg(<><circle cx="12" cy="12" r="9" /><path d="M15 9l-6 6M9 9l6 6" /></>)}
-            />
-          </>
-        )}
+      {/* ── 6 KPI Stat Cards (Static / Non-clickable, matching View Bihar SRT Installation) ── */}
+      <div className="srt-kpi-grid">
+        <KpiCard
+          tone="accent"
+          label="Total Assigned"
+          value={loading ? '…' : kpis.total.toLocaleString('en-IN')}
+          sub="Total assigned rooftop sites"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="emerald"
+          label="Survey Completed"
+          value={loading ? '…' : kpis.complete.toLocaleString('en-IN')}
+          sub="Survey work completed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Survey Pending"
+          value={loading ? '…' : kpis.pending.toLocaleString('en-IN')}
+          sub="Awaiting site survey"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="cyan"
+          label="Approve Sites"
+          value={loading ? '…' : kpis.verify_complete.toLocaleString('en-IN')}
+          sub="Verified & approved"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="danger"
+          label="Reject Sites"
+          value={loading ? '…' : kpis.verify_reject.toLocaleString('en-IN')}
+          sub="Inspection rejected"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Verify Pending"
+          value={loading ? '…' : kpis.verify_pending.toLocaleString('en-IN')}
+          sub="Awaiting verification"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
       </div>
 
-      {/* ── Main Table Card (separate dash-grid) ── */}
-      <div className="ax-dash-grid">
-        <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">SITE SURVEY</span>
-              <h2 className="ax-card__title">Bihar SRT 200 MW Survey Records</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredSites.length} of {sites.length} records
-              </p>
-            </div>
+      {/* ── Main Table Card (exact reference design) ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Bihar SRT 200MW Survey Records">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Bihar SRT 200 MW Survey Records</h2>
+            <p className="ax-card__subtitle">
+              <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{sites.length}</span> records
+              {' '}· Completed <b className="ax-num">{kpis.complete}</b> / {kpis.total} · Approved <b className="ax-num">{kpis.verify_complete}</b> · Pending Verify <b className="ax-num">{kpis.verify_pending}</b> · Rejected <b className="ax-num">{kpis.verify_reject}</b>
+            </p>
+          </div>
 
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={actionsRowStyle}>
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={districtFilter}
-                  onChange={(e) => {
-                    setDistrictFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by district"
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="srt_district_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter by district"
+              >
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+
+              <select
+                id="srt_status_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                aria-label="Filter by verification status"
+              >
+                <option value="all">All Verification</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
-                  <option value="all">All Districts</option>
-                  {districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+                  Reset
+                </button>
+              )}
 
-                <select
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  aria-label="Filter by verification status"
-                >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-
-                {hasFilters && (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    onClick={resetFilters}
-                    style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  >
-                    Reset
-                  </button>
-                )}
-
-                <SearchInput
-                  value={search}
-                  onChange={(val) => {
-                    setSearch(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search site, district, UID…"
-                  size="sm"
-                  ariaLabel="Search survey records"
-                />
+              <SearchInput
+                value={search}
+                onChange={(val) => {
+                  setSearch(val);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search site, CA no, person, meter…"
+                size="sm"
+                ariaLabel="Search survey records"
+              />
 
                 <TableExportToolbar
                   onCopy={handleCopy}
@@ -1046,43 +1169,45 @@ export function Bihar_Survey_SRT200MW_ViewData() {
                         {/* Action */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {verifyStatusNum(item) === 1 ? (
-                            <button
-                              type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
-                              disabled
-                              title="Survey is approved and locked"
+                            <span
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: 4,
+                                gap: 6,
+                                padding: '4px 10px',
+                                fontWeight: 600,
+                                opacity: 0.6,
                                 cursor: 'not-allowed',
-                                pointerEvents: 'auto',
-                                opacity: 0.7,
                               }}
+                              title="Approved — editing is locked"
                             >
-                              <svg
-                                viewBox="0 0 24 24"
-                                width={12}
-                                height={12}
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                aria-hidden="true"
-                              >
-                                <rect x="5" y="11" width="14" height="10" rx="2" />
-                                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                               </svg>
-                              Locked
-                            </button>
+                              <span>Locked</span>
+                            </span>
                           ) : (
                             <button
                               type="button"
-                              className="ax-btn ax-btn--secondary ax-btn--xs"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '4px 10px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
                               onClick={() => navigate(`/v/bihar/srt200mw-survey?id=${item.id}`)}
+                              title="Edit Survey Details"
                             >
-                              Edit
+                              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                              </svg>
+                              <span>Edit</span>
                             </button>
                           )}
                         </td>
@@ -1093,24 +1218,23 @@ export function Bihar_Survey_SRT200MW_ViewData() {
             </table>
           </div>
 
-          {/* ── Table Footer (Kashmir pattern — footerStyle) ── */}
+          {/* ── Table Footer ── */}
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
-                page={currentPage}
+                currentPage={currentPage}
+                totalItems={filteredSites.length}
                 pageSize={pageSize}
-                total={filteredSites.length}
-                onChange={setCurrentPage}
+                onPageChange={setCurrentPage}
                 onPageSizeChange={(sz) => {
                   setPageSize(sz);
                   setCurrentPage(1);
                 }}
-                pageSizeOptions={[25, 50, 100, 200, 300]}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </div>
           </div>
         </section>
-      </div>
 
       {/* ── Image Preview Modal ── */}
       {previewImage && (

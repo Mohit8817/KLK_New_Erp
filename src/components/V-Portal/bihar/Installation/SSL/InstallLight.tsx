@@ -204,7 +204,8 @@ const SINGLE_CARD_FORM_CSS = `
 }
 
 /* Sticky action footer */
-.ssl-form-sticky-bar {
+.ssl-form-sticky-bar,
+.bihar-form-sticky-bar {
   position: sticky;
   bottom: var(--ax-space-4, 16px);
   z-index: 30;
@@ -221,6 +222,8 @@ const SINGLE_CARD_FORM_CSS = `
   gap: var(--ax-space-3, 12px);
   backdrop-filter: blur(12px);
 }
+
+@keyframes bihar-spin { to { transform: rotate(360deg); } }
 `;
 
 const MAX_FILE = 2 * 1024 * 1024;
@@ -1219,51 +1222,61 @@ export function Bihar_Installation_SSL_InstallLight() {
             </div>
           </div>
 
-          {/* ════════ Sticky Submit Footer matching reference ════════ */}
-          <div className="ssl-form-sticky-bar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                Required: {completedRequired} / {totalRequired} ({progressPercent}%)
-              </span>
-              {submitted && errorCount > 0 && (
-                <span style={{ fontSize: '12px', color: 'var(--ax-danger-500, #ef4444)', fontWeight: 600 }}>
-                  ⚠️ Missing mandatory fields
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Sticky Action Footer (matching Register SSL Complaint design) */}
+          <div className="bihar-form-sticky-bar">
+            <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
+              {isEditMode ? 'Edit Mode' : 'New Installation'}
+            </span>
+            <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary"
-                disabled={submitting}
                 onClick={() => {
-                  if (window.confirm('Reset the form? Any unsaved inputs will be lost.')) {
-                    setSelectedUniqueId('');
-                    setSiteDetail(null);
-                    resetForm();
-                  }
+                  const isV = window.location.pathname.startsWith('/v/') || window.location.pathname.startsWith('v/');
+                  navigate(isV ? '/v/bihar/installation/ssl/installation-detail' : '/bihar/installation/ssl/installation-detail');
                 }}
+                disabled={submitting}
               >
-                Reset Form
+                <span className="ax-btn__label">Cancel</span>
               </button>
               <button
                 type="submit"
-                className="ax-btn ax-btn--primary"
                 disabled={submitting}
+                className="ax-btn ax-btn--primary"
                 style={{ minWidth: 200 }}
               >
                 {submitting ? (
                   <>
-                    <span className="ax-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
-                    <span>{isEditMode ? 'Updating…' : 'Submitting…'}</span>
+                    <svg
+                      className="ax-btn__icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      style={{ animation: 'bihar-spin 1s linear infinite' }}
+                    >
+                      <path d="M12 3a9 9 0 1 0 9 9" />
+                    </svg>
+                    <span className="ax-btn__label">
+                      {isEditMode ? 'Updating Installation...' : 'Submitting Installation...'}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
+                    <svg
+                      className="ax-btn__icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M5 12l5 5l10 -10" />
                     </svg>
-                    <span>{isEditMode ? 'Update Installation Details' : 'Submit Installation Details'}</span>
+                    <span className="ax-btn__label">
+                      {isEditMode ? 'Update Installation' : 'Submit Installation'}
+                    </span>
                   </>
                 )}
               </button>

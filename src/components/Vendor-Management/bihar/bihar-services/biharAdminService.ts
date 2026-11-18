@@ -282,17 +282,42 @@ export class BiharAdminService {
   }
 
   async verifySslInstallationStatus(payload: object) {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.VERIFY_INSTALLATION_STATUS, {
+    const res = await fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.VERIFY_INSTALLATION_STATUS, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    const isError =
+      res?.status === 'error' ||
+      res?.status === false ||
+      res?.success === false ||
+      (typeof res?.error === 'string' && res.error.trim().length > 0) ||
+      (res?.errors && typeof res.errors === 'object' && Object.keys(res.errors).length > 0);
+    if (isError) {
+      let msg = res?.message || res?.error || 'Failed to update installation verification status';
+      if (res?.errors && typeof res.errors === 'object') {
+        const details = Object.values(res.errors)
+          .flat()
+          .filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+        if (details.length > 0) {
+          msg = res?.message && !details.includes(res.message)
+            ? `${res.message}: ${details.join(', ')}`
+            : details.join(', ');
+        }
+      }
+      throw new Error(msg);
+    }
+    return res;
   }
 
   async reverifySslCmsStatus(payload: object) {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.REVERIFY_CMS_STATUS, {
+    const res = await fetchWithCandidateUrls(BIHAR_ADMIN_API.SSL_INSTALLATION.REVERIFY_CMS_STATUS, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    if (res?.status === 'error' || res?.status === false || res?.success === false) {
+      throw new Error(res?.message || res?.error || 'Failed to reverify CMS status');
+    }
+    return res;
   }
 
   // 5.4 Claims & Payment
@@ -357,12 +382,12 @@ export class BiharAdminService {
     return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.ASSIGN);
   }
 
-  async getSrtDistricts() {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.FETCH_DISTRICT);
+  async getSrtDistricts(state: string = 'bihar') {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.FETCH_DISTRICT(state));
   }
 
-  async getSrtSites(district?: string) {
-    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.FETCH_SITE(district));
+  async getSrtSites(district?: string, state?: string) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.FETCH_SITE(district, state));
   }
 
   async storeSrtAssign(body: FormData | object) {
@@ -372,8 +397,27 @@ export class BiharAdminService {
     });
   }
 
+  async getEditSrtAssign(id: string | number) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.EDIT_ASSIGN(id));
+  }
+
+  async updateSrtAssign(id: string | number, body: FormData | object) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.UPDATE_ASSIGN(id), {
+      method: 'POST',
+      body: body instanceof FormData ? body : JSON.stringify(body),
+    });
+  }
+
   async getViewAssignSrt() {
     return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.VIEW_ASSIGN);
+  }
+
+  async getViewAssignSrtDetails(id: string | number) {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.VIEW_ASSIGN_DETAILS(id));
+  }
+
+  async getVerifySrtAssign() {
+    return fetchWithCandidateUrls(BIHAR_ADMIN_API.SRT_INSTALLATION.VERIFY);
   }
 
   async approveSrtAssign(id: string | number) {

@@ -603,29 +603,6 @@ export function Goa_Installation_SRT_RequestAccept() {
     setCurrentPage(1);
   };
 
-  // Export Columns (Exact match with 10 table headers)
-  const exportCols: ExportColumn<GoaSrtAssignBatchItem>[] = useMemo(
-    () => [
-      { header: 'Sr. No.', accessor: (r: GoaSrtAssignBatchItem) => String(r.id || DASH) },
-      { header: 'Vendor', accessor: (r) => r.vendors?.name || (r as any).vendor_name || `Vendor ${r.vendor}` },
-      { header: 'Assign Date', accessor: (r) => r.assign_date || r.created_at || DASH },
-      { header: 'State', accessor: (r) => r.state || 'goa' },
-      { header: 'District', accessor: (r) => r.district || DASH },
-      {
-        header: 'Site Name - Deadline',
-        accessor: (r) => (Array.isArray(r.site_name) ? r.site_name.join(', ') : String(r.site_name || DASH)),
-      },
-      {
-        header: 'Site Count',
-        accessor: (r) => String(Number(r.site_count) || (Array.isArray(r.site_name) ? r.site_name.length : 1)),
-      },
-      { header: 'File', accessor: (r) => r.file || DASH },
-      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending') },
-    ],
-    []
-  );
-
   const getSiteCount = (batch: GoaSrtAssignBatchItem): number => {
     if (batch.site_count !== undefined && batch.site_count !== null && batch.site_count !== '') {
       const n = Number(batch.site_count);
@@ -634,6 +611,35 @@ export function Goa_Installation_SRT_RequestAccept() {
     if (Array.isArray(batch.site_name)) return batch.site_name.length;
     return 1;
   };
+
+  // Cumulative allocated sites
+  const totalSitesCount = useMemo(() => {
+    return assignments.reduce((sum, item) => sum + getSiteCount(item), 0);
+  }, [assignments]);
+
+  // Export Columns (Exact match with 12 table headers)
+  const exportCols: ExportColumn<GoaSrtAssignBatchItem>[] = useMemo(
+    () => [
+      { header: 'Sr. No.', accessor: (r: GoaSrtAssignBatchItem) => String(r.id || DASH) },
+      { header: 'Vendor', accessor: (r) => r.vendors?.name || (r as any).vendor_name || `Vendor ${r.vendor}` },
+      { header: 'Assign Date', accessor: (r) => r.assign_date || r.created_at || DASH },
+      { header: 'State', accessor: (r) => (r.state || 'goa').toUpperCase() },
+      { header: 'District', accessor: (r) => r.district || DASH },
+      {
+        header: 'Site Name - Deadline',
+        accessor: (r) => (Array.isArray(r.site_name) ? r.site_name.join(', ') : String(r.site_name || DASH)),
+      },
+      {
+        header: 'Count',
+        accessor: (r) => String(getSiteCount(r)),
+      },
+      { header: 'Deadline Date', accessor: (r) => r.deadline_date || DASH },
+      { header: 'File', accessor: (r) => r.file || DASH },
+      { header: 'Remarks', accessor: (r) => r.remarks || DASH },
+      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Accept') },
+    ],
+    []
+  );
 
   const renderSiteNameSnippet = (batch: GoaSrtAssignBatchItem) => {
     if (Array.isArray(batch.site_name) && batch.site_name.length > 0) {
@@ -658,7 +664,21 @@ export function Goa_Installation_SRT_RequestAccept() {
     return String(batch.site_name || DASH);
   };
 
-  const TOTAL_COLUMNS = 10;
+  const TOTAL_COLUMNS = 12;
+  const tableHeaders = [
+    'Sr. No.',
+    'Vendor',
+    'Assign Date',
+    'State',
+    'District',
+    'Site Name - Deadline',
+    'Count',
+    'Deadline Date',
+    'File',
+    'Remarks',
+    'Status',
+    'Action',
+  ];
 
   return (
     <div className="solar-erp-page">
@@ -668,7 +688,7 @@ export function Goa_Installation_SRT_RequestAccept() {
       {/* ── Page Head ── */}
       <PageHead
         title="View Assigned SRT Installation"
-        subtitle="Welcome to, View Assigned SRT Installation"
+        subtitle="Manage assigned installation batches and accept assignments for site execution in Goa"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'View Assigned SRT Installation' },
@@ -685,6 +705,14 @@ export function Goa_Installation_SRT_RequestAccept() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
+            <Link
+              to="/v/goa/srt/installationsite"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ textDecoration: 'none' }}
+            >
+              <span style={{ fontSize: 14 }}>+</span>
+              <span className="ax-btn__label">Add Installation Site</span>
+            </Link>
           </div>
         }
       />
@@ -707,64 +735,74 @@ export function Goa_Installation_SRT_RequestAccept() {
         </div>
       )}
 
-      {/* ── KPI Cards (click to filter) ── */}
-      {!loading && (
-        <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-          <KpiCard
-            tone="accent"
-            label="Total Assigned"
-            value={summary.total.toLocaleString('en-IN')}
-            sub="All assigned batches"
-            active={statusFilter === 'all'}
-            onClick={() => setStatus('all')}
-            icon={svg(
-              <>
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="2" />
-                <path d="M9 14l2 2 4-4" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="amber"
-            label="Pending"
-            value={summary.pending.toLocaleString('en-IN')}
-            sub="Waiting for acceptance"
-            active={statusFilter === 'pending'}
-            onClick={() => setStatus('pending')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="emerald"
-            label="Accepted"
-            value={summary.accepted.toLocaleString('en-IN')}
-            sub="Accepted by vendor"
-            active={statusFilter === 'accepted'}
-            onClick={() => setStatus('accepted')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9 12l2 2 4-4" />
-              </>
-            )}
-          />
-        </div>
-      )}
+      {/* ── Top Metric KPI Cards (4 cards in 1 row - exact Karnataka SWP pattern) ── */}
+      <div className="asw-cards-row" style={{ marginBottom: 'var(--ax-space-4)' }}>
+        <KpiCard
+          tone="accent"
+          label="Total Assignments"
+          value={summary.total.toLocaleString('en-IN')}
+          sub={`${summary.accepted} accepted · ${summary.pending} pending`}
+          active={statusFilter === 'all'}
+          onClick={() => setStatus('all')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Pending Acceptance"
+          value={summary.pending.toLocaleString('en-IN')}
+          sub="Action required by vendor"
+          active={statusFilter === 'pending'}
+          onClick={() => setStatus('pending')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="emerald"
+          label="Accepted Batches"
+          value={summary.accepted.toLocaleString('en-IN')}
+          sub="Accepted & ready to install"
+          active={statusFilter === 'accepted'}
+          onClick={() => setStatus('accepted')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="cyan"
+          label="Total Allocated Sites"
+          value={totalSitesCount.toLocaleString('en-IN')}
+          sub="Cumulative SRT installation sites"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+              <circle cx="12" cy="9.5" r="2.5" />
+            </svg>
+          }
+        />
+      </div>
 
       <div className="ax-dash-grid">
-        {/* ── Main Table Card ── */}
+        {/* ── Main Table Card (exact reference layout) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned SRT Site Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">ASSIGNED SITES</span>
-              <h2 className="ax-card__title">View Installation Records</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredAssignments.length} of {assignments.length} records
+              <h2 className="ax-card__title">Assigned Installation Batches</h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredAssignments.length}</span> of <span className="ax-num">{assignments.length}</span> assignments
+                {' '}· Accepted <b className="ax-num">{summary.accepted}</b> · Pending <b className="ax-num">{summary.pending}</b>
               </p>
             </div>
             <div className="ax-card__actions">
@@ -791,13 +829,13 @@ export function Goa_Installation_SRT_RequestAccept() {
                 <select
                   id="status_filter"
                   className="ax-input ax-input--sm"
-                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={statusFilter}
                   onChange={(e) => setStatus(e.target.value as 'all' | 'pending' | 'accepted')}
                   aria-label="Filter by status"
                 >
                   <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
+                  <option value="pending">Pending Accept</option>
                   <option value="accepted">Accepted</option>
                 </select>
 
@@ -815,16 +853,16 @@ export function Goa_Installation_SRT_RequestAccept() {
                 <SearchInput
                   value={search}
                   onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search vendor, site, district…"
+                  placeholder="Search vendor, site, ID…"
                   size="sm"
-                  ariaLabel="Search assignments"
+                  ariaLabel="Search assigned installation batches"
                 />
 
                 <TableExportToolbar
                   onCopy={() => copyTableDataToClipboard(filteredAssignments, exportCols)}
-                  onExportCSV={() => exportDataToCSV('Goa_SRT_Assigned_Sites', filteredAssignments, exportCols)}
-                  onExportExcel={() => exportDataToExcel('Goa_SRT_Assigned_Sites', filteredAssignments, exportCols)}
-                  onExportPDF={() => printTableData('Goa Assigned SRT Installation Sites', filteredAssignments, exportCols)}
+                  onExportCSV={() => exportDataToCSV('Goa_SRT_Assigned_Batches', filteredAssignments, exportCols)}
+                  onExportExcel={() => exportDataToExcel('Goa_SRT_Assigned_Batches', filteredAssignments, exportCols)}
+                  onExportPDF={() => printTableData('Assigned SRT Installation Batches', filteredAssignments, exportCols)}
                 />
               </div>
             </div>
@@ -835,26 +873,38 @@ export function Goa_Installation_SRT_RequestAccept() {
               className="ax-table ax-table--hover ula-table--wide"
               style={{ whiteSpace: 'nowrap', minWidth: 1600 }}
             >
-              <caption className="ax-visually-hidden">View Assigned SRT Installation Records</caption>
+              <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th" scope="col">Assign Date</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 200 }}>Site Name - Deadline</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>Site Count</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>File</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 100 }}>Status</th>
+                  {tableHeaders.map((h) => (
+                    <th
+                      key={h}
+                      className="ax-table__th"
+                      scope="col"
+                      style={
+                        h === 'Action'
+                          ? { textAlign: 'right', minWidth: 160 }
+                          : h === 'Count' || h === 'File' || h === 'Sr. No.'
+                          ? { textAlign: 'center', width: 70 }
+                          : h === 'Vendor'
+                          ? { minWidth: 200 }
+                          : h === 'Site Name - Deadline'
+                          ? { minWidth: 220 }
+                          : h === 'Status'
+                          ? { minWidth: 120 }
+                          : undefined
+                      }
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody aria-busy={loading}>
                 {loading && (
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ textAlign: 'center', padding: 32 }}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned installation sites…
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned installation batches…
                     </td>
                   </tr>
                 )}
@@ -862,13 +912,14 @@ export function Goa_Installation_SRT_RequestAccept() {
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
                       <TableEmptyState
-                        title="No data available in table"
+                        title="No installation assignments found"
                         message={
                           hasFilters
-                            ? 'No records match your filters or search. Try clearing your query.'
-                            : 'Assigned installation sites will appear here.'
+                            ? 'No records match your filters or search query. Try clearing your query.'
+                            : 'No installation batches have been assigned yet by the administration.'
                         }
                         onClear={hasFilters ? resetFilters : undefined}
+                        clearLabel="Clear filters"
                       />
                     </td>
                   </tr>
@@ -882,15 +933,42 @@ export function Goa_Installation_SRT_RequestAccept() {
 
                     return (
                       <tr key={item.id} className="ax-table__row">
-                        <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600,  color: 'var(--ax-accent)'}}>
-                          {item.vendors?.name || (item as any).vendor_name || `Vendor #${item.vendor}`}
-                  
+                        {/* 1. Sr. No. */}
+                        <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                          {(currentPage - 1) * pageSize + index + 1}
                         </td>
-                        <td className="ax-table__td">{item.assign_date || item.created_at || DASH}</td>
-                        <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{item.state || 'goa'}</td>
-                        <td className="ax-table__td">{item.district || DASH}</td>
-                        <td className="ax-table__td">{renderSiteNameSnippet(item)}</td>
+
+                        {/* 2. Vendor */}
+                        <td className="ax-table__td" style={{ minWidth: 200 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                            {item.vendors?.name || (item as any).vendor_name || `Vendor #${item.vendor}`}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                            Assign ID: #{item.id}
+                          </div>
+                        </td>
+
+                        {/* 3. Assign Date */}
+                        <td className="ax-table__td" style={{ fontSize: 13 }}>
+                          {item.assign_date || item.created_at || DASH}
+                        </td>
+
+                        {/* 4. State */}
+                        <td className="ax-table__td" style={{ textTransform: 'uppercase', fontWeight: 500, fontSize: 13 }}>
+                          {item.state || 'GOA'}
+                        </td>
+
+                        {/* 5. District */}
+                        <td className="ax-table__td">
+                          <b>{item.district || DASH}</b>
+                        </td>
+
+                        {/* 6. Site Name - Deadline */}
+                        <td className="ax-table__td" style={{ minWidth: 220 }}>
+                          {renderSiteNameSnippet(item)}
+                        </td>
+
+                        {/* 7. Count */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
@@ -901,7 +979,7 @@ export function Goa_Installation_SRT_RequestAccept() {
                               justifyContent: 'center',
                               padding: '2px 8px',
                               borderRadius: 'var(--ax-radius-pill, 9999px)',
-                              background: 'rgba(var(--ax-accent-rgb, 73, 146, 255), 0.1)',
+                              background: 'rgba(var(--ax-accent-rgb, 73, 146, 255), 0.12)',
                               color: 'var(--ax-accent)',
                               fontWeight: 700,
                               fontSize: 12,
@@ -914,63 +992,80 @@ export function Goa_Installation_SRT_RequestAccept() {
                             {siteCount}
                           </button>
                         </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <InstallationThumbnail
-                            src={fileUrl || item.file}
-                            alt="Work Order"
-                            onPreview={(url, title) => setPreviewFile({ url, title })}
-                            size={34}
-                          />
+
+                        {/* 8. Deadline Date */}
+                        <td className="ax-table__td" style={{ fontSize: 13 }}>
+                          {item.deadline_date ? (
+                            <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>{item.deadline_date}</span>
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                          )}
                         </td>
-                        <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
+
+                        {/* 9. File */}
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          {fileUrl || item.file ? (
+                            <InstallationThumbnail
+                              src={fileUrl || item.file}
+                              alt="Work Order"
+                              onPreview={(url, title) => setPreviewFile({ url, title })}
+                              size={32}
+                            />
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                          )}
+                        </td>
+
+                        {/* 10. Remarks */}
+                        <td
+                          className="ax-table__td"
+                          style={{ maxWidth: 180, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={item.remarks || ''}
+                        >
                           {item.remarks || DASH}
                         </td>
+
+                        {/* 11. Status */}
                         <td className="ax-table__td">
                           {isAccepted ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
-                              Accepted
+                              ✓ Accepted
                             </span>
                           ) : (
-                           <button
-  type="button"
-  className="ax-btn"
-  style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    minWidth: 100,
-    height: 30,
-    padding: '0 14px',
-    borderRadius: 5,
-    background: '#fff7ed',
-
-  color: '#c29b00',
-    border: '1px solid #fdba74',
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: '0.2px',
-    cursor: actionLoadingId !== null ? 'not-allowed' : 'pointer',
-    transition: 'all 0.2s ease',
-    opacity: actionLoadingId !== null ? 0.7 : 1,
-  }}
-  onClick={() => handleAccept(item.id)}
-  disabled={actionLoadingId !== null}
-  title="Click to accept assignment"
->
-  {actionLoadingId === item.id ? (
-    <>
-      <span className="ax-spinner" />
-      Accepting...
-    </>
-  ) : (
-    <>
-      <span style={{ fontSize: 14 }}>◷</span>
-      Pending
-    </>
-  )}
-</button>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>
+                              Pending Accept
+                            </span>
                           )}
+                        </td>
+
+                        {/* 12. Action */}
+                        <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                            {!isAccepted ? (
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--primary ax-btn--sm"
+                                onClick={() => handleAccept(item.id)}
+                                disabled={actionLoadingId !== null}
+                              >
+                                {actionLoadingId === item.id ? (
+                                  <>
+                                    <span className="ax-spinner" />
+                                    Accepting…
+                                  </>
+                                ) : (
+                                  'Accept'
+                                )}
+                              </button>
+                            ) : (
+                              <span
+                                className="ax-badge ax-badge--soft ax-badge--success"
+                                style={{ fontWeight: 600, padding: '4px 10px', fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+                              >
+                                Done
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -979,7 +1074,7 @@ export function Goa_Installation_SRT_RequestAccept() {
             </table>
           </div>
 
-          {/* ── Table Footer (Punjab-style: pagination only) ── */}
+          {/* ── Table Footer (Karnataka SWP style: left-aligned pagination) ── */}
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
@@ -998,21 +1093,21 @@ export function Goa_Installation_SRT_RequestAccept() {
         </section>
       </div>
 
-      {/* ── View Batch Sites Modal ── */}
+      {/* ── View Batch Sites Modal (Interactive table with direct install links) ── */}
       {viewBatch && (
         <Modal
           open={!!viewBatch}
           onClose={() => setViewBatch(null)}
           labelledBy="view-batch-modal-title"
-          dialogStyle={{ maxWidth: 620 }}
+          dialogStyle={{ maxWidth: 780 }}
         >
           <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
             <div>
               <h3 id="view-batch-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
-                Batch{viewBatch.id} Sites List
+                Assignment Batch #{viewBatch.id} · Sites List
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                District: <b>{viewBatch.district || 'Goa'}</b> · Total: <b>{getSiteCount(viewBatch)} sites</b>
+                District: <b>{viewBatch.district || 'Goa'}</b> · State: <b>{(viewBatch.state || 'Goa').toUpperCase()}</b> · Total: <b>{getSiteCount(viewBatch)} Sites</b>
               </p>
             </div>
             <button
@@ -1020,42 +1115,81 @@ export function Goa_Installation_SRT_RequestAccept() {
               className="ax-modal__close"
               onClick={() => setViewBatch(null)}
               aria-label="Close modal"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
             >
               {X_ICON}
             </button>
           </div>
-          <div className="ax-modal__body" style={{ padding: '16px 20px', maxHeight: '60vh', overflowY: 'auto' }}>
-            {Array.isArray(viewBatch.site_name) && viewBatch.site_name.length > 0 ? (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {viewBatch.site_name.map((st, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      padding: '10px 14px',
-                      background: 'var(--ax-surface-subtle)',
-                      border: '1px solid var(--ax-border-subtle, var(--ax-border))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>{st}</span>
-                    {viewBatch.deadline_date && (
-                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontSize: 11 }}>
-                        Due: {viewBatch.deadline_date}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ margin: 0 }}>{String(viewBatch.site_name || 'No individual site names provided in batch.')}</p>
-            )}
+          <div className="ax-modal__body" style={{ padding: '16px 20px', maxHeight: '65vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, padding: '12px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8, border: '1px solid var(--ax-border)' }}>
+              <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><b>{viewBatch.vendors?.name || (viewBatch as any).vendor_name || `Vendor #${viewBatch.vendor}`}</b></div>
+              <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><b>{viewBatch.assign_date || DASH}</b></div>
+              <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Deadline Date: </span><b>{viewBatch.deadline_date || DASH}</b></div>
+              <div style={{ fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
+                {viewBatch.status === 2 ? (
+                  <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>Accepted</span>
+                ) : (
+                  <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending Accept</span>
+                )}
+              </div>
+            </div>
+
+            <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+              Sites in this Batch ({getSiteCount(viewBatch)})
+            </h4>
+
+            <div className="ax-table-wrap">
+              <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 13 }}>
+                <thead className="ax-table__head">
+                  <tr>
+                    <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>#</th>
+                    <th className="ax-table__th">Site Name / ID</th>
+                    <th className="ax-table__th" style={{ width: 140 }}>Deadline</th>
+                    <th className="ax-table__th" style={{ width: 130, textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(Array.isArray(viewBatch.site_name) && viewBatch.site_name.length > 0
+                    ? viewBatch.site_name
+                    : [String(viewBatch.site_name || `Site #${viewBatch.id}`)]
+                  ).map((st, i) => (
+                    <tr key={i} className="ax-table__row">
+                      <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>{i + 1}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{st}</td>
+                      <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{viewBatch.deadline_date || DASH}</td>
+                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--success"
+                          style={{ fontWeight: 600, padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          Done
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="ax-modal__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: '1px solid var(--ax-border)' }}>
+            {viewBatch.status !== 2 && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                onClick={async () => {
+                  const bId = viewBatch.id;
+                  setViewBatch(null);
+                  await handleAccept(bId);
+                }}
+                disabled={actionLoadingId === viewBatch.id}
+              >
+                {actionLoadingId === viewBatch.id ? 'Accepting…' : 'Accept Batch'}
+              </button>
+            )}
             <button
               type="button"
-              className="ax-btn ax-btn--primary"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
               onClick={() => setViewBatch(null)}
             >
               Close

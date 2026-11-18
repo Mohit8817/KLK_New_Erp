@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { upRescoAmcApi } from '../../up-services';
+import { authService } from '../../../../../services/authService';
 
 // Unified Single-Card Layout CSS with Floating Labels & Section Dividers
 const RESCO_AMC_CSS = `
@@ -303,6 +304,39 @@ const MONTH_NAMES: Record<string, string> = {
   '1': 'January', '2': 'February', '3': 'March', '4': 'April',
   '5': 'May', '6': 'June', '7': 'July', '8': 'August',
   '9': 'September', '10': 'October', '11': 'November', '12': 'December',
+};
+
+const parseMonthNumber = (val: string | number): number => {
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  const s = String(val).trim().toLowerCase();
+  const num = parseInt(s, 10);
+  if (!isNaN(num) && num >= 1 && num <= 12) return num;
+  const map: Record<string, number> = {
+    january: 1, jan: 1,
+    february: 2, feb: 2,
+    march: 3, mar: 3,
+    april: 4, apr: 4,
+    may: 5,
+    june: 6, jun: 6,
+    july: 7, jul: 7,
+    august: 8, aug: 8,
+    september: 9, sep: 9, sept: 9,
+    october: 10, oct: 10,
+    november: 11, nov: 11,
+    december: 12, dec: 12,
+  };
+  return map[s] || new Date().getMonth() + 1;
+};
+
+const cleanNum = (val: any): string => {
+  if (!val || val === '—' || val === '-') return '';
+  const match = String(val).replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+  return match ? match[0] : '';
+};
+
+const cleanStr = (val: any): string => {
+  if (!val || val === '—' || val === '-') return '';
+  return String(val).trim();
 };
 
 const SECTIONS = [
@@ -706,17 +740,38 @@ export function UP_AMC_Resco_PendingAMC() {
     try {
       const fd = new FormData();
 
-      // IDs & Reporting Period
-      fd.append('id', selectedSiteId);
-      fd.append('site_id', selectedSiteId);
+      // Resolve numeric month & month label safely
+      const numMonth = parseMonthNumber(selectedMonth);
+      const strMonth = String(numMonth);
+      const paddedMonth = strMonth.padStart(2, '0');
+      const monthName = MONTH_NAMES[strMonth] || String(selectedMonth);
+      const monthYear = `${paddedMonth}-${selectedYear}`;
+
+      // IDs & Primary site keys
+      const selectedSiteObj = sites.find((s) => String(s.id) === String(selectedSiteId));
+      const primarySiteId = cleanStr(siteDetail?.site_id || siteDetail?.resco_id || selectedSiteObj?.site_id || selectedSiteObj?.resco_id || siteDetail?.id) || selectedSiteId;
+      const trueRescoId = cleanStr(siteDetail?.resco_id || siteDetail?.site_id || selectedSiteObj?.resco_id || selectedSiteObj?.site_id || siteDetail?.id) || selectedSiteId;
+      const assignId = cleanStr(siteDetail?.assign_id || siteDetail?.assignment_id || selectedSiteObj?.assign_id || selectedSiteObj?.assignment_id);
+
+      fd.append('id', String(selectedSiteId));
+      fd.append('site_id', primarySiteId);
+      fd.append('resco_id', trueRescoId);
+      if (assignId) {
+        fd.append('assign_id', assignId);
+        fd.append('assignment_id', assignId);
+      }
+
+      // AMC Period & Date
       fd.append('amc_years', String(selectedYear));
       fd.append('year', String(selectedYear));
       fd.append('report_year', String(selectedYear));
-      fd.append('months', String(selectedMonth));
-      fd.append('month', String(selectedMonth));
-      fd.append('amc_months', String(selectedMonth));
-      fd.append('report_month', String(selectedMonth));
-      fd.append('month_year', `${String(selectedMonth).padStart(2, '0')}-${selectedYear}`);
+
+      fd.append('months', strMonth);
+      fd.append('month', strMonth);
+      fd.append('amc_months', strMonth);
+      fd.append('report_month', strMonth);
+      fd.append('month_name', monthName);
+      fd.append('month_year', monthYear);
 
       // Visit details
       fd.append('amc_date', visitDate);
@@ -726,38 +781,141 @@ export function UP_AMC_Resco_PendingAMC() {
       fd.append('visit_time', visitTime);
 
       // Beneficiary & Contact
-      fd.append('beneficiary_name', beneficiaryName.trim());
-      fd.append('farmer_name', beneficiaryName.trim());
-      fd.append('f_farmer_name', beneficiaryName.trim());
-      fd.append('beneficiary_contact', beneficiaryContact.trim());
-      fd.append('contact', beneficiaryContact.trim());
-      fd.append('mobile', beneficiaryContact.trim());
-      fd.append('f_mobile', beneficiaryContact.trim());
-      fd.append('amc_beneficiary_contact', beneficiaryContact.trim());
+      const cleanBName = beneficiaryName.trim();
+      const cleanBContact = beneficiaryContact.trim();
+      fd.append('beneficiary_name', cleanBName);
+      fd.append('farmer_name', cleanBName);
+      fd.append('f_farmer_name', cleanBName);
+      fd.append('name', cleanBName);
+      fd.append('contact_person', cleanBName);
+
+      fd.append('beneficiary_contact', cleanBContact);
+      fd.append('contact', cleanBContact);
+      fd.append('mobile', cleanBContact);
+      fd.append('f_mobile', cleanBContact);
+      fd.append('amc_beneficiary_contact', cleanBContact);
+      fd.append('contact_number', cleanBContact);
+      fd.append('contact_no', cleanBContact);
 
       // GPS
       if (latitude) {
         fd.append('latitude', latitude);
         fd.append('amc_latitude', latitude);
+        fd.append('inst_latitude', latitude);
       }
       if (longitude) {
         fd.append('longitude', longitude);
         fd.append('amc_longitude', longitude);
+        fd.append('inst_longitude', longitude);
       }
 
-      // Site Meta
-      if (siteDetail) {
-        fd.append('state', siteDetail.state || 'UP');
-        fd.append('district', siteDetail.district || '');
-        fd.append('dept_name', siteDetail.dept_name || '');
-        fd.append('department', siteDetail.dept_name || '');
-        fd.append('site_name', siteDetail.site_name || '');
-        fd.append('location', siteDetail.location || '');
-        fd.append('ca_no', siteDetail.ca_no || '');
-        fd.append('sanction_load', siteDetail.sanction_load || '');
-        fd.append('plant_sc', siteDetail.plant_sc || '');
-        fd.append('amc_type', siteDetail.amc_type || 'Monthly');
+      // Vendor & Session Information
+      const session = authService.getSession?.();
+      const raw = authService.getRawResponse?.();
+      const resolvedVendorName =
+        session?.name ||
+        session?.vendor_name ||
+        (raw as any)?.vendor?.name ||
+        (raw as any)?.user?.name ||
+        cleanStr(siteDetail?.vendor_name) ||
+        cleanStr(siteDetail?.vendor) ||
+        cleanStr(siteDetail?.contractor_name) ||
+        '';
+
+      const resolvedVendorId =
+        session?.vendor_id ||
+        session?.id ||
+        cleanStr(siteDetail?.vendor_id) ||
+        '';
+
+      if (resolvedVendorName) {
+        fd.append('vendor', resolvedVendorName);
+        fd.append('vendor_name', resolvedVendorName);
       }
+      if (resolvedVendorId) {
+        fd.append('vendor_id', String(resolvedVendorId));
+      }
+      if (session?.company_id) {
+        fd.append('company_id', String(session.company_id));
+      }
+
+      // Site Meta (Cleaned - NO '—' values)
+      const st = cleanStr(siteDetail?.state) || 'UP';
+      fd.append('state', st);
+
+      const dist = cleanStr(siteDetail?.district || siteDetail?.f_district);
+      if (dist) fd.append('district', dist);
+
+      const dept = cleanStr(siteDetail?.dept_name || siteDetail?.department || siteDetail?.department_name);
+      if (dept) {
+        fd.append('dept_name', dept);
+        fd.append('department', dept);
+        fd.append('department_name', dept);
+      }
+
+      const sName = cleanStr(siteDetail?.site_name || siteDetail?.name);
+      if (sName) {
+        fd.append('site_name', sName);
+      }
+
+      const loc = cleanStr(siteDetail?.location || siteDetail?.address || siteDetail?.village);
+      if (loc) {
+        fd.append('location', loc);
+        fd.append('address', loc);
+      }
+
+      const ca = cleanStr(siteDetail?.ca_no || siteDetail?.consumer_no || siteDetail?.f_sr_no || siteDetail?.application_no || siteDetail?.serial_number);
+      if (ca) {
+        fd.append('ca_no', ca);
+        fd.append('consumer_no', ca);
+        fd.append('serial_number', ca);
+      }
+
+      const vill = cleanStr(siteDetail?.village || siteDetail?.f_village);
+      if (vill) fd.append('village', vill);
+
+      const gen = cleanStr(siteDetail?.gender || siteDetail?.f_gender);
+      if (gen) fd.append('gender', gen);
+
+      const ph = cleanStr(siteDetail?.phase || siteDetail?.f_phase);
+      if (ph) fd.append('phase', ph);
+
+      const contName = cleanStr(siteDetail?.contractor_name || siteDetail?.vendor_name);
+      if (contName) fd.append('contractor_name', contName);
+
+      const vol = cleanStr(siteDetail?.volume);
+      if (vol) fd.append('volume', vol);
+
+      const wo = cleanStr(siteDetail?.wo_no || siteDetail?.work_order);
+      if (wo) {
+        fd.append('wo_no', wo);
+        fd.append('work_order', wo);
+      }
+
+      // Numeric load & capacity (Cleaned numbers only)
+      const sLoad = cleanNum(siteDetail?.sanction_load || siteDetail?.volume || siteDetail?.capacity);
+      if (sLoad) fd.append('sanction_load', sLoad);
+
+      const pSc = cleanNum(siteDetail?.plant_sc || siteDetail?.plan_sc || siteDetail?.plant_capacity);
+      if (pSc) fd.append('plant_sc', pSc);
+
+      // AMC Type & Frequency codes
+      const rawAmc = cleanStr(siteDetail?.amc_type) || 'Monthly';
+      let aCode = 'M';
+      let aId = '1';
+      if (rawAmc === 'Quarterly' || rawAmc === '3' || rawAmc === 'Q') {
+        aCode = 'Q';
+        aId = '3';
+      } else if (rawAmc === 'Half-Yearly' || rawAmc === '6' || rawAmc === 'H') {
+        aCode = 'H';
+        aId = '6';
+      } else if (rawAmc === 'Yearly' || rawAmc === '12' || rawAmc === 'Y') {
+        aCode = 'Y';
+        aId = '12';
+      }
+      fd.append('amc_type', rawAmc);
+      fd.append('amc_type_code', aCode);
+      fd.append('amc_type_id', aId);
 
       // 1. Cleaning Module Photos
       // Backend Laravel validator rule: 'before_cleaning_photo' => 'required|array|max:5', 'after_cleaning_photo' => 'required|array|max:5'
@@ -780,6 +938,10 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('image2', finalAfterPhotos[0]);
         fd.append('amc_image2', finalAfterPhotos[0]);
       }
+      if (finalAfterPhotos[1]) {
+        fd.append('image3', finalAfterPhotos[1]);
+        fd.append('amc_image3', finalAfterPhotos[1]);
+      }
 
       // 2. Inverter Section (CRITICAL FIX FOR METER READING)
       if (jmrReport) {
@@ -787,15 +949,20 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('document', jmrReport);
         fd.append('document_file', jmrReport);
         fd.append('file', jmrReport);
+        fd.append('upload_file', jmrReport);
       }
-      fd.append('meter_reading', String(meterReading).trim());
-      fd.append('reading', String(meterReading).trim());
+      const cleanMeter = cleanNum(meterReading) || String(meterReading).trim();
+      fd.append('meter_reading', cleanMeter);
+      fd.append('reading', cleanMeter);
       fd.append('inverter_status', inverterStatus);
-      fd.append('inverter_remarks', inverterRemarks.trim());
-      fd.append('inverter_remark', inverterRemarks.trim());
+      if (inverterRemarks.trim()) {
+        fd.append('inverter_remarks', inverterRemarks.trim());
+        fd.append('inverter_remark', inverterRemarks.trim());
+      }
 
       // 3. Equipment Status
       fd.append('la_status', laStatus);
+      fd.append('lightning_arrester_status', laStatus);
       fd.append('wiring_status', wiringStatus);
       fd.append('earthing_status', earthingStatus);
       fd.append('acdb_status', acdbStatus);
@@ -807,7 +974,7 @@ export function UP_AMC_Resco_PendingAMC() {
       // 4. Reminder & Due Date (CRITICAL FIX FOR NEXT DUE DATE)
       fd.append('next_due_date', nextDueDate);
       fd.append('due_date', nextDueDate);
-      if (reminderNotes) {
+      if (reminderNotes.trim()) {
         fd.append('reminder_notes', reminderNotes.trim());
         fd.append('reminder_note', reminderNotes.trim());
       }
@@ -816,10 +983,13 @@ export function UP_AMC_Resco_PendingAMC() {
       if (digitalSignature) {
         fd.append('digital_signature', digitalSignature);
         fd.append('signature', digitalSignature);
+        fd.append('sign_image', digitalSignature);
+        fd.append('signature_image', digitalSignature);
       }
       fd.append('acknowledgement_confirmation', acknowledgement ? '1' : '0');
       fd.append('acknowledgement', acknowledgement ? '1' : '0');
-      if (remarks) {
+      fd.append('confirmation', acknowledgement ? '1' : '0');
+      if (remarks.trim()) {
         fd.append('remarks', remarks.trim());
         fd.append('remark', remarks.trim());
         fd.append('amc_remark', remarks.trim());

@@ -655,10 +655,6 @@ export function Bihar_Complaint_SRT_AddComplaint() {
           </div>
         </div>
       </form>
-
-      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
-      </footer>
     </div>
   );
 }

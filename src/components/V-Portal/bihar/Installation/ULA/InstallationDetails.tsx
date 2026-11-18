@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -683,6 +684,15 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     ];
   }, [siteDetails]);
 
+  const isSiteApproved = Boolean(
+    siteDetails && (
+      Number(siteDetails.structure_verify_status) === 1 ||
+      Number(siteDetails.verify_status) === 1 ||
+      String(siteDetails.structure_verify_status ?? '').toLowerCase() === 'approved' ||
+      String(siteDetails.verify_status ?? '').toLowerCase() === 'approved'
+    )
+  );
+
   // ── Foundation & Fastener Multi-File Handler (up to 4) ──
   const handleFastenerFiles = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -712,6 +722,21 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     e.target.value = '';
   };
 
+  const addFastenerPhoto = (file: File) => {
+    const remainingSlots = 4 - fastenerPhotos.length;
+    if (remainingSlots <= 0) {
+      alert('Maximum 4 photos allowed for Foundation & Fastener.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert(`File "${file.name}" exceeds the 2 MB limit.`);
+      return;
+    }
+    setFastenerPhotos((prev) => [...prev, file]);
+    setFastenerPreviews((prev) => [...prev, URL.createObjectURL(file)]);
+    setErrors((prev) => ({ ...prev, fastener: '' }));
+  };
+
   const removeFastenerPhoto = (index: number) => {
     setFastenerPhotos((prev) => prev.filter((_, i) => i !== index));
     setFastenerPreviews((prev) => prev.filter((_, i) => i !== index));
@@ -738,6 +763,21 @@ export function Bihar_Installation_ULA_InstallationDetails() {
     previewSetter(URL.createObjectURL(file));
     setErrors((prev) => ({ ...prev, [key]: '' }));
     e.target.value = '';
+  };
+
+  const addSinglePhoto = (
+    file: File,
+    key: string,
+    setter: (f: File | null) => void,
+    previewSetter: (u: string | null) => void
+  ) => {
+    if (file.size > 2 * 1024 * 1024) {
+      alert(`File "${file.name}" exceeds the 2 MB limit.`);
+      return;
+    }
+    setter(file);
+    previewSetter(URL.createObjectURL(file));
+    setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
   const removeSinglePhoto = (setter: (f: File | null) => void, previewSetter: (u: string | null) => void) => {
@@ -795,6 +835,11 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   // Form Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSiteApproved) {
+      setErrorMsg('This site structure is already Approved. Editing is locked.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setErrorMsg(null);
     setSuccessMsg(null);
     setSubmitted(true);
@@ -962,6 +1007,23 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                 {errorCount} fields need attention before this installation can be submitted.
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {isSiteApproved && (
+        <div className="ax-alert ax-alert--warning" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <span className="ax-alert__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          <div className="ax-alert__content">
+            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>Structure Approved — Editing Locked</h4>
+            <p className="ax-alert__message" style={{ margin: '4px 0 0' }}>
+              This site structure has already been approved by administration. Editing is locked.
+            </p>
           </div>
         </div>
       )}
@@ -1195,6 +1257,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   submitted={submitted}
                   error={errors.fastener}
                   onFiles={handleFastenerFiles}
+                  onFileCaptured={addFastenerPhoto}
                   onRemove={removeFastenerPhoto}
                   onPreview={(url, i) => setModalImage({ url, title: `Foundation & Fastener Photo #${i + 1}` })}
                 />
@@ -1208,6 +1271,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   submitted={submitted}
                   error={errors.structure}
                   onFiles={(e) => handleSinglePhoto(e, 'structure', setStructurePhoto, setStructurePreview)}
+                  onFileCaptured={(f) => addSinglePhoto(f, 'structure', setStructurePhoto, setStructurePreview)}
                   onRemove={() => removeSinglePhoto(setStructurePhoto, setStructurePreview)}
                   onPreview={(url) => setModalImage({ url, title: 'Structure Photo' })}
                 />
@@ -1221,6 +1285,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   submitted={submitted}
                   error={errors.module1}
                   onFiles={(e) => handleSinglePhoto(e, 'module1', setModule1Photo, setModule1Preview)}
+                  onFileCaptured={(f) => addSinglePhoto(f, 'module1', setModule1Photo, setModule1Preview)}
                   onRemove={() => removeSinglePhoto(setModule1Photo, setModule1Preview)}
                   onPreview={(url) => setModalImage({ url, title: 'Module Serial #1 Photo' })}
                 />
@@ -1234,6 +1299,7 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   submitted={submitted}
                   error={errors.module2}
                   onFiles={(e) => handleSinglePhoto(e, 'module2', setModule2Photo, setModule2Preview)}
+                  onFileCaptured={(f) => addSinglePhoto(f, 'module2', setModule2Photo, setModule2Preview)}
                   onRemove={() => removeSinglePhoto(setModule2Photo, setModule2Preview)}
                   onPreview={(url) => setModalImage({ url, title: 'Module Serial #2 Photo' })}
                 />
@@ -1259,11 +1325,25 @@ export function Bihar_Installation_ULA_InstallationDetails() {
             <button type="button" className="ax-btn ax-btn--secondary" onClick={handleCancel} disabled={submitting}>
               <span className="ax-btn__label">Cancel</span>
             </button>
-            <button type="submit" disabled={submitting} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+            <button
+              type="submit"
+              disabled={submitting || isSiteApproved}
+              className="ax-btn ax-btn--primary"
+              style={{ minWidth: 200, ...(isSiteApproved ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              title={isSiteApproved ? 'Structure is approved — editing locked' : undefined}
+            >
               {submitting ? (
                 <>
                   <span className="ax-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
                   <span className="ax-btn__label">Submitting…</span>
+                </>
+              ) : isSiteApproved ? (
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span className="ax-btn__label">Approved (Locked)</span>
                 </>
               ) : (
                 <>
@@ -1418,15 +1498,489 @@ interface PhotoCardProps {
   submitted: boolean;
   error?: string;
   onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
+  onFileCaptured?: (file: File) => void;
   onRemove: (index: number) => void;
   onPreview: (url: string, index: number) => void;
 }
 
-function PhotoCard({ title, hint, multiple, previews, count, max, submitted, error, onFiles, onRemove, onPreview }: PhotoCardProps) {
+interface CameraCaptureModalProps {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  onCapture: (file: File) => void;
+  onFallbackToFile: () => void;
+}
+
+function CameraCaptureModal({ open, title, onClose, onCapture, onFallbackToFile }: CameraCaptureModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const [cameraActive, setCameraActive] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [capturedPreview, setCapturedPreview] = useState<string | null>(null);
+  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = useCallback(
+    async (facing: 'environment' | 'user') => {
+      stopCamera();
+      setErrorMessage(null);
+
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        setErrorMessage('Camera access is not supported by your browser or connection. You can use your device camera file picker instead.');
+        return;
+      }
+
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: facing },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            },
+            audio: false,
+          });
+        } catch {
+          // Fallback with basic constraints
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch {
+            // Handled by autoplay
+          }
+        }
+        setCameraActive(true);
+
+        // Check video input device count
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+          setHasMultipleCameras(videoInputs.length > 1);
+        } catch {
+          // ignore
+        }
+      } catch (err: any) {
+        console.error('[CameraCaptureModal] startCamera error:', err);
+        let msg = 'Unable to access the camera.';
+        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+          msg = 'Camera permission was denied. Please allow camera permissions in your browser or choose from your device gallery/file picker.';
+        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+          msg = 'No camera device found on this system.';
+        } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+          msg = 'Camera is already in use by another application.';
+        }
+        setErrorMessage(msg);
+        setCameraActive(false);
+      }
+    },
+    [stopCamera]
+  );
+
+  useEffect(() => {
+    if (open) {
+      setCapturedPreview(null);
+      setCapturedBlob(null);
+      startCamera(facingMode);
+    } else {
+      stopCamera();
+      setCapturedPreview(null);
+      setCapturedBlob(null);
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [open, facingMode, startCamera, stopCamera]);
+
+  const toggleFacingMode = () => {
+    const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextFacing);
+  };
+
+  const handleSnap = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, width, height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const previewUrl = URL.createObjectURL(blob);
+        setCapturedBlob(blob);
+        setCapturedPreview(previewUrl);
+        stopCamera();
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
+
+  const handleRetake = () => {
+    if (capturedPreview) {
+      URL.revokeObjectURL(capturedPreview);
+    }
+    setCapturedBlob(null);
+    setCapturedPreview(null);
+    startCamera(facingMode);
+  };
+
+  const handleConfirmUse = () => {
+    if (!capturedBlob) return;
+    const timestamp = Date.now();
+    const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const file = new File([capturedBlob], `${cleanTitle}_${timestamp}.jpg`, { type: 'image/jpeg' });
+    onCapture(file);
+    if (capturedPreview) {
+      URL.revokeObjectURL(capturedPreview);
+    }
+    onClose();
+  };
+
+  const handleClose = () => {
+    if (capturedPreview) {
+      URL.revokeObjectURL(capturedPreview);
+    }
+    stopCamera();
+    onClose();
+  };
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        zIndex: 10000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--ax-space-4)',
+      }}
+      onClick={handleClose}
+    >
+      <div
+        className="ax-card"
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: 620,
+          background: 'var(--ax-surface-solid)',
+          borderRadius: 'var(--ax-radius-xl)',
+          overflow: 'hidden',
+          boxShadow: 'var(--ax-shadow-2xl)',
+          border: '1px solid var(--ax-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '92vh',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 'var(--ax-space-3) var(--ax-space-4)',
+            borderBottom: '1px solid var(--ax-border-subtle)',
+            background: 'var(--ax-surface-subtle)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'var(--ax-accent)', display: 'flex' }}>{ICON_CAMERA}</span>
+            <h3 style={{ margin: 0, fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+              Capture Photo - {title}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--icon ax-btn--sm"
+            onClick={handleClose}
+            aria-label="Close camera"
+            style={{ borderRadius: '50%' }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Viewfinder / Preview Body */}
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '420px',
+            backgroundColor: '#000',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {errorMessage ? (
+            <div
+              style={{
+                padding: 'var(--ax-space-5)',
+                textAlign: 'center',
+                color: '#fff',
+                maxWidth: 420,
+              }}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
+              <p style={{ margin: '0 0 var(--ax-space-4) 0', fontSize: 'var(--ax-text-sm)', lineHeight: 1.5 }}>
+                {errorMessage}
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  onClick={() => {
+                    handleClose();
+                    onFallbackToFile();
+                  }}
+                >
+                  Use Device File / Camera
+                </button>
+                <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={handleClose}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : capturedPreview ? (
+            <img
+              src={capturedPreview}
+              alt="Captured frame"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', backgroundColor: '#000' }}
+            />
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+                }}
+              />
+
+              {/* Viewfinder overlay */}
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 24,
+                  border: '2px dashed rgba(255, 255, 255, 0.4)',
+                  borderRadius: 12,
+                  pointerEvents: 'none',
+                }}
+              />
+
+              {/* Switch camera button (if multiple video inputs) */}
+              {hasMultipleCameras && (
+                <button
+                  type="button"
+                  onClick={toggleFacingMode}
+                  title="Switch Camera (Front / Rear)"
+                  style={{
+                    position: 'absolute',
+                    top: 14,
+                    right: 14,
+                    background: 'rgba(0, 0, 0, 0.55)',
+                    color: '#fff',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: 20,
+                    padding: '6px 12px',
+                    fontSize: 'var(--ax-text-xs)',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M20 16v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {facingMode === 'environment' ? 'Switch to Front' : 'Switch to Rear'}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Hidden canvas for taking snapshot */}
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+        </div>
+
+        {/* Footer controls */}
+        <div
+          style={{
+            padding: 'var(--ax-space-3) var(--ax-space-4)',
+            background: 'var(--ax-surface-subtle)',
+            borderTop: '1px solid var(--ax-border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {capturedPreview ? (
+            <>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={handleRetake}
+              >
+                <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M1 4v6h6" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+                <span className="ax-btn__label">Retake</span>
+              </button>
+
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary"
+                onClick={handleConfirmUse}
+              >
+                <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="ax-btn__label">Use Photo</span>
+              </button>
+            </>
+          ) : !errorMessage ? (
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                onClick={() => {
+                  handleClose();
+                  onFallbackToFile();
+                }}
+                style={{ position: 'absolute', left: 0, fontSize: 'var(--ax-text-xs)' }}
+              >
+                Use File
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSnap}
+                disabled={!cameraActive}
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: '50%',
+                  backgroundColor: '#fff',
+                  border: '4px solid var(--ax-accent)',
+                  boxShadow: '0 0 0 4px rgba(0,0,0,0.2)',
+                  cursor: cameraActive ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  outline: 'none',
+                  transition: 'transform 0.1s ease',
+                }}
+                title="Capture Photo"
+                aria-label="Capture Photo"
+              >
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--ax-accent)',
+                  }}
+                />
+              </button>
+
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                onClick={handleClose}
+                style={{ position: 'absolute', right: 0, fontSize: 'var(--ax-text-xs)' }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function PhotoCard({
+  title,
+  hint,
+  multiple,
+  previews,
+  count,
+  max,
+  submitted,
+  error,
+  onFiles,
+  onFileCaptured,
+  onRemove,
+  onPreview,
+}: PhotoCardProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
   const full = count >= max;
   const stateClass = error ? 'is-invalid' : count > 0 ? 'is-valid' : '';
+
+  const handleCameraClick = () => {
+    if (multiple && full) return;
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia && onFileCaptured) {
+      setCameraModalOpen(true);
+    } else {
+      cameraRef.current?.click();
+    }
+  };
+
+  const handleGalleryClick = () => {
+    if (multiple && full) return;
+    galleryRef.current?.click();
+  };
 
   return (
     <div className={`ula-photo-card ${stateClass}`}>
@@ -1434,7 +1988,9 @@ function PhotoCard({ title, hint, multiple, previews, count, max, submitted, err
         <h4 style={{ margin: '0 0 2px 0', fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>{title}</h4>
         <p style={{ margin: '0 0 var(--ax-space-3) 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{hint}</p>
 
+        {/* Fallback Native Camera with capture */}
         <input type="file" ref={cameraRef} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onFiles} />
+        {/* Photo Gallery Picker without capture */}
         <input type="file" ref={galleryRef} accept="image/*" multiple={multiple} style={{ display: 'none' }} onChange={onFiles} />
 
         <div style={{ display: 'flex', gap: 'var(--ax-space-2)', marginBottom: 'var(--ax-space-3)' }}>
@@ -1442,7 +1998,7 @@ function PhotoCard({ title, hint, multiple, previews, count, max, submitted, err
             type="button"
             className="ax-btn ax-btn--secondary ax-btn--sm"
             style={{ flex: 1, justifyContent: 'center' }}
-            onClick={() => cameraRef.current?.click()}
+            onClick={handleCameraClick}
             disabled={multiple ? full : false}
           >
             {ICON_CAMERA}
@@ -1452,7 +2008,7 @@ function PhotoCard({ title, hint, multiple, previews, count, max, submitted, err
             type="button"
             className="ax-btn ax-btn--secondary ax-btn--sm"
             style={{ flex: 1, justifyContent: 'center' }}
-            onClick={() => galleryRef.current?.click()}
+            onClick={handleGalleryClick}
             disabled={multiple ? full : false}
           >
             {ICON_GALLERY}
@@ -1496,6 +2052,16 @@ function PhotoCard({ title, hint, multiple, previews, count, max, submitted, err
           </span>
         )}
       </div>
+
+      {cameraModalOpen && onFileCaptured && (
+        <CameraCaptureModal
+          open={cameraModalOpen}
+          title={title}
+          onClose={() => setCameraModalOpen(false)}
+          onCapture={onFileCaptured}
+          onFallbackToFile={() => cameraRef.current?.click()}
+        />
+      )}
     </div>
   );
 }

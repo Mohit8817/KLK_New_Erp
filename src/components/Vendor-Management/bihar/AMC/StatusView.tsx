@@ -1352,10 +1352,6 @@ export function BiharSSLAMCStatusView() {
           onPreviewImage={(url, t) => setLightbox({ url, title: t })}
         />
       )}
-
-      <footer style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--ax-border, #e2e8f0)', textAlign: 'center', color: 'var(--ax-text-muted)', fontSize: 13 }}>
-        Copyright © ETS NETWORKS. All rights reserved.
-      </footer>
     </div>
   );
 }

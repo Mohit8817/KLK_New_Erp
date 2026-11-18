@@ -246,7 +246,7 @@ export function Goa_AMC_SRT_ComplaintRaised() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(100);
 
   // Modal preview
   const [selectedComplaint, setSelectedComplaint] = useState<GoaAmcComplaintRecord | null>(null);
@@ -567,7 +567,7 @@ export function Goa_AMC_SRT_ComplaintRaised() {
               currentPage={currentPage}
               totalItems={filteredRows.length}
               pageSize={pageSize}
-              pageSizeOptions={[10, 25, 50, 100]}
+              pageSizeOptions={[25, 50, 100, 200]}
               onPageChange={setCurrentPage}
               onPageSizeChange={(newSize) => {
                 setPageSize(newSize);

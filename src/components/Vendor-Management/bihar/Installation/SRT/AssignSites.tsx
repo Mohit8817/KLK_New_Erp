@@ -64,12 +64,34 @@ const SECTIONS = [
   { id: 'sec-2', num: '2', title: 'Work Order File & Notes' },
 ];
 
-const STATE_VALUE = 'Bihar';
+const DEFAULT_STATE_VALUE = 'bihar';
+
+function extractApiError(res: any): string | null {
+  if (!res || typeof res !== 'object') return null;
+  const hasValidationErrors =
+    res.errors && typeof res.errors === 'object' && Object.keys(res.errors).length > 0;
+  const isFailed =
+    res.success === false ||
+    res.status === false ||
+    res.status === 'error' ||
+    hasValidationErrors;
+
+  if (!isFailed) return null;
+
+  if (hasValidationErrors) {
+    const details = Object.values(res.errors)
+      .flat()
+      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+    if (details.length > 0) return details.join(' ');
+  }
+  return res.message || res.error || 'Request failed.';
+}
 
 export function BiharSRTInstallationAssignSites() {
-  const [vendorList, setVendorList] = useState<Array<{ id: number | string; name: string }>>([]);
+  const [vendorList, setVendorList] = useState<Array<{ id: string; vendorCode?: string; name: string }>>([]);
+  const [stateValue, setStateValue] = useState<string>(DEFAULT_STATE_VALUE);
   const [districtList, setDistrictList] = useState<string[]>([]);
-  const [siteOptions, setSiteOptions] = useState<string[]>([]);
+  const [siteOptions, setSiteOptions] = useState<Option[]>([]);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [loadingSites, setLoadingSites] = useState(false);
 
@@ -96,38 +118,83 @@ export function BiharSRTInstallationAssignSites() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Fetch initial master data: vendors and districts
+  // Fetch initial master data: vendors + state from /assign, then districts with ?state=...
   const loadMasterData = useCallback(async () => {
     try {
       setLoadingMaster(true);
       setErrorMsg('');
 
-      const [assignMasterRes, districtsRes] = await Promise.allSettled([
-        biharAdminService.getSrtAssignMaster(),
-        biharAdminService.getSrtDistricts(),
-      ]);
+      let resolvedState = DEFAULT_STATE_VALUE;
 
-      // Parse vendors
-      if (assignMasterRes.status === 'fulfilled') {
-        const data = assignMasterRes.value;
-        const vendorsRaw = data?.vendors || data?.data?.vendors || data?.vendor_list || data?.data || [];
+      try {
+        const assignData = await biharAdminService.getSrtAssignMaster();
+        const apiState = assignData?.data?.state ?? assignData?.state;
+        if (typeof apiState === 'string' && apiState.trim()) {
+          resolvedState = apiState.trim();
+          setStateValue(resolvedState);
+        }
+
+        // Backend returns data.vendor (singular) — also support plural/fallback shapes
+        const vendorsRaw =
+          assignData?.data?.vendor ??
+          assignData?.data?.vendors ??
+          assignData?.vendor ??
+          assignData?.vendors ??
+          assignData?.vendor_list ??
+          assignData?.data?.vendor_list ??
+          (Array.isArray(assignData?.data) ? assignData.data : Array.isArray(assignData) ? assignData : []);
+
         if (Array.isArray(vendorsRaw)) {
-          const mappedVendors = vendorsRaw.map((v: any) => ({
-            id: v.id ?? v.vendor_id ?? v.name ?? String(v),
-            name: v.name || v.vendor_name || v.agency_name || String(v),
-          }));
+          const mappedVendors = vendorsRaw
+            .map((v: any) => {
+              if (typeof v === 'string') {
+                return { id: v, name: v };
+              }
+              const name = String(v?.name || v?.vendor_name || v?.agency_name || v?.firm_name || '').trim();
+              const id = String(v?.id ?? v?.vendor_id ?? name).trim();
+              const vendorCode = v?.vendor_id ? String(v.vendor_id).trim() : '';
+              return { id, vendorCode, name: name || id };
+            })
+            .filter((v) => Boolean(v.id && v.name));
           setVendorList(mappedVendors);
         }
+      } catch (err: any) {
+        console.error('Failed to load Bihar SRT vendors:', err);
       }
 
-      // Parse districts
-      if (districtsRes.status === 'fulfilled') {
-        const data = districtsRes.value;
-        const distsRaw = data?.districts || data?.data?.districts || data?.district || data?.data || [];
-        if (Array.isArray(distsRaw)) {
-          const list = distsRaw.map((d: any) => (typeof d === 'string' ? d : d.name || d.district || String(d)));
-          setDistrictList(list);
+      // Fetch districts using state param (required by backend: ?state=bihar)
+      try {
+        const distRes = await biharAdminService.getSrtDistricts(resolvedState);
+        const distErr = extractApiError(distRes);
+        if (distErr) {
+          console.error('Fetch districts validation/API error:', distRes);
+          setErrorMsg(distErr);
+          setDistrictList([]);
+        } else {
+          const distsRaw =
+            distRes?.data?.districts ??
+            distRes?.data?.district ??
+            distRes?.districts ??
+            distRes?.district ??
+            (Array.isArray(distRes?.data) ? distRes.data : Array.isArray(distRes) ? distRes : []);
+
+          if (Array.isArray(distsRaw)) {
+            const list = Array.from(
+              new Set(
+                distsRaw
+                  .map((d: any) =>
+                    typeof d === 'string'
+                      ? d.trim()
+                      : String(d?.district || d?.district_name || d?.name || '').trim()
+                  )
+                  .filter(Boolean)
+              )
+            );
+            setDistrictList(list);
+          }
         }
+      } catch (err: any) {
+        console.error('Failed to load Bihar SRT districts:', err);
       }
     } catch (err: any) {
       console.error('Failed to load Bihar SRT assignment master data:', err);
@@ -150,12 +217,40 @@ export function BiharSRTInstallationAssignSites() {
     let isMounted = true;
     setLoadingSites(true);
     biharAdminService
-      .getSrtSites(district)
+      .getSrtSites(district, stateValue)
       .then((res: any) => {
         if (!isMounted) return;
-        const sitesRaw = res?.sites || res?.data?.sites || res?.data || (Array.isArray(res) ? res : []);
+        const siteErr = extractApiError(res);
+        if (siteErr) {
+          console.error('Fetch sites validation/API error:', res);
+          setSiteOptions([]);
+          return;
+        }
+        const sitesRaw =
+          res?.data?.sites ??
+          res?.data?.site ??
+          res?.data?.sitename ??
+          res?.data?.site_name ??
+          res?.sites ??
+          res?.site ??
+          res?.sitename ??
+          res?.site_name ??
+          (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
         if (Array.isArray(sitesRaw)) {
-          const list = sitesRaw.map((s: any) => (typeof s === 'string' ? s : s.site_name || s.name || String(s)));
+          const list: Option[] = sitesRaw
+            .map((s: any) => {
+              if (typeof s === 'string') {
+                const clean = s.trim();
+                return { value: clean, label: clean };
+              }
+              const name = String(s?.site_name || s?.sitename || s?.name || s?.site || '').trim();
+              const value = s?.id !== undefined && s?.id !== null && String(s.id).trim() !== ''
+                ? String(s.id).trim()
+                : name;
+              const code = s?.site_code || s?.ca_no ? ` (${s.site_code || s.ca_no})` : '';
+              return { value, label: `${name || value}${code}` };
+            })
+            .filter((o) => Boolean(o.value));
           setSiteOptions(list);
         } else {
           setSiteOptions([]);
@@ -172,7 +267,7 @@ export function BiharSRTInstallationAssignSites() {
     return () => {
       isMounted = false;
     };
-  }, [district]);
+  }, [district, stateValue]);
 
   // Validation
   const validate = () => {
@@ -203,15 +298,26 @@ export function BiharSRTInstallationAssignSites() {
       setIsSubmitting(true);
       const fd = new FormData();
       fd.append('vendor', vendor);
-      fd.append('state', STATE_VALUE);
+      fd.append('state', stateValue);
       fd.append('district', district);
       fd.append('site_name', siteName);
+      fd.append('site[]', siteName);
       if (uploadedFile) fd.append('file', uploadedFile);
       if (remarks) fd.append('remarks', remarks);
 
-      await biharAdminService.storeSrtAssign(fd);
+      const res = await biharAdminService.storeSrtAssign(fd);
+      const apiErr = extractApiError(res);
+      if (apiErr) {
+        setErrorMsg(apiErr);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
 
-      setSuccessMsg(`Site "${siteName}" successfully assigned for Bihar SRT Installation!`);
+      const selectedSiteLabel =
+        siteOptions.find((o) => o.value === siteName)?.label || siteName;
+      setSuccessMsg(
+        res?.message || `Site "${selectedSiteLabel}" successfully assigned for Bihar SRT Installation!`
+      );
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setSiteName('');
       setUploadedFile(null);
@@ -236,9 +342,15 @@ export function BiharSRTInstallationAssignSites() {
     setValidationErrors({});
   };
 
-  const vendorOptions: Option[] = vendorList.map((v) => ({ value: v.name, label: v.name }));
+  const vendorOptions: Option[] = vendorList.map((v) => ({
+    value: v.id,
+    label: v.vendorCode ? `${v.name} (${v.vendorCode})` : v.name,
+  }));
   const districtOptions: Option[] = districtList.map((d) => ({ value: d, label: d }));
-  const siteSelectOptions: Option[] = siteOptions.map((s) => ({ value: s, label: s }));
+  const siteSelectOptions: Option[] = siteOptions;
+  const stateDisplay = stateValue
+    ? stateValue.charAt(0).toUpperCase() + stateValue.slice(1)
+    : 'Bihar';
   const siteLabel = `Site Name${loadingSites ? ' (fetching sites...)' : ''}`;
 
   return (
@@ -329,7 +441,7 @@ export function BiharSRTInstallationAssignSites() {
                   onChange={(v) => { setVendor(v); clearError('vendor'); setErrorMsg(''); }}
                   error={validationErrors.vendor}
                 />
-                <FloatingInput id="bsa-state" label="State" required readOnly value={STATE_VALUE} />
+                <FloatingInput id="bsa-state" label="State" required readOnly value={stateDisplay} />
                 <FloatingSelect
                   id="bsa-district"
                   label="District"
@@ -419,10 +531,6 @@ export function BiharSRTInstallationAssignSites() {
           </div>
         </div>
       </form>
-
-      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
-      </footer>
     </div>
   );
 }

@@ -414,7 +414,7 @@ function UploadDropzone({
 export function AssignSite() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('id');
+  const editId = searchParams.get('edit') || searchParams.get('id');
 
   // Form state
   const [vendor, setVendor] = useState<string>('');

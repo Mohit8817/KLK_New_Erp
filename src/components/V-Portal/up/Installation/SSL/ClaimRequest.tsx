@@ -301,7 +301,7 @@ export function UP_Installation_SSL_ClaimRequest() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClaimStatusFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Add Claim Modal

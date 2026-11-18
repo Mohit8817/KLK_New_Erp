@@ -726,32 +726,14 @@ export function ViewAssignLights() {
 
       {/* Page Head */}
       <PageHead
-        title="Punjab SSL Assign View Lights"
+        title="View Assign Punjab SSL Installation Data"
         subtitle="Manage assigned vendor work orders, view panchayat allocations, and authorize dispatches"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Punjab SSL', href: '/vendor-management/punjab/ssl/dashboard' },
-          { label: 'Assign View Lights' },
+          { label: 'View Assign Installation' },
         ]}
-        actions={
-          <Link
-            to="/vendor-management/punjab/ssl/assign-installation"
-            className="ax-btn ax-btn--primary ax-btn--sm"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              height: 32,
-              padding: '0 12px',
-              fontSize: 12,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            + Assign New Installation
-          </Link>
-        }
       />
 
       {/* ── Status Feedback Banners ── */}
@@ -807,7 +789,7 @@ export function ViewAssignLights() {
         </div>
       )}
 
-      {/* ── Top 8 KPI Metric Cards in 2 Rows matching Exact Counts ── */}
+      {/* ── Top 4 KPI Metric Cards in .asw-cards-row (Exact Assam SWP Architecture) ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
@@ -818,9 +800,24 @@ export function ViewAssignLights() {
             </svg>
           }
           tone="accent"
-          label="Total Assigned Lights"
-          value={counts.totalsite}
-          sub={`Assigned across Punjab (${assigns.length} batches)`}
+          label="Total Lights"
+          value={counts.totalsite || assigns.length}
+          sub={`Assigned across Punjab (${assigns.length} allocations)`}
+          onClick={() => handleDrilldown('total')}
+        />
+
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <polyline points="16 11 18 13 22 9" />
+            </svg>
+          }
+          tone="cyan"
+          label="Assigned Lights"
+          value={counts.totalsite || assigns.length}
+          sub="Dispatched to registered vendors"
           onClick={() => handleDrilldown('total')}
         />
 
@@ -832,9 +829,9 @@ export function ViewAssignLights() {
             </svg>
           }
           tone="emerald"
-          label="Complete Lights"
-          value={counts.complete}
-          sub="Installation completed on ground"
+          label="Completed Installation"
+          value={counts.complete || 0}
+          sub="Lights executed by field partners"
           onClick={() => handleDrilldown('complete')}
         />
 
@@ -847,90 +844,17 @@ export function ViewAssignLights() {
           }
           tone="amber"
           label="Pending Installation"
-          value={counts.pendingsite}
+          value={counts.pendingsite || 0}
           sub="Awaiting field execution"
           onClick={() => handleDrilldown('pending')}
         />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
-            </svg>
-          }
-          tone="cyan"
-          label="Approve Lights"
-          value={counts.approvedsite}
-          sub="Verified & approved by audit"
-          onClick={() => handleDrilldown('verify-approved')}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
-          }
-          tone="rose"
-          label="Reject Lights"
-          value={counts.rejectsite}
-          sub="Flagged with audit discrepancies"
-          onClick={() => handleDrilldown('verify-reject')}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="8.5" cy="7.5" r="4" />
-              <polyline points="17 11 19 13 23 9" />
-            </svg>
-          }
-          tone="violet"
-          label="Verify Pending"
-          value={counts.verifypending}
-          sub="Installed & awaiting verification"
-          onClick={() => handleDrilldown('verify-pending')}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-          }
-          tone="accent"
-          label="Claim Applicable"
-          value={counts.claimedapplicable}
-          sub="Eligible for payment claims"
-          onClick={() => handleDrilldown('claim-applicable')}
-        />
-
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <line x1="2" y1="10" x2="22" y2="10" />
-            </svg>
-          }
-          tone="emerald"
-          label="Payment Done"
-          value={counts.paymentsitecount}
-          sub="Fully disbursed & settled"
-          onClick={() => handleDrilldown('pay-done')}
-        />
       </div>
 
-      {/* ── Main Data Card: SSL Assign View Lights ── */}
+      {/* ── Main Data Card: View Assign Punjab SSL Installation Data ── */}
       <section className="ax-card ax-col--12">
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">SSL Assign View Lights</h2>
+            <h2 className="ax-card__title">View Assign Punjab SSL Installation Data</h2>
             <p className="ax-card__subtitle">
               <span className="ax-num">{filteredAssigns.length}</span> of <span className="ax-num">{assigns.length}</span> allocations
               {' '}· Approved <b className="ax-num">{assigns.filter((a) => Number(a.status) === 1).length}</b> · Accepted <b className="ax-num">{assigns.filter((a) => Number(a.status) === 2).length}</b> · Pending <b className="ax-num">{assigns.filter((a) => Number(a.status ?? 0) === 0).length}</b>
@@ -989,6 +913,23 @@ export function ViewAssignLights() {
                 onExportExcel={() => exportToExcel(filteredAssigns, exportCols, `${fileBase}_${stamp}`)}
                 onExportPDF={() => exportToPDF(filteredAssigns, exportCols, fileTitle)}
               />
+
+              <Link
+                to="/vendor-management/punjab/ssl/assign-installation"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 32,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                + Assign New Installation
+              </Link>
             </div>
           </div>
         </div>
@@ -1192,41 +1133,67 @@ export function ViewAssignLights() {
                             </button>
                           )}
 
-                          {/* Edit Button - Always editable */}
-                          <Link
-                            to={`/vendor-management/punjab/ssl/assign-installation?edit=${row.id}`}
-                            title="Edit Assignment"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: 'rgba(37, 99, 235, 0.08)',
-                              color: '#2563eb',
-                              border: '1px solid rgba(37, 99, 235, 0.2)',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              textDecoration: 'none',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              width="12"
-                              height="12"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
+                          {statusNum === 2 ? (
+                            <button
+                              type="button"
+                              disabled
+                              title="Accepted by Vendor (Locked for editing)"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'not-allowed',
+                              }}
                             >
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                            Edit
-                          </Link>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              Locked
+                            </button>
+                          ) : (
+                            <Link
+                              to={`/vendor-management/punjab/ssl/assign-installation?edit=${row.id}`}
+                              title="Edit Assignment"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: 'rgba(37, 99, 235, 0.08)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Edit
+                            </Link>
+                          )}
 
                           <button
                             type="button"

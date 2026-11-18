@@ -45,7 +45,8 @@ export const statusKey = (row: unknown): StatusKey => {
   const cs = String(r.close_status || '').toLowerCase().trim();
   const hasCloseDate = !!(
     (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
-    (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null')
+    (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
+    (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
   );
   if (s === '2' || s === 'closed' || s === 'resolved' || cs === '1' || cs === '2' || cs === 'closed' || hasCloseDate) {
     return 'resolved';
@@ -95,7 +96,7 @@ export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => 
 export const docUrlOf = (row: unknown): string => {
   const r = asRec(row);
   if (!r) return '';
-  return getMediaUrl(r.file1 || r.document || r.file || r.file2 || r.r_file1 || r.r_file) || '';
+  return getMediaUrl(r.file1 || r.document || r.file || r.file2 || r.r_file1 || r.r_file || r.r_file2) || '';
 };
 
 /* ───────── Column helpers ───────── */

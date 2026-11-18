@@ -158,7 +158,7 @@ export function UP_Survey_Resco_AssignedSurvey() {
   const [data, setData] = useState<UpRescoAssignedBatch[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
 
   const loadData = useCallback(() => {
     setLoading(true);

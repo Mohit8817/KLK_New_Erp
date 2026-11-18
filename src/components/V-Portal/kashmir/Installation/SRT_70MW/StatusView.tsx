@@ -234,7 +234,7 @@ export function Kashmir_Installation_StatusView() {
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState(currentDistrict);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Sync route param changes to state

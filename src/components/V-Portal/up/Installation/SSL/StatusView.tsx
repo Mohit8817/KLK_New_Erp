@@ -142,7 +142,7 @@ export function UP_Installation_SSL_StatusView() {
     );
   }, [lights, searchQuery]);
 
-  const pagination = usePagination(filteredLights, { initialPageSize: 15 });
+  const pagination = usePagination(filteredLights, { initialPageSize: 100 });
   const pageItems = pagination.pageItems || pagination.paged || [];
   const startIndex = pagination.startIndex ?? pagination.from ?? 0;
 
@@ -441,6 +441,7 @@ export function UP_Installation_SSL_StatusView() {
             totalItems={pagination.totalItems}
             pageSize={pagination.pageSize}
             onPageSizeChange={pagination.setPageSize}
+            pageSizeOptions={[25, 50, 100, 200]}
           />
         </div>
       </div>

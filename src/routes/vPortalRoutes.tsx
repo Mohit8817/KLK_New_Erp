@@ -52,6 +52,7 @@ const UPInstRescoInstall = lazy(() => import('../components/V-Portal/up/Installa
 const UPInstRescoDetail = lazy(() => import('../components/V-Portal/up/Installation/Resco/InstallationDetail'));
 const UPInstRescoClaim = lazy(() => import('../components/V-Portal/up/Installation/Resco/ClaimRequest'));
 const UPInstRescoBill = lazy(() => import('../components/V-Portal/up/Installation/Resco/MonthlyBill'));
+const UPInstRescoStatusView = lazy(() => import('../components/V-Portal/up/Installation/Resco/StatusView'));
 const UPInstSSLDb = lazy(() => import('../components/V-Portal/up/Installation/SSL/Dashboard'));
 const UPInstSSLAssigned = lazy(() => import('../components/V-Portal/up/Installation/SSL/AssignedLights'));
 const UPInstSSLInstall = lazy(() => import('../components/V-Portal/up/Installation/SSL/InstallLight'));
@@ -190,6 +191,7 @@ const BiharInstSRTView = lazy(() => import('../components/V-Portal/bihar/Install
 const BiharInstSRTClaim = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/ClaimRequest'));
 
 const BiharInstULADb = lazy(() => import('../components/V-Portal/bihar/Installation/ULA/Dashboard'));
+const BiharInstULAStatusView = lazy(() => import('../components/V-Portal/bihar/Installation/ULA/StatusView'));
 const BiharInstULARequest = lazy(() => import('../components/V-Portal/bihar/Installation/ULA/RequestAccept'));
 const BiharInstULAAssignDetail = lazy(() => import('../components/V-Portal/bihar/Installation/ULA/AssignSiteDetail'));
 const BiharInstULADetails = lazy(() => import('../components/V-Portal/bihar/Installation/ULA/InstallationDetails'));
@@ -367,18 +369,29 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   // Uttar Pradesh: Installation
   // ─────────────────────────────────────────────────────────────────────────
   'v/up/resco-installation-dashboard': UPInstRescoDb,
+  'v/up/resco-installation-view-dashboard/:status': UPInstRescoStatusView,
+  'v/up/resco-installation-view-dashboard': UPInstRescoStatusView,
+  'v/up/resco-installation-dashboard-status': UPInstRescoStatusView,
+  'v/up/resco-installation-status-view': UPInstRescoStatusView,
   'v/up/resco-view-assign-installation-sites': UPInstRescoAssigned,
   'v/up/resco-install-site': UPInstRescoInstall,
   'v/up/resco-view-install-site': UPInstRescoDetail,
   'v/up/resco-installation-claim': UPInstRescoClaim,
   'v/up/resco-view-install': UPInstRescoBill,
   'up/resco-installation-dashboard': UPInstRescoDb,
+  'up/resco-installation-view-dashboard/:status': UPInstRescoStatusView,
+  'up/resco-installation-view-dashboard': UPInstRescoStatusView,
+  'up/resco-installation-dashboard-status': UPInstRescoStatusView,
+  'up/resco-installation-status-view': UPInstRescoStatusView,
   'up/resco-view-assign-installation-sites': UPInstRescoAssigned,
   'up/resco-install-site': UPInstRescoInstall,
   'up/resco-view-install-site': UPInstRescoDetail,
   'up/resco-installation-claim': UPInstRescoClaim,
   'up/resco-view-install': UPInstRescoBill,
   'up/installation/resco/dashboard': UPInstRescoDb,
+  'up/installation/resco/view-dashboard/:status': UPInstRescoStatusView,
+  'up/installation/resco/view-dashboard': UPInstRescoStatusView,
+  'up/installation/resco/status-view': UPInstRescoStatusView,
   'up/installation/resco/assigned-sites': UPInstRescoAssigned,
   'up/installation/resco/install-site': UPInstRescoInstall,
   'up/installation/resco/installation-detail': UPInstRescoDetail,
@@ -746,6 +759,10 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'bihar/installation/srt/view-installation': BiharInstSRTView,
   'bihar/installation/srt/claim-request': BiharInstSRTClaim,
   'v/bihar/installation/ula/dashboard': BiharInstULADb,
+  'v/bihar/installation/ula/status-view': BiharInstULAStatusView,
+  'v/bihar/installation/ula/status': BiharInstULAStatusView,
+  'v/bihar/ula-installation-status-view': BiharInstULAStatusView,
+  'v/bihar/ula/installation/status-view': BiharInstULAStatusView,
   'v/bihar/installation/ula/request': BiharInstULARequest,
   'v/bihar/installation/ula/assign-detail': BiharInstULAAssignDetail,
   'v/bihar/installation/ula/installation-detail': BiharInstULADetails,
@@ -754,6 +771,10 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'v/bihar/installation/ula/payment': BiharInstULAPay,
   'v/bihar/installation/ula/pending-installation': Bihar_Installation_ULA_PendingInstallation,
   'bihar/installation/ula/dashboard': BiharInstULADb,
+  'bihar/installation/ula/status-view': BiharInstULAStatusView,
+  'bihar/installation/ula/status': BiharInstULAStatusView,
+  'bihar/ula-installation-status-view': BiharInstULAStatusView,
+  'bihar/ula/installation/status-view': BiharInstULAStatusView,
   'bihar/installation/ula/request': BiharInstULARequest,
   'bihar/installation/ula/assign-detail': BiharInstULAAssignDetail,
   'bihar/installation/ula/installation-detail': BiharInstULADetails,
@@ -1090,6 +1111,10 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'kashmir/srt/70mw/install-site': KashmirInstSRT70MWInstall,
   'v/kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
   'kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
+  'v/kashmir/srt/70mw/view-installation': KashmirInstSRT70MWDetail,
+  'kashmir/srt/70mw/view-installation': KashmirInstSRT70MWDetail,
+  'v/kashmir/srt/70mw/installation/view-installation': KashmirInstSRT70MWDetail,
+  'kashmir/srt/70mw/installation/view-installation': KashmirInstSRT70MWDetail,
   'v/kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
   'kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
   'v/kashmir/srt70mw/installation-expenses-create': KashmirExpensesRequest,

@@ -18,11 +18,11 @@ import {
   type AssignDetailsSummary,
 } from '../../karnataka-services';
 
-/* ───────── Responsive page CSS (Exact Assam SWP View Assign Reference) ───────── */
+/* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: var(--ax-accent, #2563eb);
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -315,7 +315,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -379,13 +379,6 @@ const fmtDate = (val?: string | null): string => {
     }
   } catch {}
   return String(val).slice(0, 10);
-};
-
-const getSitesList = (r?: AssignRecord | null): any[] => {
-  if (!r) return [];
-  if (Array.isArray(r.sites) && r.sites.length > 0) return r.sites;
-  if (Array.isArray(r.site_details) && r.site_details.length > 0) return r.site_details;
-  return [];
 };
 
 /* ── In-Row Media File Thumbnail Component ── */
@@ -487,7 +480,7 @@ export function ViewAssignInstallation() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Selected assign for applicant/farmer sites detail modal
+  // Selected assign for farmer sites detail modal
   const [selectedAssignForSites, setSelectedAssignForSites] = useState<AssignRecord | null>(null);
 
   // Fetch Karnataka SWP assignments
@@ -499,7 +492,7 @@ export function ViewAssignInstallation() {
       setAssigns(res.assigns || []);
       setDetails(res.details || null);
     } catch (err: any) {
-      console.error('Failed to load Karnataka assignments:', err);
+      console.error('Failed to load assignments:', err);
       setErrorMsg(err?.message || 'Failed to fetch assigned installations.');
     } finally {
       setLoading(false);
@@ -539,10 +532,10 @@ export function ViewAssignInstallation() {
     return list.filter((row) => {
       const vName = (row.vendors?.name || row.vendor_name || '').toLowerCase();
       const dist = (row.district || '').toLowerCase();
-      const state = (row.state || 'Karnataka').toLowerCase();
+      const state = (row.state || 'karnataka').toLowerCase();
       const remarks = (row.remarks || '').toLowerCase();
-      const siteList = getSitesList(row);
-      const farmers = siteList
+      const sites = (row.site_details || row.sites || []) as any[];
+      const farmers = sites
         .map((s: any) => `${s.farmer_name || s.f_farmer_name || ''} ${s.application_no || ''}`)
         .join(' ')
         .toLowerCase();
@@ -566,12 +559,12 @@ export function ViewAssignInstallation() {
       { header: 'Sr. No.', accessor: (_r: AssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
       { header: 'Vendor', accessor: (r: AssignRecord) => r.vendors?.name || r.vendor_name || `Vendor #${r.vendor}` },
       { header: 'Assign Date', accessor: (r: AssignRecord) => fmtDate(r.assign_date || r.created_at) },
-      { header: 'State', accessor: (r: AssignRecord) => (r.state || 'KARNATAKA').toUpperCase() },
+      { header: 'State', accessor: (r: AssignRecord) => (r.state?.toUpperCase() || 'KARNATAKA') },
       { header: 'District', accessor: (r: AssignRecord) => r.district || '—' },
       {
-        header: 'Applicant / Farmer Name',
+        header: 'Farmer Name',
         accessor: (r: AssignRecord) => {
-          const list = getSitesList(r);
+          const list = (r.site_details || r.sites || []) as any[];
           return (
             list
               .map((s: any) => `${s.farmer_name || s.f_farmer_name || 'Farmer'}${s.father_name || s.f_father_name ? ` (${s.father_name || s.f_father_name})` : ''}`)
@@ -579,7 +572,7 @@ export function ViewAssignInstallation() {
           );
         },
       },
-      { header: 'Count', accessor: (r: AssignRecord) => r.site_count || getSitesList(r).length },
+      { header: 'Count', accessor: (r: AssignRecord) => r.site_count || ((r.site_details || r.sites) ? (r.site_details || r.sites)!.length : 0) },
       { header: 'Deadline Date', accessor: (r: AssignRecord) => fmtDate(r.deadline_date) },
       { header: 'File', accessor: (r: AssignRecord) => r.file || '—' },
       { header: 'Remarks', accessor: (r: AssignRecord) => r.remarks || '—' },
@@ -668,7 +661,7 @@ export function ViewAssignInstallation() {
     w.focus();
   };
 
-  // KPI Calculations (Matching Assam SWP reference: Total Sites, Assigned Sites, Completed Installation, Pending Installation)
+  // KPI Calculations
   const totalSites = details?.total ?? assigns.length;
   const assignedSites = details?.assigned ?? assigns.length;
   const notAssignedSites = details?.not_assigned ?? 0;
@@ -916,7 +909,7 @@ export function ViewAssignInstallation() {
                 pagination.paged.map((row: AssignRecord, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const vendorName = row.vendors?.name || row.vendor_name || `Vendor #${row.vendor}`;
-                  const sites = getSitesList(row);
+                  const sites = (row.site_details || row.sites || []) as any[];
                   const farmerNames = sites
                     .map((s: any) => s.farmer_name || s.f_farmer_name)
                     .filter(Boolean)
@@ -924,7 +917,7 @@ export function ViewAssignInstallation() {
                     .join(', ');
                   const extraCount = (sites.length || 0) - 3;
                   const displayFarmerStr = farmerNames + (extraCount > 0 ? ` +${extraCount} more` : '');
-                  const count = row.site_count || sites.length || 0;
+                  const count = row.site_count || (sites ? sites.length : 0);
 
                   return (
                     <tr key={row.id}>
@@ -933,7 +926,7 @@ export function ViewAssignInstallation() {
                         {vendorName}
                       </td>
                       <td className="ax-table__td">{fmtDate(row.assign_date || row.created_at)}</td>
-                      <td className="ax-table__td">{(row.state || 'Karnataka').toUpperCase()}</td>
+                      <td className="ax-table__td">{row.state?.toUpperCase() || 'KARNATAKA'}</td>
                       <td className="ax-table__td">{row.district || '—'}</td>
                       <td className="ax-table__td" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {displayFarmerStr || '—'}
@@ -942,8 +935,11 @@ export function ViewAssignInstallation() {
                         <button
                           type="button"
                           onClick={() => setSelectedAssignForSites(row)}
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
                           style={{
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
                             padding: '2px 8px',
                             fontSize: 12,
                             fontWeight: 700,
@@ -1028,12 +1024,15 @@ export function ViewAssignInstallation() {
                               type="button"
                               onClick={() => handleApprove(row.id)}
                               disabled={approvingId === row.id}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#10b981',
+                                color: '#ffffff',
+                                border: 'none',
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
@@ -1056,16 +1055,18 @@ export function ViewAssignInstallation() {
                               type="button"
                               disabled
                               title="Accepted by Vendor (Locked for editing)"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
                                 fontSize: 11,
                                 fontWeight: 600,
                                 cursor: 'not-allowed',
-                                opacity: 0.75,
                               }}
                             >
                               <svg
@@ -1088,12 +1089,15 @@ export function ViewAssignInstallation() {
                             <Link
                               to={`/vendor-management/karnataka/swp/assign-installation?edit=${row.id}`}
                               title="Edit Assignment"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 padding: '4px 8px',
+                                borderRadius: 6,
+                                background: 'rgba(37, 99, 235, 0.08)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
                                 fontSize: 11,
                                 fontWeight: 600,
                                 textDecoration: 'none',
@@ -1121,9 +1125,12 @@ export function ViewAssignInstallation() {
                           <button
                             type="button"
                             onClick={() => setSelectedAssignForSites(row)}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
                             style={{
                               padding: '4px 8px',
+                              borderRadius: 6,
+                              background: 'var(--ax-surface-subtle, #f1f5f9)',
+                              border: '1px solid var(--ax-border, #cbd5e1)',
+                              color: 'var(--ax-text-strong)',
                               fontSize: 11,
                               fontWeight: 600,
                               cursor: 'pointer',
@@ -1161,13 +1168,13 @@ export function ViewAssignInstallation() {
         open={Boolean(selectedAssignForSites)}
         onClose={() => setSelectedAssignForSites(null)}
         title={`Assigned Sites: ${selectedAssignForSites?.vendors?.name || selectedAssignForSites?.vendor_name || `Vendor #${selectedAssignForSites?.vendor}`}`}
-        subtitle={`Batch ID #${selectedAssignForSites?.id} • District: ${selectedAssignForSites?.district || '—'} • Total: ${selectedAssignForSites?.site_count || getSitesList(selectedAssignForSites).length} Site(s)`}
+        subtitle={`Batch ID #${selectedAssignForSites?.id} • District: ${selectedAssignForSites?.district || '—'} • Total: ${selectedAssignForSites?.site_count || (selectedAssignForSites?.site_details ? selectedAssignForSites.site_details.length : selectedAssignForSites?.sites?.length || 0)} Site(s)`}
         maxWidth={780}
         footer={
           <button
             type="button"
-            onClick={() => setSelectedAssignForSites(null)}
             className="ax-btn ax-btn--primary"
+            onClick={() => setSelectedAssignForSites(null)}
             style={{
               padding: '6px 16px',
               fontSize: 13,
@@ -1179,81 +1186,84 @@ export function ViewAssignInstallation() {
           </button>
         }
       >
-        {selectedAssignForSites && (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
-                <strong style={{ fontSize: 13 }}>{selectedAssignForSites.vendors?.name || selectedAssignForSites.vendor_name || 'N/A'}</strong>
+        {selectedAssignForSites && (() => {
+          const sites = (selectedAssignForSites.site_details || selectedAssignForSites.sites || []) as any[];
+          return (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
+                  <strong style={{ fontSize: 13 }}>{selectedAssignForSites.vendors?.name || selectedAssignForSites.vendor_name || 'N/A'}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
+                  <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date)}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
+                  <strong
+                    style={{
+                      fontSize: 13,
+                      color:
+                        Number(selectedAssignForSites.status) === 2
+                          ? '#2563eb'
+                          : Number(selectedAssignForSites.status) === 1
+                          ? '#10b981'
+                          : '#d97706',
+                    }}
+                  >
+                    {Number(selectedAssignForSites.status) === 2
+                      ? 'Accepted'
+                      : Number(selectedAssignForSites.status) === 1
+                      ? 'Approved'
+                      : 'Pending'}
+                  </strong>
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
-                <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date)}</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
-                <strong
-                  style={{
-                    fontSize: 13,
-                    color:
-                      Number(selectedAssignForSites.status) === 2
-                        ? '#2563eb'
-                        : Number(selectedAssignForSites.status) === 1
-                        ? '#10b981'
-                        : '#d97706',
-                  }}
-                >
-                  {Number(selectedAssignForSites.status) === 2
-                    ? 'Accepted'
-                    : Number(selectedAssignForSites.status) === 1
-                    ? 'Approved'
-                    : 'Pending'}
-                </strong>
-              </div>
-            </div>
 
-            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-              <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th className="ax-table__th">#</th>
-                    <th className="ax-table__th">Site ID</th>
-                    <th className="ax-table__th">Farmer Name</th>
-                    <th className="ax-table__th">Father Name</th>
-                    <th className="ax-table__th">District</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getSitesList(selectedAssignForSites).length > 0 ? (
-                    getSitesList(selectedAssignForSites).map((site, sIdx) => (
-                      <tr key={site.id || sIdx}>
-                        <td className="ax-table__td">{sIdx + 1}</td>
-                        <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                          #{site.id || sIdx + 1}
-                        </td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {site.farmer_name || site.f_farmer_name || '—'}
-                        </td>
-                        <td className="ax-table__td">
-                          {site.father_name || site.f_father_name || '—'}
-                        </td>
-                        <td className="ax-table__td">
-                          {site.district || selectedAssignForSites.district || '—'}
+              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th className="ax-table__th">#</th>
+                      <th className="ax-table__th">Site ID</th>
+                      <th className="ax-table__th">Farmer Name</th>
+                      <th className="ax-table__th">Father Name</th>
+                      <th className="ax-table__th">District</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sites.length > 0 ? (
+                      sites.map((site: any, sIdx: number) => (
+                        <tr key={site.id || sIdx}>
+                          <td className="ax-table__td">{sIdx + 1}</td>
+                          <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                            #{site.id || sIdx + 1}
+                          </td>
+                          <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                            {site.farmer_name || site.f_farmer_name || '—'}
+                          </td>
+                          <td className="ax-table__td">
+                            {site.father_name || site.f_father_name || '—'}
+                          </td>
+                          <td className="ax-table__td">
+                            {site.district || selectedAssignForSites.district || '—'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
+                          No individual site details populated for this batch ID.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
-                        No individual site details populated for this batch ID.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       {/* ── Document / File Lightbox Preview Modal ── */}
@@ -1296,18 +1306,22 @@ export function ViewAssignInstallation() {
               }}
             >
               <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
-                Assignment Work Order Preview
+                Assignment Document Preview
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <a
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
                     fontSize: 12,
+                    color: '#2563eb',
                     fontWeight: 600,
                     textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1315,7 +1329,6 @@ export function ViewAssignInstallation() {
                 <button
                   type="button"
                   onClick={() => setLightboxUrl(null)}
-                  aria-label="Close preview"
                   style={{
                     border: 'none',
                     background: 'none',

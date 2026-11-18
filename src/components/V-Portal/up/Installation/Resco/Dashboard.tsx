@@ -173,6 +173,12 @@ const footerStyle = {
 const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' } as const;
 
 /* ───────── KPI card ───────── */
+interface KpiPart {
+  label?: string;
+  value: number;
+  to: string;
+}
+
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -182,7 +188,7 @@ interface KpiProps {
   sub: string;
   badge?: string;
   spark?: number[];
-  parts?: { value: number; to: string }[];
+  parts?: KpiPart[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
 }
@@ -205,7 +211,11 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, parts, spa
   return (
     <div
       className="ax-card ax-col--3"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      style={{
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.15s ease',
+        userSelect: 'none',
+      }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -228,16 +238,67 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, parts, spa
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: parts && parts.length > 2 ? '1.1rem' : '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-              {parts
-                ? parts.map((p, i) => (
-                    <span key={i}>
-                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}> / </span>}
-                      <Link to={p.to} onClick={(e) => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none' }}>{num(p.value)}</Link>
+              {parts ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' }}>
+                  {parts.map((p, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, marginInline: '3px' }}>/</span>}
+                      <Link
+                        to={p.to}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          color: 'inherit',
+                          textDecoration: 'none',
+                          padding: '1px 3px',
+                          borderRadius: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title={p.label ? `View ${p.label}: ${num(p.value)} sites` : `View: ${num(p.value)} sites`}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = t.bg;
+                          e.currentTarget.style.color = t.fg;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'inherit';
+                        }}
+                      >
+                        {num(p.value)}
+                      </Link>
                     </span>
-                  ))
-                : value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+                  ))}
+                </span>
+              ) : (
+                <span>
+                  {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+                </span>
+              )}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            {parts && parts.some((p) => p.label) ? (
+              <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '3px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {parts.map((p, i) => (
+                  <span key={i}>
+                    {i > 0 && <span style={{ opacity: 0.6 }}> / </span>}
+                    {p.label ? (
+                      <Link
+                        to={p.to}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                        title={`View ${p.label} sites`}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = t.fg)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'inherit')}
+                      >
+                        {p.label}
+                      </Link>
+                    ) : (
+                      sub
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            )}
           </div>
           {hasSpark && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
@@ -694,13 +755,11 @@ export function UP_Installation_Resco_Dashboard() {
     try {
       const res = await upInstallationService.getRescoInstalledSites();
       setSites(res.data || []);
-      // optional: dashboard counts (claims / payments etc.) — see note in reply
+      // Endpoint 17: Dashboard counts summary
       try {
-        const svc: any = upInstallationService;
-        const fn = svc.getRescoDashboard || svc.getRescoDashboardData;
-        if (fn) {
-          const r = await fn.call(svc);
-          const d = r?.data ?? r;
+        const r = await upInstallationService.getRescoDashboard();
+        const d = (r as any)?.data ?? r;
+        if (d) {
           setApi(d?.resco || d?.install_detail || d || {});
         }
       } catch (e) {
@@ -721,21 +780,32 @@ export function UP_Installation_Resco_Dashboard() {
   const initialLoad = loading && sites.length === 0;
   const dash = (v: number) => (initialLoad ? '…' : num(v));
 
+  const cnt = (key: string, fallback = 0) => {
+    let v = api?.[key];
+    if (v === undefined && (key === 'total' || key === 'site_count')) {
+      v = api?.site_count ?? api?.total;
+    }
+    return v === undefined || v === null ? fallback : Number(v) || 0;
+  };
+
   /* ───────── Summary ───────── */
-  const totalSites = sites.length;
-  const completedSites = sites.filter((s) => s.installation_date || s.inverter_no).length;
-  const pendingSites = totalSites - completedSites;
-  const verifiedSites = sites.filter((s) => s.verify_status === 1).length;
-  const docVerified = sites.filter((s) => s.document_status === 1).length;
+  const totalSites = cnt('total', sites.length);
+  const completedSites = cnt('complete', sites.filter((s) => s.installation_date || s.inverter_no).length);
+  const pendingSites = cnt('pending', Math.max(0, totalSites - completedSites));
+  const verifiedSites = cnt('verify_approved', sites.filter((s) => s.verify_status === 1).length);
+  const docVerified = cnt('doc_approved', sites.filter((s) => s.document_status === 1).length);
   const compPct = pctOf(completedSites, totalSites);
   const verPct = pctOf(verifiedSites, totalSites);
 
-  const cnt = (key: string, fallback = 0) => {
-    const v = api?.[key];
-    return v === undefined || v === null ? fallback : Number(v) || 0;
-  };
   const BASE = '/v/up/resco-installation-view-dashboard/';
-  const P = (slug: string, fallback = 0) => ({ value: cnt(slug.replace(/-/g, '_'), fallback), to: BASE + slug });
+  const P = (slug: string, fallback = 0, label?: string) => {
+    const q = selectedDistrict && selectedDistrict !== 'All' ? `?district=${encodeURIComponent(selectedDistrict)}` : '';
+    return {
+      label,
+      value: cnt(slug.replace(/-/g, '_'), fallback),
+      to: `${BASE}${slug}${q}`,
+    };
+  };
 
   const districtwise: DistrictRow[] = useMemo(() => {
     const map = new Map<string, DistrictRow>();
@@ -908,28 +978,152 @@ export function UP_Installation_Resco_Dashboard() {
 
 
 
-        <KpiCard icon={I_PIN} tone="accent" label="Total" value="" sub="Total assigned sites"
-          parts={[P('total', totalSites)]} spark={spk((d) => d.total)} onClick={() => navigate(BASE + 'total')} />
-        <KpiCard icon={I_BOLT} tone="cyan" label="Installation Status" value="" sub="Installed / Pending"
-          parts={[P('complete', completedSites), P('pending', pendingSites)]} badge={`${compPct}% Done`} spark={spk((d) => d.complete)} />
-        <KpiCard icon={I_DONE} tone="emerald" label="Verification Status" value="" sub="Approved / Pending / Rejected"
-          parts={[P('verify-approved', verifiedSites), P('verify-pending'), P('verify-reject')]} badge={`${verPct}% Approved`} spark={spk((d) => d.verified)} />
-        <KpiCard icon={I_DOC} tone="violet" label="Documents Status" value="" sub="Approved / Pending / Rejected"
-          parts={[P('doc-approved', docVerified), P('doc-pending'), P('doc-reject')]} />
-        <KpiCard icon={I_DOC} tone="amber" label="Claim Applicable Status" value="" sub="Claim1 / Claim2 / Claim3"
-          parts={[P('inst-claim1-applicable'), P('inst-claim2-applicable'), P('inst-claim3-applicable')]} />
-        <KpiCard icon={I_DOC} tone="amber" label="Claim 1st Status" value="" sub="Submitted / Approved / Pending / Rejected"
-          parts={[P('inst-claim1-raised'), P('inst-claim1-approved'), P('inst-claim1-pending'), P('inst-claim1-reject')]} />
-        <KpiCard icon={I_DOC} tone="amber" label="Claim 2nd Status" value="" sub="Submitted / Approved / Pending / Rejected"
-          parts={[P('inst-claim2-raised'), P('inst-claim2-approved'), P('inst-claim2-pending'), P('inst-claim2-reject')]} />
-        <KpiCard icon={I_DOC} tone="amber" label="Claim 3rd Status" value="" sub="Submitted / Approved / Pending / Rejected"
-          parts={[P('inst-claim3-raised'), P('inst-claim3-approved'), P('inst-claim3-pending'), P('inst-claim3-reject')]} />
-        <KpiCard icon={I_COIN} tone="cyan" label="Payment 1st Status" value="" sub="Complete / Partially / Pending"
-          parts={[P('inst-pay1-complete'), P('inst-pay1-partially'), P('inst-pay1-pending')]} />
-        <KpiCard icon={I_COIN} tone="cyan" label="Payment 2nd Status" value="" sub="Complete / Partially / Pending"
-          parts={[P('inst-pay2-complete'), P('inst-pay2-partially'), P('inst-pay2-pending')]} />
-        <KpiCard icon={I_COIN} tone="cyan" label="Payment 3rd Status" value="" sub="Complete / Partially / Pending"
-          parts={[P('inst-pay3-complete'), P('inst-pay3-partially'), P('inst-pay3-pending')]} />
+        <KpiCard
+          icon={I_PIN}
+          tone="accent"
+          label="Total"
+          value=""
+          sub="Total assigned sites"
+          parts={[P('total', totalSites, 'Total')]}
+          spark={spk((d) => d.total)}
+          onClick={() => navigate(P('total').to)}
+        />
+        <KpiCard
+          icon={I_BOLT}
+          tone="cyan"
+          label="Installation Status"
+          value=""
+          sub="Installed / Pending"
+          parts={[
+            P('complete', completedSites, 'Installed'),
+            P('pending', pendingSites, 'Pending'),
+          ]}
+          badge={`${compPct}% Done`}
+          spark={spk((d) => d.complete)}
+          onClick={() => navigate(P('complete').to)}
+        />
+        <KpiCard
+          icon={I_DONE}
+          tone="emerald"
+          label="Verification Status"
+          value=""
+          sub="Approved / Pending / Rejected"
+          parts={[
+            P('verify-approved', verifiedSites, 'Approved'),
+            P('verify-pending', cnt('verify_pending'), 'Pending'),
+            P('verify-reject', cnt('verify_reject'), 'Rejected'),
+          ]}
+          badge={`${verPct}% Approved`}
+          spark={spk((d) => d.verified)}
+          onClick={() => navigate(P('verify-approved').to)}
+        />
+        <KpiCard
+          icon={I_DOC}
+          tone="violet"
+          label="Documents Status"
+          value=""
+          sub="Approved / Pending / Rejected"
+          parts={[
+            P('doc-approved', docVerified, 'Approved'),
+            P('doc-pending', cnt('doc_pending'), 'Pending'),
+            P('doc-reject', cnt('doc_reject'), 'Rejected'),
+          ]}
+          onClick={() => navigate(P('doc-approved').to)}
+        />
+        <KpiCard
+          icon={I_DOC}
+          tone="amber"
+          label="Claim Applicable Status"
+          value=""
+          sub="Claim 1 / Claim 2 / Claim 3"
+          parts={[
+            P('inst-claim1-applicable', cnt('inst_claim1_applicable'), 'Claim 1'),
+            P('inst-claim2-applicable', cnt('inst_claim2_applicable'), 'Claim 2'),
+            P('inst-claim3-applicable', cnt('inst_claim3_applicable'), 'Claim 3'),
+          ]}
+          onClick={() => navigate(P('inst-claim1-applicable').to)}
+        />
+        <KpiCard
+          icon={I_DOC}
+          tone="amber"
+          label="Claim 1st Status"
+          value=""
+          sub="Submitted / Approved / Pending / Rejected"
+          parts={[
+            P('inst-claim1-raised', cnt('inst_claim1_raised'), 'Submitted'),
+            P('inst-claim1-approved', cnt('inst_claim1_approved'), 'Approved'),
+            P('inst-claim1-pending', cnt('inst_claim1_pending'), 'Pending'),
+            P('inst-claim1-reject', cnt('inst_claim1_reject'), 'Rejected'),
+          ]}
+          onClick={() => navigate(P('inst-claim1-raised').to)}
+        />
+        <KpiCard
+          icon={I_DOC}
+          tone="amber"
+          label="Claim 2nd Status"
+          value=""
+          sub="Submitted / Approved / Pending / Rejected"
+          parts={[
+            P('inst-claim2-raised', cnt('inst_claim2_raised'), 'Submitted'),
+            P('inst-claim2-approved', cnt('inst_claim2_approved'), 'Approved'),
+            P('inst-claim2-pending', cnt('inst_claim2_pending'), 'Pending'),
+            P('inst-claim2-reject', cnt('inst_claim2_reject'), 'Rejected'),
+          ]}
+          onClick={() => navigate(P('inst-claim2-raised').to)}
+        />
+        <KpiCard
+          icon={I_DOC}
+          tone="amber"
+          label="Claim 3rd Status"
+          value=""
+          sub="Submitted / Approved / Pending / Rejected"
+          parts={[
+            P('inst-claim3-raised', cnt('inst_claim3_raised'), 'Submitted'),
+            P('inst-claim3-approved', cnt('inst_claim3_approved'), 'Approved'),
+            P('inst-claim3-pending', cnt('inst_claim3_pending'), 'Pending'),
+            P('inst-claim3-reject', cnt('inst_claim3_reject'), 'Rejected'),
+          ]}
+          onClick={() => navigate(P('inst-claim3-raised').to)}
+        />
+        <KpiCard
+          icon={I_COIN}
+          tone="cyan"
+          label="Payment 1st Status"
+          value=""
+          sub="Complete / Partially / Pending"
+          parts={[
+            P('inst-pay1-complete', cnt('inst_pay1_complete'), 'Complete'),
+            P('inst-pay1-partially', cnt('inst_pay1_partially'), 'Partially'),
+            P('inst-pay1-pending', cnt('inst_pay1_pending'), 'Pending'),
+          ]}
+          onClick={() => navigate(P('inst-pay1-complete').to)}
+        />
+        <KpiCard
+          icon={I_COIN}
+          tone="cyan"
+          label="Payment 2nd Status"
+          value=""
+          sub="Complete / Partially / Pending"
+          parts={[
+            P('inst-pay2-complete', cnt('inst_pay2_complete'), 'Complete'),
+            P('inst-pay2-partially', cnt('inst_pay2_partially'), 'Partially'),
+            P('inst-pay2-pending', cnt('inst_pay2_pending'), 'Pending'),
+          ]}
+          onClick={() => navigate(P('inst-pay2-complete').to)}
+        />
+        <KpiCard
+          icon={I_COIN}
+          tone="cyan"
+          label="Payment 3rd Status"
+          value=""
+          sub="Complete / Partially / Pending"
+          parts={[
+            P('inst-pay3-complete', cnt('inst_pay3_complete'), 'Complete'),
+            P('inst-pay3-partially', cnt('inst_pay3_partially'), 'Partially'),
+            P('inst-pay3-pending', cnt('inst_pay3_pending'), 'Pending'),
+          ]}
+          onClick={() => navigate(P('inst-pay3-complete').to)}
+        />
 
         <MonthlyCard
           eyebrow="Execution Throughput"
@@ -1026,17 +1220,43 @@ export function UP_Installation_Resco_Dashboard() {
                         <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(d.total)}</td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
+                            <Link
+                              to={`${BASE}complete?district=${encodeURIComponent(d.district)}`}
+                              className="ax-badge ax-badge--soft ax-badge--success"
+                              style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}
+                              title={`View ${d.complete} complete sites in ${d.district}`}
+                            >
+                              {num(d.complete)}
+                            </Link>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
+                            <Link
+                              to={`${BASE}pending?district=${encodeURIComponent(d.district)}`}
+                              className="ax-badge ax-badge--soft ax-badge--warning"
+                              style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}
+                              title={`View ${d.pending} pending sites in ${d.district}`}
+                            >
+                              {num(d.pending)}
+                            </Link>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.verified)}</span>
+                          <Link
+                            to={`${BASE}verify-approved?district=${encodeURIComponent(d.district)}`}
+                            className="ax-badge ax-badge--soft ax-badge--success"
+                            style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}
+                            title={`View ${d.verified} verified sites in ${d.district}`}
+                          >
+                            {num(d.verified)}
+                          </Link>
                         </td>
                         <td className="ax-table__td"><Bar pct={pctOf(d.complete, d.total)} /></td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <Link to="/v/up/resco-view-install-site" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }} title={`Inspect sites in ${d.district}`}>
+                          <Link
+                            to={`${BASE}total?district=${encodeURIComponent(d.district)}`}
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
+                            title={`Inspect sites in ${d.district}`}
+                          >
                             {ICON_EYE}
                             <span className="ax-btn__label">View Sites</span>
                           </Link>

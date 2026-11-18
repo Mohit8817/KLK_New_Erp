@@ -22,7 +22,7 @@ const COLUMNS: ComplaintColumn<UpOffgridComplaintItem>[] = [
   T('State', ['state'], { fallback: 'UP' }),
   T('District', ['district'], { strong: true }),
   T('Beneficiary Name', ['beneficiary_name'], { strong: true }),
-  T('Contact Number', ['contact_number', 'contact_no']),
+  T('Contact Number', ['mobile_no', 'contact_number', 'contact_no']),
   T('Plant Capacity', ['plant_capacity'], { strong: true }),
   T('Work Order No.', ['wo_no', 'work_order_no']),
   T('Work Order Date', ['wo_date', 'work_order_date']),
@@ -56,7 +56,7 @@ export function UPComplaintOffgridView() {
         pick(c, ['complaint_id', 'id'], ''),
         pick(c, ['beneficiary_name'], ''),
         pick(c, ['district'], ''),
-        pick(c, ['contact_number', 'contact_no'], ''),
+        pick(c, ['mobile_no', 'contact_number', 'contact_no'], ''),
         pick(c, ['wo_no', 'work_order_no'], ''),
         pick(c, ['plant_capacity'], ''),
         pick(c, ['contractor_name'], ''),
@@ -65,7 +65,7 @@ export function UPComplaintOffgridView() {
       detailEyebrow="Off Grid Solar Plant Complaint"
       detailFields={(c) => [
         { label: 'Beneficiary Name', value: pick(c, ['beneficiary_name']) },
-        { label: 'Contact Number', value: pick(c, ['contact_number', 'contact_no']) },
+        { label: 'Contact Number', value: pick(c, ['mobile_no', 'contact_number', 'contact_no']) },
         { label: 'District / State', value: `${pick(c, ['district'])}, ${pick(c, ['state'], 'UP')}` },
         { label: 'Status', value: <StatusBadge row={c} /> },
         { label: 'Plant Capacity', value: pick(c, ['plant_capacity']) },

@@ -334,6 +334,74 @@ const getVolume = (r: SiteInstallationItem) =>
 const getAadhar = (r: SiteInstallationItem) =>
   r.f_aadhar || (r as any).aadhar || '—';
 
+type InstVerifyStatus = 'approved' | 'rejected' | 'pending';
+type DocVerifyStatus = 'approved' | 'rejected' | 'pending' | 'not_uploaded';
+
+// Installation Verification Status (inst_verify_status): 1 = Approved, 2 = Rejected, 0 = Pending
+function getInstVerifyStatus(r?: SiteInstallationItem | null): InstVerifyStatus {
+  if (!r) return 'pending';
+  const raw = r.inst_verify_status ?? (r as any).verify_status;
+  if (raw === null || raw === undefined || raw === '') return 'pending';
+  const str = String(raw).trim().toLowerCase();
+  if (str === '1' || str === 'approved' || str === 'approve' || str === 'verified' || str === 'ok') {
+    return 'approved';
+  }
+  if (str === '2' || str === 'rejected' || str === 'reject') {
+    return 'rejected';
+  }
+  return 'pending';
+}
+
+function getInstVerifyLabel(status: InstVerifyStatus): string {
+  return status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Pending';
+}
+
+// Document Verification Status (inst_doc_status): 2 = Approved, 3 = Rejected, 1 = Pending, 0 = Not Uploaded
+function getDocVerifyStatus(r?: SiteInstallationItem | null): DocVerifyStatus {
+  if (!r) return 'pending';
+  const raw =
+    r.inst_doc_status ??
+    (r as any).doc_status ??
+    (r as any).document_status ??
+    (r as any).inst_doc_verify_status ??
+    (r as any).doc_verify_status;
+  if (raw === null || raw === undefined || raw === '') return 'pending';
+  const str = String(raw).trim().toLowerCase();
+  if (str === '2' || str === 'approved' || str === 'approve' || str === 'verified' || str === 'complete' || str === 'ok') {
+    return 'approved';
+  }
+  if (str === '3' || str === 'rejected' || str === 'reject') {
+    return 'rejected';
+  }
+  if (str === '0' || str === 'not uploaded' || str === 'not_uploaded' || str === 'not submitted') {
+    return 'not_uploaded';
+  }
+  return 'pending';
+}
+
+function getDocVerifyLabel(status: DocVerifyStatus): string {
+  if (status === 'approved') return 'Approved';
+  if (status === 'rejected') return 'Rejected';
+  if (status === 'not_uploaded') return 'Not Uploaded';
+  return 'Pending';
+}
+
+function StatusBadge({ status, label }: { status: 'approved' | 'rejected' | 'pending' | 'not_uploaded'; label: string }) {
+  const toneClass =
+    status === 'approved'
+      ? 'ax-badge--success'
+      : status === 'rejected'
+      ? 'ax-badge--danger'
+      : status === 'not_uploaded'
+      ? 'ax-badge--neutral'
+      : 'ax-badge--warning';
+  return (
+    <span className={`ax-badge ax-badge--soft ${toneClass}`} style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+      {label}
+    </span>
+  );
+}
+
 function MediaFileThumbnail({
   file,
   alt = 'Document Preview',
@@ -347,7 +415,7 @@ function MediaFileThumbnail({
   if (!file) return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
   const fullUrl = resolveKarnatakaMediaUrl(file);
   const ext = file.split('.').pop()?.toLowerCase() || '';
-  const isDirectImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext);
+  const isDirectImage = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'svg'].includes(ext);
 
   return (
     <button
@@ -601,7 +669,6 @@ export function VerifyDocument() {
       const updatedSite: SiteInstallationItem = {
         ...selectedSiteForAction,
         inst_doc_status: statusNum,
-        inst_doc_remarks: actionRemarks.trim(),
         inst_doc_verify_remarks: actionRemarks.trim(),
         inst_doc_verify_date: new Date().toISOString(),
       };
@@ -646,6 +713,18 @@ export function VerifyDocument() {
       setSelectedSiteForAction(null);
       setActionStatus('');
       setActionRemarks('');
+
+      // Sync latest data and counts from server without blocking UX
+      karnatakaAdminService
+        .getViewInstallationDocument()
+        .then((fresh) => {
+          setVerificationPending(fresh.verification || []);
+          setVerifiedList(fresh.verified || []);
+          setDetailSummary(fresh.detail || {});
+        })
+        .catch(() => {
+          // optimistic state already applied
+        });
     } catch (err: any) {
       console.error('Karnataka document action submit error:', err);
       setErrorMsg(err?.message || 'Failed to update document status.');
@@ -678,6 +757,8 @@ export function VerifyDocument() {
       const doc = (site.inst_doc || site.document_file || (site as any).doc_file || '').toLowerCase();
       const remarks = (site.inst_doc_remarks || site.remarks || '').toLowerCase();
       const qaRemarks = (site.inst_doc_verify_remarks || (site as any).verify_remarks || '').toLowerCase();
+      const instVerifyLabel = getInstVerifyLabel(getInstVerifyStatus(site)).toLowerCase();
+      const docVerifyLabel = getDocVerifyLabel(getDocVerifyStatus(site)).toLowerCase();
       const idStr = String(site.id);
       return (
         fName.includes(q) ||
@@ -695,6 +776,8 @@ export function VerifyDocument() {
         doc.includes(q) ||
         remarks.includes(q) ||
         qaRemarks.includes(q) ||
+        instVerifyLabel.includes(q) ||
+        docVerifyLabel.includes(q) ||
         idStr.includes(q)
       );
     });
@@ -731,8 +814,11 @@ export function VerifyDocument() {
       { header: 'QA Audit Remarks', accessor: (r: SiteInstallationItem) => r.inst_doc_verify_remarks || (r as any).verify_remarks || '—' },
       {
         header: 'Verify Status',
-        accessor: (r: SiteInstallationItem) =>
-          Number(r.inst_doc_status) === 2 ? 'Approved' : Number(r.inst_doc_status) === 3 ? 'Rejected' : 'Pending',
+        accessor: (r: SiteInstallationItem) => getInstVerifyLabel(getInstVerifyStatus(r)),
+      },
+      {
+        header: 'Verify Doc Status',
+        accessor: (r: SiteInstallationItem) => getDocVerifyLabel(getDocVerifyStatus(r)),
       },
     ],
     []
@@ -818,8 +904,8 @@ export function VerifyDocument() {
   const totalSiteCount = detailSummary?.total ?? (verificationPending.length + verifiedList.length);
   const completeInstall = detailSummary?.complete ?? (verificationPending.length + verifiedList.length);
   const docPending = detailSummary?.doc_pending ?? verificationPending.length;
-  const docApproved = detailSummary?.doc_approved ?? verifiedList.filter((s) => Number(s.inst_doc_status) === 2).length;
-  const docRejected = detailSummary?.doc_reject ?? verifiedList.filter((s) => Number(s.inst_doc_status) === 3).length;
+  const docApproved = detailSummary?.doc_approved ?? verifiedList.filter((s) => getDocVerifyStatus(s) === 'approved').length;
+  const docRejected = detailSummary?.doc_reject ?? verifiedList.filter((s) => getDocVerifyStatus(s) === 'rejected').length;
 
   return (
     <div className="solar-erp-page">
@@ -962,7 +1048,10 @@ export function VerifyDocument() {
         <button
           type="button"
           className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
-          onClick={() => setActiveTab('pending')}
+          onClick={() => {
+            setActiveTab('pending');
+            pagination.setPage(1);
+          }}
         >
           Verification Pending
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
@@ -972,7 +1061,10 @@ export function VerifyDocument() {
         <button
           type="button"
           className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active ax-btn--primary' : ''}`}
-          onClick={() => setActiveTab('approved_rejected')}
+          onClick={() => {
+            setActiveTab('approved_rejected');
+            pagination.setPage(1);
+          }}
         >
           Approved / Rejected Data
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
@@ -1043,13 +1135,16 @@ export function VerifyDocument() {
                 <th className="ax-table__th">Submit Date</th>
                 <th className="ax-table__th">Remarks</th>
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Doc Status</th>
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={16} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 17 : 16} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading installation documents...</span>
@@ -1058,7 +1153,7 @@ export function VerifyDocument() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={16} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 17 : 16} style={centerCell}>
                     <TableEmptyState
                       title="No document records found"
                       description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
@@ -1069,7 +1164,8 @@ export function VerifyDocument() {
                 pagination.paged.map((row: SiteInstallationItem, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const docFile = row.inst_doc || row.document_file || (row as any).doc_file;
-                  const statusNum = Number(row.inst_doc_status);
+                  const instStatus = getInstVerifyStatus(row);
+                  const docStatus = getDocVerifyStatus(row);
                   const farmerName = getFarmerName(row);
                   const fatherName = getFatherName(row);
                   const block = getBlock(row);
@@ -1166,7 +1262,7 @@ export function VerifyDocument() {
                       </td>
                       <td className="ax-table__td">
                         {(() => {
-                          const serials = parseModuleSerials(row.module_serial_no || (row as any).panel_serials || row.pump_type);
+                          const serials = parseModuleSerials(row.module_serial_no || (row as any).panel_serials);
                           if (!serials.length) return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: 170 }}>
@@ -1245,90 +1341,86 @@ export function VerifyDocument() {
                         )}
                       </td>
 
+                      {/* Installation Verify Status (inst_verify_status: 1=Approved, 2=Rejected, 0=Pending) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {statusNum === 2 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Approved
-                          </span>
-                        ) : statusNum === 3 ? (
-                          <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Rejected
-                          </span>
-                        ) : (
-                          <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Pending
-                          </span>
-                        )}
+                        <StatusBadge status={instStatus} label={getInstVerifyLabel(instStatus)} />
                       </td>
 
+                      {/* Document Verify Status (inst_doc_status: 2=Approved, 3=Rejected, 1=Pending, 0=Not Uploaded) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSiteForDetails(row)}
-                            className="ax-btn ax-btn--secondary ax-btn--sm"
-                            style={{
-                              padding: '4px 8px',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                            }}
-                            title="View full site details"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                            Details
-                          </button>
-                          {Number(row.inst_doc_status) === 2 || Number(row.inst_doc_status) === 3 ? (
+                        <StatusBadge status={docStatus} label={getDocVerifyLabel(docStatus)} />
+                      </td>
+
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <button
                               type="button"
-                              disabled
-                              title={`Document has been ${Number(row.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+                              onClick={() => setSelectedSiteForDetails(row)}
                               className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
+                                padding: '4px 8px',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 4,
-                                padding: '4px 10px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'not-allowed',
-                                opacity: 0.75,
+                                gap: 3,
                               }}
+                              title="View full site details"
                             >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
                               </svg>
-                              Locked
+                              Details
                             </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedSiteForAction(row);
-                                setActionStatus(String(row.inst_doc_status === 1 ? '2' : row.inst_doc_status || '2'));
-                                setActionRemarks(row.inst_doc_remarks || '');
-                              }}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
-                              style={{
-                                padding: '4px 10px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Verify
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                            {docStatus === 'approved' || docStatus === 'rejected' ? (
+                              <button
+                                type="button"
+                                disabled
+                                title={`Document has been ${docStatus === 'approved' ? 'Approved' : 'Rejected'} (Locked)`}
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 4,
+                                  padding: '4px 10px',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'not-allowed',
+                                  opacity: 0.75,
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                Locked
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSiteForAction(row);
+                                  setActionStatus(Number(row.inst_doc_status) === 1 || !row.inst_doc_status ? '2' : String(row.inst_doc_status));
+                                  setActionRemarks(row.inst_doc_verify_remarks || '');
+                                }}
+                                className="ax-btn ax-btn--primary ax-btn--sm"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Verify
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -1366,12 +1458,13 @@ export function VerifyDocument() {
         footer={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <div>
-              {selectedSiteForDetails && (
-                Number(selectedSiteForDetails.inst_doc_status) === 2 || Number(selectedSiteForDetails.inst_doc_status) === 3 ? (
+              {selectedSiteForDetails && activeTab === 'pending' && (() => {
+                const detailStatus = getDocVerifyStatus(selectedSiteForDetails);
+                return detailStatus === 'approved' || detailStatus === 'rejected' ? (
                   <button
                     type="button"
                     disabled
-                    title={`Document has been ${Number(selectedSiteForDetails.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+                    title={`Document has been ${detailStatus === 'approved' ? 'Approved' : 'Rejected'} (Locked)`}
                     className="ax-btn ax-btn--secondary"
                     style={{
                       padding: '6px 14px',
@@ -1388,7 +1481,7 @@ export function VerifyDocument() {
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
-                    Locked ({Number(selectedSiteForDetails.inst_doc_status) === 2 ? 'Approved' : 'Rejected'})
+                    Locked ({detailStatus === 'approved' ? 'Approved' : 'Rejected'})
                   </button>
                 ) : (
                   <button
@@ -1397,8 +1490,8 @@ export function VerifyDocument() {
                       const site = selectedSiteForDetails;
                       setSelectedSiteForDetails(null);
                       setSelectedSiteForAction(site);
-                      setActionStatus(String(site.inst_doc_status === 1 ? '2' : site.inst_doc_status || '2'));
-                      setActionRemarks(site.inst_doc_remarks || '');
+                      setActionStatus(Number(site.inst_doc_status) === 1 || !site.inst_doc_status ? '2' : String(site.inst_doc_status));
+                      setActionRemarks(site.inst_doc_verify_remarks || '');
                     }}
                     className="ax-btn ax-btn--primary"
                     style={{
@@ -1417,8 +1510,8 @@ export function VerifyDocument() {
                     </svg>
                     Verify This Document
                   </button>
-                )
-              )}
+                );
+              })()}
             </div>
             <button
               type="button"
@@ -1461,20 +1554,17 @@ export function VerifyDocument() {
                   </span>
                 )}
               </div>
-              <div>
-                {Number(selectedSiteForDetails.inst_doc_status) === 2 ? (
-                  <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>
-                    Approved
-                  </span>
-                ) : Number(selectedSiteForDetails.inst_doc_status) === 3 ? (
-                  <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>
-                    Rejected
-                  </span>
-                ) : (
-                  <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>
-                    Pending Review
-                  </span>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Verify:</span>
+                <StatusBadge
+                  status={getInstVerifyStatus(selectedSiteForDetails)}
+                  label={getInstVerifyLabel(getInstVerifyStatus(selectedSiteForDetails))}
+                />
+                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginLeft: 4 }}>Doc Verify:</span>
+                <StatusBadge
+                  status={getDocVerifyStatus(selectedSiteForDetails)}
+                  label={getDocVerifyLabel(getDocVerifyStatus(selectedSiteForDetails))}
+                />
               </div>
             </div>
 
@@ -1585,7 +1675,7 @@ export function VerifyDocument() {
                 </div>
                 {(() => {
                   const serials = parseModuleSerials(
-                    selectedSiteForDetails.module_serial_no || (selectedSiteForDetails as any).panel_serials || selectedSiteForDetails.pump_type
+                    selectedSiteForDetails.module_serial_no || (selectedSiteForDetails as any).panel_serials
                   );
                   if (!serials.length) {
                     return <span style={{ color: '#94a3b8', fontSize: 12 }}>No module serials recorded</span>;
@@ -1634,7 +1724,7 @@ export function VerifyDocument() {
                           style={{ padding: 10, cursor: 'pointer', background: '#f8fafc' }}
                           onClick={() => setLightboxUrl(resolveKarnatakaMediaUrl(doc))}
                         >
-                          {/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(doc) ? (
+                          {/\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(doc) ? (
                             <img
                               src={resolveKarnatakaMediaUrl(doc)}
                               alt="Handover Document"
@@ -1725,19 +1815,44 @@ export function VerifyDocument() {
             {/* Grid 4: Remarks & Audit Log */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
-                Document Audit & Verification Notes
+                Installation & Document Verification Audit Log
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: 8, fontSize: 12 }}>
-                <span style={{ color: '#64748b' }}>Vendor Remarks:</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '170px 1fr', rowGap: 8, fontSize: 12 }}>
+                <span style={{ color: '#64748b' }}>Install Verify Status:</span>
+                <span>
+                  <StatusBadge
+                    status={getInstVerifyStatus(selectedSiteForDetails)}
+                    label={getInstVerifyLabel(getInstVerifyStatus(selectedSiteForDetails))}
+                  />
+                </span>
+
+                <span style={{ color: '#64748b' }}>Install Verified By / Date:</span>
+                <span>
+                  {selectedSiteForDetails.inst_verify_by || '—'}
+                  {selectedSiteForDetails.inst_verify_date ? ` (${fmtDate(selectedSiteForDetails.inst_verify_date)})` : ''}
+                </span>
+
+                <span style={{ color: '#64748b' }}>Install QA Remarks:</span>
+                <span style={{ color: '#0f172a' }}>{selectedSiteForDetails.inst_verify_remarks || '—'}</span>
+
+                <span style={{ color: '#64748b' }}>Doc Verify Status:</span>
+                <span>
+                  <StatusBadge
+                    status={getDocVerifyStatus(selectedSiteForDetails)}
+                    label={getDocVerifyLabel(getDocVerifyStatus(selectedSiteForDetails))}
+                  />
+                </span>
+
+                <span style={{ color: '#64748b' }}>Doc Vendor Remarks:</span>
                 <span style={{ color: '#0f172a' }}>{selectedSiteForDetails.inst_doc_remarks || selectedSiteForDetails.remarks || '—'}</span>
 
-                <span style={{ color: '#64748b' }}>QA Verified By:</span>
-                <span>{selectedSiteForDetails.inst_doc_verify_by || '—'}</span>
+                <span style={{ color: '#64748b' }}>Doc QA Verified By / Date:</span>
+                <span>
+                  {selectedSiteForDetails.inst_doc_verify_by || '—'}
+                  {selectedSiteForDetails.inst_doc_verify_date ? ` (${fmtDate(selectedSiteForDetails.inst_doc_verify_date)})` : ''}
+                </span>
 
-                <span style={{ color: '#64748b' }}>QA Verified Date:</span>
-                <span>{selectedSiteForDetails.inst_doc_verify_date || '—'}</span>
-
-                <span style={{ color: '#64748b' }}>QA Review Remarks:</span>
+                <span style={{ color: '#64748b' }}>Doc QA Review Remarks:</span>
                 <span style={{ fontWeight: 600, color: (selectedSiteForDetails.inst_doc_verify_remarks || (selectedSiteForDetails as any).verify_remarks) ? '#b45309' : '#64748b' }}>
                   {selectedSiteForDetails.inst_doc_verify_remarks || (selectedSiteForDetails as any).verify_remarks || '—'}
                 </span>
@@ -1864,7 +1979,7 @@ export function VerifyDocument() {
       >
         {lightboxUrl && (
           <div style={{ textAlign: 'center', padding: 8, minHeight: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(lightboxUrl) ? (
+            {/\.(jpg|jpeg|png|webp|avif|gif|svg)$/i.test(lightboxUrl) ? (
               <img
                 src={lightboxUrl}
                 alt="File preview"

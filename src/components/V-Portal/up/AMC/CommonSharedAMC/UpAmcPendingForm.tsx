@@ -92,6 +92,65 @@ const AMC_TYPE_OPTIONS: Option[] = [
   { value: 'Yearly', label: 'Yearly' },
 ];
 
+// ── Helpers ──
+
+/** API ka amc_type (M / Q / H / Y / 1 / 3 / 6 / 12 / text) -> form ka AMC type value. */
+function normalizeAmcType(raw: unknown): string {
+  if (raw === null || raw === undefined || raw === '') return '';
+  const s = String(raw).trim().toLowerCase();
+  if (['1', 'm', 'month', 'monthly'].includes(s)) return 'Monthly';
+  if (['3', 'q', 'quarter', 'quarterly'].includes(s)) return 'Quarterly';
+  if (['6', 'h', 'half-yearly', 'half yearly', 'half_yearly', 'halfyearly', 'half-year'].includes(s)) return 'Half-Yearly';
+  if (['12', 'y', 'year', 'yearly', 'annual', 'annually'].includes(s)) return 'Yearly';
+  return String(raw);
+}
+
+const monthLabelOf = (m: string) => {
+  const n = String(parseInt(m, 10));
+  return MONTH_OPTIONS.find((mo) => mo.value === n)?.label || `Month ${m}`;
+};
+
+/** schedule / pending_months ka ek item -> dropdown option (value = "MM-YYYY"). */
+function toPeriodOption(p: any, fallbackYear?: number | string): Option {
+  if (typeof p === 'object' && p !== null) {
+    const m = String(p.month ?? p.report_month ?? '');
+    const y = String(p.year ?? p.report_year ?? fallbackYear ?? '');
+    const label = p.month_name || p.label || (y ? `${monthLabelOf(m)} ${y}` : monthLabelOf(m));
+    return {
+      value: y ? `${m.padStart(2, '0')}-${y}` : m,
+      label,
+    };
+  }
+  const str = String(p);
+  if (str.includes('-')) {
+    const [mPart, yPart] = str.split('-');
+    return { value: str, label: `${monthLabelOf(mPart)} ${yPart}` };
+  }
+  return { value: str, label: monthLabelOf(str) };
+}
+
+/** Site details / site list item se pending months nikalta hai (sirf pending wale). */
+function extractPendingMonths(det: any, siteObj: any): any[] {
+  const firstNonEmpty = (...cands: any[]) => cands.find((a) => Array.isArray(a) && a.length > 0) || [];
+  let list: any[] = firstNonEmpty(
+    det?.pending_months,
+    det?.data?.pending_months,
+    det?.ssl_details?.pending_months,
+    det?.schedule,
+    det?.data?.schedule,
+    siteObj?.pending_months,
+    siteObj?.schedule
+  );
+  if (list.length === 0) {
+    const due = det?.current_due || siteObj?.current_due;
+    if (due) list = [due];
+  }
+  // schedule mein completed months bhi hote hain -> sirf pending rakho
+  return list.filter(
+    (p) => typeof p !== 'object' || p === null || !p.status || String(p.status).toLowerCase() === 'pending'
+  );
+}
+
 export interface UpAmcPendingFormProps {
   title: string;
   subtitle: string;
@@ -135,6 +194,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [months, setMonths] = useState<(number | string)[]>([]);
+  // Site list ko filter karne wala month (sirf jab onFetchMonths diya ho). AMC period se alag rakha hai.
+  const [filterMonth, setFilterMonth] = useState('');
   const [sites, setSites] = useState<{ id: number | string; label: string; [key: string]: any }[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>(preSelectedId);
 
@@ -154,7 +215,9 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   });
 
   // ── Section 3: Maintenance Details Inputs ──
+  // Flow: site select -> AMC type (site se auto) -> month/period
   const [amcType, setAmcType] = useState(defaultAmcType);
+  const [siteAmcType, setSiteAmcType] = useState(''); // site ke API se aaya hua type (lock karne ke liye)
   const [selectedMonth, setSelectedMonth] = useState('');
   const [amcDate, setAmcDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [beneficiaryName, setBeneficiaryName] = useState('');
@@ -252,7 +315,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     };
   }, [onFetchYears]);
 
-  // Load Months if callback provided
+  // Load Months (site filter) if callback provided
   useEffect(() => {
     if (!onFetchMonths || !selectedYear) return;
     let active = true;
@@ -260,7 +323,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       .then((mList) => {
         if (active) {
           setMonths(mList || []);
-          if (mList && mList.length > 0 && !selectedMonth) {
+          if (mList && mList.length > 0 && !filterMonth) {
+            setFilterMonth(String(mList[0]));
             setSelectedMonth(String(mList[0]));
           }
         }
@@ -271,7 +335,9 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     };
   }, [selectedYear, onFetchMonths]);
 
-  // Load Sites when Year changes
+  // Load Sites when Year (ya filter month) changes
+  // NOTE: selectedMonth yahan dependency nahi hai, warna site select hote hi month set hota
+  // aur site list reload hoke selection clear ho jata tha.
   useEffect(() => {
     if (!selectedYear) return;
     let active = true;
@@ -282,7 +348,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     }
 
     setLoadingSites(true);
-    onFetchSites(Number(selectedYear), selectedMonth || undefined)
+    onFetchSites(Number(selectedYear), filterMonth || undefined)
       .then((res: any) => {
         if (!active) return;
         let sList: any[] = [];
@@ -346,7 +412,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     return () => {
       active = false;
     };
-  }, [selectedYear, selectedMonth, onFetchSites]);
+  }, [selectedYear, filterMonth, onFetchSites]);
 
   const clearSiteInfo = () => {
     setSiteInfo({
@@ -363,6 +429,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       contractorName: '',
     });
     setSitePendingMonths([]);
+    setSiteAmcType('');
   };
 
   const normalizeSite = (det: any) => {
@@ -394,11 +461,8 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     const vol = d.volume || d.pump_capacity || d.plant_capacity || d.capacity || d.sanction_load || d.wattage || d.plant_sc || '';
     const cName = d.contractor_name || d.contractor || d.vendor_name || d.vendor || '';
 
-    let aType = d.amc_type || det.amc_type_name || d.amc_type_name || defaultAmcType;
-    if (aType === 1 || aType === '1' || aType === 'M') aType = 'Monthly';
-    else if (aType === 3 || aType === '3' || aType === 'Q') aType = 'Quarterly';
-    else if (aType === 6 || aType === '6' || aType === 'H') aType = 'Half-Yearly';
-    else if (aType === 12 || aType === '12' || aType === 'Y') aType = 'Yearly';
+    // Site ka AMC type (M / Q / H / Y / 1 / 3 / 6 / 12 / text) -> form value
+    const aType = normalizeAmcType(d.amc_type ?? det?.amc_type ?? d.amc_type_name ?? det?.amc_type_name);
 
     return {
       state: st,
@@ -413,7 +477,6 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       volume: String(vol),
       contractorName: String(cName),
       amcType: aType,
-      amcDate: d.amc_date || d.date || '',
       latitude: d.latitude || d.lat || '',
       longitude: d.longitude || d.long || d.lng || '',
       month: d.month || d.report_month || '',
@@ -421,6 +484,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   };
 
   // Load Site Details when selectedSiteId changes
+  // Flow: site select -> AMC type set (site se) -> month options (schedule / pending months se)
   useEffect(() => {
     if (!selectedSiteId) {
       clearSiteInfo();
@@ -428,57 +492,58 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     }
     let active = true;
     setLoadingSiteDetails(true);
-    onFetchSiteDetails(selectedSiteId, selectedYear ? Number(selectedYear) : undefined, selectedMonth || undefined)
+    // purane site ka period/months/type hata do
+    setSitePendingMonths([]);
+    setSiteAmcType('');
+    setSelectedMonth(filterMonth || '');
+
+    onFetchSiteDetails(selectedSiteId, selectedYear ? Number(selectedYear) : undefined, filterMonth || undefined)
       .then((det) => {
         if (!active || !det) return;
         const norm = normalizeSite(det);
-        if (norm) {
-          setSiteInfo({
-            state: norm.state,
-            district: norm.district,
-            village: norm.village,
-            beneficiaryName: norm.beneficiaryName,
-            contact: norm.contact,
-            gender: norm.gender,
-            phase: norm.phase,
-            serialNumber: norm.serialNumber,
-            address: norm.address,
-            volume: norm.volume,
-            contractorName: norm.contractorName,
-          });
+        if (!norm) return;
 
-          if (norm.beneficiaryName) setBeneficiaryName(norm.beneficiaryName);
-          if (norm.contact) setBeneficiaryContact(norm.contact);
-          if (norm.amcType) setAmcType(norm.amcType);
-          if (norm.amcDate) setAmcDate(norm.amcDate);
-          if (norm.latitude && !latitude) setLatitude(String(norm.latitude));
-          if (norm.longitude && !longitude) setLongitude(String(norm.longitude));
+        setSiteInfo({
+          state: norm.state,
+          district: norm.district,
+          village: norm.village,
+          beneficiaryName: norm.beneficiaryName,
+          contact: norm.contact,
+          gender: norm.gender,
+          phase: norm.phase,
+          serialNumber: norm.serialNumber,
+          address: norm.address,
+          volume: norm.volume,
+          contractorName: norm.contractorName,
+        });
 
-          // Extract pending months or schedule
-          const selectedSiteObj = sites.find((s) => String(s.id) === String(selectedSiteId));
-          const pMonths =
-            det?.pending_months ||
-            det?.data?.pending_months ||
-            det?.ssl_details?.pending_months ||
-            selectedSiteObj?.schedule ||
-            det?.schedule ||
-            (selectedSiteObj?.current_due ? [selectedSiteObj.current_due] : []);
+        if (norm.beneficiaryName) setBeneficiaryName(norm.beneficiaryName);
+        if (norm.contact) setBeneficiaryContact(norm.contact);
 
-          if (Array.isArray(pMonths) && pMonths.length > 0) {
-            setSitePendingMonths(pMonths);
-            const first = pMonths[0];
-            if (typeof first === 'object' && first !== null) {
-              const m = String(first.month || first.report_month || '');
-              const y = String(first.year || first.report_year || selectedYear || '');
-              setSelectedMonth(y ? `${m.padStart(2, '0')}-${y}` : m);
-            } else {
-              setSelectedMonth(String(first));
-            }
-          } else if (norm.month) {
-            setSelectedMonth(String(norm.month));
-          } else {
-            setSitePendingMonths([]);
-          }
+        // 1) AMC type pehle
+        if (norm.amcType) {
+          setAmcType(norm.amcType);
+          setSiteAmcType(norm.amcType);
+        }
+
+        // (amc_date yahan overwrite nahi karte: pending AMC ki date aaj ki hi rehni chahiye)
+        if (norm.latitude && !latitude) setLatitude(String(norm.latitude));
+        if (norm.longitude && !longitude) setLongitude(String(norm.longitude));
+
+        // 2) Phir month: sirf pending months, default = current_due
+        const selectedSiteObj = sites.find((s) => String(s.id) === String(selectedSiteId));
+        const pMonths = extractPendingMonths(det, selectedSiteObj);
+
+        if (pMonths.length > 0) {
+          setSitePendingMonths(pMonths);
+          const due = det?.current_due || selectedSiteObj?.current_due;
+          const options = pMonths.map((p) => toPeriodOption(p, selectedYear || undefined));
+          const dueValue = due ? toPeriodOption(due, selectedYear || undefined).value : '';
+          const pick = options.find((o) => o.value === dueValue) || options[0];
+          setSelectedMonth(pick.value);
+          clearError('month');
+        } else if (norm.month) {
+          setSelectedMonth(String(norm.month));
         }
       })
       .catch((err) => {
@@ -511,34 +576,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
   const periodOptions = useMemo<Option[]>(() => {
     if (sitePendingMonths.length > 0) {
-      return sitePendingMonths.map((p) => {
-        if (typeof p === 'object' && p !== null) {
-          const item = p as any;
-          const m = String(item.month || item.report_month || '');
-          const y = String(item.year || item.report_year || selectedYear || '');
-          const found = MONTH_OPTIONS.find((mo) => mo.value === m);
-          const mName = found ? found.label : `Month ${m}`;
-          return {
-            value: y ? `${m.padStart(2, '0')}-${y}` : m,
-            label: y ? `${mName} ${y}` : mName,
-          };
-        }
-        const str = String(p);
-        if (str.includes('-')) {
-          const [mPart, yPart] = str.split('-');
-          const found = MONTH_OPTIONS.find((mo) => mo.value === String(parseInt(mPart, 10)) || mo.value === mPart);
-          const mName = found ? found.label : `Month ${mPart}`;
-          return {
-            value: str,
-            label: `${mName} ${yPart}`,
-          };
-        }
-        const found = MONTH_OPTIONS.find((mo) => mo.value === str);
-        return {
-          value: str,
-          label: found ? found.label : `Month ${str}`,
-        };
-      });
+      return sitePendingMonths.map((p) => toPeriodOption(p, selectedYear || undefined));
     }
 
     if (amcType === 'Quarterly') {
@@ -573,12 +611,13 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     clearSiteInfo();
     setBeneficiaryName('');
     setBeneficiaryContact('');
+    setAmcType(defaultAmcType);
     setAmcDate(new Date().toISOString().slice(0, 10));
     setLatitude('');
     setLongitude('');
     setGpsStatus('idle');
     setRemarks('');
-    setSelectedMonth('');
+    setSelectedMonth(filterMonth || '');
     setDocumentFile(null);
     setImage1(null);
     setImage2(null);
@@ -874,6 +913,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                       setSelectedYear(nextY);
                       setSelectedSiteId('');
                       setSelectedMonth('');
+                      setFilterMonth('');
                       clearSiteInfo();
                     }}
                   />
@@ -884,7 +924,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                     id="up-amc-site-month"
                     label="Filter Month"
                     placeholder={!selectedYear ? '-- Select Year First --' : '-- Select Month --'}
-                    value={selectedMonth}
+                    value={filterMonth}
                     options={months.map((m) => {
                       const val = String(m);
                       const found = MONTH_OPTIONS.find((mo) => mo.value === val);
@@ -892,6 +932,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                     })}
                     disabled={!selectedYear}
                     onChange={(v) => {
+                      setFilterMonth(v);
                       setSelectedMonth(v);
                       setSelectedSiteId('');
                       clearSiteInfo();
@@ -983,7 +1024,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   required
                   value={amcType}
                   options={AMC_TYPE_OPTIONS}
-                  disabled={!selectedSiteId}
+                  disabled={!selectedSiteId || loadingSiteDetails || Boolean(siteAmcType)}
                   onChange={(v) => {
                     setAmcType(v);
                     setSelectedMonth('');
@@ -1240,10 +1281,6 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
           </div>
         </div>
       </form>
-
-      <footer style={{ marginTop: 'var(--ax-space-8)', textAlign: 'center', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-        Copyright © <a href="https://klkerp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ax-primary)' }}>ETS NETWORKS</a>. All rights reserved.
-      </footer>
     </div>
   );
 }
@@ -1294,6 +1331,7 @@ interface FloatingInputProps {
   type?: string;
   required?: boolean;
   readOnly?: boolean;
+  disabled?: boolean;
   maxLength?: number;
   placeholder?: string;
   value: string;
@@ -1301,7 +1339,7 @@ interface FloatingInputProps {
   error?: string;
 }
 
-function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, disabled, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   const isDateOrTime = type === 'date' || type === 'time';
   return (
     <div>
@@ -1313,6 +1351,7 @@ function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength
           placeholder={placeholder}
           value={value}
           readOnly={readOnly}
+          disabled={disabled}
           maxLength={maxLength}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}

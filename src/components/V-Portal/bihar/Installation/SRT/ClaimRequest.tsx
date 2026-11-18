@@ -756,12 +756,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={openNewClaimModal}>
-              <svg className="ax-btn__icon" {...ICON_PROPS}>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span className="ax-btn__label">Raise New Claim</span>
-            </button>
+     
           </div>
         }
       />

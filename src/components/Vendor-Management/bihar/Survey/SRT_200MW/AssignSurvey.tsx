@@ -1181,9 +1181,6 @@ export function AssignBiharSRT200MWSurvey() {
       </form>
 
       {/* Footer copyright */}
-      <footer className="srt-page-footer">
-        Copyright © ETS NETWORKS. All rights reserved.
-      </footer>
     </div>
   );
 }

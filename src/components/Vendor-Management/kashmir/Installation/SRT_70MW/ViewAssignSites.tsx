@@ -17,11 +17,11 @@ import {
   type AssignRecord,
 } from '../../kashmir-services';
 
-/* ───────── Responsive page CSS (Exact Karnataka / Assam SWP View Assign Reference) ───────── */
+/* ───────── Responsive page CSS (Exact Bihar SRT / ULA reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: var(--ax-accent, #2563eb);
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -149,6 +149,7 @@ const PAGE_CSS = `
       flex: 0 0 auto;
       width: 100%;
       margin-left: 0;
+      flex-wrap: wrap;
       justify-content: flex-start;
     }
     .solar-erp-page .ax-card__actions .ax-cluster {
@@ -162,15 +163,35 @@ const PAGE_CSS = `
       flex: 1 1 100%;
       width: 100%;
       max-width: 100%;
+      min-width: 0;
     }
     .solar-erp-page .ax-card__actions .ax-export-toolbar,
     .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
       flex: 1 1 100%;
       flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
     }
   }
 
-  /* ───────── Unified Modal Styles ───────── */
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+`;
+
+/* ───────── Overlay CSS (modals) ───────── */
+const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(15, 23, 42, 0.65);
@@ -182,17 +203,10 @@ const PAGE_CSS = `
     position: fixed; inset: 0; background: transparent;
   }
   .ax-modal__dialog {
-    position: relative; z-index: 10000;
-    background: #ffffff;
-    border: 1px solid var(--ax-border, #e2e8f0);
-    border-radius: 16px;
+    position: relative; z-index: 1; background: #ffffff;
+    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: hidden;
-    animation: ax-modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes ax-modal-pop {
-    from { opacity: 0; transform: scale(0.96) translateY(8px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    overflow: hidden; width: 100%;
   }
   .ax-modal__header {
     display: flex; align-items: center; justify-content: space-between;
@@ -200,8 +214,8 @@ const PAGE_CSS = `
     background: var(--ax-surface-subtle, #f8fafc);
   }
   .ax-modal__close {
-    background: transparent; border: none; cursor: pointer;
-    width: 32px; height: 32px; border-radius: 8px;
+    width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    border: none; background: transparent; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
     transition: all 0.15s ease;
@@ -234,13 +248,6 @@ const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
-  </svg>
-);
-
-const REFRESH_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
-    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </svg>
 );
 
@@ -307,7 +314,7 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -505,7 +512,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'scale(1.06)';
-        e.currentTarget.style.borderColor = 'var(--ax-accent, #2563eb)';
+        e.currentTarget.style.borderColor = '#2563eb';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'scale(1)';
@@ -524,7 +531,7 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
               span.innerText = 'IMG';
               span.style.fontSize = '10px';
               span.style.fontWeight = '700';
-              span.style.color = 'var(--ax-accent, #2563eb)';
+              span.style.color = '#2563eb';
               e.currentTarget.parentElement.appendChild(span);
             }
           }}
@@ -548,10 +555,11 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--ax-accent, #2563eb)" strokeWidth={2} style={{ width: 18, height: 18 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={2} style={{ width: 18, height: 18 }}>
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
           </svg>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', lineHeight: 1 }}>DOC</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#2563eb', lineHeight: 1 }}>DOC</span>
         </div>
       )}
     </div>
@@ -573,7 +581,6 @@ export function ViewAssignSites() {
 
   // Selected assign for sites detail modal
   const [selectedAssignForSites, setSelectedAssignForSites] = useState<AssignRecord | null>(null);
-  const [modalSiteSearch, setModalSiteSearch] = useState<string>('');
 
   // Fetch Kashmir SRT 70MW assignments
   const fetchAssignments = useCallback(async () => {
@@ -609,7 +616,7 @@ export function ViewAssignSites() {
     setSuccessMsg('');
     try {
       const res = await kashmirAdminService.approveAssign(id);
-      setSuccessMsg(res?.message || `Site Assignment #${id} approved successfully!`);
+      setSuccessMsg(res?.message || `Assignment #${id} approved successfully!`);
       setAssigns((prev) => prev.map((a) => (a.id === id ? { ...a, status: 1 } : a)));
     } catch (err: any) {
       console.error(`Approval failed for #${id}:`, err);
@@ -621,55 +628,57 @@ export function ViewAssignSites() {
 
   // Filtered dataset
   const filteredAssigns = useMemo(() => {
-    return assigns.filter((r) => {
-      // Status filter
-      if (statusFilter !== 'all') {
-        if (String(r.status) !== statusFilter) return false;
-      }
-      // Search query
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      const vName = vendorOf(r).toLowerCase();
-      const dist = (r.district || '').toLowerCase();
-      const state = (r.state || '').toLowerCase();
-      const remarks = (r.remarks || '').toLowerCase();
-      const sites = parseSiteItems(r)
+    let list = assigns;
+    if (statusFilter !== 'all') {
+      list = list.filter((r) => String(r.status) === String(statusFilter));
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((row) => {
+      const vName = vendorOf(row).toLowerCase();
+      const dist = (row.district || '').toLowerCase();
+      const state = (row.state || '').toLowerCase();
+      const remarks = (row.remarks || '').toLowerCase();
+      const sites = parseSiteItems(row)
         .map((s) => s.name.toLowerCase())
         .join(' ');
+      const idStr = String(row.id);
       return (
         vName.includes(q) ||
         dist.includes(q) ||
         state.includes(q) ||
         remarks.includes(q) ||
         sites.includes(q) ||
-        String(r.id).includes(q)
+        idStr.includes(q)
       );
     });
   }, [assigns, searchQuery, statusFilter]);
 
-  const pagination = usePagination(filteredAssigns, { initialPageSize: 10 });
+  const pagination = usePagination(filteredAssigns, { initialPageSize: 100 });
 
   // Export Columns definition
   const exportCols: ExportColumn<AssignRecord>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
-      { header: 'Vendor', accessor: (r) => vendorOf(r) },
-      { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_date || r.created_at) },
-      { header: 'State', accessor: (r) => (r.state || 'Kashmir').toUpperCase() },
-      { header: 'District', accessor: (r) => r.district || '—' },
+      { header: 'Sr. No.', accessor: (_r: AssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'Vendor', accessor: (r: AssignRecord) => vendorOf(r) },
+      { header: 'Assign Date', accessor: (r: AssignRecord) => fmtDate(r.assign_date || r.created_at) },
+      { header: 'State', accessor: (r: AssignRecord) => (r.state || 'Kashmir').toUpperCase() },
+      { header: 'District', accessor: (r: AssignRecord) => r.district || '—' },
       {
-        header: 'Site Names',
-        accessor: (r) =>
+        header: 'Site Name',
+        accessor: (r: AssignRecord) =>
           parseSiteItems(r)
             .map((s) => s.name)
-            .join(', '),
+            .join(', ') || '—',
       },
-      { header: 'Site Count', accessor: (r) => siteCountOf(r) },
-      { header: 'Deadline Date', accessor: (r) => fmtDate(r.deadline_date) },
-      { header: 'Remarks', accessor: (r) => r.remarks || '—' },
+      { header: 'Count', accessor: (r: AssignRecord) => siteCountOf(r) },
+      { header: 'Deadline Date', accessor: (r: AssignRecord) => fmtDate(r.deadline_date) },
+      { header: 'File', accessor: (r: AssignRecord) => r.file || '—' },
+      { header: 'Remarks', accessor: (r: AssignRecord) => r.remarks || '—' },
       {
         header: 'Status',
-        accessor: (r) =>
+        accessor: (r: AssignRecord) =>
           Number(r.status) === 2 ? 'Accepted' : Number(r.status) === 1 ? 'Approved' : 'Pending',
       },
     ],
@@ -752,47 +761,32 @@ export function ViewAssignSites() {
     w.focus();
   };
 
-  // Top 4 KPI Calculations (Matching Karnataka SWP / Assam SWP Reference)
+  // Top 4 KPI Calculations (Exact Assam SWP / Bihar SRT reference parity)
   const totalSites = kpiData?.totalsite ?? assigns.length;
-  const assignedSites = kpiData?.approvedsite ?? assigns.filter((a) => Number(a.status) >= 1).length;
+  const assignedSites = kpiData?.approvedsite ?? assigns.length;
+  const notAssignedSites = kpiData?.pendingsite ?? 0;
   const completeInstall = kpiData?.complete ?? 0;
   const pendingInstall = kpiData?.pendingsite ?? assigns.filter((a) => Number(a.status) === 0).length;
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Header with breadcrumbs and action button ── */}
+      {/* ── Page Header with breadcrumbs ── */}
       <PageHead
         title="View Kashmir SRT 70MW Installation"
         subtitle="View and approve site assignments for Kashmir SRT 70MW installation"
         breadcrumbs={[
           { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
           { label: 'Kashmir SRT 70MW', href: '/vendor-management/kashmir/srt70mw/installation/dashboard' },
-          { label: 'View Kashmir SRT 70MW Installation', href: '/vendor-management/kashmir/srt70mw/installation/view-assign' },
+          { label: 'View Assign' },
         ]}
-        actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={fetchAssignments} disabled={loading}>
-              {REFRESH_ICON}
-              <span className="ax-btn__label">Refresh</span>
-            </button>
-            <Link
-              to="/vendor-management/kashmir/srt70mw/installation/assign"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 14, height: 14 }}>
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span className="ax-btn__label">Assign Site</span>
-            </Link>
-          </div>
-        }
       />
 
-      {errorMsg && !loading && (
+      {/* ── Status Feedback Banners ── */}
+      {errorMsg && (
         <div
           style={{
             padding: '12px 16px',
@@ -857,7 +851,7 @@ export function ViewAssignSites() {
           tone="accent"
           label="Total Sites"
           value={totalSites}
-          sub={`Assigned: ${assignedSites} / Pending: ${pendingInstall}`}
+          sub={`Assigned: ${assignedSites} / Unassigned: ${notAssignedSites}`}
         />
         <KpiCard
           icon={
@@ -1043,10 +1037,15 @@ export function ViewAssignSites() {
                         <button
                           type="button"
                           onClick={() => setSelectedAssignForSites(row)}
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
                           style={{
-                            color: 'var(--ax-accent, #2563eb)',
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#2563eb',
+                            border: '1px solid rgba(37, 99, 235, 0.25)',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                            fontSize: 12,
                             fontWeight: 700,
+                            cursor: 'pointer',
                           }}
                           title="Click to view allocated sites"
                         >
@@ -1068,16 +1067,16 @@ export function ViewAssignSites() {
                               padding: '3px 8px',
                               fontSize: 11,
                               fontWeight: 700,
-                              color: 'var(--ax-accent, #2563eb)',
-                              background: 'rgba(var(--asw-primary-rgb), 0.1)',
-                              border: '1px solid rgba(var(--asw-primary-rgb), 0.25)',
+                              color: '#2563eb',
+                              background: 'rgba(37, 99, 235, 0.1)',
+                              border: '1px solid rgba(37, 99, 235, 0.25)',
                               borderRadius: 6,
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: 4,
                             }}
                           >
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ax-accent, #2563eb)' }} />
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
                             Accepted
                           </span>
                         ) : Number(row.status) === 1 ? (
@@ -1127,11 +1126,19 @@ export function ViewAssignSites() {
                               type="button"
                               onClick={() => handleApprove(row.id)}
                               disabled={approvingId === row.id}
-                              className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#10b981',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: approvingId === row.id ? 'not-allowed' : 'pointer',
+                                opacity: approvingId === row.id ? 0.7 : 1,
                               }}
                             >
                               {approvingId === row.id ? (
@@ -1150,12 +1157,17 @@ export function ViewAssignSites() {
                               type="button"
                               disabled
                               title="Accepted by Vendor (Locked for editing)"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
-                                opacity: 0.65,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
+                                fontSize: 11,
+                                fontWeight: 600,
                                 cursor: 'not-allowed',
                               }}
                             >
@@ -1179,11 +1191,19 @@ export function ViewAssignSites() {
                             <Link
                               to={`/vendor-management/kashmir/srt70mw/installation/assign?id=${row.id}&edit=${row.id}`}
                               title="Edit Assignment"
-                              className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: 'rgba(37, 99, 235, 0.08)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                cursor: 'pointer',
                               }}
                             >
                               <svg
@@ -1248,124 +1268,93 @@ export function ViewAssignSites() {
       {/* ── Modal Dialog: Assigned Sites Details ── */}
       <Modal
         open={Boolean(selectedAssignForSites)}
-        onClose={() => {
-          setSelectedAssignForSites(null);
-          setModalSiteSearch('');
-        }}
+        onClose={() => setSelectedAssignForSites(null)}
         title={`Assigned Sites: ${vendorOf(selectedAssignForSites || ({} as any))}`}
-        subtitle={`Batch ID #${selectedAssignForSites?.id} • District: ${selectedAssignForSites?.district || '—'} • Total: ${parseSiteItems(selectedAssignForSites).length} Site(s)`}
+        subtitle={`Batch ID #${selectedAssignForSites?.id} • District: ${selectedAssignForSites?.district || '—'} • Total: ${siteCountOf(selectedAssignForSites || ({} as any))} Site(s)`}
         maxWidth={780}
         footer={
           <button
             type="button"
-            onClick={() => {
-              setSelectedAssignForSites(null);
-              setModalSiteSearch('');
-            }}
             className="ax-btn ax-btn--primary"
+            onClick={() => setSelectedAssignForSites(null)}
             style={{
               padding: '6px 16px',
               fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
             }}
           >
             Close
           </button>
         }
       >
-        {selectedAssignForSites && (() => {
-          const allSites = parseSiteItems(selectedAssignForSites);
-          const filteredSites = modalSiteSearch.trim()
-            ? allSites.filter((s) =>
-                s.name.toLowerCase().includes(modalSiteSearch.toLowerCase()) ||
-                (s.district || '').toLowerCase().includes(modalSiteSearch.toLowerCase())
-              )
-            : allSites;
-
-          return (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
-                <div>
-                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
-                  <strong style={{ fontSize: 13 }}>{vendorOf(selectedAssignForSites)}</strong>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
-                  <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date) || allSites[0]?.deadline || '—'}</strong>
-                </div>
-                <div>
-                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
-                  <strong
-                    style={{
-                      fontSize: 13,
-                      color:
-                        Number(selectedAssignForSites.status) === 2
-                          ? 'var(--ax-accent, #2563eb)'
-                          : Number(selectedAssignForSites.status) === 1
-                          ? '#10b981'
-                          : '#d97706',
-                    }}
-                  >
-                    {Number(selectedAssignForSites.status) === 2
-                      ? 'Accepted'
-                      : Number(selectedAssignForSites.status) === 1
-                      ? 'Approved'
-                      : 'Pending'}
-                  </strong>
-                </div>
+        {selectedAssignForSites && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
+              <div>
+                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
+                <strong style={{ fontSize: 13 }}>{vendorOf(selectedAssignForSites)}</strong>
               </div>
-
-              {allSites.length > 5 && (
-                <div style={{ marginBottom: 12 }}>
-                  <input
-                    type="text"
-                    value={modalSiteSearch}
-                    onChange={(e) => setModalSiteSearch(e.target.value)}
-                    placeholder="Search site name or district in this batch..."
-                    className="ax-input ax-input--sm"
-                    style={{ width: '100%', height: 32, fontSize: 12 }}
-                  />
-                </div>
-              )}
-
-              <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
-                  <thead>
-                    <tr>
-                      <th className="ax-table__th">#</th>
-                      <th className="ax-table__th">Site ID / Name</th>
-                      <th className="ax-table__th">District</th>
-                      <th className="ax-table__th">Deadline Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredSites.length > 0 ? (
-                      filteredSites.map((site, sIdx) => (
-                        <tr key={site.id || sIdx}>
-                          <td className="ax-table__td">{sIdx + 1}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                            {site.name}
-                          </td>
-                          <td className="ax-table__td">
-                            {site.district || selectedAssignForSites.district || '—'}
-                          </td>
-                          <td className="ax-table__td">
-                            {site.deadline || fmtDate(selectedAssignForSites.deadline_date)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
-                          No individual site details populated for this batch ID.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <div>
+                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
+                <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date)}</strong>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
+                <strong
+                  style={{
+                    fontSize: 13,
+                    color:
+                      Number(selectedAssignForSites.status) === 2
+                        ? '#2563eb'
+                        : Number(selectedAssignForSites.status) === 1
+                        ? '#10b981'
+                        : '#d97706',
+                  }}
+                >
+                  {Number(selectedAssignForSites.status) === 2
+                    ? 'Accepted'
+                    : Number(selectedAssignForSites.status) === 1
+                    ? 'Approved'
+                    : 'Pending'}
+                </strong>
               </div>
             </div>
-          );
-        })()}
+
+            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+              <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th className="ax-table__th">#</th>
+                    <th className="ax-table__th">Site ID / Name</th>
+                    <th className="ax-table__th">District</th>
+                    <th className="ax-table__th">Deadline Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parseSiteItems(selectedAssignForSites).length > 0 ? (
+                    parseSiteItems(selectedAssignForSites).map((site, sIdx) => (
+                      <tr key={site.id || sIdx}>
+                        <td className="ax-table__td">{sIdx + 1}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {site.name || '—'}
+                        </td>
+                        <td className="ax-table__td">{site.district || selectedAssignForSites.district || '—'}</td>
+                        <td className="ax-table__td">{site.deadline || fmtDate(selectedAssignForSites.deadline_date)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>
+                        No individual site details populated for this batch ID.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Document / File Lightbox Preview Modal ── */}
@@ -1410,14 +1399,20 @@ export function ViewAssignSites() {
               <span style={{ fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
                 Assignment Work Order Preview
               </span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 <a
                   href={lightboxUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
+                    fontSize: 12,
+                    color: '#2563eb',
+                    fontWeight: 600,
                     textDecoration: 'none',
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    border: '1px solid #bfdbfe',
+                    background: '#eff6ff',
                   }}
                 >
                   Open Original ↗
@@ -1425,7 +1420,6 @@ export function ViewAssignSites() {
                 <button
                   type="button"
                   onClick={() => setLightboxUrl(null)}
-                  aria-label="Close preview"
                   style={{
                     border: 'none',
                     background: 'none',
@@ -1472,6 +1466,8 @@ export function ViewAssignSites() {
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+                      fontWeight: 700,
+                      fontSize: 13,
                       textDecoration: 'none',
                     }}
                   >

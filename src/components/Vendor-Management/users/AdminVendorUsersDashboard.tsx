@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { PageHead } from '../../shell/PageHead';
 
 interface VendorDirectoryItem {
@@ -135,7 +135,7 @@ export function AdminVendorUsersDashboard() {
           style={{
             height: 38,
             padding: '0 16px',
-            background: '#2563eb',
+            background: '#2559bf',
             color: '#fff',
             borderRadius: 8,
             border: 'none',
@@ -177,7 +177,7 @@ export function AdminVendorUsersDashboard() {
             <tbody>
               {filtered.map((v) => (
                 <tr key={v.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '14px 18px', fontWeight: 800, color: '#2563eb' }}>{v.id}</td>
+                  <td style={{ padding: '14px 18px', fontWeight: 800, color: '#2559bf' }}>{v.id}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f172a' }}>{v.agencyName}</td>
                   <td style={{ padding: '14px 16px', color: '#334155', fontWeight: 600 }}>{v.ownerName}</td>
                   <td style={{ padding: '14px 16px', fontSize: 12 }}>
@@ -322,7 +322,7 @@ export function AdminVendorUsersDashboard() {
               </button>
               <button
                 type="submit"
-                style={{ padding: '8px 18px', borderRadius: 6, background: '#2563eb', color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}
+                style={{ padding: '8px 18px', borderRadius: 6, background: '#2559bf', color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}
               >
                 Create Vendor
               </button>

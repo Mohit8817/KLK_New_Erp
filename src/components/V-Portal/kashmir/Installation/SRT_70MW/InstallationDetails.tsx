@@ -1,12 +1,12 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   kashmirSrtService,
-  getKashmirMediaUrl,
   getKashmirMediaCandidates,
+  getKashmirMediaUrl,
   type KashmirInstallationSummaryData,
   type KashmirInstalledSiteItem,
 } from '../../kashmir-services';
@@ -19,7 +19,12 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 
-type Row = KashmirInstalledSiteItem;
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
 
 const DASH = '—';
 
@@ -38,41 +43,84 @@ const VerifyBadge = ({ value, raw }: { value: number; raw?: any }) => {
   return <Badge tone="warning">Pending</Badge>;
 };
 
-const ClaimBadge = ({ status, onRaise }: { status?: number; onRaise?: () => void }) => {
-  if (status === 2) return <Badge tone="success">Approved</Badge>;
-  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
-  if (status === 1) return <Badge tone="info">Raised</Badge>;
-  if (onRaise) {
-    return (
-      <button
-        type="button"
-        className="ax-btn ax-btn--primary ax-btn--xs"
-        style={{ padding: '2px 8px', fontSize: 11, whiteSpace: 'nowrap', borderRadius: 4 }}
-        onClick={onRaise}
-        title="Raise claim"
-      >
-        Raise Claim
-      </button>
-    );
-  }
-  return <Badge tone="neutral">Not Raised</Badge>;
-};
-
-const PaymentBadge = ({ status, p80, p20 }: { status?: number; p80?: number; p20?: number }) => {
-  if (status === 1 || (p80 === 1 && p20 === 1)) return <Badge tone="success">Paid</Badge>;
-  if (p80 === 1) return <Badge tone="info">80% Paid</Badge>;
-  return <Badge tone="warning">Pending</Badge>;
-};
-
-const txt = (row: Row, key: string): string => {
+const txt = (row: KashmirInstalledSiteItem, key: string): string => {
   const v = (row as Record<string, any>)[key];
   if (v === null || v === undefined || v === '') return '';
   return String(v);
 };
 
+function parseDateMs(dateStr?: string | null): number | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const s = dateStr.trim();
+  if (!s || s === '0000-00-00' || s === '0000-00-00 00:00:00') return null;
+
+  const ddmmyyyy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (ddmmyyyy) {
+    const [, d, m, y] = ddmmyyyy;
+    const t = new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+    if (!isNaN(t)) return t;
+  }
+
+  const isoStr = s.replace(' ', 'T');
+  const t = new Date(isoStr).getTime();
+  if (!isNaN(t)) return t;
+
+  return null;
+}
+
+function computeDurationDays(startStr?: string | null, endStr?: string | null): number | null {
+  const startMs = parseDateMs(startStr);
+  if (startMs === null) return null;
+  const endMs = endStr ? parseDateMs(endStr) : Date.now();
+  if (endMs === null) return null;
+  const diffMs = endMs - startMs;
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+function formatDurationLabel(days: number | null): string {
+  if (days === null) return '—';
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 Day';
+  return `${days} Days`;
+}
+
+function getSiteDuration(row: KashmirInstalledSiteItem): {
+  days: number | null;
+  label: string;
+} {
+  let days: number | null = null;
+  if ((row as any).duration !== undefined && (row as any).duration !== null && (row as any).duration !== '') {
+    const d = Number((row as any).duration);
+    if (!isNaN(d)) days = d;
+  } else if ((row as any).claim_duration !== undefined && (row as any).claim_duration !== null && (row as any).claim_duration !== '') {
+    const d = Number((row as any).claim_duration);
+    if (!isNaN(d)) days = d;
+  }
+
+  if (days === null) {
+    const installDate = row.inst_date || (row as any).created_at || (row as any).date;
+    const claimDate = row.inst_claim_date || (row as any).claim_date;
+    if (claimDate && installDate) {
+      days = computeDurationDays(installDate, claimDate);
+    } else if (installDate) {
+      days = computeDurationDays(installDate);
+    }
+  }
+
+  return {
+    days,
+    label: formatDurationLabel(days),
+  };
+}
+
+const isSiteClaimRaised = (row: KashmirInstalledSiteItem): boolean => {
+  const st = Number(row.inst_claim_status ?? (row as any).claim_status ?? 0);
+  return st !== 0;
+};
+
 /* ───────── Modal (design-system dialog: portal to <body>, focus trap, Esc to close) ───────── */
 const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
   </svg>
@@ -93,7 +141,7 @@ function Modal({
 }: {
   open: boolean;
   onClose: () => void;
-  labelledBy?: string;
+  labelledBy: string;
   describedBy?: string;
   role?: 'dialog' | 'alertdialog';
   centered?: boolean;
@@ -134,7 +182,7 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal (Interactive Zoom, Real Image) ───────── */
+/* ───────── Image preview modal ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
@@ -148,9 +196,9 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   }, [url]);
 
   return (
-    <Modal open onClose={onClose} labelledBy="kashmir-preview-title" dialogClass="ax-modal__dialog--lg">
+    <Modal open onClose={onClose} labelledBy="kashmir-srt-preview-title" dialogClass="ax-modal__dialog--lg">
       <div className="ax-modal__header">
-        <h2 className="ax-modal__title" id="kashmir-preview-title">{title || 'Media Preview'}</h2>
+        <h2 className="ax-modal__title" id="kashmir-srt-preview-title">{title || 'Media Preview'}</h2>
         <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
       </div>
 
@@ -195,19 +243,312 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ── Interactive Image Thumbnail (NO BORDER RADIUS, Real Candidates) ── */
+/* ───────── Raise Installation Claim Modal (Goa / Bihar SRT pattern) ───────── */
+function RaiseClaimModal({
+  site,
+  onClose,
+  onSuccess,
+}: {
+  site: KashmirInstalledSiteItem;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}) {
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimRemarks, setClaimRemarks] = useState('');
+  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claimAmount || Number(claimAmount) <= 0) {
+      setError('Please enter a valid claim amount.');
+      return;
+    }
+    if (!claimInvoiceFile) {
+      setError('Please upload the claim invoice file (PDF/Image).');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const fd = new FormData();
+      fd.append('site_id', String(site.id));
+      fd.append('srt_id', String(site.id));
+      fd.append('inst_claim_amount', claimAmount.trim());
+      fd.append('claim_amount', claimAmount.trim());
+      if (claimRemarks) {
+        fd.append('inst_claim_remarks', claimRemarks.trim());
+        fd.append('claim_remarks', claimRemarks.trim());
+      }
+      fd.append('inst_claim_invoice', claimInvoiceFile);
+      fd.append('claim_invoice', claimInvoiceFile);
+
+      const res = await kashmirSrtService.raiseInstallationClaim(fd);
+      onSuccess(res?.message || 'Claim request submitted successfully!');
+    } catch (err: any) {
+      console.error('[Kashmir RaiseClaimModal] submit error:', err);
+      setError(err?.message || 'Failed to submit claim request. Please check inputs and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const mutedBlock = { color: 'var(--ax-text-muted, #64748b)', display: 'block' } as const;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      labelledBy="kashmir-raise-claim-modal-title"
+      dialogClass="ax-dialog--md"
+      dialogStyle={{ maxWidth: 540, width: '100%', borderRadius: 8 }}
+    >
+      <form onSubmit={handleSubmit} style={{ margin: 0 }}>
+        <div
+          className="ax-modal__header"
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <h3
+              id="kashmir-raise-claim-modal-title"
+              style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}
+            >
+              Raise Installation Claim
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+              Submit claim invoice for completed installation
+            </p>
+          </div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--icon"
+            onClick={onClose}
+            aria-label="Close dialog"
+            style={{ width: 32, height: 32, padding: 0 }}
+          >
+            {X_ICON}
+          </button>
+        </div>
+
+        <div className="ax-modal__body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 6,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Site Overview Details Card */}
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 6,
+              background: 'var(--ax-surface-subtle, #f8fafc)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              fontSize: 12,
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+              <div>
+                <span style={mutedBlock}>Site Name:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.site_name || DASH}</strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>CA Number:</span>
+                <strong style={{ fontFamily: 'var(--ax-font-mono, monospace)', color: 'var(--ax-text-strong, #0f172a)' }}>
+                  {site.ca_no || (site as any).consumer_no || DASH}
+                </strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>District / State:</span>
+                <span>{txt(site, 'district') || DASH}, {txt(site, 'state') || 'Kashmir'}</span>
+              </div>
+              <div>
+                <span style={mutedBlock}>Contact Person:</span>
+                <span>{site.contact_person || DASH} {site.contact_number ? `(${site.contact_number})` : ''}</span>
+              </div>
+              <div>
+                <span style={mutedBlock}>Install Date:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.inst_date || (site as any).created_at || DASH}</strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>Duration Elapsed:</span>
+                <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span>⏱</span>
+                  <span>{getSiteDuration(site).label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Claim Amount Field */}
+          <div className="ax-form-field">
+            <label htmlFor="kashmir-modal-claim-amount" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Claim Amount (₹) <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ax-text-muted, #64748b)',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ₹
+              </span>
+              <input
+                id="kashmir-modal-claim-amount"
+                type="number"
+                min="1"
+                step="any"
+                className="ax-input"
+                style={{ paddingLeft: 28, width: '100%' }}
+                placeholder="e.g. 50000"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                required
+                autoFocus
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+
+          {/* Claim Invoice Document Upload */}
+          <div className="ax-form-field">
+            <label htmlFor="kashmir-modal-claim-invoice" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Claim Invoice Document <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <input
+              id="kashmir-modal-claim-invoice"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,image/png,image/jpeg,image/jpg"
+              className="ax-input"
+              style={{ width: '100%', padding: '8px' }}
+              onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
+              required
+              disabled={isSubmitting}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+              Allowed formats: PDF, JPG, PNG (Max 10MB)
+            </p>
+            {claimInvoiceFile && (
+              <div
+                style={{
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  color: 'var(--ax-primary-default, #2563eb)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>{claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Remarks (Optional) */}
+          <div className="ax-form-field">
+            <label htmlFor="kashmir-modal-claim-remarks" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Remarks (Optional)
+            </label>
+            <input
+              id="kashmir-modal-claim-remarks"
+              type="text"
+              className="ax-input"
+              style={{ width: '100%' }}
+              placeholder="e.g. Work verified on site, invoice raised"
+              value={claimRemarks}
+              onChange={(e) => setClaimRemarks(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div
+          className="ax-modal__footer"
+          style={{
+            padding: '14px 20px',
+            borderTop: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 10,
+          }}
+        >
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </button>
+          <button type="submit" className="ax-btn ax-btn--primary" disabled={isSubmitting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {isSubmitting ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" strokeOpacity={0.25} />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Submit Claim Request</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ───────── Installation Thumbnail: Strict NO BORDER RADIUS ───────── */
 function InstallationThumbnail({
   src,
   alt,
   onPreview,
-  size = 34,
 }: {
   src?: string | null;
   alt: string;
   onPreview: (url: string, title: string) => void;
-  size?: number;
 }) {
-  const candidates = useMemo(() => getKashmirMediaCandidates(src), [src]);
   const [candidateIdx, setCandidateIdx] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -216,19 +557,21 @@ function InstallationThumbnail({
     setFailed(false);
   }, [src]);
 
-  if (!src || failed || candidateIdx >= candidates.length) {
+  const candidates = useMemo(() => getKashmirMediaCandidates(src), [src]);
+
+  if (!src || candidates.length === 0 || failed) {
     return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
   }
 
-  const currentUrl = candidates[candidateIdx];
+  const currentUrl = candidates[candidateIdx] || '';
 
   return (
     <img
       src={currentUrl}
       alt={alt}
       style={{
-        width: size,
-        height: size,
+        width: 34,
+        height: 34,
         borderRadius: 0,
         objectFit: 'cover',
         cursor: 'zoom-in',
@@ -239,7 +582,7 @@ function InstallationThumbnail({
       }}
       onError={() => {
         if (candidateIdx + 1 < candidates.length) {
-          setCandidateIdx((prev) => prev + 1);
+          setCandidateIdx((i) => i + 1);
         } else {
           setFailed(true);
         }
@@ -250,309 +593,8 @@ function InstallationThumbnail({
   );
 }
 
-/* ── Action Dropdown (menu is rendered in <body> via createPortal so the table never clips it) ── */
-const MENU_W = 170;
-const MENU_H = 110;
-
-function RowActionDropdown({
-  onEdit,
-  onView,
-  onDocSubmit,
-  docSubmitted,
-  onRaiseClaim,
-  claimStatus,
-}: {
-  onEdit: () => void;
-  onView: () => void;
-  onDocSubmit?: () => void;
-  docSubmitted?: boolean;
-  onRaiseClaim?: () => void;
-  claimStatus?: number;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const toggle = () => {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    const b = btnRef.current;
-    if (!b) return;
-    const r = b.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
-    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
-    setPos({ top, left });
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    const close = () => setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
-    };
-  }, [open]);
-
-  return (
-    <>
-      <button
-        type="button"
-        ref={btnRef}
-        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
-        onClick={toggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <span>Action</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ width: 12, height: 12, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
-          aria-hidden="true"
-        >
-          <path d="M6 9l6 6l6 -6" />
-        </svg>
-      </button>
-
-      {open && pos &&
-        createPortal(
-          <div ref={menuRef} className="ula-menu" role="menu" style={{ top: pos.top, left: pos.left, width: MENU_W }}>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              Edit Details
-            </button>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onView();
-              }}
-            >
-              View Details
-            </button>
-            {onDocSubmit && (
-              <button
-                type="button"
-                className="ula-menu__item"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onDocSubmit();
-                }}
-              >
-                <span>{docSubmitted ? 'Re-Submit Doc' : 'Submit Doc'}</span>
-                {docSubmitted && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#16a34a', fontWeight: 700 }}>✓</span>
-                )}
-              </button>
-            )}
-            {onRaiseClaim && (!claimStatus || claimStatus === 0) && (
-              <button
-                type="button"
-                className="ula-menu__item"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onRaiseClaim();
-                }}
-              >
-                Raise Claim
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
-/* ───────── Raise Claim Modal ───────── */
-function RaiseClaimModal({
-  site,
-  onClose,
-  onSuccess,
-}: {
-  site: Row;
-  onClose: () => void;
-  onSuccess: (msg: string) => void;
-}) {
-  const [claimAmount, setClaimAmount] = useState('');
-  const [claimInvoice, setClaimInvoice] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!claimAmount || Number(claimAmount) <= 0) {
-      setErr('Please enter a valid claim amount.');
-      return;
-    }
-    if (!claimInvoice) {
-      setErr('Please upload claim invoice file (PDF/Image).');
-      return;
-    }
-
-    setSubmitting(true);
-    setErr(null);
-    try {
-      const fd = new FormData();
-      fd.append('srt_id', String(site.id));
-      fd.append('claim_amount', claimAmount);
-      fd.append('claim_invoice', claimInvoice);
-
-      const resp = await kashmirSrtService.raiseInstallationClaim(fd);
-      onSuccess(resp.message || 'Claim raised Successfully!!!');
-      onClose();
-    } catch (error: any) {
-      setErr(error.message || 'Failed to raise claim.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal open onClose={onClose} labelledBy="kashmir-claim-title" dialogClass="ax-modal__dialog--md">
-      <div className="ax-modal__header">
-        <h2 className="ax-modal__title" id="kashmir-claim-title" style={{ fontSize: 16, fontWeight: 700 }}>Raise Installation Claim</h2>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
-      </div>
-      <form onSubmit={handleSubmit}>
-        <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 13, color: 'var(--asw-primary, #2563eb)' }}>
-            Site: <b>{site.site_name}</b> (ID: #{site.id})
-          </div>
-          {err && (
-            <div className="ax-alert ax-alert--danger" role="alert">
-              <div className="ax-alert__text">{err}</div>
-            </div>
-          )}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-              Claim Amount (₹) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="1"
-              className="ax-input"
-              style={{ width: '100%' }}
-              placeholder="Enter claim amount"
-              value={claimAmount}
-              onChange={(e) => setClaimAmount(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-              Claim Invoice Document (PDF/JPG/PNG max 5MB) *
-            </label>
-            <input
-              type="file"
-              accept="application/pdf,image/*"
-              className="ax-input"
-              style={{ width: '100%' }}
-              onChange={(e) => setClaimInvoice(e.target.files?.[0] || null)}
-              required
-            />
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>
-            Note: Claims are applicable only after 7 days of site installation.
-          </div>
-        </div>
-        <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="submit" className="ax-btn ax-btn--primary" disabled={submitting}>
-            {submitting ? 'Submitting…' : 'Submit Claim'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-
-
-/* ───────── Overlay CSS (modals + dropdown; global because they render in <body>) ───────── */
+/* ───────── Overlay CSS (modals; global because they render in <body>) ───────── */
 const OVERLAY_CSS = `
-  .ax-modal {
-    position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(6px);
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-  }
-  .ax-modal__backdrop {
-    position: fixed; inset: 0; background: transparent;
-  }
-  .ax-modal__dialog {
-    position: relative; z-index: 1; background: #ffffff;
-    border-radius: 16px; border: 1px solid var(--ax-border, #e2e8f0);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: hidden; width: 100%;
-  }
-  .ax-modal__dialog--md { max-width: 580px; }
-  .ax-modal__dialog--lg { max-width: 900px; }
-  .ax-modal__header {
-    padding: 18px 24px;
-    border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .ax-modal__close {
-    width: 32px; height: 32px; padding: 0; border-radius: 50%;
-    border: none; background: transparent; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
-    transition: all 0.15s ease;
-  }
-  .ax-modal__close:hover {
-    background: var(--ax-surface-hover, #e2e8f0);
-    color: var(--ax-text-strong, #0f172a);
-  }
-  .ax-modal__body {
-    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
-  }
-  .ax-modal__footer {
-    padding: 16px 24px;
-    border-top: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
-    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  }
-
   .ax-modal img { border-radius: 0 !important; }
 
   .ula-m-stage {
@@ -566,44 +608,17 @@ const OVERLAY_CSS = `
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 
-  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
-  .ula-m-full { grid-column: 1 / -1; }
-  .ula-m-info {
-    display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; font-size: 12px;
-    background: var(--ax-surface-subtle, #f8fafc); border: 1px solid var(--ax-border, #e2e8f0);
-  }
-  .ula-m-info span { color: var(--ax-text-muted, #64748b); }
-  .ula-m-info b { color: var(--ax-text-strong, #0f172a); font-weight: 600; }
-
   .ula-action-btn {
     display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
     font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
   }
-  .ula-menu {
-    position: fixed; z-index: 99999; box-sizing: border-box;
-    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
-    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
-  }
-  .ula-menu__item {
-    display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
-    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
-    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
-  }
-  .ula-menu__item:hover, .ula-menu__item:focus-visible { background: var(--ax-surface-subtle, #f1f5f9); outline: none; }
 
   @media (max-width: 560px) {
-    .ula-m-grid { grid-template-columns: 1fr; }
     .ula-m-stage { height: 56vh; }
   }
 `;
 
-/* ───────── Responsive page CSS (Exact Punjab SSL / Assam SWP / Bihar SRT reference) ───────── */
 const PAGE_CSS = `
-  .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
-  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -615,23 +630,6 @@ const PAGE_CSS = `
   .solar-erp-page .ula-table--wide img,
   .solar-erp-page .ax-card img {
     border-radius: 0 !important;
-  }
-
-  .solar-erp-page .asw-cards-row {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--ax-space-4, 16px);
-    margin-bottom: var(--ax-space-5, 20px);
-  }
-  @media (max-width: 992px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  @media (max-width: 520px) {
-    .solar-erp-page .asw-cards-row {
-      grid-template-columns: 1fr;
-    }
   }
 
   .solar-erp-page .ax-card__header {
@@ -772,6 +770,26 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
+
+  .solar-erp-page .srt-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    margin-top: 4px;
+  }
+  @media (max-width: 1400px) {
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  @media (max-width: 960px) {
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 420px) {
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: 1fr; }
+  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -787,8 +805,23 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-/* ── Top KPI Card Component (matching Punjab / Assam & Bihar) ── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+/* ───────── Tabs (one page, two datasets; URL hash: #Completed / #Payment) ───────── */
+type TabKey = 'completed' | 'payment';
+
+const TABS: { key: TabKey; label: string; hash: string }[] = [
+  { key: 'completed', label: 'Completed SRT Data', hash: '#Completed' },
+  { key: 'payment', label: 'Payment SRT Data', hash: '#Payment' },
+];
+
+const COMMON_HEADERS = [
+  'Sr. No.', 'State', 'District', 'Site Name', 'Install Date', 'Duration / Aging',
+  'Contact Person', 'Contact Number', 'CA No.',
+  'Solar Meter No.', 'Inverter No.', 'Net/Smart Meter No.', 'Panel No.', 'Loger No.',
+  'System Image', 'Inverter Image', 'Panel Image', 'Net Meter/Smart Meter Image', 'Loger Image',
+  'Latitude', 'Longitude', 'Remark',
+];
+
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
@@ -796,6 +829,7 @@ const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
   violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  danger: { bg: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
 };
 
 function KpiCard({
@@ -809,17 +843,29 @@ function KpiCard({
   tone: KpiTone;
   label: string;
   value: ReactNode;
-  sub: string;
+  sub?: string;
 }) {
   const t = TONE[tone];
+
   return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+    <div
+      className="ax-card"
+      style={{
+        padding: '12px 14px',
+        borderRadius: 10,
+        minWidth: 0,
+        cursor: 'default',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface, #ffffff)',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
+            width: 26,
+            height: 26,
+            borderRadius: 7,
             background: t.bg,
             color: t.fg,
             display: 'inline-flex',
@@ -828,52 +874,76 @@ function KpiCard({
             flexShrink: 0,
           }}
         >
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+          <span style={{ width: 14, height: 14, display: 'inline-flex' }}>{icon}</span>
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            color: 'var(--ax-text-muted)',
+            letterSpacing: '0.04em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={label}
+        >
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: t.fg, marginTop: 2, fontFamily: 'var(--ax-font-display)' }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
-        {sub}
-      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--ax-text-muted)',
+            marginTop: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={sub}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
 
-// Columns for Kashmir SRT 70MW Installation
-const COMMON_HEADERS = [
-  'Sr. No.', 'State', 'District', 'Site Name', 'Contact Person', 'Contact Number',
-  'Solar Meter No.', 'Inverter No.', 'Net/Smart Meter No.', 'Panel No.', 'Loger No.',
-  'System Photo', 'Inverter Photo', 'Panel Photo', 'Net Meter Photo', 'Loger Photo',
-  'Latitude', 'Longitude', 'Remark', 'Verify Status', 'Claim Status', 'Payment Status', 'Action',
-];
-
+/* =========================================================================
+ * Main Component
+ * ========================================================================= */
 export function Kashmir_Installation_Details() {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
+  const tab: TabKey = location.hash.toLowerCase() === '#payment' ? 'payment' : 'completed';
+  const setTab = (k: TabKey) => {
+    const t = TABS.find((x) => x.key === k)!;
+    navigate({ pathname: location.pathname, search: location.search, hash: t.hash }, { replace: true });
+  };
 
-  const [summary, setSummary] = useState<KashmirInstallationSummaryData | null>(null);
+  const [searchParams] = useSearchParams();
+  const [data, setData] = useState<KashmirInstallationSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [districtFilter, setDistrictFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'payment'>('all');
+  const [search, setSearch] = useState(() => searchParams.get('district') || searchParams.get('search') || '');
+  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || 'all');
+  const [claimFilter, setClaimFilter] = useState<'all' | 'due' | 'raised' | 'pending'>('all');
 
-  // Photo preview modal (interactive lightbox)
+  // Photo preview modal
   const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const openPreview = useCallback((url: string, title: string) => setPreview({ url, title }), []);
   const closePreview = useCallback(() => setPreview(null), []);
 
-  // Detail modal state
-  const [detailModalSite, setDetailModalSite] = useState<Row | null>(null);
+  // Claim modal state
+  const [claimModalSite, setClaimModalSite] = useState<KashmirInstalledSiteItem | null>(null);
 
-  // Claim modal & doc submit modal
-  const [claimModalSite, setClaimModalSite] = useState<Row | null>(null);
-  const [docModalSite, setDocModalSite] = useState<Row | null>(null);
+  // Detail modal state
+  const [detailModalSite, setDetailModalSite] = useState<KashmirInstalledSiteItem | null>(null);
 
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -884,175 +954,214 @@ export function Kashmir_Installation_Details() {
     return () => window.clearTimeout(t);
   }, [toastMsg]);
 
-  // Sync hash
-  useEffect(() => {
-    if (location.hash === '#Payment') {
-      setActiveTab('payment');
-    }
-  }, [location.hash]);
-
-  // Load real data from API
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await kashmirSrtService.getViewInstallSites();
-      setSummary(res);
+      const resp = await kashmirSrtService.getViewInstallSites();
+      if (resp) setData(resp);
     } catch (err: any) {
-      console.error('[Kashmir SRT 70MW Installation] load error:', err);
-      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites from server.' });
+      console.error('[Kashmir SRT 70MW ViewInstallation] load error:', err);
+      setToastMsg({ type: 'danger', text: err?.message || 'Failed to load installation sites.' });
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const handleClaimSuccess = useCallback(
+    (message: string) => {
+      setToastMsg({ type: 'success', text: message });
+      setClaimModalSite(null);
+      loadData();
+    },
+    [loadData]
+  );
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const completeSites: Row[] = useMemo(() => summary?.completesite || [], [summary]);
-  const paymentSites: Row[] = useMemo(() => summary?.paymentsite || [], [summary]);
+  // Two datasets from the same API response
+  const completeSites: KashmirInstalledSiteItem[] = useMemo(
+    () => (Array.isArray(data?.completesite) ? data!.completesite : []),
+    [data]
+  );
+  const paymentSites: KashmirInstalledSiteItem[] = useMemo(
+    () => (Array.isArray(data?.paymentsite) ? data!.paymentsite : []),
+    [data]
+  );
+  const activeSites = tab === 'completed' ? completeSites : paymentSites;
+  const isCompleted = tab === 'completed';
 
-  // Merge completesite and paymentsite according to tab
-  const allSites: Row[] = useMemo(() => {
-    if (!summary) return [];
-    if (activeTab === 'completed') return completeSites;
-    if (activeTab === 'payment') return paymentSites;
+  // Summary counts for 11 KPIs
+  const approvedCount = useMemo(
+    () => (data?.approvedsite !== undefined ? data.approvedsite : completeSites.filter((s) => Number(s.inst_verify_status) === 1 || String(s.inst_verify_status).toLowerCase() === 'approved').length),
+    [data, completeSites]
+  );
+  const pendingCount = useMemo(
+    () => (data?.verifypending !== undefined ? data.verifypending : completeSites.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0 || String(s.inst_verify_status).toLowerCase() === 'pending').length),
+    [data, completeSites]
+  );
+  const rejectedCount = useMemo(
+    () => (data?.rejectsite !== undefined ? data.rejectsite : completeSites.filter((s) => Number(s.inst_verify_status) === 2 || String(s.inst_verify_status).toLowerCase() === 'rejected').length),
+    [data, completeSites]
+  );
+  const claimRaisedCount = useMemo(
+    () => (data?.claimraised !== undefined ? data.claimraised : completeSites.filter((s) => isSiteClaimRaised(s)).length),
+    [data, completeSites]
+  );
+  const readyToClaimCount = useMemo(
+    () => (data?.claimedapplicable !== undefined ? data.claimedapplicable : completeSites.filter((s) => Number(s.inst_verify_status) === 1 && !isSiteClaimRaised(s)).length),
+    [data, completeSites]
+  );
+  const totalAssignedSitesCount = useMemo(
+    () => (data?.totalsite !== undefined ? data.totalsite : completeSites.length + (data?.pendingsite || 0)),
+    [data, completeSites]
+  );
+  const completeSitesCount = useMemo(
+    () => (data?.complete !== undefined ? data.complete : completeSites.length),
+    [data, completeSites]
+  );
+  const pendingSitesCount = useMemo(
+    () => (data?.pendingsite !== undefined ? data.pendingsite : 0),
+    [data]
+  );
+  const docSubmitCount = useMemo(
+    () => (data?.docsubmit !== undefined ? data.docsubmit : completeSites.filter((s) => s.inst_doc_submit === 1).length),
+    [data, completeSites]
+  );
+  const payment80Count = useMemo(
+    () => (data?.payment80 !== undefined ? data.payment80 : paymentSites.filter((s: any) => s.inst_pay80_status === 1 || s.payment1_status).length),
+    [data, paymentSites]
+  );
+  const payment20Count = useMemo(
+    () => (data?.payment20 !== undefined ? data.payment20 : paymentSites.filter((s: any) => s.inst_pay20_status === 1 || s.payment2_status).length),
+    [data, paymentSites]
+  );
 
-    // 'all': merge unique by id
-    const map = new Map<number, Row>();
-    completeSites.forEach((item) => map.set(item.id, item));
-    paymentSites.forEach((item) => {
-      if (!map.has(item.id)) {
-        map.set(item.id, item);
-      }
-    });
-    return Array.from(map.values());
-  }, [summary, activeTab, completeSites, paymentSites]);
-
-  // Unique districts for filter dropdown
+  // Available districts for dropdown
   const districts = useMemo(() => {
     const set = new Set<string>();
-    allSites.forEach((r) => {
-      if (r.district && String(r.district).trim()) set.add(String(r.district).trim());
+    activeSites.forEach((s) => {
+      const d = txt(s, 'district')?.trim();
+      if (d) set.add(d);
     });
     return Array.from(set).sort();
-  }, [allSites]);
+  }, [activeSites]);
 
   // Filtered sites
   const filteredSites = useMemo(() => {
-    let list = allSites;
-    if (statusFilter === 'approved') {
-      list = list.filter((s) => Number(s.inst_verify_status) === 1 || String(s.inst_verify_status).toLowerCase() === 'approved');
-    } else if (statusFilter === 'rejected') {
-      list = list.filter((s) => Number(s.inst_verify_status) === 2 || String(s.inst_verify_status).toLowerCase() === 'rejected');
-    } else if (statusFilter === 'pending') {
-      list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0 || String(s.inst_verify_status).toLowerCase() === 'pending');
-    }
+    let list = activeSites;
 
     if (districtFilter !== 'all') {
-      list = list.filter((s) => s.district?.trim().toLowerCase() === districtFilter.toLowerCase());
+      list = list.filter((s) => txt(s, 'district').toLowerCase() === districtFilter.toLowerCase());
+    }
+
+    if (isCompleted) {
+      if (statusFilter === 'approved') list = list.filter((s) => Number(s.inst_verify_status) === 1 || String(s.inst_verify_status).toLowerCase() === 'approved');
+      else if (statusFilter === 'rejected') list = list.filter((s) => Number(s.inst_verify_status) === 2 || String(s.inst_verify_status).toLowerCase() === 'rejected');
+      else if (statusFilter === 'pending') list = list.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0 || String(s.inst_verify_status).toLowerCase() === 'pending');
+
+      if (claimFilter === 'due') {
+        list = list.filter((s) => Number(s.inst_verify_status) === 1 && !isSiteClaimRaised(s));
+      } else if (claimFilter === 'raised') {
+        list = list.filter((s) => isSiteClaimRaised(s));
+      } else if (claimFilter === 'pending') {
+        list = list.filter((s) => !isSiteClaimRaised(s));
+      }
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((s) => {
-        const uid = String(s.id || '').toLowerCase();
-        const sn = String(s.site_name || '').toLowerCase();
-        const cp = String(s.contact_person || '').toLowerCase();
-        const cn = String(s.contact_number || '').toLowerCase();
-        const dist = String(s.district || '').toLowerCase();
-        const sm = String(s.solarmeter_no || '').toLowerCase();
-        const inv = String(s.inverter_no || '').toLowerCase();
-        const nmsm = String(s.nm_sm_no || '').toLowerCase();
         const pnl = Array.isArray(s.panel_no) ? s.panel_no.join(' ').toLowerCase() : String(s.panel_no || '').toLowerCase();
-        const log = String(s.loger_no || '').toLowerCase();
         return (
-          uid.includes(q) ||
-          sn.includes(q) ||
-          cp.includes(q) ||
-          cn.includes(q) ||
-          dist.includes(q) ||
-          sm.includes(q) ||
-          inv.includes(q) ||
-          nmsm.includes(q) ||
+          String(s.id).includes(q) ||
+          txt(s, 'state').toLowerCase().includes(q) ||
+          txt(s, 'district').toLowerCase().includes(q) ||
+          String(s.site_name || '').toLowerCase().includes(q) ||
+          String(s.contact_person || '').toLowerCase().includes(q) ||
+          String(s.contact_number || '').toLowerCase().includes(q) ||
+          String(s.ca_no || '').toLowerCase().includes(q) ||
+          String(s.solarmeter_no || '').toLowerCase().includes(q) ||
+          String(s.inverter_no || '').toLowerCase().includes(q) ||
+          String(s.nm_sm_no || '').toLowerCase().includes(q) ||
           pnl.includes(q) ||
-          log.includes(q)
+          String(s.loger_no || '').toLowerCase().includes(q) ||
+          String(s.inst_date || '').toLowerCase().includes(q) ||
+          String(s.inst_claim_amount || '').toLowerCase().includes(q) ||
+          String(s.inst_claim_date || '').toLowerCase().includes(q)
         );
       });
     }
     return list;
-  }, [allSites, search, statusFilter, districtFilter]);
+  }, [activeSites, districtFilter, isCompleted, statusFilter, claimFilter, search]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredSites, initialPageSize: 100 });
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, districtFilter, activeTab, setPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, districtFilter, statusFilter, claimFilter, tab]);
 
-  const hasFilters = search.trim() !== '' || statusFilter !== 'all' || districtFilter !== 'all' || activeTab !== 'all';
+  const hasFilters = search.trim() !== '' || districtFilter !== 'all' || (isCompleted && (statusFilter !== 'all' || claimFilter !== 'all'));
   const resetFilters = () => {
     setSearch('');
-    setStatusFilter('all');
     setDistrictFilter('all');
-    setActiveTab('all');
+    setStatusFilter('all');
+    setClaimFilter('all');
     setPage(1);
   };
 
-  const approvedCount = summary?.approvedsite ?? allSites.filter((s) => Number(s.inst_verify_status) === 1).length;
-  const pendingCount = summary?.verifypending ?? allSites.filter((s) => !s.inst_verify_status || Number(s.inst_verify_status) === 0).length;
-  const rejectedCount = summary?.rejectsite ?? allSites.filter((s) => Number(s.inst_verify_status) === 2).length;
-
-  // Export columns
-  const exportCols: ExportColumn<Row>[] = useMemo(() => [
-    { header: 'Sr. No.', accessor: (_r: Row, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-    { header: 'State', accessor: (r) => txt(r, 'state') || 'Kashmir' },
-    { header: 'District', accessor: (r) => txt(r, 'district') },
-    { header: 'Site Name', accessor: (r) => txt(r, 'site_name') },
-    { header: 'Contact Person', accessor: (r) => txt(r, 'contact_person') },
-    { header: 'Contact Number', accessor: (r) => txt(r, 'contact_number') },
-    { header: 'Solar Meter No.', accessor: (r) => txt(r, 'solarmeter_no') },
-    { header: 'Inverter No.', accessor: (r) => txt(r, 'inverter_no') },
-    { header: 'Net/Smart Meter No.', accessor: (r) => txt(r, 'nm_sm_no') },
-    { header: 'Panel No.', accessor: (r) => (Array.isArray(r.panel_no) ? r.panel_no.join(', ') : txt(r, 'panel_no')) },
-    { header: 'Loger No.', accessor: (r) => txt(r, 'loger_no') },
-    { header: 'System Photo', accessor: (r) => r.system_image || '' },
-    { header: 'Inverter Photo', accessor: (r) => r.inverter_image || '' },
-    { header: 'Panel Photo', accessor: (r) => r.panel_image || '' },
-    { header: 'Net Meter Photo', accessor: (r) => r.nm_sm_image || '' },
-    { header: 'Loger Photo', accessor: (r) => r.loger_image || '' },
-    { header: 'Latitude', accessor: (r) => txt(r, 'inst_latitude') },
-    { header: 'Longitude', accessor: (r) => txt(r, 'inst_longitude') },
-    { header: 'Remark', accessor: (r) => r.inst_remarks || '' },
-    {
-      header: 'Verify Status',
-      accessor: (r) => {
-        const v = Number(r.inst_verify_status);
-        if (v === 1) return 'Approved';
-        if (v === 2) return 'Rejected';
-        return 'Pending';
+  // Export Columns (per tab)
+  const exportCols: ExportColumn<KashmirInstalledSiteItem>[] = useMemo(() => {
+    const common: ExportColumn<KashmirInstalledSiteItem>[] = [
+      { header: 'Sr. No.', accessor: (_r: KashmirInstalledSiteItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'State', accessor: (r) => txt(r, 'state') || 'Kashmir' },
+      { header: 'District', accessor: (r) => txt(r, 'district') },
+      { header: 'Site Name', accessor: (r) => r.site_name || '' },
+      { header: 'Install Date', accessor: (r) => r.inst_date || (r as any).created_at || '' },
+      { header: 'Duration / Aging', accessor: (r) => getSiteDuration(r).label },
+      { header: 'Contact Person', accessor: (r) => r.contact_person || '' },
+      { header: 'Contact Number', accessor: (r) => r.contact_number || '' },
+      { header: 'CA No.', accessor: (r) => r.ca_no || '' },
+      { header: 'Solar Meter No.', accessor: (r) => r.solarmeter_no || '' },
+      { header: 'Inverter No.', accessor: (r) => r.inverter_no || '' },
+      { header: 'Net/Smart Meter No.', accessor: (r) => r.nm_sm_no || '' },
+      { header: 'Panel No.', accessor: (r) => (Array.isArray(r.panel_no) ? r.panel_no.join(', ') : txt(r, 'panel_no')) },
+      { header: 'Loger No.', accessor: (r) => r.loger_no || '' },
+      { header: 'System Image', accessor: (r) => r.system_image || '' },
+      { header: 'Inverter Image', accessor: (r) => r.inverter_image || '' },
+      { header: 'Panel Image', accessor: (r) => r.panel_image || '' },
+      { header: 'Net Meter/Smart Meter Image', accessor: (r) => r.nm_sm_image || '' },
+      { header: 'Loger Image', accessor: (r) => r.loger_image || '' },
+      { header: 'Latitude', accessor: (r) => txt(r, 'inst_latitude') },
+      { header: 'Longitude', accessor: (r) => txt(r, 'inst_longitude') },
+      { header: 'Remark', accessor: (r) => r.inst_remarks || '' },
+    ];
+    if (tab === 'payment') {
+      return [
+        ...common,
+        { header: 'Payment 80%', accessor: (r) => (r.inst_pay80_status === 1 ? 'Paid' : 'Pending') },
+        { header: 'Payment 20%', accessor: (r) => (r.inst_pay20_status === 1 ? 'Paid' : 'Pending') },
+        { header: 'Claim Status', accessor: (r) => (isSiteClaimRaised(r) ? 'Claim Raised' : 'Not Raised') },
+      ];
+    }
+    return [
+      ...common,
+      {
+        header: 'Verify Status',
+        accessor: (r) =>
+          Number(r.inst_verify_status) === 1 ? 'Approved' : Number(r.inst_verify_status) === 2 ? 'Rejected' : 'Pending',
       },
-    },
-    {
-      header: 'Claim Status',
-      accessor: (r) => {
-        const c = Number(r.inst_claim_status);
-        return c === 2 ? 'Approved' : c === 3 ? 'Rejected' : c === 1 ? 'Raised' : 'Not Raised';
-      },
-    },
-    {
-      header: 'Payment Status',
-      accessor: (r) => {
-        if (r.inst_pay80_status === 1 && r.inst_pay20_status === 1) return 'Paid';
-        if (r.inst_pay80_status === 1) return '80% Paid';
-        return 'Pending';
-      },
-    },
-  ], []);
+      { header: 'Claim Status', accessor: (r) => (isSiteClaimRaised(r) ? 'Claim Raised' : 'Not Raised') },
+      { header: 'Claim Amount', accessor: (r) => (r.inst_claim_amount ? String(r.inst_claim_amount) : '') },
+    ];
+  }, [tab]);
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const fileBase = 'Kashmir_SRT_70MW_Completed_Installations';
-  const fileTitle = 'Kashmir SRT 70MW Completed Installation Register';
+  const fileBase = isCompleted ? 'Kashmir_SRT_70MW_Completed' : 'Kashmir_SRT_70MW_Payment';
+  const fileTitle = isCompleted ? 'Kashmir SRT 70MW Completed Installation Data' : 'Kashmir SRT 70MW Payment Data';
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
     if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
@@ -1126,7 +1235,9 @@ export function Kashmir_Installation_Details() {
     w.focus();
   };
 
-  const headers = COMMON_HEADERS;
+  const headers = isCompleted
+    ? [...COMMON_HEADERS, 'Verify Status', 'Claim Status', 'Action']
+    : [...COMMON_HEADERS, 'Payment 80%', 'Payment 20%', 'Claim Status'];
   const TOTAL_COLUMNS = headers.length;
 
   return (
@@ -1134,7 +1245,7 @@ export function Kashmir_Installation_Details() {
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head (exact Punjab / Assam / Bihar pattern) ── */}
+      {/* ── Page Head ── */}
       <PageHead
         title="View Kashmir SRT 70MW Installation"
         subtitle="Master register of completed solar rooftop installations, payment stage sites, serial verifications, and compliance photos"
@@ -1142,11 +1253,15 @@ export function Kashmir_Installation_Details() {
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Kashmir' },
           { label: 'Installation' },
-          { label: 'SRT 70MW' },
+          { label: 'SRT 70MW', href: '/v/kashmir/srt/70mw/installation/dashboard' },
           { label: 'View Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
+              {ICON_REFRESH}
+              <span className="ax-btn__label">Refresh</span>
+            </button>
             <Link to="/v/kashmir/srt/70mw/installation/site" className="ax-btn ax-btn--primary ax-btn--sm">
               <span className="ax-btn__label">+ New Installation</span>
             </Link>
@@ -1161,15 +1276,15 @@ export function Kashmir_Installation_Details() {
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (4 cards in 1 row, exact Punjab SSL style) ── */}
-      <div className="asw-cards-row">
+      {/* ── 11 KPI Stat Cards (exact Goa SRT layout & palette) ── */}
+      <div className="srt-kpi-grid">
         <KpiCard
           tone="accent"
-          label="Total Allocated"
-          value={(summary?.totalsite || 0).toLocaleString('en-IN')}
-          sub="Assigned for installation"
+          label="Total Assigned Sites"
+          value={loading ? '…' : Number(totalAssignedSitesCount).toLocaleString('en-IN')}
+          sub="Total assigned rooftop sites"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
               <path d="M8 9h8M8 13h8M8 17h5" />
             </svg>
@@ -1178,11 +1293,11 @@ export function Kashmir_Installation_Details() {
 
         <KpiCard
           tone="emerald"
-          label="Installed Sites"
-          value={(summary?.complete || completeSites.length).toLocaleString('en-IN')}
-          sub="Equipment & photos uploaded"
+          label="Complete Sites"
+          value={loading ? '…' : Number(completeSitesCount).toLocaleString('en-IN')}
+          sub="Installation completed"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
               <path d="M9 12l2 2 4-4" />
             </svg>
@@ -1190,89 +1305,227 @@ export function Kashmir_Installation_Details() {
         />
 
         <KpiCard
-          tone="cyan"
-          label="Verify Approved"
-          value={approvedCount.toLocaleString('en-IN')}
-          sub={`${pendingCount} audit pending`}
+          tone="amber"
+          label="Pending"
+          value={loading ? '…' : Number(pendingSitesCount).toLocaleString('en-IN')}
+          sub="Installation pending"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Approve Sites"
+          value={loading ? '…' : Number(approvedCount).toLocaleString('en-IN')}
+          sub="Verified & approved"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 15" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="danger"
+          label="Reject Sites"
+          value={loading ? '…' : Number(rejectedCount).toLocaleString('en-IN')}
+          sub="Inspection rejected"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Verify Pending"
+          value={loading ? '…' : Number(pendingCount).toLocaleString('en-IN')}
+          sub="Awaiting verification"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Claim Applicable"
+          value={loading ? '…' : Number(readyToClaimCount).toLocaleString('en-IN')}
+          sub="Eligible for claim"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           }
         />
 
         <KpiCard
           tone="violet"
-          label="Payment Settled"
-          value={(summary?.paymentsitecount || 0).toLocaleString('en-IN')}
-          sub={`${summary?.claimedapplicable || 0} claims applicable`}
+          label="Claim Raised"
+          value={loading ? '…' : Number(claimRaisedCount).toLocaleString('en-IN')}
+          sub="Invoices lodged"
           icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="DOC Submit"
+          value={loading ? '…' : Number(docSubmitCount).toLocaleString('en-IN')}
+          sub="Documents submitted"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Payment 80%"
+          value={loading ? '…' : Number(payment80Count).toLocaleString('en-IN')}
+          sub="80% disbursed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Payment 20%"
+          value={loading ? '…' : Number(payment20Count).toLocaleString('en-IN')}
+          sub="20% disbursed"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 14 14" />
             </svg>
           }
         />
       </div>
 
+      {/* ── Tabs ABOVE Table ── */}
+      <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
+        <div className="ax-cluster" role="tablist" aria-label="Installed SRT tabs" style={{ gap: 'var(--ax-space-2)' }}>
+          {TABS.map((t) => {
+            const active = t.key === tab;
+            const count = t.key === 'completed' ? completeSites.length : paymentSites.length;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                id={`kashmir-srt-tab-${t.key}`}
+                aria-selected={active}
+                aria-controls="kashmir-srt-tabpanel"
+                className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
+                onClick={() => setTab(t.key)}
+              >
+                <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Main Table Card ── */}
-      <section className="ax-card ax-col--12" id="kashmir-srt-tabpanel" role="tabpanel" aria-label="Kashmir SRT 70MW Installations">
+      <section className="ax-card ax-col--12" id="kashmir-srt-tabpanel" role="tabpanel" aria-labelledby={`kashmir-srt-tab-${tab}`}>
         <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h2 className="ax-card__title">Completed Kashmir SRT 70MW Installation Data</h2>
+            <h2 className="ax-card__title">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</h2>
             <p className="ax-card__subtitle">
-              <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{allSites.length}</span> installations
-              {' '}· Approved <b className="ax-num">{approvedCount}</b> · Pending <b className="ax-num">{pendingCount}</b> · Rejected <b className="ax-num">{rejectedCount}</b>
+              <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{activeSites.length}</span> installations
+              {isCompleted && (
+                <>
+                  {' '}· Completed <b className="ax-num">{completeSitesCount}</b> / {totalAssignedSitesCount} · Approved <b className="ax-num">{approvedCount}</b> · Pending Verify <b className="ax-num">{pendingCount}</b> · Claims Raised <b className="ax-num">{claimRaisedCount}</b> / {readyToClaimCount} · Rejected <b className="ax-num">{rejectedCount}</b>
+                </>
+              )}
+              {!isCompleted && (
+                <>
+                  {' '}· 80% Payment <b className="ax-num">{payment80Count}</b> · 20% Payment <b className="ax-num">{payment20Count}</b>
+                </>
+              )}
             </p>
           </div>
           <div className="ax-card__actions">
             <div className="ax-cluster" style={actionsRowStyle}>
-              {/* Category Segment Tabs */}
               <select
-                id="kashmir_category_filter"
+                id="kashmir_district_filter"
                 className="ax-input ax-input--sm"
                 style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value as any)}
-                aria-label="Category view"
+                value={districtFilter}
+                onChange={(e) => {
+                  setDistrictFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Filter by district"
               >
-                <option value="all">All Sites ({allSites.length})</option>
-                <option value="completed">Completed ({completeSites.length})</option>
-                <option value="payment">Payment Stage ({paymentSites.length})</option>
+                <option value="all">All Districts</option>
+                {districts.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
               </select>
 
-              {/* District Filter */}
-              {districts.length > 0 && (
-                <select
-                  id="kashmir_district_filter"
-                  className="ax-input ax-input--sm"
-                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                  value={districtFilter}
-                  onChange={(e) => setDistrictFilter(e.target.value)}
-                  aria-label="Filter by district"
-                >
-                  <option value="all">All Districts ({districts.length})</option>
-                  {districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+              {isCompleted && (
+                <>
+                  <select
+                    id="kashmir_status_filter"
+                    className="ax-input ax-input--sm"
+                    style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    aria-label="Filter by verify status"
+                  >
+                    <option value="all">All Verification</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+
+                  <select
+                    id="kashmir_claim_filter"
+                    className="ax-input ax-input--sm"
+                    style={{ width: 160, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                    value={claimFilter}
+                    onChange={(e) => {
+                      setClaimFilter(e.target.value as any);
+                      setPage(1);
+                    }}
+                    aria-label="Filter by claim status"
+                  >
+                    <option value="all">All Claim Status</option>
+                    <option value="due">Claim Applicable (Ready)</option>
+                    <option value="raised">Claim Raised</option>
+                    <option value="pending">Awaiting Approval</option>
+                  </select>
+                </>
               )}
-
-              {/* Verify Status Filter */}
-              <select
-                id="kashmir_status_filter"
-                className="ax-input ax-input--sm"
-                style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                aria-label="Filter by verify status"
-              >
-                <option value="all">All Status</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
-              </select>
 
               {hasFilters && (
                 <button
@@ -1288,9 +1541,9 @@ export function Kashmir_Installation_Details() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search site, meter, serial…"
+                placeholder="Search site, CA no, person, meter…"
                 size="sm"
-                ariaLabel="Search installations"
+                ariaLabel="Search installed sites"
               />
 
               <TableExportToolbar
@@ -1305,10 +1558,10 @@ export function Kashmir_Installation_Details() {
 
         <div className="ax-table-wrap">
           <table
-            className="ax-table ax-table--hover ula-table--wide"
-            style={{ whiteSpace: 'nowrap', minWidth: 2600 }}
+            className="ax-table ax-table--hover"
+            style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2900 : 2300 }}
           >
-            <caption className="ax-visually-hidden">Completed Kashmir SRT 70MW Installation Data</caption>
+            <caption className="ax-visually-hidden">{isCompleted ? 'Completed SRT Data' : 'Payment SRT Data'}</caption>
             <thead className="ax-table__head">
               <tr>
                 {headers.map((h) => (
@@ -1327,7 +1580,7 @@ export function Kashmir_Installation_Details() {
               {loading && (
                 <tr>
                   <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
-                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading Kashmir installation records from server…
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading installation records…
                   </td>
                 </tr>
               )}
@@ -1335,11 +1588,13 @@ export function Kashmir_Installation_Details() {
                 <tr>
                   <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
                     <TableEmptyState
-                      title="No completed installation records found"
+                      title={isCompleted ? 'No completed installation records found' : 'No payment records found'}
                       message={
                         hasFilters
                           ? 'No records match your filters or search. Try clearing your query.'
-                          : 'Completed rooftop sites will appear here once installation work is recorded via the installation form.'
+                          : isCompleted
+                            ? 'Completed sites will appear here once installation work is recorded.'
+                            : 'Payment sites will appear here once payments are processed.'
                       }
                       onClear={hasFilters ? resetFilters : undefined}
                       clearLabel="Clear filters"
@@ -1352,17 +1607,23 @@ export function Kashmir_Installation_Details() {
                   const lat = txt(row, 'inst_latitude');
                   const lng = txt(row, 'inst_longitude');
                   const hasGeo = lat !== '' && lng !== '' && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
-                  const siteLabel = row.site_name || `Site #${row.id}`;
-                  const vStatus = Number(row.inst_verify_status ?? 0);
-                  const rawVerifyStr = String(row.inst_verify_status ?? '').toLowerCase().trim();
-                  const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
-                  const cStatus = Number(row.inst_claim_status ?? 0);
-                  const pStatus = Number(row.inst_pay_status ?? row.payment_status ?? 0);
+                  const siteLabel = row.site_name || 'Site';
+                  const siteClaimRaised = isSiteClaimRaised(row);
+                  const isApproved = Number(row.inst_verify_status) === 1 || String(row.inst_verify_status).toLowerCase() === 'approved';
+                  const isClaimDue = isApproved && !siteClaimRaised;
+                  const siteDuration = getSiteDuration(row);
+                  const installDateStr = row.inst_date || (row as any).created_at || (row as any).date;
+                  const fmtInstallDate = installDateStr ? String(installDateStr).slice(0, 10) : DASH;
+                  const verifyVal = Number(row.inst_verify_status ?? (row as any).verify_status ?? 0);
 
                   return (
-                    <tr key={row.id || index} className="ax-table__row">
+                    <tr
+                      key={row.id || index}
+                      className="ax-table__row"
+                      style={isClaimDue ? { background: 'rgba(245, 158, 11, 0.04)' } : undefined}
+                    >
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td">{txt(row, 'state') || 'Kashmir'}</td>
+                      <td className="ax-table__td" style={{ textTransform: 'capitalize' }}>{txt(row, 'state') || 'Kashmir'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
                       <td className="ax-table__td">
                         <button
@@ -1378,13 +1639,52 @@ export function Kashmir_Installation_Details() {
                             cursor: 'pointer',
                             textAlign: 'left',
                           }}
-                          title="Click to view site details"
+                          title="Click to view full site details"
                         >
-                          {row.site_name || `Site #${row.id}`}
+                          {row.site_name || DASH}
                         </button>
                       </td>
-                      <td className="ax-table__td">{txt(row, 'contact_person') || DASH}</td>
+
+                      {/* Install Date */}
+                      <td className="ax-table__td" style={monoCell}>{fmtInstallDate}</td>
+
+                      {/* Duration / Aging */}
+                      <td className="ax-table__td">
+                        {isClaimDue ? (
+                          <span
+                            className="ax-badge ax-badge--soft ax-badge--warning"
+                            style={{
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '3px 8px',
+                              fontSize: 11,
+                              border: '1px solid #fde68a',
+                            }}
+                            title={`Installation completed ${siteDuration.label} ago. Approved by admin and ready for claim.`}
+                          >
+                            <span style={{ fontSize: 12 }}>⚡</span>
+                            <span>{siteDuration.label} elapsed</span>
+                          </span>
+                        ) : siteClaimRaised ? (
+                          <span
+                            style={{ color: 'var(--ax-text-muted)', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                            title={`Claim raised. Installation duration: ${siteDuration.label}`}
+                          >
+                            <span>⏱</span>
+                            <span>{siteDuration.label}</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)', fontSize: 12 }}>
+                            {siteDuration.label !== '—' ? `${siteDuration.label} elapsed` : DASH}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="ax-table__td">{row.contact_person || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.contact_number || DASH}</td>
+                      <td className="ax-table__td" style={monoCell}>{row.ca_no || (row as any).consumer_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.solarmeter_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.inverter_no || DASH}</td>
                       <td className="ax-table__td" style={monoCell}>{row.nm_sm_no || DASH}</td>
@@ -1393,52 +1693,30 @@ export function Kashmir_Installation_Details() {
                       </td>
                       <td className="ax-table__td" style={monoCell}>{row.loger_no || DASH}</td>
 
-                      {/* Photo Thumbnails: NO BORDER RADIUS, Real Candidates, Click-to-Zoom */}
                       <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.system_image}
-                          alt={`${siteLabel} - System Photo`}
-                          onPreview={openPreview}
-                        />
+                        <InstallationThumbnail src={row.system_image} alt={`${siteLabel} - Complete System`} onPreview={openPreview} />
                       </td>
                       <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.inverter_image}
-                          alt={`${siteLabel} - Inverter Photo`}
-                          onPreview={openPreview}
-                        />
+                        <InstallationThumbnail src={row.inverter_image} alt={`${siteLabel} - Inverter Photo`} onPreview={openPreview} />
                       </td>
                       <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.panel_image}
-                          alt={`${siteLabel} - Panel Photo`}
-                          onPreview={openPreview}
-                        />
+                        <InstallationThumbnail src={row.panel_image} alt={`${siteLabel} - Panel Photo`} onPreview={openPreview} />
                       </td>
                       <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.nm_sm_image}
-                          alt={`${siteLabel} - Net Meter Photo`}
-                          onPreview={openPreview}
-                        />
+                        <InstallationThumbnail src={row.nm_sm_image} alt={`${siteLabel} - Net/Smart Meter Photo`} onPreview={openPreview} />
                       </td>
                       <td className="ax-table__td">
-                        <InstallationThumbnail
-                          src={row.loger_image}
-                          alt={`${siteLabel} - Loger Photo`}
-                          onPreview={openPreview}
-                        />
+                        <InstallationThumbnail src={row.loger_image} alt={`${siteLabel} - Loger Photo`} onPreview={openPreview} />
                       </td>
 
-                      {/* Geolocation */}
                       <td className="ax-table__td">
                         {hasGeo ? (
                           <a
                             href={`https://www.google.com/maps?q=${lat},${lng}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none', fontWeight: 600 }}
-                            title="Open location in Google Maps"
+                            style={{ color: 'var(--ax-primary-default, #2563eb)', textDecoration: 'none' }}
+                            title="Open in Google Maps"
                           >
                             {lat}
                           </a>
@@ -1448,76 +1726,134 @@ export function Kashmir_Installation_Details() {
                       </td>
                       <td className="ax-table__td">{lng || DASH}</td>
 
-                      {/* Remarks */}
                       <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: '12px' }}>
                         {row.inst_remarks || DASH}
                       </td>
 
-                      {/* Status Badges */}
-                      <td className="ax-table__td">
-                        <VerifyBadge value={vStatus} raw={row.inst_verify_status} />
-                      </td>
-                      <td className="ax-table__td">
-                        <ClaimBadge
-                          status={cStatus}
-                          onRaise={!cStatus || cStatus === 0 ? () => setClaimModalSite(row) : undefined}
-                        />
-                      </td>
-                      <td className="ax-table__td">
-                        <PaymentBadge
-                          status={pStatus}
-                          p80={row.inst_pay80_status}
-                          p20={row.inst_pay20_status}
-                        />
-                      </td>
+                      {isCompleted && (
+                        <>
+                          <td className="ax-table__td">
+                            <VerifyBadge value={verifyVal} raw={row.inst_verify_status} />
+                          </td>
 
-                      {/* Action: Locked if Verify Status is Approved, otherwise RowActionDropdown */}
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {isVerifyApproved ? (
-                          <span
-                            className="ax-badge ax-badge--soft"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 5,
-                              padding: '5px 11px',
-                              fontSize: '11.5px',
-                              fontWeight: 600,
-                              color: 'var(--ax-text-muted, #64748b)',
-                              background: 'var(--ax-surface-subtle, #f1f5f9)',
-                              border: '1px solid var(--ax-border, #cbd5e1)',
-                              borderRadius: 6,
-                              cursor: 'not-allowed',
-                              userSelect: 'none',
-                            }}
-                            title="Installation Verified & Approved. Actions are locked."
-                          >
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{ width: 13, height: 13, color: '#64748b' }}
-                              aria-hidden="true"
-                            >
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                            </svg>
-                            <span>Locked</span>
-                          </span>
-                        ) : (
-                          <RowActionDropdown
-                            onEdit={() => navigate(`/v/kashmir/srt/70mw/installation/site?edit=1&srt_id=${row.id}`)}
-                            onView={() => setDetailModalSite(row)}
-                            onDocSubmit={() => setDocModalSite(row)}
-                            docSubmitted={row.inst_doc_submit === 1}
-                            onRaiseClaim={!cStatus || cStatus === 0 ? () => setClaimModalSite(row) : undefined}
-                            claimStatus={cStatus}
-                          />
-                        )}
-                      </td>
+                          {/* Claim Status */}
+                          <td className="ax-table__td" style={{ whiteSpace: 'nowrap' }}>
+                            {siteClaimRaised ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                                <Badge tone="success">
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    <span>Claim Raised</span>
+                                  </span>
+                                </Badge>
+                              </div>
+                            ) : isClaimDue ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--primary ax-btn--xs"
+                                  onClick={() => setClaimModalSite(row)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    padding: '3px 9px',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    lineHeight: 1.2,
+                                    whiteSpace: 'nowrap',
+                                    background: 'var(--ax-primary-default, #2563eb)',
+                                    color: '#fff',
+                                  }}
+                                  title={`Raise claim request for ${row.site_name || 'site'}`}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M12 5v14M5 12h14" />
+                                  </svg>
+                                  <span>Raise Claim</span>
+                                </button>
+                              </div>
+                            ) : verifyVal === 2 ? (
+                              <Badge tone="danger">
+                                <span>Rejected</span>
+                              </Badge>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                                <Badge tone="neutral">
+                                  <span>Awaiting Approval</span>
+                                </Badge>
+                                <span style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+                                  Claim unlocks after verify
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Action: Locked when approved, otherwise Edit */}
+                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                            {isApproved ? (
+                              <span
+                                className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  opacity: 0.6,
+                                  cursor: 'not-allowed',
+                                  pointerEvents: 'none',
+                                  textDecoration: 'none',
+                                }}
+                                title="Approved — editing is locked"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
+                                <span>Locked</span>
+                              </span>
+                            ) : (
+                              <Link
+                                to={`/v/kashmir/srt/70mw/installation/site?id=${row.id}&srt_id=${row.id}&edit=1`}
+                                state={{ site: row, mode: 'edit' }}
+                                className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+                                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                title="Edit Installation Details"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                <span>Edit</span>
+                              </Link>
+                            )}
+                          </td>
+                        </>
+                      )}
+
+                      {!isCompleted && (
+                        <>
+                          {/* Payment 80% */}
+                          <td className="ax-table__td">
+                            <Badge tone={row.inst_pay80_status === 1 ? 'success' : 'warning'}>
+                              {row.inst_pay80_status === 1 ? 'Paid' : 'Pending'}
+                            </Badge>
+                          </td>
+                          {/* Payment 20% */}
+                          <td className="ax-table__td">
+                            <Badge tone={row.inst_pay20_status === 1 ? 'success' : 'warning'}>
+                              {row.inst_pay20_status === 1 ? 'Paid' : 'Pending'}
+                            </Badge>
+                          </td>
+                          {/* Claim Status */}
+                          <td className="ax-table__td">
+                            <Badge tone={siteClaimRaised ? 'success' : 'neutral'}>
+                              {siteClaimRaised ? 'Claim Raised' : 'Not Raised'}
+                            </Badge>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
@@ -1525,7 +1861,7 @@ export function Kashmir_Installation_Details() {
           </table>
         </div>
 
-        {/* ── Table Footer (exact Punjab / Assam / Bihar pagination structure) ── */}
+        {/* ── Table Footer ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
@@ -1534,104 +1870,103 @@ export function Kashmir_Installation_Details() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100, 200]}
+              pageSizeOptions={[25, 50, 100, 200, 300]}
             />
           </div>
         </div>
       </section>
 
-      {/* ── Photo Preview Modal (Zoom, Fullscreen, Open in Tab) ── */}
+      {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
-
-      {/* ── Detail View Modal ── */}
-      <Modal open={!!detailModalSite} onClose={() => setDetailModalSite(null)} labelledBy="kashmir-detail-title" dialogClass="ax-modal__dialog--md">
-        {detailModalSite && (
-          <div>
-            <div className="ax-modal__header">
-              <div>
-                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} id="kashmir-detail-title">
-                  Site Installation Record #{detailModalSite.id} · {detailModalSite.site_name}
-                </h4>
-                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                  {detailModalSite.district ? `District: ${detailModalSite.district} · ` : ''}State: Kashmir
-                </p>
-              </div>
-              <button type="button" className="ax-modal__close" onClick={() => setDetailModalSite(null)} aria-label="Close dialog">
-                {X_ICON}
-              </button>
-            </div>
-            <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="ula-m-grid">
-                <div className="ula-m-info"><span>Site Name:</span> <b>{detailModalSite.site_name || DASH}</b></div>
-                <div className="ula-m-info"><span>Contact Person:</span> <b>{detailModalSite.contact_person || DASH}</b></div>
-                <div className="ula-m-info"><span>Contact Number:</span> <b>{detailModalSite.contact_number || DASH}</b></div>
-                <div className="ula-m-info"><span>District:</span> <b>{detailModalSite.district || DASH}</b></div>
-                <div className="ula-m-info"><span>Solar Meter No:</span> <b>{detailModalSite.solarmeter_no || DASH}</b></div>
-                <div className="ula-m-info"><span>Inverter No:</span> <b>{detailModalSite.inverter_no || DASH}</b></div>
-                <div className="ula-m-info"><span>Net/Smart Meter:</span> <b>{detailModalSite.nm_sm_no || DASH}</b></div>
-                <div className="ula-m-info"><span>Panel No:</span> <b>{Array.isArray(detailModalSite.panel_no) ? detailModalSite.panel_no.join(', ') : detailModalSite.panel_no || DASH}</b></div>
-                <div className="ula-m-info"><span>Loger No:</span> <b>{detailModalSite.loger_no || DASH}</b></div>
-                <div className="ula-m-info"><span>Latitude:</span> <b>{detailModalSite.inst_latitude || DASH}</b></div>
-                <div className="ula-m-info"><span>Longitude:</span> <b>{detailModalSite.inst_longitude || DASH}</b></div>
-                <div className="ula-m-info"><span>Doc Submit:</span> <b>{detailModalSite.inst_doc_submit === 1 ? 'Submitted' : 'Pending'}</b></div>
-              </div>
-
-              {detailModalSite.inst_remarks && (
-                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6, fontSize: 12 }}>
-                  <span style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Remarks: </span>
-                  {detailModalSite.inst_remarks}
-                </div>
-              )}
-
-              {/* Photos in modal */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 4 }}>
-                {[
-                  { path: detailModalSite.system_image, label: 'System Photo' },
-                  { path: detailModalSite.inverter_image, label: 'Inverter Photo' },
-                  { path: detailModalSite.panel_image, label: 'Panel Photo' },
-                  { path: detailModalSite.nm_sm_image, label: 'Net Meter Photo' },
-                  { path: detailModalSite.loger_image, label: 'Loger Photo' },
-                ].filter((img) => img.path).map((img) => {
-                  const url = getKashmirMediaUrl(img.path);
-                  return (
-                    <div key={img.label}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 4 }}>{img.label}</div>
-                      <img
-                        src={url}
-                        alt={img.label}
-                        style={{ width: '100%', height: 110, objectFit: 'cover', borderRadius: 0, border: '1px solid var(--ax-border)', cursor: 'zoom-in' }}
-                        onClick={() => openPreview(url, `${detailModalSite.site_name} - ${img.label}`)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="ax-modal__footer">
-              <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setDetailModalSite(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
 
       {/* ── Raise Claim Modal ── */}
       {claimModalSite && (
         <RaiseClaimModal
           site={claimModalSite}
           onClose={() => setClaimModalSite(null)}
-          onSuccess={(msg) => {
-            setToastMsg({ type: 'success', text: msg });
-            loadData();
-          }}
+          onSuccess={handleClaimSuccess}
         />
       )}
 
-   
-  
+      {/* ── Site Detail Modal ── */}
+      {detailModalSite && (
+        <Modal
+          open={true}
+          onClose={() => setDetailModalSite(null)}
+          labelledBy="kashmir-detail-title"
+          dialogClass="ax-modal__dialog--md"
+          dialogStyle={{ maxWidth: 640 }}
+        >
+          <div className="ax-modal__header">
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }} id="kashmir-detail-title">
+                Site Record #{detailModalSite.id} · {detailModalSite.site_name}
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                {detailModalSite.district ? `District: ${detailModalSite.district} · ` : ''}State: Kashmir
+              </p>
+            </div>
+            <button type="button" className="ax-modal__close" onClick={() => setDetailModalSite(null)} aria-label="Close dialog">
+              {X_ICON}
+            </button>
+          </div>
+          <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'var(--ax-surface-subtle)', padding: 12, borderRadius: 6, fontSize: 12 }}>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Name:</span> <strong>{detailModalSite.site_name || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>CA No:</span> <strong>{detailModalSite.ca_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact Person:</span> <strong>{detailModalSite.contact_person || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact No:</span> <strong>{detailModalSite.contact_number || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Solar Meter:</span> <strong>{detailModalSite.solarmeter_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Inverter No:</span> <strong>{detailModalSite.inverter_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Net/Smart Meter:</span> <strong>{detailModalSite.nm_sm_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Panel No:</span> <strong>{Array.isArray(detailModalSite.panel_no) ? detailModalSite.panel_no.join(', ') : detailModalSite.panel_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Loger No:</span> <strong>{detailModalSite.loger_no || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Install Date:</span> <strong>{detailModalSite.inst_date || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Latitude:</span> <strong>{detailModalSite.inst_latitude || DASH}</strong></div>
+              <div><span style={{ color: 'var(--ax-text-muted)' }}>Longitude:</span> <strong>{detailModalSite.inst_longitude || DASH}</strong></div>
+            </div>
+
+            {detailModalSite.inst_remarks && (
+              <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 6, fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Remarks: </span>
+                {detailModalSite.inst_remarks}
+              </div>
+            )}
+
+            {/* Photos */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginTop: 4 }}>
+              {[
+                { path: detailModalSite.system_image, label: 'System Photo' },
+                { path: detailModalSite.inverter_image, label: 'Inverter Photo' },
+                { path: detailModalSite.panel_image, label: 'Panel Photo' },
+                { path: detailModalSite.nm_sm_image, label: 'Net Meter Photo' },
+                { path: detailModalSite.loger_image, label: 'Loger Photo' },
+              ].filter((img) => img.path).map((img) => {
+                const url = getKashmirMediaUrl(img.path);
+                return (
+                  <div key={img.label}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-muted)', marginBottom: 4 }}>{img.label}</div>
+                    <img
+                      src={url}
+                      alt={img.label}
+                      style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 0, border: '1px solid var(--ax-border)', cursor: 'zoom-in' }}
+                      onClick={() => openPreview(url, `${detailModalSite.site_name} - ${img.label}`)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="ax-modal__footer" style={{ padding: '10px 16px', borderTop: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setDetailModalSite(null)}>
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
+export const Kashmir_Installation_SRT_ViewInstallation = Kashmir_Installation_Details;
 export default Kashmir_Installation_Details;

@@ -26,12 +26,12 @@ const COLUMNS: ComplaintColumn<UpKusumCComplaintItem>[] = [
   T('Village', ['village']),
   T('Farmer Name', ['farmer_name', 'f_name', 'beneficiary_name'], { strong: true }),
   T('Father Name', ['father_name', 'f_father_name']),
-  T('Contact No', ['contact_no', 'contact_number', 'f_mobile']),
+  T('Contact No', ['contact_no', 'contact_number', 'f_contact', 'f_mobile']),
   T('Lot No', ['lot_no']),
   T('Pump Capacity', ['pump_capicity', 'pump_capacity', 'spv_capacity'], { strong: true }),
-  T('Contractor Name', ['contractor_name']),
-  T('Contractor No', ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no']),
-  T('Installation Date', ['installation_date']),
+  T('Contractor Name', ['contractor_name', 'c_contractor_name']),
+  T('Contractor No', ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no', 'c_contact_no']),
+  T('Installation Date', ['installation_date', 'inst_date']),
   documentCol<UpKusumCComplaintItem>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<UpKusumCComplaintItem>(),
@@ -61,14 +61,15 @@ export function UPComplaintKCView() {
         pick(c, ['complaint_id', 'id'], ''),
         pick(c, ['kcid', 'kc_id'], ''),
         pick(c, ['farmer_name', 'f_name', 'beneficiary_name'], ''),
-        pick(c, ['father_name'], ''),
+        pick(c, ['father_name', 'f_father_name'], ''),
         pick(c, ['district'], ''),
         pick(c, ['post'], ''),
         pick(c, ['village'], ''),
-        pick(c, ['contact_no'], ''),
+        pick(c, ['contact_no', 'contact_number', 'f_contact', 'f_mobile'], ''),
+        pick(c, ['lot_no'], ''),
         pick(c, ['pump_capicity', 'pump_capacity'], ''),
-        pick(c, ['contractor_name'], ''),
-        pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no'], ''),
+        pick(c, ['contractor_name', 'c_contractor_name'], ''),
+        pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no', 'c_contact_no'], ''),
         pick(c, ['complaint'], ''),
       ]}
       detailEyebrow="Kusum C (SWP) Complaint Details"
@@ -77,21 +78,21 @@ export function UPComplaintKCView() {
         { label: 'KCID', value: pick(c, ['kcid', 'kc_id']) },
         { label: 'Farmer / Beneficiary', value: pick(c, ['farmer_name', 'f_name', 'beneficiary_name']) },
         { label: 'Father Name', value: pick(c, ['father_name', 'f_father_name']) },
-        { label: 'Contact Number', value: pick(c, ['contact_no', 'contact_number', 'f_mobile']) },
+        { label: 'Contact Number', value: pick(c, ['contact_no', 'contact_number', 'f_contact', 'f_mobile']) },
         { label: 'Status', value: <StatusBadge row={c} /> },
         { label: 'District / State', value: `${pick(c, ['district'])}, ${pick(c, ['state'], 'UP')}` },
         { label: 'Post / Village', value: `${pick(c, ['post'])} / ${pick(c, ['village'])}` },
         { label: 'Pump Capacity', value: pick(c, ['pump_capicity', 'pump_capacity', 'spv_capacity']) },
-        { label: 'Lot No. / Invoice No.', value: `${pick(c, ['lot_no'])} / ${pick(c, ['invoice_no'])}` },
+        { label: 'Lot No. / Invoice No.', value: `${pick(c, ['lot_no'])} / ${pick(c, ['invoice_no', 'f_invoice_no'])}` },
         {
           label: 'Contractor Name / Mobile',
-          value: `${pick(c, ['contractor_name'])}${
-            pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no'], '')
-              ? ` (${pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no'])})`
+          value: `${pick(c, ['contractor_name', 'c_contractor_name'])}${
+            pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no', 'c_contact_no'], '')
+              ? ` (${pick(c, ['contractor_mo_no', 'contractor_mobile_no', 'contractor_no', 'c_contact_no'])})`
               : ''
           }`,
         },
-        { label: 'Installation Date', value: pick(c, ['installation_date']) },
+        { label: 'Installation Date', value: pick(c, ['installation_date', 'inst_date']) },
         { label: 'Complaint Date', value: pick(c, ['created_date', 'complaint_date', 'created_at']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
         { label: 'SMS Notification', value: pick(c, ['sms', 'send_sms']) },

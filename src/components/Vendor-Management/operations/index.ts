@@ -9,3 +9,5 @@ export { VendorReturnMaintenanceView } from './VendorReturnMaintenanceView';
 export { VendorPaymentView } from './VendorPaymentView';
 export { VendorComplaintView } from './VendorComplaintView';
 export { VendorDailyProgressReport } from './VendorDailyProgressReport';
+export { vendorOperationsService } from './vendorOperationsService';
+export type * from './vendorOperationsService';

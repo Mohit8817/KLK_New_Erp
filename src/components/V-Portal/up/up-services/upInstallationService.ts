@@ -1585,13 +1585,23 @@ class UpInstallationService {
   /** Resco 18: Sites by status */
   async getRescoDashboardByStatus(status: string): Promise<any[]> {
     const res = await apiRequest(`up/resco/installation/view-dashboard/${status}`);
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.resco)) return res.data.resco;
+    if (Array.isArray(res.data?.sites)) return res.data.sites;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    if (Array.isArray(res)) return res;
+    return [];
   }
 
   /** Resco 19: Sites by status and district */
   async getRescoDashboardByDistrict(status: string, district: string): Promise<any[]> {
     const res = await apiRequest(`up/resco/installation/view-districtwise/${status}/${encodeURIComponent(district)}`);
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.resco)) return res.data.resco;
+    if (Array.isArray(res.data?.sites)) return res.data.sites;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    if (Array.isArray(res)) return res;
+    return [];
   }
 
   /* ─────────────────────────────────────────────────────────────

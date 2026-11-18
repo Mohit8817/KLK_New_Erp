@@ -5,7 +5,6 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   upInstallationService,
-  resolveUpMediaUrl,
   type UpRescoAssignSiteItem,
 } from '../../up-services';
 import {
@@ -22,18 +21,51 @@ import {
 
 const DASH = '—';
 
-/* ───────── KPI Card ───────── */
-type KpiTone = 'accent' | 'emerald' | 'amber';
+/* ── Base URLs for media assets ── */
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/+$/, '');
+const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+
+function getUpRescoInstallationImageCandidates(path?: string | null): string[] {
+  if (!path || typeof path !== 'string') return [];
+  const clean = path.trim();
+  if (!clean) return [];
+
+  if (/^(https?:)?\/\//i.test(clean) || clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return [clean];
+  }
+
+  const normalized = clean.replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/')) {
+    candidates.push(`${BACKEND_BASE}/${normalized}`);
+  }
+
+  candidates.push(`${BACKEND_BASE}/uploads/up/installation/resco/assign/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/up/installation/resco/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/up/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
+  candidates.push(`${BACKEND_BASE}/${normalized}`);
+  if (R2_BASE) {
+    candidates.push(`${R2_BASE}/uploads/up/installation/resco/assign/${filename}`);
+    candidates.push(`${R2_BASE}/${filename}`);
+  }
+  return Array.from(new Set(candidates));
+}
+
+/* ── Top KPI Card Component (matching Karnataka SWP / Goa SRT Reference) ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
-
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
 
 function KpiCard({
   icon,
@@ -55,21 +87,22 @@ function KpiCard({
   const t = TONE[tone];
   return (
     <div
-      className={`ax-card ax-col--4 ${active ? 'is-active-filter' : ''}`}
+      className="ax-card"
       onClick={onClick}
       style={{
-        padding: '16px 20px',
+        padding: '14px 18px',
         borderRadius: 12,
         cursor: onClick ? 'pointer' : 'default',
-        boxShadow: active ? `0 0 0 1px ${t.fg}22` : undefined,
+        boxShadow: active ? `0 0 0 2px ${t.fg}` : undefined,
         transition: 'all 0.2s ease',
+        minWidth: 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         <span
           style={{
-            width: 30,
-            height: 30,
+            width: 28,
+            height: 28,
             borderRadius: 8,
             background: t.bg,
             color: t.fg,
@@ -91,14 +124,35 @@ function KpiCard({
   );
 }
 
-/* ───────── Responsive page CSS (Punjab-style footer, no tfoot) ───────── */
+/* ───────── Responsive page CSS (exact Goa SRT / Karnataka SWP style) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
     width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
+
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
 
   .solar-erp-page img,
   .solar-erp-page .ula-table--wide img,
@@ -340,244 +394,183 @@ function Modal({
   );
 }
 
-/* ───────── Detail Modal for Site ───────── */
-function SiteDetailModal({
-  open,
-  item,
-  onClose,
-}: {
-  open: boolean;
-  item: UpRescoAssignSiteItem | null;
-  onClose: () => void;
-}) {
-  if (!open || !item) return null;
+/* ───────── Image preview modal ───────── */
+const ZOOM_STEPS = [1, 1.5, 2, 3];
 
-  const fileUrl = item.file ? resolveUpMediaUrl(item.file) : '';
-  const panelFileUrl = item.panel_no_file ? resolveUpMediaUrl(item.panel_no_file) : '';
+function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const zoom = ZOOM_STEPS[zoomIdx];
 
-  // Get primary display name for modal header
-  let siteTitle = `Assignment #${item.id}`;
-  if (typeof item.site_name === 'string' && item.site_name.trim()) {
-    siteTitle = item.site_name;
-  } else if (typeof item.site_name === 'object' && item.site_name !== null) {
-    const keys = Object.keys(item.site_name);
-    if (keys.length > 0) {
-      siteTitle = keys.join(', ');
-    }
-  }
-
-  // Parse sites if object or string
-  let siteEntries: [string, any][] = [];
-  if (typeof item.site_name === 'object' && item.site_name !== null) {
-    siteEntries = Object.entries(item.site_name);
-  } else if (typeof item.site_name === 'string' && item.site_name.trim().startsWith('{')) {
-    try {
-      const parsed = JSON.parse(item.site_name);
-      if (typeof parsed === 'object' && parsed !== null) {
-        siteEntries = Object.entries(parsed);
-      }
-    } catch {
-      // not json
-    }
-  }
+  useEffect(() => {
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [url]);
 
   return (
-    <Modal open onClose={onClose} labelledBy="site-detail-title" dialogStyle={{ maxWidth: 640 }}>
-      <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
-        <div>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>
-            Assigned Resco Site Details
-          </span>
-          <h3 id="site-detail-title" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text, #0f172a)' }}>
-            {siteTitle}
-          </h3>
-        </div>
-        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
-          {X_ICON}
-        </button>
+    <Modal open onClose={onClose} labelledBy="preview-title" dialogClass="ax-modal__dialog--lg">
+      <div className="ax-modal__header">
+        <h2 className="ax-modal__title" id="preview-title">{title || 'Media Preview'}</h2>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
       </div>
 
-      <div className="ax-modal__body" style={{ padding: 20 }}>
-        {/* Assignment info */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', marginBottom: 14 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Assignment Details</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><strong>{item.vendor || item.vendors?.name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Vendor ID: </span><strong>{item.vendors?.vendor_id || item.vendor_id || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Firm / Company: </span><strong>{item.vendors?.company || item.vendors?.firm || item.firm_name || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><strong>{item.assign_date || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{(item.state || 'UP').toUpperCase()}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{item.district || DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Volume: </span><strong>{item.volume !== undefined ? `${item.volume} kW` : DASH}</strong></div>
-            <div><span style={{ color: 'var(--ax-text-muted)' }}>Site Count: </span><strong>{item.sitecount ?? item.count ?? 1}</strong></div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-              <span className={`ax-badge ax-badge--soft ${item.status === 2 ? 'ax-badge--success' : 'ax-badge--warning'}`} style={{ fontWeight: 600 }}>
-                {item.status === 2 ? 'Accepted' : 'Pending'}
-              </span>
-            </div>
-            {item.vendors?.contact && (
-              <div><span style={{ color: 'var(--ax-text-muted)' }}>Contact: </span><strong>{item.vendors.contact}</strong></div>
-            )}
-          </div>
-        </div>
-
-        {/* Sites & Deadlines list */}
-        <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', marginBottom: 14 }}>
-          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Sites & Deadlines</h4>
-          {siteEntries.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {siteEntries.map(([name, dl], idx) => {
-                const isNumeric = /^\d+$/.test(name.trim());
-                const targetId = isNumeric ? name.trim() : (item.resco_id || item.site_id || item.id);
-                return (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'var(--ax-surface, #ffffff)', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)', fontSize: 12.5 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{name}</span>
-                      <span style={{ color: 'var(--ax-text-muted)', fontSize: 11.5 }}>
-                        Deadline: <strong>{String(dl || DASH)}</strong>
-                      </span>
-                    </div>
-                    <Link
-                      to={`/v/up/resco-install-site?site_id=${targetId}&assign_id=${item.id}`}
-                      className="ax-btn ax-btn--primary ax-btn--xs"
-                      style={{ padding: '2px 8px', fontSize: 11 }}
-                    >
-                      Install Site
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ fontSize: 12.5 }}>
-              <strong>{typeof item.site_name === 'string' ? item.site_name : DASH}</strong>
-              {item.deadline && <span style={{ color: 'var(--ax-text-muted)', marginLeft: 8 }}>(Deadline: {item.deadline})</span>}
-            </div>
+      <div className="ax-modal__body" style={{ padding: 0 }}>
+        <div className="ula-m-stage">
+          {status === 'loading' && (
+            <div className="ula-m-stage__msg"><span className="ax-spinner" /> Loading image…</div>
           )}
+          {status === 'error' && (
+            <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
+          )}
+          <img
+            key={url}
+            src={url}
+            alt={title || 'Preview'}
+            onLoad={() => setStatus('ready')}
+            onError={() => setStatus('error')}
+            style={{
+              display: status === 'ready' ? 'block' : 'none',
+              margin: 'auto',
+              borderRadius: 0,
+              ...(zoom === 1
+                ? { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }
+                : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+            }}
+          />
         </div>
-
-        {item.remarks && (
-          <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', marginBottom: 14 }}>
-            <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Remarks</h4>
-            <p style={{ margin: 0, fontSize: 12.5 }}>{item.remarks}</p>
-          </div>
-        )}
-
-        {(fileUrl || panelFileUrl) && (
-          <div style={{ padding: 14, borderRadius: 10, background: 'var(--ax-surface-subtle, #f8fafc)', border: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {fileUrl && (
-              <div>
-                <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Assignment Letter</h4>
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost" style={{ fontSize: 12 }}>
-                  Download Assignment File ↗
-                </a>
-              </div>
-            )}
-            {panelFileUrl && (
-              <div>
-                <h4 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>Panel Numbers File</h4>
-                <a href={panelFileUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost" style={{ fontSize: 12 }}>
-                  Download Panel File ↗
-                </a>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      <div className="ax-modal__footer" style={{ padding: '12px 20px', borderTop: '1px solid var(--ax-border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Link
-          to={`/v/up/resco-install-site?site_id=${item.resco_id || item.site_id || item.id}&assign_id=${item.id}`}
-          className="ax-btn ax-btn--primary"
-          style={{ padding: '7px 18px', borderRadius: 8, fontSize: 13 }}
-        >
-          Go to Install
-        </Link>
-        <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose} style={{ padding: '7px 18px', borderRadius: 8, fontSize: 13 }}>
-          Close
-        </button>
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+        <div className="ula-m-zoom" role="group" aria-label="Zoom">
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.max(0, i - 1))} disabled={zoomIdx === 0} aria-label="Zoom out">−</button>
+          <span className="ula-m-zoom__val">{Math.round(zoom * 100)}%</span>
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+        </div>
+        <div className="ula-m-zoom">
+          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
+        </div>
       </div>
     </Modal>
   );
 }
 
-/* ───────── Main Component ───────── */
+/* ── Interactive Image Thumbnail (NO BORDER RADIUS, size 32) ── */
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 32,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getUpRescoInstallationImageCandidates(src), [src]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed || candidateIdx >= candidates.length) {
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 0,
+        objectFit: 'cover',
+        cursor: 'zoom-in',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-block',
+        verticalAlign: 'middle',
+      }}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
+      title="Click to preview"
+    />
+  );
+}
+
+/* ── Helpers for parsing site names & deadlines ── */
+function getSiteEntries(item: UpRescoAssignSiteItem): [string, string][] {
+  if (!item || !item.site_name) return [];
+  let data: any = item.site_name;
+  if (typeof data === 'string' && data.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        data = parsed;
+      }
+    } catch {
+      // not JSON
+    }
+  }
+  if (typeof data === 'object' && data !== null) {
+    return Object.entries(data).map(([k, v]) => [k.trim(), String(v || '')]);
+  }
+  if (typeof data === 'string' && data.trim()) {
+    return [[data.trim(), item.deadline || '']];
+  }
+  return [];
+}
+
+function getSiteCount(item: UpRescoAssignSiteItem): number {
+  if (item.sitecount !== undefined && item.sitecount !== null && item.sitecount !== '') {
+    const n = Number(item.sitecount);
+    if (!isNaN(n) && n > 0) return n;
+  }
+  if (item.count !== undefined && item.count !== null) {
+    const n = Number(item.count);
+    if (!isNaN(n) && n > 0) return n;
+  }
+  const entries = getSiteEntries(item);
+  if (entries.length > 0) return entries.length;
+  return 1;
+}
+
+function getDeadlineDate(item: UpRescoAssignSiteItem): string {
+  if (item.deadline) return item.deadline;
+  const entries = getSiteEntries(item);
+  if (entries.length > 0) {
+    const withDeadline = entries.find(([, dl]) => dl && dl.trim() !== '');
+    if (withDeadline) return withDeadline[1];
+  }
+  return '';
+}
+
 export function UP_Installation_Resco_AssignedSites() {
   const [sites, setSites] = useState<UpRescoAssignSiteItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
-  const [acceptingId, setAcceptingId] = useState<number | null>(null);
 
-  // Detail modal
-  const [detailItem, setDetailItem] = useState<UpRescoAssignSiteItem | null>(null);
-
-  const handleAccept = async (id: number) => {
-    setAcceptingId(id);
-    try {
-      const res = await upInstallationService.acceptRescoAssignment(id);
-      if (res.status) {
-        setFeedbackMsg({ type: 'success', text: res.message || 'Assignment accepted successfully!' });
-        setSites((prev) =>
-          prev.map((s) => (s.id === id ? { ...s, status: 2 } : s))
-        );
-      } else {
-        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to accept assignment.' });
-      }
-    } catch (e: any) {
-      setFeedbackMsg({ type: 'danger', text: e?.message || 'Error accepting assignment.' });
-    } finally {
-      setAcceptingId(null);
-    }
-  };
-
-  const renderSiteNames = (raw: any, deadlineFallback?: string) => {
-    if (!raw) return DASH;
-    let data = raw;
-    if (typeof data === 'string' && data.trim().startsWith('{')) {
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed && typeof parsed === 'object') {
-          data = parsed;
-        }
-      } catch {
-        // retain string
-      }
-    }
-    if (typeof data === 'object' && data !== null) {
-      const entries = Object.entries(data);
-      if (entries.length === 0) return DASH;
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {entries.map(([name, dl], idx) => (
-            <div key={idx} style={{ fontSize: 12 }}>
-              <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{name}</span>
-              {dl ? (
-                <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, marginLeft: 4 }}>
-                  ({String(dl)})
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <span>
-        {String(data)}{' '}
-        {deadlineFallback && (
-          <span style={{ color: 'var(--ax-text-muted)', fontSize: 11 }}>
-            ({deadlineFallback})
-          </span>
-        )}
-      </span>
-    );
-  };
+  // Selected batch for viewing site list in modal
+  const [viewBatch, setViewBatch] = useState<UpRescoAssignSiteItem | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ url: string; title: string } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -603,7 +596,31 @@ export function UP_Installation_Resco_AssignedSites() {
     return () => window.clearTimeout(t);
   }, [feedbackMsg]);
 
-  // Summary counts
+  // Handle Accept Action
+  const handleAccept = async (id: number) => {
+    if (acceptingId !== null) return;
+    if (!window.confirm(`Are you sure you want to accept assignment batch #${id}?`)) return;
+
+    setAcceptingId(id);
+    setFeedbackMsg(null);
+    try {
+      const res = await upInstallationService.acceptRescoAssignment(id);
+      if (res.status) {
+        setFeedbackMsg({ type: 'success', text: res.message || 'Assignment accepted successfully!' });
+        setSites((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, status: 2 } : s))
+        );
+      } else {
+        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to accept assignment.' });
+      }
+    } catch (e: any) {
+      setFeedbackMsg({ type: 'danger', text: e?.message || 'Error accepting assignment.' });
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
+  // Summary counts (status === 2 is accepted)
   const summary = useMemo(() => {
     const accepted = sites.filter((s) => s.status === 2).length;
     return { total: sites.length, accepted, pending: sites.length - accepted };
@@ -616,6 +633,11 @@ export function UP_Installation_Resco_AssignedSites() {
       if (s.district && s.district.trim()) set.add(s.district.trim());
     });
     return Array.from(set).sort();
+  }, [sites]);
+
+  // Total cumulative allocated sites
+  const totalSitesCount = useMemo(() => {
+    return sites.reduce((sum, item) => sum + getSiteCount(item), 0);
   }, [sites]);
 
   // Filtered data
@@ -680,55 +702,91 @@ export function UP_Installation_Resco_AssignedSites() {
     setCurrentPage(1);
   };
 
-  // Export columns
+  // Export columns (exact match with 12 table headers)
   const exportCols: ExportColumn<UpRescoAssignSiteItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: UpRescoAssignSiteItem, i: number) => String(i + 1) },
-      { header: 'Vendor', accessor: (r) => r.vendor || r.vendors?.name || DASH },
-      { header: 'Assign Date', accessor: (r) => r.assign_date || DASH },
+      { header: 'Vendor', accessor: (r) => r.vendors?.name || r.vendor || `Vendor ${r.vendor_id || r.id}` },
+      { header: 'Assign Date', accessor: (r) => r.assign_date || r.created_at || DASH },
       { header: 'State', accessor: (r) => (r.state || 'UP').toUpperCase() },
       { header: 'District', accessor: (r) => r.district || DASH },
       {
-        header: 'Site Name',
+        header: 'Site Name - Deadline',
         accessor: (r) => {
-          if (!r.site_name) return DASH;
-          if (typeof r.site_name === 'string') return r.site_name;
-          if (typeof r.site_name === 'object') {
-            const keys = Object.keys(r.site_name);
-            return keys.length > 0 ? keys.join(', ') : DASH;
+          const entries = getSiteEntries(r);
+          if (entries.length > 0) {
+            return entries.map(([name, dl]) => (dl ? `${name} (${dl})` : name)).join(', ');
           }
-          return String(r.site_name);
+          return String(r.site_name || DASH);
         },
       },
-      {
-        header: 'Deadline',
-        accessor: (r) => {
-          if (r.deadline) return r.deadline;
-          if (typeof r.site_name === 'object' && r.site_name !== null) {
-            const vals = Object.values(r.site_name).filter(Boolean);
-            return vals.length > 0 ? vals.join(', ') : DASH;
-          }
-          return DASH;
-        },
-      },
-      { header: 'Count', accessor: (r) => String(r.sitecount ?? r.count ?? 1) },
+      { header: 'Count', accessor: (r) => String(getSiteCount(r)) },
+      { header: 'Deadline Date', accessor: (r) => getDeadlineDate(r) || DASH },
+      { header: 'File', accessor: (r) => r.file || DASH },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending') },
+      { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Accept') },
     ],
     []
   );
 
+  const renderSiteNameSnippet = (item: UpRescoAssignSiteItem) => {
+    const entries = getSiteEntries(item);
+    if (entries.length > 0) {
+      const [firstSite, firstDeadline] = entries[0];
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+            {firstSite}
+            {firstDeadline && (
+              <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, marginLeft: 4, fontWeight: 400 }}>
+                ({firstDeadline})
+              </span>
+            )}
+          </div>
+          {entries.length > 1 && (
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--xs"
+              style={{ padding: '0 4px', height: 20, fontSize: 11, alignSelf: 'flex-start', color: 'var(--ax-accent)' }}
+              onClick={() => setViewBatch(item)}
+            >
+              + {entries.length - 1} more sites
+            </button>
+          )}
+        </div>
+      );
+    }
+    if (typeof item.site_name === 'string' && item.site_name.trim()) {
+      return <span>{item.site_name}</span>;
+    }
+    return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
+  };
+
   const TOTAL_COLUMNS = 12;
+  const tableHeaders = [
+    'Sr. No.',
+    'Vendor',
+    'Assign Date',
+    'State',
+    'District',
+    'Site Name - Deadline',
+    'Count',
+    'Deadline Date',
+    'File',
+    'Remarks',
+    'Status',
+    'Action',
+  ];
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head ── */}
+      {/* ── Page Head (exact Goa SRT design) ── */}
       <PageHead
         title="View Assigned Resco Installation"
-        subtitle="Welcome to, View Assigned Resco Installation"
+        subtitle="Manage assigned installation batches and accept assignments for site execution in UP"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'View Assigned Resco Installation' },
@@ -745,8 +803,13 @@ export function UP_Installation_Resco_AssignedSites() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-            <Link to="/v/up/resco-install-site" className="ax-btn ax-btn--primary ax-btn--sm">
-              + Install Site
+            <Link
+              to="/v/up/resco-install-site"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ textDecoration: 'none' }}
+            >
+              <span style={{ fontSize: 14 }}>+</span>
+              <span className="ax-btn__label">Add Installation Site</span>
             </Link>
           </div>
         }
@@ -771,64 +834,74 @@ export function UP_Installation_Resco_AssignedSites() {
         </div>
       )}
 
-      {/* ── KPI Cards (click to filter) ── */}
-      {!loading && (
-        <div className="ax-dash-grid" style={{ marginBottom: 'var(--ax-space-4)' }}>
-          <KpiCard
-            tone="accent"
-            label="Total Assigned"
-            value={summary.total.toLocaleString('en-IN')}
-            sub="All assigned batches"
-            active={statusFilter === 'all'}
-            onClick={() => setStatus('all')}
-            icon={svg(
-              <>
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="2" />
-                <path d="M9 14l2 2 4-4" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="amber"
-            label="Pending"
-            value={summary.pending.toLocaleString('en-IN')}
-            sub="Waiting for acceptance"
-            active={statusFilter === 'pending'}
-            onClick={() => setStatus('pending')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 3" />
-              </>
-            )}
-          />
-          <KpiCard
-            tone="emerald"
-            label="Accepted"
-            value={summary.accepted.toLocaleString('en-IN')}
-            sub="Accepted by vendor"
-            active={statusFilter === 'accepted'}
-            onClick={() => setStatus('accepted')}
-            icon={svg(
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9 12l2 2 4-4" />
-              </>
-            )}
-          />
-        </div>
-      )}
+      {/* ── Top Metric KPI Cards (4 cards in 1 row - exact reference pattern) ── */}
+      <div className="asw-cards-row" style={{ marginBottom: 'var(--ax-space-4)' }}>
+        <KpiCard
+          tone="accent"
+          label="Total Assignments"
+          value={summary.total.toLocaleString('en-IN')}
+          sub={`${summary.accepted} accepted · ${summary.pending} pending`}
+          active={statusFilter === 'all'}
+          onClick={() => setStatus('all')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="amber"
+          label="Pending Acceptance"
+          value={summary.pending.toLocaleString('en-IN')}
+          sub="Action required by vendor"
+          active={statusFilter === 'pending'}
+          onClick={() => setStatus('pending')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="emerald"
+          label="Accepted Batches"
+          value={summary.accepted.toLocaleString('en-IN')}
+          sub="Accepted & ready to install"
+          active={statusFilter === 'accepted'}
+          onClick={() => setStatus('accepted')}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+        <KpiCard
+          tone="cyan"
+          label="Total Allocated Sites"
+          value={totalSitesCount.toLocaleString('en-IN')}
+          sub="Cumulative RESCO installation sites"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+              <circle cx="12" cy="9.5" r="2.5" />
+            </svg>
+          }
+        />
+      </div>
 
-      {/* ── Main Table Card ── */}
       <div className="ax-dash-grid">
+        {/* ── Main Table Card (exact reference layout) ── */}
         <section className="ax-card ax-col--12" role="region" aria-label="Assigned Resco Site Records">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">ASSIGNED SITES</span>
-              <h2 className="ax-card__title">View Assigned Resco Installation</h2>
-              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
-                {filteredSites.length} of {sites.length} records
+              <h2 className="ax-card__title">Assigned Installation Batches</h2>
+              <p className="ax-card__subtitle">
+                <span className="ax-num">{filteredSites.length}</span> of <span className="ax-num">{sites.length}</span> assignments
+                {' '}· Accepted <b className="ax-num">{summary.accepted}</b> · Pending <b className="ax-num">{summary.pending}</b>
               </p>
             </div>
             <div className="ax-card__actions">
@@ -855,13 +928,13 @@ export function UP_Installation_Resco_AssignedSites() {
                 <select
                   id="status_filter"
                   className="ax-input ax-input--sm"
-                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
                   value={statusFilter}
                   onChange={(e) => setStatus(e.target.value as 'all' | 'pending' | 'accepted')}
                   aria-label="Filter by status"
                 >
                   <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
+                  <option value="pending">Pending Accept</option>
                   <option value="accepted">Accepted</option>
                 </select>
 
@@ -879,49 +952,58 @@ export function UP_Installation_Resco_AssignedSites() {
                 <SearchInput
                   value={search}
                   onChange={(val) => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search vendor, site, district…"
+                  placeholder="Search vendor, site, ID…"
                   size="sm"
-                  ariaLabel="Search assignments"
+                  ariaLabel="Search assigned installation batches"
                 />
 
                 <TableExportToolbar
                   onCopy={() => copyTableDataToClipboard(filteredSites, exportCols)}
-                  onExportCSV={() => exportDataToCSV('UP_Resco_Assigned_Sites', filteredSites, exportCols)}
-                  onExportExcel={() => exportDataToExcel('UP_Resco_Assigned_Sites', filteredSites, exportCols)}
-                  onExportPDF={() => printTableData('UP Assigned Resco Installation Sites', filteredSites, exportCols)}
+                  onExportCSV={() => exportDataToCSV('UP_Resco_Assigned_Batches', filteredSites, exportCols)}
+                  onExportExcel={() => exportDataToExcel('UP_Resco_Assigned_Batches', filteredSites, exportCols)}
+                  onExportPDF={() => printTableData('Assigned Resco Installation Batches', filteredSites, exportCols)}
                 />
               </div>
             </div>
           </div>
 
-          {/* ── Table ── */}
           <div className="ax-table-wrap">
             <table
               className="ax-table ax-table--hover ula-table--wide"
-              style={{ whiteSpace: 'nowrap', minWidth: 1400 }}
+              style={{ whiteSpace: 'nowrap', minWidth: 1600 }}
             >
-              <caption className="ax-visually-hidden">View Assigned Resco Installation Records</caption>
+              <caption className="ax-visually-hidden">Assigned Installation Batches</caption>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
-                  <th className="ax-table__th" scope="col">Vendor</th>
-                  <th className="ax-table__th" scope="col">Assign Date</th>
-                  <th className="ax-table__th" scope="col">State</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 200 }}>Site Name - Deadline</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 80, textAlign: 'center' }}>Count</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 100, textAlign: 'center' }}>File</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 90, textAlign: 'center' }}>View</th>
-                  <th className="ax-table__th" scope="col" style={{ minWidth: 160 }}>Remarks</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 100 }}>Status</th>
-                  <th className="ax-table__th" scope="col" style={{ width: 100, textAlign: 'center' }}>Action</th>
+                  {tableHeaders.map((h) => (
+                    <th
+                      key={h}
+                      className="ax-table__th"
+                      scope="col"
+                      style={
+                        h === 'Action'
+                          ? { textAlign: 'right', minWidth: 160 }
+                          : h === 'Count' || h === 'File' || h === 'Sr. No.'
+                          ? { textAlign: 'center', width: 70 }
+                          : h === 'Vendor'
+                          ? { minWidth: 200 }
+                          : h === 'Site Name - Deadline'
+                          ? { minWidth: 220 }
+                          : h === 'Status'
+                          ? { minWidth: 120 }
+                          : undefined
+                      }
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody aria-busy={loading}>
                 {loading && (
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ textAlign: 'center', padding: 32 }}>
-                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned Resco sites…
+                      <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assigned installation batches…
                     </td>
                   </tr>
                 )}
@@ -929,13 +1011,14 @@ export function UP_Installation_Resco_AssignedSites() {
                   <tr>
                     <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
                       <TableEmptyState
-                        title="No data available in table"
+                        title="No installation assignments found"
                         message={
                           hasFilters
-                            ? 'No records match your filters or search. Try clearing your query.'
-                            : 'Assigned Resco installation sites will appear here.'
+                            ? 'No records match your filters or search query. Try clearing your query.'
+                            : 'No installation batches have been assigned yet by the administration.'
                         }
                         onClear={hasFilters ? resetFilters : undefined}
+                        clearLabel="Clear filters"
                       />
                     </td>
                   </tr>
@@ -943,89 +1026,154 @@ export function UP_Installation_Resco_AssignedSites() {
                 {!loading &&
                   paginatedData.map((item, index) => {
                     const isAccepted = item.status === 2;
-                    const fileUrl = item.file ? resolveUpMediaUrl(item.file) : '';
+                    const siteCount = getSiteCount(item);
+                    const deadlineStr = getDeadlineDate(item);
+                    const targetInstallSiteId = item.resco_id || item.site_id || item.id;
 
                     return (
                       <tr key={item.id || index} className="ax-table__row">
-                        <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          <div>{item.vendor || item.vendors?.name || DASH}</div>
-                          {item.vendors?.vendor_id && (
-                            <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 400 }}>
-                              {item.vendors.vendor_id}
-                            </div>
-                          )}
+                        {/* 1. Sr. No. */}
+                        <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                          {(currentPage - 1) * pageSize + index + 1}
                         </td>
-                        <td className="ax-table__td">{item.assign_date || DASH}</td>
-                        <td className="ax-table__td" style={{ textTransform: 'uppercase' }}>
+
+                        {/* 2. Vendor */}
+                        <td className="ax-table__td" style={{ minWidth: 200 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                            {item.vendors?.name || item.vendor || `Vendor #${item.vendor_id || item.id}`}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                            Assign ID: #{item.id}
+                            {item.vendors?.vendor_id ? ` · ${item.vendors.vendor_id}` : ''}
+                          </div>
+                        </td>
+
+                        {/* 3. Assign Date */}
+                        <td className="ax-table__td" style={{ fontSize: 13 }}>
+                          {item.assign_date || item.created_at || DASH}
+                        </td>
+
+                        {/* 4. State */}
+                        <td className="ax-table__td" style={{ textTransform: 'uppercase', fontWeight: 500, fontSize: 13 }}>
                           {item.state || 'UP'}
                         </td>
-                        <td className="ax-table__td">{item.district || DASH}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {renderSiteNames(item.site_name, item.deadline)}
+
+                        {/* 5. District */}
+                        <td className="ax-table__td">
+                          <b>{item.district || DASH}</b>
                         </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
-                          {item.sitecount ?? item.count ?? (typeof item.site_name === 'object' && item.site_name !== null ? Object.keys(item.site_name).length : 1)}
+
+                        {/* 6. Site Name - Deadline */}
+                        <td className="ax-table__td" style={{ minWidth: 220 }}>
+                          {renderSiteNameSnippet(item)}
                         </td>
+
+                        {/* 7. Count */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {fileUrl ? (
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ padding: '2px 8px', fontSize: 11 }}
-                            >
-                              Download
-                            </a>
+                          <button
+                            type="button"
+                            className="ax-badge ax-badge--soft"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '2px 8px',
+                              borderRadius: 'var(--ax-radius-pill, 9999px)',
+                              background: 'rgba(var(--ax-accent-rgb, 73, 146, 255), 0.12)',
+                              color: 'var(--ax-accent)',
+                              fontWeight: 700,
+                              fontSize: 12,
+                              cursor: 'pointer',
+                              border: 'none',
+                            }}
+                            onClick={() => setViewBatch(item)}
+                            title="Click to view sites in this batch"
+                          >
+                            {siteCount}
+                          </button>
+                        </td>
+
+                        {/* 8. Deadline Date */}
+                        <td className="ax-table__td" style={{ fontSize: 13 }}>
+                          {deadlineStr ? (
+                            <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>{deadlineStr}</span>
                           ) : (
                             <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                           )}
                         </td>
+
+                        {/* 9. File */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '2px 8px', fontSize: 11 }}
-                            onClick={() => setDetailItem(item)}
-                          >
-                            Details
-                          </button>
+                          {item.file ? (
+                            <InstallationThumbnail
+                              src={item.file}
+                              alt="Work Order"
+                              onPreview={(url, title) => setPreviewFile({ url, title })}
+                              size={32}
+                            />
+                          ) : (
+                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
+                          )}
                         </td>
-                        <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
+
+                        {/* 10. Remarks */}
+                        <td
+                          className="ax-table__td"
+                          style={{ maxWidth: 180, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={item.remarks || ''}
+                        >
                           {item.remarks || DASH}
                         </td>
+
+                        {/* 11. Status */}
                         <td className="ax-table__td">
                           {isAccepted ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
-                              Accepted
+                              ✓ Accepted
                             </span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>
-                              Pending
+                              Pending Accept
                             </span>
                           )}
                         </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
-                            {!isAccepted && (
+
+                        {/* 12. Action */}
+                        <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                            {!isAccepted ? (
                               <button
                                 type="button"
-                                disabled={acceptingId === item.id}
-                                onClick={() => handleAccept(item.id)}
-                                className="ax-btn ax-btn--success ax-btn--xs"
-                                style={{ padding: '3px 8px', fontSize: 11 }}
+                                className="ax-btn ax-btn--primary ax-btn--sm"
+                                onClick={() => handleAccept(Number(item.id))}
+                                disabled={acceptingId !== null}
                               >
-                                {acceptingId === item.id ? 'Accepting…' : 'Accept'}
+                                {acceptingId === Number(item.id) ? (
+                                  <>
+                                    <span className="ax-spinner" />
+                                    Accepting…
+                                  </>
+                                ) : (
+                                  'Accept'
+                                )}
                               </button>
+                            ) : (
+                              <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                                <span
+                                  className="ax-badge ax-badge--soft ax-badge--success"
+                                  style={{ fontWeight: 600, padding: '4px 10px', fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+                                >
+                                  ✓ Done
+                                </span>
+                                <Link
+                                  to={`/v/up/resco-install-site?site_id=${targetInstallSiteId}&assign_id=${item.id}`}
+                                  className="ax-btn ax-btn--primary ax-btn--sm"
+                                  style={{ textDecoration: 'none', padding: '3px 10px', fontSize: 12 }}
+                                >
+                                  Install
+                                </Link>
+                              </div>
                             )}
-                            <Link
-                              to={`/v/up/resco-install-site?site_id=${item.resco_id || item.site_id || item.id}&assign_id=${item.id}`}
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
-                            >
-                              Install
-                            </Link>
                           </div>
                         </td>
                       </tr>
@@ -1035,7 +1183,7 @@ export function UP_Installation_Resco_AssignedSites() {
             </table>
           </div>
 
-          {/* ── Table Footer ── */}
+          {/* ── Table Footer (Karnataka SWP / Goa SRT style: left-aligned pagination) ── */}
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
@@ -1054,12 +1202,130 @@ export function UP_Installation_Resco_AssignedSites() {
         </section>
       </div>
 
-      {/* ── Detail Modal ── */}
-      <SiteDetailModal
-        open={Boolean(detailItem)}
-        item={detailItem}
-        onClose={() => setDetailItem(null)}
-      />
+      {/* ── View Batch Sites Modal (Interactive table with direct install links) ── */}
+      {viewBatch && (
+        <Modal
+          open={!!viewBatch}
+          onClose={() => setViewBatch(null)}
+          labelledBy="view-batch-modal-title"
+          dialogStyle={{ maxWidth: 780 }}
+        >
+          <div className="ax-modal__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--ax-border)' }}>
+            <div>
+              <h3 id="view-batch-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                Assignment Batch #{viewBatch.id} · Sites List
+              </h3>
+              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                District: <b>{viewBatch.district || 'UP'}</b> · State: <b>{(viewBatch.state || 'UP').toUpperCase()}</b> · Total: <b>{getSiteCount(viewBatch)} Sites</b>
+              </p>
+            </div>
+            <button
+              type="button"
+              className="ax-modal__close"
+              onClick={() => setViewBatch(null)}
+              aria-label="Close modal"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+            >
+              {X_ICON}
+            </button>
+          </div>
+          <div className="ax-modal__body" style={{ padding: '16px 20px', maxHeight: '65vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, padding: '12px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8, border: '1px solid var(--ax-border)' }}>
+              <div style={{ fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span>
+                <b>{viewBatch.vendors?.name || viewBatch.vendor || `Vendor #${viewBatch.vendor_id || viewBatch.id}`}</b>
+              </div>
+              <div style={{ fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span>
+                <b>{viewBatch.assign_date || DASH}</b>
+              </div>
+              <div style={{ fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Deadline Date: </span>
+                <b>{getDeadlineDate(viewBatch) || DASH}</b>
+              </div>
+              <div style={{ fontSize: 12 }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
+                {viewBatch.status === 2 ? (
+                  <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>✓ Accepted</span>
+                ) : (
+                  <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600 }}>Pending Accept</span>
+                )}
+              </div>
+            </div>
+
+            <h4 style={{ margin: '0 0 10px 0', fontSize: 14, fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+              Sites in this Batch ({getSiteCount(viewBatch)})
+            </h4>
+
+            <div className="ax-table-wrap">
+              <table className="ax-table ax-table--hover" style={{ width: '100%', fontSize: 13 }}>
+                <thead className="ax-table__head">
+                  <tr>
+                    <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>#</th>
+                    <th className="ax-table__th">Site Name / ID</th>
+                    <th className="ax-table__th" style={{ width: 160 }}>Deadline</th>
+                    <th className="ax-table__th" style={{ width: 130, textAlign: 'right' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody className="ax-table__body">
+                  {getSiteEntries(viewBatch).map(([siteName, dl], idx) => {
+                    const isNumeric = /^\d+$/.test(siteName.trim());
+                    const targetId = isNumeric ? siteName.trim() : (viewBatch.resco_id || viewBatch.site_id || viewBatch.id);
+                    return (
+                      <tr key={idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                          {idx + 1}
+                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                          {siteName}
+                        </td>
+                        <td className="ax-table__td" style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
+                          {dl || DASH}
+                        </td>
+                        <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                          <Link
+                            to={`/v/up/resco-install-site?site_id=${targetId}&assign_id=${viewBatch.id}&site_name=${encodeURIComponent(siteName)}`}
+                            className="ax-btn ax-btn--primary ax-btn--xs"
+                            style={{ textDecoration: 'none', padding: '3px 10px' }}
+                            onClick={() => setViewBatch(null)}
+                          >
+                            Install Site →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {getSiteEntries(viewBatch).length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="ax-table__td" style={{ textAlign: 'center', padding: 16, color: 'var(--ax-text-muted)' }}>
+                        No individual site breakdowns available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', padding: '12px 20px', borderTop: '1px solid var(--ax-border)' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => setViewBatch(null)}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Photo / Document Preview Lightbox Modal ── */}
+      {previewFile && (
+        <ImagePreviewModal
+          url={previewFile.url}
+          title={previewFile.title}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }

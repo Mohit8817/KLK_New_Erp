@@ -564,6 +564,71 @@ const VENDOR_SECTIONS: NavSection[] = [
   },
 
 
+
+
+      {
+    section: 'Goa',
+    state: 'goa',
+    items: [
+      {
+        id: 'grp.vm.goa.survey',
+        title: 'Survey',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.goa.survey.srt',
+            title: 'SRT Survey',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.survey.srt.dashboard', title: 'SRT Dashboard', to: '/vendor-management/goa/srt/survey/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.survey.srt.assign', title: 'Assign Survey', to: '/vendor-management/goa/srt/survey/assign', iconType: 'assign' },
+              { id: 'vm.goa.survey.srt.assign-view', title: 'Assign View Survey', to: '/vendor-management/goa/srt/survey/assign-view', iconType: 'view-assign' },
+              { id: 'vm.goa.survey.srt.verify', title: 'Verify Survey', to: '/vendor-management/goa/srt/survey/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.goa.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.goa.inst.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.inst.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/goa/srt/installation/assign', iconType: 'assign' },
+              { id: 'vm.goa.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/goa/srt/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.goa.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/goa/srt/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.goa.inst.srt.claim', title: 'View Claim', to: '/vendor-management/goa/srt/installation/claim', iconType: 'view-data' },
+              { id: 'vm.goa.inst.srt.payment', title: 'View Payment', to: '/vendor-management/goa/srt/installation/payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.goa.amc',
+        title: 'AMC',
+        icon: 'amc',
+        children: [
+          {
+            id: 'grp.vm.goa.amc.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.amc.srt.dashboard', title: 'SRT AMC Dashboard', to: '/vendor-management/goa/srt/amc/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.amc.srt.assign', title: 'Assign SRT', to: '/vendor-management/goa/srt/amc/assign', iconType: 'assign' },
+              { id: 'vm.goa.amc.srt.view-assign', title: 'Assign View Site', to: '/vendor-management/goa/srt/amc/view-assign', iconType: 'view-assign' },
+              { id: 'vm.goa.amc.srt.verify', title: 'Verify Site', to: '/vendor-management/goa/srt/amc/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
   {
     section: 'Jammu',
     state: 'jammu',
@@ -1341,6 +1406,8 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/vendor-management/jammu/view-ssl-installation-payment-request',
   ],
 
+  
+
   // ── Jammu Installation: SWP ──
   '/vendor-management/jammu/swp/installation/dashboard': [
     '/jammu/swp-installation-dashboard',
@@ -1410,13 +1477,20 @@ const ROUTE_ALIASES: Record<string, string[]> = {
   ],
 
   // ── Jammu Expense: SRT 70MW ──
-  '/vendor-management/jammu/srt/expense/claim-requests': [
+
+   '/vendor-management/jammu/expenses/srt-70mw/claim-requests': [
     '/jammu/srt-installation-claim-expense',
     '/vendor-management/jammu/srt-installation-claim-expense',
+    '/jammu/installation-view-expenses-claim',
+    '/vendor-management/jammu/installation-view-expenses-claim',
+    '/jammu/installation-expense-claims',
+    '/vendor-management/jammu/installation-expense-claims',
   ],
-  '/vendor-management/jammu/srt/expense/view-payments': [
+  '/vendor-management/jammu/expenses/srt-70mw/view-payments': [
     '/jammu/srt-installation-view-payment-expense',
     '/vendor-management/jammu/srt-installation-view-payment-expense',
+    '/jammu/installation-view-expenses-payment',
+    '/vendor-management/jammu/installation-view-expenses-payment',
   ],
 
   // ── Kashmir Installation: SRT 70MW ──

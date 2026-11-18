@@ -626,7 +626,7 @@ export function UP_Survey_SSL_ViewData() {
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(100);
   const [detailItem, setDetailItem] = useState<UpSslSiteRecord | null>(null);
 
   // Photo preview modal (lightbox zoom — Jammu pattern)

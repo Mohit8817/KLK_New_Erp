@@ -594,7 +594,11 @@ export function BiharULAInstallationStructureApproval() {
             return {
               id: item.id || idx + 1,
               unique_id: item.unique_id || `ULA-${item.district || 'PAT'}-${String(idx + 1).padStart(3, '0')}`,
-              vendor: item.vendor_name || item.vendor || 'ETS Networks Pvt Ltd',
+              vendor: typeof item.vendor_name === 'string' && item.vendor_name
+                ? item.vendor_name
+                : typeof item.vendor === 'object' && item.vendor !== null
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
+                : (item.vendor || 'ETS Networks Pvt Ltd'),
               state: item.state || 'Bihar',
               district: item.district || 'Patna',
               block: item.block || 'Danapur',

@@ -19,7 +19,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      proxy: {
+      proxy:  {
+    '/erp-api': {
+      target: 'https://klkerp.com',
+      changeOrigin: true,
+      secure: true,
+      rewrite: (path) => path.replace(/^\/erp-api/, '/api'),
+    },
         '/api/attendance': dleProxy,
         '/api/light-amc': dleProxy,
         '/api/bihar': dleProxy,

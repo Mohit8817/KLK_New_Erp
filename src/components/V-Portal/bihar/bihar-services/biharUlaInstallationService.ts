@@ -550,7 +550,8 @@ class BiharUlaInstallationService {
       });
       if (!res.ok) return [];
       const json = await res.json();
-      return json?.data?.ula || [];
+      const list = json?.data?.ula ?? (Array.isArray(json?.data) ? json.data : (Array.isArray(json?.ula) ? json.ula : []));
+      return Array.isArray(list) ? list : [];
     } catch (err) {
       console.error('[ULA Installation] getDashboardSitesByStatus error:', err);
       return [];
@@ -572,10 +573,38 @@ class BiharUlaInstallationService {
       );
       if (!res.ok) return [];
       const json = await res.json();
-      return json?.data?.ula || [];
+      const list = json?.data?.ula ?? (Array.isArray(json?.data) ? json.data : (Array.isArray(json?.ula) ? json.ula : []));
+      return Array.isArray(list) ? list : [];
     } catch (err) {
       console.error('[ULA Installation] getDashboardSitesByDistrict error:', err);
       return [];
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     Dashboard Sites Full (Sites + Metadata)
+     ═══════════════════════════════════════════════════════════════════════ */
+  async getDashboardSitesFull(status: string, district?: string): Promise<{ ula: any[]; vendor?: any; role?: string; company_id?: number }> {
+    try {
+      const url = district && district !== 'All'
+        ? BIHAR_API.INSTALLATION.ULA.DASHBOARD_BY_DISTRICT(status, district)
+        : BIHAR_API.INSTALLATION.ULA.DASHBOARD_BY_STATUS(status);
+      const res = await this.fetchWithFallback(url, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+      if (!res.ok) return { ula: [] };
+      const json = await res.json();
+      const list = json?.data?.ula ?? (Array.isArray(json?.data) ? json.data : (Array.isArray(json?.ula) ? json.ula : []));
+      return {
+        ula: Array.isArray(list) ? list : [],
+        vendor: json?.data?.vendor,
+        role: json?.data?.role,
+        company_id: json?.data?.company_id,
+      };
+    } catch (err) {
+      console.error('[ULA Installation] getDashboardSitesFull error:', err);
+      return { ula: [] };
     }
   }
 }

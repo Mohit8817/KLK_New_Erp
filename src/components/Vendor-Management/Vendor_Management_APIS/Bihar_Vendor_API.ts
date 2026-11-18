@@ -236,13 +236,21 @@ export const BIHAR_ADMIN_API = {
   // Controller: BiharSrtInstallationController · Prefix: /admin/bihar/srt/installation/
   SRT_INSTALLATION: {
     ASSIGN: buildCandidateUrls('/admin/bihar/srt/installation/assign'),
-    FETCH_DISTRICT: buildCandidateUrls('/admin/bihar/srt/installation/fetch-district'),
-    FETCH_SITE: (district?: string) =>
+    FETCH_DISTRICT: (state: string = 'bihar') =>
       buildCandidateUrls(
-        district
-          ? `/admin/bihar/srt/installation/fetch-site?district=${encodeURIComponent(district)}`
-          : '/admin/bihar/srt/installation/fetch-site'
+        `/admin/bihar/srt/installation/fetch-district?state=${encodeURIComponent(String(state || 'bihar').trim())}`
       ),
+    FETCH_SITE: (district?: string, state?: string) => {
+      const qs = new URLSearchParams();
+      if (district) qs.set('district', district);
+      if (state) qs.set('state', state);
+      const query = qs.toString();
+      return buildCandidateUrls(
+        query
+          ? `/admin/bihar/srt/installation/fetch-site?${query}`
+          : '/admin/bihar/srt/installation/fetch-site'
+      );
+    },
     STORE_ASSIGN: buildCandidateUrls('/admin/bihar/srt/installation/store-assign'),
     EDIT_ASSIGN: (id: string | number) =>
       buildCandidateUrls(`/admin/bihar/srt/installation/edit-assign/${encodeURIComponent(id)}`),

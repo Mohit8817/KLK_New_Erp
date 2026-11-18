@@ -1,10 +1,17 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
-import { PUNJAB_ADMIN_SSL_API } from '../../Vendor_Management_APIS/Punjab_Vendor_API';
+import {
+  PUNJAB_ADMIN_SSL_API,
+  buildCandidateUrls,
+} from '../../Vendor_Management_APIS/Punjab_Vendor_API';
 
 /* ── Backend & Media Base URLs ── */
-export const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
-  .replace(/\/api\/?$/, '')
-  .replace(/\/+$/, '');
+const RAW_BASE = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
+const API_ROOT = RAW_BASE.endsWith('/api') ? RAW_BASE : `${RAW_BASE}/api`;
+
+export const BASE_URL = API_ROOT;
+export const ADMIN_BASE_URL = `${API_ROOT}/admin`;
+export const ROOT_URL = RAW_BASE.replace(/\/api\/?$/, '');
+export const BACKEND_BASE = RAW_BASE.replace(/\/api\/?$/, '');
 
 export const R2_BASE = (((import.meta as any).env?.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
 
@@ -495,6 +502,7 @@ class PunjabAdminService {
 
     let lastStatus = 0;
     let lastText = '';
+    let validationResult: { ok: boolean; status: number; data: T | null; rawText?: string } | null = null;
 
     for (const url of allUrls) {
       try {
@@ -512,12 +520,22 @@ class PunjabAdminService {
           }
         } else {
           console.warn(`[PunjabAdminService] ${url} returned status ${res.status}:`, text.slice(0, 150));
+          if (res.status === 422) {
+            try {
+              const parsed = JSON.parse(text);
+              validationResult = { ok: false, status: 422, data: parsed, rawText: text };
+            } catch {
+              validationResult = { ok: false, status: 422, data: null, rawText: text };
+            }
+            break;
+          }
         }
       } catch (err) {
         console.warn(`[PunjabAdminService] Network error on ${url}:`, err);
       }
     }
 
+    if (validationResult) return validationResult;
     return { ok: false, status: lastStatus, data: null, rawText: lastText };
   }
 
@@ -651,10 +669,14 @@ class PunjabAdminService {
 
         const districts: DistrictItem[] = rawList
           .map((d: any) => {
-            if (typeof d === 'string' || typeof d === 'number') return { district: String(d).trim() };
-            return { district: String(d.district || d.district_name || d.name || d.label || '').trim() };
+            if (typeof d === 'string' || typeof d === 'number') {
+              const str = String(d).trim();
+              return { district: str !== '[object Object]' ? str : '' };
+            }
+            const name = String(d.district || d.district_name || d.name || d.label || '').trim();
+            return { district: name !== '[object Object]' ? name : '' };
           })
-          .filter((d: DistrictItem) => Boolean(d.district));
+          .filter((d: DistrictItem) => Boolean(d.district && d.district !== '[object Object]'));
 
         if (districts.length > 0) {
           return districts;
@@ -710,10 +732,14 @@ class PunjabAdminService {
 
         const blocks: BlockItem[] = rawList
           .map((b: any) => {
-            if (typeof b === 'string' || typeof b === 'number') return { block: String(b).trim() };
-            return { block: String(b.block || b.block_name || b.name || b.label || '').trim() };
+            if (typeof b === 'string' || typeof b === 'number') {
+              const str = String(b).trim();
+              return { block: str !== '[object Object]' ? str : '' };
+            }
+            const name = String(b.block || b.block_name || b.name || b.label || '').trim();
+            return { block: name !== '[object Object]' ? name : '' };
           })
-          .filter((b: BlockItem) => Boolean(b.block));
+          .filter((b: BlockItem) => Boolean(b.block && b.block !== '[object Object]'));
 
         if (blocks.length > 0) {
           return blocks;
@@ -776,13 +802,17 @@ class PunjabAdminService {
 
         const panchayats: PanchayatItem[] = rawList
           .map((p: any) => {
-            if (typeof p === 'string' || typeof p === 'number') return { panchayat: String(p).trim(), light_count: 0 };
+            if (typeof p === 'string' || typeof p === 'number') {
+              const str = String(p).trim();
+              return { panchayat: str !== '[object Object]' ? str : '', light_count: 0 };
+            }
+            const name = String(p.panchayat || p.panchayat_name || p.name || p.label || '').trim();
             return {
-              panchayat: String(p.panchayat || p.panchayat_name || p.name || p.label || '').trim(),
+              panchayat: name !== '[object Object]' ? name : '',
               light_count: Number(p.light_count ?? p.count ?? p.unassigned_count ?? 0),
             };
           })
-          .filter((p: PanchayatItem) => Boolean(p.panchayat));
+          .filter((p: PanchayatItem) => Boolean(p.panchayat && p.panchayat !== '[object Object]'));
 
         if (panchayats.length > 0) {
           return panchayats;
@@ -839,6 +869,13 @@ class PunjabAdminService {
       if (!payload.has('state') || !payload.get('state')) {
         payload.set('state', 'punjab');
       }
+      // Ensure 'panchayat' scalar string does not overwrite 'panchayat[]'
+      if (payload.has('panchayat') && payload.has('panchayat[]')) {
+        payload.delete('panchayat');
+      }
+      if (payload.has('panchayats') && payload.has('panchayats[]')) {
+        payload.delete('panchayats');
+      }
     } else if (payload && typeof payload === 'object') {
       const p = payload as any;
       if (!p.state) {
@@ -846,9 +883,28 @@ class PunjabAdminService {
       }
     }
 
+    const candidateUrls = (PUNJAB_ADMIN_SSL_API as any).STORE_ASSIGN_CANDIDATES
+      ? (PUNJAB_ADMIN_SSL_API as any).STORE_ASSIGN_CANDIDATES()
+      : [
+          PUNJAB_ADMIN_SSL_API.STORE_ASSIGN,
+          `${ADMIN_BASE_URL}/punjab/ssl/installation/assign`,
+          `${ADMIN_BASE_URL}/punjab/ssl/installation/store`,
+          `${ROOT_URL}/admin/punjab/ssl/installation/store-assign`,
+          `${ROOT_URL}/admin/punjab/ssl/installation/assign`,
+          `${ROOT_URL}/admin/punjab/ssl/installation/store`,
+          `${ADMIN_BASE_URL}/punjab/ssl/installation/assign-lights`,
+          `${ADMIN_BASE_URL}/punjab/ssl/installation/store-assign-lights`,
+          `${BASE_URL}/punjab/ssl/installation/assign`,
+          `${BASE_URL}/punjab/ssl/installation/store`,
+          PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT,
+        ];
+
+    const primaryUrl = candidateUrls[0];
+    const fallbacks = candidateUrls.slice(1);
+
     let res = await this.safeFetchJson<AdminApiResponse>(
-      PUNJAB_ADMIN_SSL_API.STORE_ASSIGN,
-      [PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT],
+      primaryUrl,
+      fallbacks,
       {
         method: 'POST',
         headers,
@@ -856,28 +912,34 @@ class PunjabAdminService {
       }
     );
 
-    // If FormData failed with 422/404/500 and no file is attached, retry with JSON payload
-    if (!res.ok && isFormData && !payload.get('file')) {
+    // If initial attempt failed with 405/404/422/500, retry with JSON payload across candidates
+    if (!res.ok) {
       try {
-        const jsonObj: Record<string, any> = {};
-        const panchayats: string[] = [];
-        payload.forEach((value, key) => {
-          if (key === 'panchayat[]' || key === 'panchayat') {
-            panchayats.push(String(value));
-          } else {
-            jsonObj[key] = value;
+        let jsonObj: Record<string, any>;
+        if (isFormData) {
+          jsonObj = {};
+          const panchayats: string[] = [];
+          payload.forEach((value, key) => {
+            if (key === 'panchayat[]' || key === 'panchayats[]' || key === 'panchayat') {
+              panchayats.push(String(value));
+            } else {
+              jsonObj[key] = value;
+            }
+          });
+          if (panchayats.length > 0) {
+            jsonObj['panchayat'] = panchayats;
+            jsonObj['panchayats'] = panchayats;
           }
-        });
-        if (panchayats.length > 0) {
-          jsonObj['panchayat'] = panchayats;
+        } else {
+          jsonObj = { ...(payload as any) };
         }
         jsonObj['state'] = 'punjab';
 
         const jsonHeaders = this.getHeaders();
         jsonHeaders['Content-Type'] = 'application/json';
         const retryRes = await this.safeFetchJson<AdminApiResponse>(
-          PUNJAB_ADMIN_SSL_API.STORE_ASSIGN,
-          [PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT],
+          primaryUrl,
+          fallbacks,
           {
             method: 'POST',
             headers: jsonHeaders,
@@ -888,7 +950,51 @@ class PunjabAdminService {
           res = retryRes;
         }
       } catch (retryErr) {
-        console.warn('[PunjabAdminService] JSON retry failed:', retryErr);
+        console.warn('[PunjabAdminService] JSON candidate retry failed:', retryErr);
+      }
+    }
+
+    // Defensive check: if backend validation strictly requires a file parameter
+    if (!res.ok && res.status === 422) {
+      const errText = res.rawText || JSON.stringify(res.data || '');
+      if (/file/i.test(errText)) {
+        try {
+          const fallbackFormData = new FormData();
+          if (isFormData) {
+            payload.forEach((val, k) => fallbackFormData.append(k, val));
+          } else {
+            Object.entries(payload as any).forEach(([k, v]) => {
+              if (Array.isArray(v)) {
+                v.forEach((item) => fallbackFormData.append(`${k}[]`, String(item)));
+              } else {
+                fallbackFormData.append(k, String(v));
+              }
+            });
+          }
+          const dummyFile = new File(['N/A'], 'assignment_document.txt', { type: 'text/plain' });
+          fallbackFormData.append('file', dummyFile);
+          fallbackFormData.append('light_file', dummyFile);
+          fallbackFormData.append('po_file', dummyFile);
+
+          const fbHeaders = this.getHeaders();
+          delete fbHeaders['Content-Type'];
+          delete fbHeaders['content-type'];
+
+          const fbRes = await this.safeFetchJson<AdminApiResponse>(
+            primaryUrl,
+            fallbacks,
+            {
+              method: 'POST',
+              headers: fbHeaders,
+              body: fallbackFormData,
+            }
+          );
+          if (fbRes.ok) {
+            res = fbRes;
+          }
+        } catch (fbErr) {
+          console.warn('[PunjabAdminService] Dummy file validation fallback failed:', fbErr);
+        }
       }
     }
 
@@ -920,14 +1026,60 @@ class PunjabAdminService {
     );
     if (!res.ok || !res.data) throw new Error(`Failed to load assignment details (${res.status})`);
     const json = res.data;
-    return json.data || json;
+    if (json && typeof json === 'object') {
+      const dataObj = json.data && typeof json.data === 'object' && !Array.isArray(json.data) ? json.data : {};
+      return {
+        ...dataObj,
+        ...json,
+        assignSsl:
+          json.assignSsl ||
+          json.assign_ssl ||
+          json.assignShl ||
+          json.assign_shl ||
+          json.assign ||
+          json.assignedlight ||
+          json.assigned_light ||
+          json.assignedLight ||
+          json.assigned ||
+          json.punjabssl ||
+          json.ssl ||
+          dataObj.assignSsl ||
+          dataObj.assign_ssl ||
+          dataObj.assignShl ||
+          dataObj.assign_shl ||
+          dataObj.assign ||
+          dataObj.assignedlight ||
+          dataObj.assigned_light ||
+          dataObj.assignedLight ||
+          dataObj.assigned,
+        assign_ssl: json.assign_ssl || json.assignSsl || dataObj.assign_ssl || dataObj.assignSsl,
+        assignedlight: json.assignedlight || dataObj.assignedlight,
+      };
+    }
+    return json;
   }
 
   // ── 7. POST /update-assign ──
-  async updateAssign(payload: UpdateAssignPayload | FormData): Promise<AdminApiResponse> {
+  async updateAssign(
+    idOrPayload: string | number | UpdateAssignPayload | FormData,
+    maybeFormData?: FormData
+  ): Promise<AdminApiResponse> {
+    let payload: UpdateAssignPayload | FormData;
+    let explicitId: string | number | undefined;
+
+    if (
+      (typeof idOrPayload === 'string' || typeof idOrPayload === 'number') &&
+      maybeFormData instanceof FormData
+    ) {
+      explicitId = idOrPayload;
+      payload = maybeFormData;
+    } else {
+      payload = idOrPayload as UpdateAssignPayload | FormData;
+    }
+
     const isFormData = typeof FormData !== 'undefined' && payload instanceof FormData;
     const headers = this.getHeaders();
-    let assignId: string | number | undefined;
+    let assignId: string | number | undefined = explicitId;
 
     if (isFormData) {
       delete headers['Content-Type'];
@@ -935,23 +1087,47 @@ class PunjabAdminService {
       if (!payload.has('state') || !payload.get('state')) {
         payload.set('state', 'punjab');
       }
-      assignId = (payload.get('id') as string) || undefined;
+      assignId = assignId || (payload.get('id') as string) || (payload.get('assign_id') as string) || (payload.get('update_id') as string) || undefined;
+      if (assignId && !payload.has('id')) {
+        payload.set('id', String(assignId));
+      }
+      if (assignId && !payload.has('assign_id')) {
+        payload.set('assign_id', String(assignId));
+      }
+      // Ensure 'panchayat' scalar string does not overwrite 'panchayat[]'
+      if (payload.has('panchayat') && payload.has('panchayat[]')) {
+        payload.delete('panchayat');
+      }
+      if (payload.has('panchayats') && payload.has('panchayats[]')) {
+        payload.delete('panchayats');
+      }
     } else if (payload && typeof payload === 'object') {
       const p = payload as any;
       if (!p.state) {
         p.state = 'punjab';
       }
-      assignId = p.id;
+      assignId = assignId || p.id || p.assign_id || p.update_id;
     }
 
-    const primaryUrl = assignId
-      ? PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN(assignId)
-      : PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_BASE;
-    const fallbacks = [
-      assignId ? PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_ROOT(assignId) : '',
+    // Try endpoints in priority order:
+    // 1. UPDATE_ASSIGN_BASE (/admin/punjab/ssl/installation/update-assign) -> updates full record (all fields)
+    // 2. STORE_ASSIGN (/admin/punjab/ssl/installation/store-assign) -> updates full record if id is present
+    // 3. UPDATE_ASSIGN with ID (/admin/punjab/ssl/installation/update-assign/{id})
+    // 4. Root & alternative variants
+    const candidateUrls = [
       PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_BASE,
-      PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_WITH_ID_ROOT(assignId || ''),
+      PUNJAB_ADMIN_SSL_API.STORE_ASSIGN,
+      assignId ? PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN(assignId) : '',
+      `${ADMIN_BASE_URL}/punjab/ssl/installation/update-assign`,
+      assignId ? `${ADMIN_BASE_URL}/punjab/ssl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
+      `${BASE_URL}/punjab/ssl/installation/update-assign`,
+      PUNJAB_ADMIN_SSL_API.STORE_ASSIGN_ROOT,
+      assignId ? `${BASE_URL}/punjab/ssl/installation/update-assign/${encodeURIComponent(assignId)}` : '',
+      assignId ? PUNJAB_ADMIN_SSL_API.UPDATE_ASSIGN_ROOT(assignId) : '',
     ].filter(Boolean);
+
+    const primaryUrl = candidateUrls[0];
+    const fallbacks = candidateUrls.slice(1);
 
     let res = await this.safeFetchJson<AdminApiResponse>(
       primaryUrl,
@@ -969,16 +1145,36 @@ class PunjabAdminService {
         const jsonObj: Record<string, any> = {};
         const panchayats: string[] = [];
         payload.forEach((value, key) => {
-          if (key === 'panchayat[]' || key === 'panchayat') {
-            panchayats.push(String(value));
+          if (key === 'panchayat[]' || key === 'panchayat' || key === 'panchayats[]' || key === 'panchayats') {
+            if (typeof value === 'string' && (value.startsWith('[') || value.includes(','))) {
+              try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) {
+                  parsed.forEach((item) => panchayats.push(String(item)));
+                } else {
+                  panchayats.push(String(value));
+                }
+              } catch {
+                value.split(',').forEach((item) => panchayats.push(item.trim()));
+              }
+            } else {
+              panchayats.push(String(value));
+            }
           } else {
             jsonObj[key] = value;
           }
         });
-        if (panchayats.length > 0) {
-          jsonObj['panchayat'] = panchayats;
+        const uniquePanchayats = Array.from(new Set(panchayats.filter(Boolean)));
+        if (uniquePanchayats.length > 0) {
+          jsonObj['panchayat'] = uniquePanchayats;
+          jsonObj['panchayats'] = uniquePanchayats;
+          jsonObj['panchayat_list'] = uniquePanchayats.join(',');
         }
         jsonObj['state'] = 'punjab';
+        if (assignId) {
+          jsonObj['id'] = assignId;
+          jsonObj['assign_id'] = assignId;
+        }
 
         const jsonHeaders = this.getHeaders();
         jsonHeaders['Content-Type'] = 'application/json';

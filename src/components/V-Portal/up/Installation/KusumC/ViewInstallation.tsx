@@ -314,7 +314,10 @@ function InstallationThumbnail({
         flexShrink: 0,
       }}
       onError={() => setFailed(true)}
-      onClick={() => onPreview(resolvedUrl, alt)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPreview(resolvedUrl, alt);
+      }}
       title="Click to preview"
     />
   );
@@ -582,6 +585,14 @@ const PAGE_CSS = `
     border-radius: 0 !important;
   }
 
+  .solar-erp-page .kusumc-clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .solar-erp-page .kusumc-clickable-row:hover td {
+    background-color: rgba(37, 99, 235, 0.05) !important;
+  }
+
   .solar-erp-page .asw-cards-row {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -838,6 +849,15 @@ export function UP_Installation_KusumC_ViewInstallation() {
 
   const openPreview = (url: string, title: string) => setPreview({ url, title });
   const closePreview = () => setPreview(null);
+
+  const handleRowClick = useCallback((e: React.MouseEvent, row: UpKusumCInstalledSiteItem) => {
+    const target = e.target as HTMLElement;
+    // Don't open detail modal if user clicked an interactive child (button, link, input, select, image thumbnail, etc.)
+    if (target.closest('button, a, input, select, textarea, img, [data-interactive="true"]')) {
+      return;
+    }
+    setViewDetailModal(row);
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -1369,7 +1389,12 @@ export function UP_Installation_KusumC_ViewInstallation() {
                   const pStatus = Number(row.inst_pay_status ?? row.payment_status ?? 0);
 
                   return (
-                    <tr key={row.id} className="ax-table__row">
+                    <tr
+                      key={row.id}
+                      className="ax-table__row kusumc-clickable-row"
+                      onClick={(e) => handleRowClick(e, row)}
+                      title="Click row to view full site details"
+                    >
                       {/* 1. Sr. No. */}
                       <td className="ax-table__td ax-num" style={{ textAlign: 'center' }}>
                         {(currentPage - 1) * pageSize + index + 1}
@@ -1559,16 +1584,6 @@ export function UP_Installation_KusumC_ViewInstallation() {
                       {/* 23. Action Column */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', flexWrap: 'nowrap' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '3px 8px', fontSize: 11 }}
-                            onClick={() => setViewDetailModal(row)}
-                            title="View Full Site Details"
-                          >
-                            Details
-                          </button>
-
                           {/* 1. Only show Upload HOC if document has NEVER been uploaded yet (One-time only) */}
                           {isDocMissing && (
                             <button

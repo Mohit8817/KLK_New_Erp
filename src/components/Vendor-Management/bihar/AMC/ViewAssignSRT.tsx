@@ -627,9 +627,20 @@ export function BiharSRTAMCAssignViewSite() {
         const mapped: SrtAmcAssignRecord[] = list.map((item: any, idx: number) => ({
           id: item.id || idx + 1,
           amc_type: item.amc_type || 'AMC 1',
-          vendor: item.vendor || item.vendor_id || item.vendor_name || '1',
-          vendor_name: item.vendor_name || item.vendor || item.firm_name || 'ETS Networks Pvt Ltd',
-          vendors: item.vendors || { id: item.vendor, name: item.vendor_name },
+          vendor: typeof item.vendor === 'object' && item.vendor !== null ? (item.vendor.id || '1') : (item.vendor || item.vendor_id || item.vendor_name || '1'),
+          vendor_name: typeof item.vendor_name === 'string' && item.vendor_name
+            ? item.vendor_name
+            : typeof item.vendor === 'object' && item.vendor !== null
+            ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
+            : (item.vendor || item.firm_name || 'ETS Networks Pvt Ltd'),
+          vendors: item.vendors || {
+            id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor || '1'),
+            name: typeof item.vendor_name === 'string' && item.vendor_name
+              ? item.vendor_name
+              : typeof item.vendor === 'object' && item.vendor !== null
+              ? (item.vendor.name || item.vendor.firm || 'ETS Networks Pvt Ltd')
+              : (item.vendor_name || 'ETS Networks Pvt Ltd')
+          },
           assign_date: item.assign_date || item.created_at || item.date || '—',
           deadline_date: item.deadline_date || item.target_date || item.deadline || '—',
           state: item.state || 'Bihar',

@@ -799,7 +799,11 @@ export function BiharULAInstallationViewDocument() {
               return {
                 id: item.id || idx + 1,
                 state: item.state || 'Bihar',
-                vendor_name: item.vendor_name || item.vendor || 'ETS Networks Pvt Ltd',
+                vendor_name: typeof item.vendor_name === 'string' && item.vendor_name
+                  ? item.vendor_name
+                  : typeof item.vendor === 'object' && item.vendor !== null
+                  ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
+                  : (item.vendor || 'ETS Networks Pvt Ltd'),
                 district: item.district || 'Patna',
                 block: item.block || 'Danapur',
                 tehsil: item.tehsil || item.block || '—',

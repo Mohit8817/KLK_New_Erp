@@ -682,8 +682,12 @@ export function BiharULAInstallationViewAssignSites() {
 
             return {
               id: item.id || i + 1,
-              vendor: item.vendor_name || item.vendor || 'ETS Networks Pvt Ltd',
-              vendor_id: item.vendor_id || item.vendor,
+              vendor: typeof item.vendor_name === 'string' && item.vendor_name
+                ? item.vendor_name
+                : typeof item.vendor === 'object' && item.vendor !== null
+                ? (item.vendor.name || item.vendor.firm || item.vendor.company || 'ETS Networks Pvt Ltd')
+                : (item.vendor || 'ETS Networks Pvt Ltd'),
+              vendor_id: typeof item.vendor === 'object' && item.vendor !== null ? item.vendor.id : (item.vendor_id || item.vendor),
               assign_date: item.assign_date || item.created_at || '12-10-2024',
               state: item.state || 'Bihar',
               district: item.district || 'Patna',

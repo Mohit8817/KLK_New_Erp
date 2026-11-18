@@ -15,7 +15,7 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   T('State', ['state'], { fallback: 'UP' }),
   T('District', ['district'], { strong: true }),
   T('Beneficiary Name', ['beneficiary_name'], { strong: true }),
-  T('Contact Number', ['contact_number', 'contact_no']),
+  T('Contact Number', ['mobile_no', 'contact_number', 'contact_no']),
   T('Plant Capacity', ['plant_capacity'], { strong: true }),
   T('Work Order No.', ['wo_no', 'work_order_no']),
   T('Work Order Date', ['wo_date', 'work_order_date']),
@@ -49,7 +49,7 @@ export function UPComplaintOffgridAssigned() {
         pick(c, ['complaint_id', 'id'], ''),
         pick(c, ['beneficiary_name'], ''),
         pick(c, ['district'], ''),
-        pick(c, ['contact_number', 'contact_no'], ''),
+        pick(c, ['mobile_no', 'contact_number', 'contact_no'], ''),
         pick(c, ['wo_no', 'work_order_no'], ''),
         pick(c, ['plant_capacity'], ''),
         pick(c, ['contractor_name'], ''),
@@ -63,7 +63,7 @@ export function UPComplaintOffgridAssigned() {
         defaultSuccess: 'Off Grid Complaint closed successfully!',
         summary: (c) => [
           { label: 'Beneficiary', value: pick(c, ['beneficiary_name']) },
-          { label: 'Contact', value: pick(c, ['contact_number', 'contact_no']) },
+          { label: 'Contact', value: pick(c, ['mobile_no', 'contact_number', 'contact_no']) },
           { label: 'District', value: pick(c, ['district']) },
           { label: 'Plant Capacity', value: pick(c, ['plant_capacity']) },
         ],
@@ -80,7 +80,9 @@ export function UPComplaintOffgridAssigned() {
           fd.append('remarks', v.remarks);
           fd.append('close_sms', v.closeSms);
           fd.append('beneficiary_name', String(item.beneficiary_name || ''));
-          fd.append('contact_no', String(item.contact_number || item.contact_no || ''));
+          const contactVal = String(item.mobile_no || item.contact_number || item.contact_no || '');
+          fd.append('contact_no', contactVal);
+          fd.append('mobile_no', contactVal);
           fd.append('r_file', v.file);
           if (v.file1) fd.append('r_file1', v.file1);
           return upComplaintService.closeOffgridComplaint(fd);

@@ -2,27 +2,62 @@ import {
   upComplaintService,
   type UpOngridComplaintItem,
 } from '../../up-services';
-import { documentCol, pick, textCol, type ComplaintColumn } from '../../Complaint/CommonSharedComplaints/UpComplaintsShared';
+import {
+  DASH,
+  documentCol,
+  pick,
+  textCol,
+  type ComplaintColumn,
+} from '../../Complaint/CommonSharedComplaints/UpComplaintsShared';
 import { AssignedComplaintPage } from '../../Complaint/CommonSharedComplaints/AssignedComplaints';
 
 type Row = UpOngridComplaintItem;
+
+const formatDate = (val?: string | null): string => {
+  if (!val || val === 'null' || val === 'undefined') return DASH;
+  const str = String(val).trim();
+  if (!str) return DASH;
+  if (str.includes('T')) return str.split('T')[0];
+  return str;
+};
+
+const dateCol = (header: string, keys: string[]): ComplaintColumn<Row> => ({
+  header,
+  cell: (r) => formatDate(pick(r, keys)),
+  exportValue: (r) => formatDate(pick(r, keys)),
+});
+
+const stateCol = (): ComplaintColumn<Row> => ({
+  header: 'State',
+  cell: (r) => {
+    const s = pick(r, ['state'], 'UP');
+    return s.toLowerCase() === 'up' ? 'UP' : s;
+  },
+  exportValue: (r) => {
+    const s = pick(r, ['state'], 'UP');
+    return s.toLowerCase() === 'up' ? 'UP' : s;
+  },
+});
+
 const T = (h: string, keys: string[], o?: Parameters<typeof textCol>[2]) => textCol<Row>(h, keys, o);
 
 const COLUMNS: ComplaintColumn<Row>[] = [
   T('Complaint ID', ['complaint_id', 'id'], { accent: true }),
-  T('Complaint Date', ['complaint_date']),
+  T('OGID', ['ogid', 'og_id'], { strong: true }),
+  dateCol('Complaint Date', ['created_date', 'complaint_date', 'created_at']),
   T('Complaint', ['complaint'], { clamp: true }),
-  T('State', ['state'], { fallback: 'UP' }),
+  stateCol(),
   T('District', ['district'], { strong: true }),
   T('Beneficiary Name', ['beneficiary_name'], { strong: true }),
-  T('Contact Number', ['contact_number', 'contact_no']),
-  T('Work Order No.', ['work_order_no']),
-  T('Work Order Date', ['work_order_date']),
-  T('Plant Capacity', ['plant_capacity'], { strong: true }),
+  T('Contact Number', ['contact_no', 'contact_number']),
+  T('Work Order No.', ['wo_no', 'work_order_no']),
+  dateCol('Work Order Date', ['wo_date', 'work_order_date']),
+  T('Plant Capacity', ['plant_capacity', 'capacity'], { strong: true }),
+  T('Firm Name', ['firm_name', 'firm']),
   T('Contractor Name', ['contractor_name']),
-  T('Contractor Number', ['contractor_number', 'contractor_no']),
+  T('Contractor Number', ['contractor_number', 'contractor_no', 'contractor_mo_no']),
   documentCol<Row>(),
-  T('Assigned Date', ['assigned_date']),
+  dateCol('Assigned Date', ['assigned_date']),
 ];
 
 export function UPComplaintOngridAssigned() {
@@ -43,17 +78,23 @@ export function UPComplaintOngridAssigned() {
         approved: 'Submitted repair verification',
         close: 'Successfully verified & closed',
       }}
-      searchPlaceholder="Search ID, name, contact, work order…"
+      searchPlaceholder="Search ID, OGID, name, contact, work order…"
       fetchData={() => upComplaintService.getOngridAssignedComplaints()}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),
+        pick(c, ['ogid', 'og_id'], ''),
         pick(c, ['beneficiary_name'], ''),
         pick(c, ['district'], ''),
-        pick(c, ['contact_number', 'contact_no'], ''),
-        pick(c, ['work_order_no'], ''),
-        pick(c, ['plant_capacity'], ''),
+        pick(c, ['contact_no', 'contact_number'], ''),
+        pick(c, ['wo_no', 'work_order_no'], ''),
+        pick(c, ['wo_date', 'work_order_date'], ''),
+        pick(c, ['firm_name', 'firm'], ''),
+        pick(c, ['contractor_name'], ''),
+        pick(c, ['contractor_number', 'contractor_no', 'contractor_mo_no'], ''),
+        pick(c, ['plant_capacity', 'capacity'], ''),
         pick(c, ['complaint'], ''),
+        pick(c, ['created_date', 'complaint_date', 'created_at'], ''),
       ]}
       exportName="UP_Ongrid_Assigned"
       exportTitle="UP On Grid Assigned Complaints"
@@ -62,9 +103,12 @@ export function UPComplaintOngridAssigned() {
         defaultSuccess: 'On Grid Complaint closed successfully!',
         summary: (c) => [
           { label: 'Beneficiary', value: pick(c, ['beneficiary_name']) },
-          { label: 'Contact', value: pick(c, ['contact_number', 'contact_no']) },
+          { label: 'OGID', value: pick(c, ['ogid', 'og_id']) },
+          { label: 'Contact', value: pick(c, ['contact_no', 'contact_number']) },
           { label: 'District', value: pick(c, ['district']) },
-          { label: 'Plant Capacity', value: pick(c, ['plant_capacity']) },
+          { label: 'Work Order No.', value: pick(c, ['wo_no', 'work_order_no']) },
+          { label: 'Plant Capacity', value: pick(c, ['plant_capacity', 'capacity']) },
+          { label: 'Firm Name', value: pick(c, ['firm_name', 'firm']) },
         ],
         remarksPlaceholder: 'Describe resolution details (e.g. replaced DC isolator, checked net meter sync)…',
         fileLabel: 'Repair verification / handover document',

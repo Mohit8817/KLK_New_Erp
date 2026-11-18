@@ -200,6 +200,38 @@ const PAGE_CSS = `
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
+  /* Interactive KPI & Sub-Pill Styles */
+  .solar-erp-page .asw-interactive-kpi {
+    cursor: pointer !important;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  }
+  .solar-erp-page .asw-interactive-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: rgba(var(--ax-accent-rgb), 0.45) !important;
+  }
+  .solar-erp-page .kpi-subpill {
+    cursor: pointer;
+    border: none;
+    font-size: 11px;
+    padding: 2px 7px;
+    font-weight: 600;
+    border-radius: 9999px;
+    transition: transform 120ms ease, opacity 120ms ease;
+  }
+  .solar-erp-page .kpi-subpill:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  .solar-erp-page .dist-status-badge {
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .solar-erp-page .dist-status-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+
   @media (min-width: 641px) {
     .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
   }
@@ -291,6 +323,7 @@ interface KpiProps {
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
+  pills?: { label: string; count: number | string; tone?: string; onClick: () => void }[];
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
   accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
@@ -302,7 +335,7 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
   red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick, pills }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
@@ -310,11 +343,12 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
 
   return (
     <div
-      className="ax-card ax-col--3"
+      className={`ax-card ax-col--3 ${onClick ? 'asw-interactive-kpi' : ''}`}
       style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
@@ -355,6 +389,24 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
             </div>
           )}
         </div>
+        {pills && pills.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid var(--ax-border, #e2e8f0)' }}>
+            {pills.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`kpi-subpill ax-badge ax-badge--soft ${p.tone ? `ax-badge--${p.tone}` : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  p.onClick();
+                }}
+                title={`Drill down to ${p.label}`}
+              >
+                <span>{p.label}:</span> <b style={{ marginLeft: 2 }}>{p.count}</b>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -400,6 +452,14 @@ export function Bihar_Installation_ULA_Dashboard() {
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [qDistrict, setQDistrict] = useState<string>('');
+
+  const openStatusView = (statusKey: string, district?: string) => {
+    const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
+    const params = new URLSearchParams();
+    params.set('status', statusKey);
+    if (targetDistrict) params.set('district', targetDistrict);
+    navigate(`/v/bihar/installation/ula/status-view?${params.toString()}`);
+  };
 
 
 
@@ -795,33 +855,61 @@ export function Bihar_Installation_ULA_Dashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => openStatusView('total')}
+                onKeyDown={onActivate(() => openStatusView('total'))}
+                title="View all installations under current scope"
+                style={{ cursor: 'pointer' }}
+              >
                 <dt>Total Installations</dt>
                 <dd className="ax-num">{dash(ula.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => openStatusView('structure-complete')}
+                onKeyDown={onActivate(() => openStatusView('structure-complete'))}
+                title="View structure complete installations"
+                style={{ cursor: 'pointer' }}
+              >
                 <dt>Structure Done</dt>
                 <dd className="ax-num">{dash(ula.structure_complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{structPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{structPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => openStatusView('complete')}
+                onKeyDown={onActivate(() => openStatusView('complete'))}
+                title="View complete installations"
+                style={{ cursor: 'pointer' }}
+              >
                 <dt>Installation Done</dt>
                 <dd className="ax-num">{dash(ula.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{instPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => openStatusView('verify-approved')}
+                onKeyDown={onActivate(() => openStatusView('verify-approved'))}
+                title="View verified & approved installations"
+                style={{ cursor: 'pointer' }}
+              >
                 <dt>Approved</dt>
                 <dd className="ax-num">{dash(ula.verify_approved)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
               </div>
             </dl>
           </div>
         </section>
-
-
-
-
 
         {/* 2. Structure Status: Installed / Pending */}
         <KpiCard
@@ -832,7 +920,11 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Installed / Pending"
           badge={`${structPct}% Done`}
           spark={spk((d) => n(d.structure_complete))}
-          
+          onClick={() => openStatusView('structure-complete')}
+          pills={[
+            { label: 'Installed', count: ula.structure_complete, tone: 'success', onClick: () => openStatusView('structure-complete') },
+            { label: 'Pending', count: ula.structure_pending, tone: 'warning', onClick: () => openStatusView('structure-pending') },
+          ]}
         />
 
         {/* 3. Structure Verification Status: Approved / Pending / Rejected */}
@@ -844,7 +936,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Approved / Pending / Rejected"
           badge={ula.structure_verify_approved > 0 ? 'Approved' : undefined}
           spark={spk((d) => n(d.structure_verify_approved))}
-        
+          onClick={() => openStatusView('structure-verify-approved')}
+          pills={[
+            { label: 'Approved', count: ula.structure_verify_approved, tone: 'success', onClick: () => openStatusView('structure-verify-approved') },
+            { label: 'Pending', count: ula.structure_verify_pending, tone: 'warning', onClick: () => openStatusView('structure-verify-pending') },
+            { label: 'Reject', count: ula.structure_verify_reject, tone: 'danger', onClick: () => openStatusView('structure-verify-reject') },
+          ]}
         />
 
         {/* 4. Installation Status: Installed / Pending */}
@@ -856,8 +953,11 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Installed / Pending"
           badge={`${instPct}% Done`}
           spark={spk((d) => n(d.inst_complete))}
-         
-          
+          onClick={() => openStatusView('complete')}
+          pills={[
+            { label: 'Installed', count: ula.complete, tone: 'success', onClick: () => openStatusView('complete') },
+            { label: 'Pending', count: ula.pending, tone: 'warning', onClick: () => openStatusView('pending') },
+          ]}
         />
 
         {/* 5. Verification Status: Approved / Pending / Rejected */}
@@ -869,8 +969,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Approved / Pending / Rejected"
           badge={`${approvedPct}% Approved`}
           spark={spk((d) => n(d.verify_approved))}
-         
-         
+          onClick={() => openStatusView('verify-approved')}
+          pills={[
+            { label: 'Approved', count: ula.verify_approved, tone: 'success', onClick: () => openStatusView('verify-approved') },
+            { label: 'Pending', count: ula.verify_pending, tone: 'warning', onClick: () => openStatusView('verify-pending') },
+            { label: 'Reject', count: ula.verify_reject, tone: 'danger', onClick: () => openStatusView('verify-reject') },
+          ]}
         />
 
         {/* 6. Documents Status: Submitted / Pending */}
@@ -882,8 +986,11 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Submitted / Pending"
           badge={ula.inst_doc_complete > 0 ? `${pctOf(ula.inst_doc_complete, ula.site_count)}%` : undefined}
           spark={spk((d) => n(d.inst_doc_complete))}
-        
-         
+          onClick={() => openStatusView('doc-complete')}
+          pills={[
+            { label: 'Submitted', count: ula.inst_doc_complete, tone: 'success', onClick: () => openStatusView('doc-complete') },
+            { label: 'Pending', count: ula.inst_doc_pending, tone: 'warning', onClick: () => openStatusView('doc-pending') },
+          ]}
         />
 
         {/* 7. Document Approval: Approved / Pending / Rejected */}
@@ -895,8 +1002,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           sub="Approved / Pending / Rejected"
           badge={ula.doc_verify_approve > 0 ? 'Approved' : undefined}
           spark={spk((d) => n(d.doc_verify_approved))}
-        
-      
+          onClick={() => openStatusView('doc-verify-approved')}
+          pills={[
+            { label: 'Approved', count: ula.doc_verify_approve, tone: 'success', onClick: () => openStatusView('doc-verify-approved') },
+            { label: 'Pending', count: ula.doc_verify_pending, tone: 'warning', onClick: () => openStatusView('doc-verify-pending') },
+            { label: 'Reject', count: ula.doc_verify_reject, tone: 'danger', onClick: () => openStatusView('doc-verify-reject') },
+          ]}
         />
 
         {/* 8. Claim 50% Status: Applicable / Raised */}
@@ -907,7 +1018,11 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.claim50_applicable} / ${ula.claim50_raised}`}
           sub="Applicable / Raised"
           badge={ula.claim50_raised > 0 ? `${ula.claim50_raised} Raised` : undefined}
-          
+          onClick={() => openStatusView('claim50-raised')}
+          pills={[
+            { label: 'Applicable', count: ula.claim50_applicable, tone: 'info', onClick: () => openStatusView('claim50-applicable') },
+            { label: 'Raised', count: ula.claim50_raised, tone: 'accent', onClick: () => openStatusView('claim50-raised') },
+          ]}
         />
 
         {/* 9. Claim 50% Approval: Approved / Pending / Rejected */}
@@ -918,7 +1033,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_claim50_verify_papprove} / ${ula.inst_claim50_verify_pending} / ${ula.inst_claim50_verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ula.inst_claim50_verify_papprove > 0 ? 'Approved' : undefined}
-       
+          onClick={() => openStatusView('claim50-papprove')}
+          pills={[
+            { label: 'Approved', count: ula.inst_claim50_verify_papprove, tone: 'success', onClick: () => openStatusView('claim50-papprove') },
+            { label: 'Pending', count: ula.inst_claim50_verify_pending, tone: 'warning', onClick: () => openStatusView('claim50-verify-pending') },
+            { label: 'Reject', count: ula.inst_claim50_verify_reject, tone: 'danger', onClick: () => openStatusView('claim50-reject') },
+          ]}
         />
 
         {/* 10. Claim 30% Status: Applicable / Raised */}
@@ -929,7 +1049,11 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.claim30_applicable} / ${ula.claim30_raised}`}
           sub="Applicable / Raised"
           badge={ula.claim30_raised > 0 ? `${ula.claim30_raised} Raised` : undefined}
-        
+          onClick={() => openStatusView('claim-raised')}
+          pills={[
+            { label: 'Applicable', count: ula.claim30_applicable, tone: 'info', onClick: () => openStatusView('claim-applicable') },
+            { label: 'Raised', count: ula.claim30_raised, tone: 'accent', onClick: () => openStatusView('claim-raised') },
+          ]}
         />
 
         {/* 11. Claim 30% Approval: Approved / Pending / Rejected */}
@@ -940,7 +1064,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_claim30_verify_papprove} / ${ula.inst_claim30_verify_pending} / ${ula.inst_claim30_verify_reject}`}
           sub="Approved / Pending / Rejected"
           badge={ula.inst_claim30_verify_papprove > 0 ? 'Approved' : undefined}
-        
+          onClick={() => openStatusView('claim-papprove')}
+          pills={[
+            { label: 'Approved', count: ula.inst_claim30_verify_papprove, tone: 'success', onClick: () => openStatusView('claim-papprove') },
+            { label: 'Pending', count: ula.inst_claim30_verify_pending, tone: 'warning', onClick: () => openStatusView('claim-verify-pending') },
+            { label: 'Reject', count: ula.inst_claim30_verify_reject, tone: 'danger', onClick: () => openStatusView('claim-reject') },
+          ]}
         />
 
         {/* 12. Payment 50% Status: Partially Paid / Paid / Pending */}
@@ -951,7 +1080,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_pay50_partially} / ${ula.inst_pay50_paid} / ${ula.inst_pay50_pending}`}
           sub="Partially Paid / Paid / Pending"
           badge={ula.inst_pay50_paid > 0 ? 'Disbursed' : undefined}
-        
+          onClick={() => openStatusView('inst-pay50-paid')}
+          pills={[
+            { label: 'Paid', count: ula.inst_pay50_paid, tone: 'success', onClick: () => openStatusView('inst-pay50-paid') },
+            { label: 'Partial', count: ula.inst_pay50_partially, tone: 'warning', onClick: () => openStatusView('inst-pay50-partially') },
+            { label: 'Pending', count: ula.inst_pay50_pending, tone: 'danger', onClick: () => openStatusView('inst-pay50-pending') },
+          ]}
         />
 
         {/* 13. Payment 30% Status: Partially Paid / Paid / Pending */}
@@ -962,7 +1096,12 @@ export function Bihar_Installation_ULA_Dashboard() {
           value={loading && !data ? '…' : `${ula.inst_pay30_partially} / ${ula.inst_pay30_paid} / ${ula.inst_pay30_pending}`}
           sub="Partially Paid / Paid / Pending"
           badge={ula.inst_pay30_paid > 0 ? 'Disbursed' : undefined}
-        
+          onClick={() => openStatusView('inst-pay-paid')}
+          pills={[
+            { label: 'Paid', count: ula.inst_pay30_paid, tone: 'success', onClick: () => openStatusView('inst-pay-paid') },
+            { label: 'Partial', count: ula.inst_pay30_partially, tone: 'warning', onClick: () => openStatusView('inst-pay-partially') },
+            { label: 'Pending', count: ula.inst_pay30_pending, tone: 'danger', onClick: () => openStatusView('inst-pay-pending') },
+          ]}
         />
 
         {/* 5. Charts: Monthly Installation Trend (8 col) + Donut Split (4 col) */}
@@ -1202,11 +1341,11 @@ export function Bihar_Installation_ULA_Dashboard() {
                         tabIndex={0}
                         onClick={() => {
                           setSelectedDistrict(d.district);
-                          navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
+                          openStatusView('total', d.district);
                         }}
                         onKeyDown={onActivate(() => {
                           setSelectedDistrict(d.district);
-                          navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
+                          openStatusView('total', d.district);
                         })}
                         style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}
                       >
@@ -1218,38 +1357,133 @@ export function Bihar_Installation_ULA_Dashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(total)}</td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                          <span
+                            className="dist-status-badge"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openStatusView('total', d.district);
+                            }}
+                            title={`View all ${num(total)} sites in ${d.district}`}
+                          >
+                            {num(total)}
+                          </span>
+                        </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.structure_complete)}</span>
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--info dist-status-badge"
+                              style={{ fontWeight: 600, padding: '2px 7px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('structure-complete', d.district);
+                              }}
+                              title={`View ${d.structure_complete} Structure Complete sites in ${d.district}`}
+                            >
+                              {num(d.structure_complete)}
+                            </span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.structure_pending)}</span>
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--warning dist-status-badge"
+                              style={{ fontWeight: 600, padding: '2px 7px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('structure-pending', d.district);
+                              }}
+                              title={`View ${d.structure_pending} Structure Pending sites in ${d.district}`}
+                            >
+                              {num(d.structure_pending)}
+                            </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.inst_complete)}</span>
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--success dist-status-badge"
+                              style={{ fontWeight: 600, padding: '2px 7px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('complete', d.district);
+                              }}
+                              title={`View ${d.inst_complete} Installation Complete sites in ${d.district}`}
+                            >
+                              {num(d.inst_complete)}
+                            </span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.inst_pending)}</span>
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--neutral dist-status-badge"
+                              style={{ fontWeight: 600, padding: '2px 7px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('pending', d.district);
+                              }}
+                              title={`View ${d.inst_pending} Installation Pending sites in ${d.district}`}
+                            >
+                              {num(d.inst_pending)}
+                            </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }} title="Approved">
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--success dist-status-badge"
+                              style={{ padding: '2px 6px', fontSize: '11px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('verify-approved', d.district);
+                              }}
+                              title={`View ${d.verify_approved} Approved sites in ${d.district}`}
+                            >
                               <span className="ax-badge__dot" />{num(d.verify_approved)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }} title="Pending Verify">
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--warning dist-status-badge"
+                              style={{ padding: '2px 6px', fontSize: '11px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('verify-pending', d.district);
+                              }}
+                              title={`View ${d.verify_pending} Pending Verify sites in ${d.district}`}
+                            >
                               {num(d.verify_pending)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }} title="Rejected">
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--danger dist-status-badge"
+                              style={{ padding: '2px 6px', fontSize: '11px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusView('verify-reject', d.district);
+                              }}
+                              title={`View ${d.verify_reject} Rejected sites in ${d.district}`}
+                            >
                               {num(d.verify_reject)}
                             </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.inst_doc_complete)}</span>
+                          <span
+                            className="dist-status-badge"
+                            style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openStatusView('doc-complete', d.district);
+                            }}
+                            title={`View ${d.inst_doc_complete} Doc Submitted sites in ${d.district}`}
+                          >
+                            {num(d.inst_doc_complete)}
+                          </span>
                           <span style={{ color: 'var(--ax-text-muted)' }}> / </span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.inst_doc_pending)}</span>
+                          <span
+                            className="dist-status-badge"
+                            style={{ color: 'var(--ax-text-muted)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openStatusView('doc-pending', d.district);
+                            }}
+                            title={`View ${d.inst_doc_pending} Doc Pending sites in ${d.district}`}
+                          >
+                            {num(d.inst_doc_pending)}
+                          </span>
                         </td>
                         <td className="ax-table__td">
                           <Bar pct={rowPct} />
@@ -1261,9 +1495,9 @@ export function Bihar_Installation_ULA_Dashboard() {
                             style={{ height: 26, padding: '0 8px', fontSize: '11px', gap: '4px' }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/v/bihar/ula-installation-view-site?district=${encodeURIComponent(d.district)}`);
+                              openStatusView('total', d.district);
                             }}
-                            title={`Inspect sites in ${d.district}`}
+                            title={`Inspect status view in ${d.district}`}
                           >
                             {ICON_EYE}
                             <span className="ax-btn__label">Sites</span>
@@ -1276,32 +1510,104 @@ export function Bihar_Installation_ULA_Dashboard() {
                 {tableDistricts.length > 0 && (
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', background: 'var(--ax-surface-subtle)' }}>Total ({filteredDistrictRows.length} Districts)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(districtTotals.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num">
+                      <span
+                        className="dist-status-badge"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => openStatusView('total')}
+                        title="View all sites across districts"
+                      >
+                        {num(districtTotals.site_count)}
+                      </span>
+                    </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 700 }}>{num(districtTotals.structure_complete)}</span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--info dist-status-badge"
+                          style={{ fontWeight: 700, cursor: 'pointer' }}
+                          onClick={() => openStatusView('structure-complete')}
+                          title="View all Structure Complete sites"
+                        >
+                          {num(districtTotals.structure_complete)}
+                        </span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(districtTotals.structure_pending)}</span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--warning dist-status-badge"
+                          style={{ fontWeight: 700, cursor: 'pointer' }}
+                          onClick={() => openStatusView('structure-pending')}
+                          title="View all Structure Pending sites"
+                        >
+                          {num(districtTotals.structure_pending)}
+                        </span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(districtTotals.inst_complete)}</span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--success dist-status-badge"
+                          style={{ fontWeight: 700, cursor: 'pointer' }}
+                          onClick={() => openStatusView('complete')}
+                          title="View all Installation Complete sites"
+                        >
+                          {num(districtTotals.inst_complete)}
+                        </span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 700 }}>{num(districtTotals.inst_pending)}</span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--neutral dist-status-badge"
+                          style={{ fontWeight: 700, cursor: 'pointer' }}
+                          onClick={() => openStatusView('pending')}
+                          title="View all Installation Pending sites"
+                        >
+                          {num(districtTotals.inst_pending)}
+                        </span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success">{num(districtTotals.verify_approved)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning">{num(districtTotals.verify_pending)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--danger">{num(districtTotals.verify_reject)}</span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--success dist-status-badge"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => openStatusView('verify-approved')}
+                          title="View all Approved sites"
+                        >
+                          {num(districtTotals.verify_approved)}
+                        </span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--warning dist-status-badge"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => openStatusView('verify-pending')}
+                          title="View all Pending Verify sites"
+                        >
+                          {num(districtTotals.verify_pending)}
+                        </span>
+                        <span
+                          className="ax-badge ax-badge--soft ax-badge--danger dist-status-badge"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => openStatusView('verify-reject')}
+                          title="View all Rejected sites"
+                        >
+                          {num(districtTotals.verify_reject)}
+                        </span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
-                      <span style={{ fontWeight: 700 }}>{num(districtTotals.inst_doc_complete)}</span>
+                      <span
+                        className="dist-status-badge"
+                        style={{ fontWeight: 700, cursor: 'pointer' }}
+                        onClick={() => openStatusView('doc-complete')}
+                        title="View all Doc Submitted sites"
+                      >
+                        {num(districtTotals.inst_doc_complete)}
+                      </span>
                       <span> / </span>
-                      <span>{num(districtTotals.inst_doc_pending)}</span>
+                      <span
+                        className="dist-status-badge"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => openStatusView('doc-pending')}
+                        title="View all Doc Pending sites"
+                      >
+                        {num(districtTotals.inst_doc_pending)}
+                      </span>
                     </td>
                     <td className="ax-table__td">
                       <Bar pct={Math.round(pctOf(districtTotals.inst_complete, districtTotals.site_count))} />

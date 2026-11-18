@@ -56,11 +56,6 @@ export function UP_AMC_SSL18W_ViewAssignLight() {
 
   const columns: AmcColumn<any>[] = [
     {
-      header: 'Assign ID',
-      cell: (r: any) => <span style={{ fontWeight: 700, color: '#1e293b' }}>#{r.id}</span>,
-      exportValue: (r: any) => `#${r.id}`,
-    },
-    {
       header: 'District',
       cell: (r: any) => (
         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>

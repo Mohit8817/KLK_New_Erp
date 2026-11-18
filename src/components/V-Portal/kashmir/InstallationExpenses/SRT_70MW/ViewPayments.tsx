@@ -731,7 +731,7 @@ export function Kashmir_Expenses_ViewPayments() {
 
                         {/* Site ID */}
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                          {pick(r, 'site_id') ? `#${pick(r, 'site_id')}` : DASH}
+                          {pick(r, 'site_id') ? `${pick(r, 'site_id')}` : DASH}
                         </td>
 
                         {/* Vendor ID */}
