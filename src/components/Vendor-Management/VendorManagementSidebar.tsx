@@ -286,68 +286,6 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-  // {
-  //   section: 'Goa',
-  //   state: 'goa',
-  //   items: [
-  //     {
-  //       id: 'grp.vm.goa.survey',
-  //       title: 'Survey',
-  //       icon: 'survey',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.goa.survey.srt',
-  //           title: 'SRT',
-  //           tag: 'SRT',
-  //           children: [
-  //             { id: 'vm.goa.survey.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/survey/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.goa.survey.srt.assign', title: 'Assign Survey', to: '/vendor-management/goa/srt/survey/assign', iconType: 'assign' },
-  //             { id: 'vm.goa.survey.srt.assign-view', title: 'Assign View Survey', to: '/vendor-management/goa/srt/survey/assign-view', iconType: 'view-assign' },
-  //             { id: 'vm.goa.survey.srt.verify', title: 'Verify Survey', to: '/vendor-management/goa/srt/survey/verify', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       id: 'grp.vm.goa.inst',
-  //       title: 'Installation',
-  //       icon: 'installation',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.goa.inst.srt',
-  //           title: 'SRT',
-  //           tag: 'SRT',
-  //           children: [
-  //             { id: 'vm.goa.inst.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/installation/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.goa.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/goa/srt/installation/assign', iconType: 'assign' },
-  //             { id: 'vm.goa.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/goa/srt/installation/view-assign', iconType: 'view-assign' },
-  //             { id: 'vm.goa.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/goa/srt/installation/verify', iconType: 'view-survey' },
-  //             { id: 'vm.goa.inst.srt.claim', title: 'View Claim', to: '/vendor-management/goa/srt/installation/claim', iconType: 'view-data' },
-  //             { id: 'vm.goa.inst.srt.payment', title: 'View Payment', to: '/vendor-management/goa/srt/installation/payment', iconType: 'view-data' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //     {
-  //       id: 'grp.vm.goa.amc',
-  //       title: 'AMC',
-  //       icon: 'amc',
-  //       children: [
-  //         {
-  //           id: 'grp.vm.goa.amc.srt',
-  //           title: 'SRT',
-  //           tag: 'SRT',
-  //           children: [
-  //             { id: 'vm.goa.amc.srt.dashboard', title: 'SRT AMC Dashboard', to: '/vendor-management/goa/srt/amc/dashboard', iconType: 'analytics' },
-  //             { id: 'vm.goa.amc.srt.assign', title: 'Assign SRT', to: '/vendor-management/goa/srt/amc/assign', iconType: 'assign' },
-  //             { id: 'vm.goa.amc.srt.view-assign', title: 'Assign View Site', to: '/vendor-management/goa/srt/amc/view-assign', iconType: 'view-assign' },
-  //             { id: 'vm.goa.amc.srt.verify', title: 'Verify Site', to: '/vendor-management/goa/srt/amc/verify', iconType: 'view-survey' },
-  //           ],
-  //         },
-  //       ],
-  //     },
-  //   ],
-  // },
   {
     section: 'Karnataka',
     state: 'karnataka',
@@ -1529,6 +1467,7 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/vendor-management/kashmir/srt-installation-view-payment-expense',
   ],
 
+
   // ── Goa Survey: SRT ──
   '/vendor-management/goa/srt/survey/dashboard': [
     '/goa/srt/survey-dashbboard',
@@ -1590,6 +1529,7 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/goa-amc-srt-site-verify',
     '/vendor-management/goa-amc-srt-site-verify',
   ],
+
 
   // ── Punjab Installation: SSL ──
   '/vendor-management/punjab/ssl/installation/dashboard': [
