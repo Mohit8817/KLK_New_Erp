@@ -304,7 +304,7 @@ export function CameraBarcodeScannerModal({
                 height="18"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#2563eb"
+                stroke="#2559bf"
                 strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -393,8 +393,8 @@ export function CameraBarcodeScannerModal({
                   left: -2,
                   width: 20,
                   height: 20,
-                  borderTop: '4px solid #3b82f6',
-                  borderLeft: '4px solid #3b82f6',
+                  borderTop: '4px solid #2559bf',
+                  borderLeft: '4px solid #2559bf',
                   borderRadius: '6px 0 0 0',
                 }}
               />
@@ -405,8 +405,8 @@ export function CameraBarcodeScannerModal({
                   right: -2,
                   width: 20,
                   height: 20,
-                  borderTop: '4px solid #3b82f6',
-                  borderRight: '4px solid #3b82f6',
+                  borderTop: '4px solid #2559bf',
+                  borderRight: '4px solid #2559bf',
                   borderRadius: '0 6px 0 0',
                 }}
               />
@@ -417,8 +417,8 @@ export function CameraBarcodeScannerModal({
                   left: -2,
                   width: 20,
                   height: 20,
-                  borderBottom: '4px solid #3b82f6',
-                  borderLeft: '4px solid #3b82f6',
+                  borderBottom: '4px solid #2559bf',
+                  borderLeft: '4px solid #2559bf',
                   borderRadius: '0 0 0 6px',
                 }}
               />
@@ -429,8 +429,8 @@ export function CameraBarcodeScannerModal({
                   right: -2,
                   width: 20,
                   height: 20,
-                  borderBottom: '4px solid #3b82f6',
-                  borderRight: '4px solid #3b82f6',
+                  borderBottom: '4px solid #2559bf',
+                  borderRight: '4px solid #2559bf',
                   borderRadius: '0 0 6px 0',
                 }}
               />
@@ -440,8 +440,8 @@ export function CameraBarcodeScannerModal({
                 style={{
                   width: '100%',
                   height: 2,
-                  background: 'linear-gradient(90deg, transparent, #22c55e, #3b82f6, transparent)',
-                  boxShadow: '0 0 8px 1px #3b82f6',
+                  background: 'linear-gradient(90deg, transparent, #22c55e, #2559bf, transparent)',
+                  boxShadow: '0 0 8px 1px #2559bf',
                   animation: 'scannerLaser 1.8s infinite ease-in-out',
                 }}
               />
@@ -541,7 +541,7 @@ export function CameraBarcodeScannerModal({
                   fontWeight: 600,
                   borderRadius: 6,
                   border: 'none',
-                  background: '#2563eb',
+                  background: '#2559bf',
                   color: '#ffffff',
                   cursor: 'pointer',
                 }}
@@ -683,7 +683,7 @@ export function CameraBarcodeScannerModal({
                 fontWeight: 600,
                 borderRadius: 8,
                 border: 'none',
-                background: manualCode.trim() ? '#2563eb' : '#94a3b8',
+                background: manualCode.trim() ? '#2559bf' : '#94a3b8',
                 color: '#ffffff',
                 cursor: manualCode.trim() ? 'pointer' : 'not-allowed',
               }}
@@ -707,3 +707,5 @@ export function CameraBarcodeScannerModal({
 }
 
 export default CameraBarcodeScannerModal;
+
+

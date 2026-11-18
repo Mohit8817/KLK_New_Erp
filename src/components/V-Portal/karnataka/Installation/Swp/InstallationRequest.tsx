@@ -491,6 +491,10 @@ export function InstallationRequest() {
     if (!q) return list;
     return list.filter((s: any) => {
       const fn = (s.farmer_name || s.f_farmer_name || '').toLowerCase();
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
       const fath = (
         s.father_name ||
         s.f_father_name ||
@@ -501,6 +505,12 @@ export function InstallationRequest() {
         s.guardian_name ||
         ''
       ).toLowerCase();
+<<<<<<< HEAD
+=======
+=======
+      const fath = (s.father_name || s.f_father_name || '').toLowerCase();
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
       const app = (s.application_no || s.app_no || '').toLowerCase();
       const sId = String(s.id || '').toLowerCase();
       const st = (s.state || detailData?.state || activeItem?.state || '').toLowerCase();
@@ -577,6 +587,10 @@ export function InstallationRequest() {
       const res = await karnatakaSwpService.getAssignSiteDetail(assignId || item.id);
       const detailPayload = (res as any)?.data || res;
       if (detailPayload) {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
         const fetchedList = detailPayload.Names || detailPayload.sites || [];
         const baseList = initialList && initialList.length > 0 ? initialList : [];
         const mergedList = (fetchedList.length > 0 ? fetchedList : baseList).map((s: any, idx: number) => {
@@ -684,6 +698,12 @@ export function InstallationRequest() {
             }
           });
         }
+<<<<<<< HEAD
+=======
+=======
+        setDetailData(detailPayload);
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
       }
     } catch (err: any) {
       if (!initialList || initialList.length === 0) {
@@ -741,8 +761,18 @@ export function InstallationRequest() {
 
     const confirmMsg =
       siteIds.length > 0
+<<<<<<< HEAD
         ? `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId || siteIds[0]} (Site ${siteIds.join(', ')})?`
         : `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId}?`;
+=======
+<<<<<<< HEAD
+        ? `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId || siteIds[0]} (Site ${siteIds.join(', ')})?`
+        : `Are you sure you want to accept Karnataka SWP Installation Assignment ${assignId}?`;
+=======
+        ? `Are you sure you want to accept Karnataka SWP Installation Assignment #${assignId || siteIds[0]} (Site #${siteIds.join(', ')})?`
+        : `Are you sure you want to accept Karnataka SWP Installation Assignment #${assignId}?`;
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
     if (!window.confirm(confirmMsg)) {
       return false;
@@ -1276,7 +1306,15 @@ export function InstallationRequest() {
                             item.vendors.name
                           ) : item.vendor ? (
                             <>
+<<<<<<< HEAD
                               Vendor {item.vendor}
+=======
+<<<<<<< HEAD
+                              Vendor {item.vendor}
+=======
+                              Vendor #{item.vendor}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                               {item.company_id && (
                                 <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', display: 'block', fontWeight: 500 }}>
                                   {item.company_id}
@@ -1288,7 +1326,15 @@ export function InstallationRequest() {
                           )}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+<<<<<<< HEAD
                           <div>Assign ID: {getAssignId(item) || item.id}</div>
+=======
+<<<<<<< HEAD
+                          <div>Assign ID: {getAssignId(item) || item.id}</div>
+=======
+                          <div>Assign #{getAssignId(item) || item.id}</div>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                           {siteIds.length > 0 && (
                             <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                               <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>
@@ -1391,7 +1437,15 @@ export function InstallationRequest() {
                         ) : siteIds.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
+<<<<<<< HEAD
                               Site IDs: {siteIds.slice(0, 3).join(', ')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
+=======
+<<<<<<< HEAD
+                              Site IDs: {siteIds.slice(0, 3).join(', ')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
+=======
+                              Site IDs: #{siteIds.slice(0, 3).join(', #')}{siteIds.length > 3 ? ` (+${siteIds.length - 3} more)` : ''}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                             </div>
                             <button
                               type="button"
@@ -1479,7 +1533,22 @@ export function InstallationRequest() {
                               {acceptingId === item.id || (getAssignId(item) > 0 && acceptingId === getAssignId(item)) ? 'Accepting…' : 'Accept'}
                             </button>
                           ) : (
+<<<<<<< HEAD
                             <Badge tone="success">Done</Badge>
+=======
+<<<<<<< HEAD
+                            <Badge tone="success">Done</Badge>
+=======
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--ghost ax-btn--sm"
+                              style={{ color: 'var(--asw-primary)', fontWeight: 600 }}
+                              onClick={() => navigate('/v/karnataka/installation/swp/site')}
+                            >
+                              Install Site &rarr;
+                            </button>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                           )}
                         </div>
                       </td>
@@ -1611,7 +1680,15 @@ export function InstallationRequest() {
                           {idx + 1}
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>
+<<<<<<< HEAD
                           {siteId}
+=======
+<<<<<<< HEAD
+                          {siteId}
+=======
+                          #{siteId}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         </td>
                         <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                           {appNo}
@@ -1619,6 +1696,10 @@ export function InstallationRequest() {
                         <td className="ax-table__td">
                           <strong style={{ color: 'var(--ax-text-strong)' }}>{site.farmer_name || site.f_farmer_name || '—'}</strong>
                         </td>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         <td className="ax-table__td">
                           {site.father_name ||
                             site.f_father_name ||
@@ -1636,6 +1717,12 @@ export function InstallationRequest() {
                             (activeItem?.sites && (activeItem.sites.find((n: any) => n.id === site.id)?.father_name || activeItem.sites.find((n: any) => n.id === site.id)?.f_father_name || activeItem.sites[idx]?.father_name || activeItem.sites[idx]?.f_father_name)) ||
                             '—'}
                         </td>
+<<<<<<< HEAD
+=======
+=======
+                        <td className="ax-table__td">{site.father_name || site.f_father_name || '—'}</td>
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                         <td className="ax-table__td">
                           <b>{districtVal}</b>
                         </td>

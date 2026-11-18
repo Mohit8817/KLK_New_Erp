@@ -44,6 +44,7 @@ export function Sidebar({
 
   const isVendorManagement =
     pathname.startsWith('/vendor-management') ||
+<<<<<<< HEAD
     pathname.startsWith('/karnataka-swp') ||
     pathname.startsWith('/karnataka-view-assign-swp') ||
     pathname.startsWith('/karnataka-verify-swp') ||
@@ -88,13 +89,33 @@ export function Sidebar({
     pathname === '/view-payment' ||
     pathname === '/view-vendor-complaint' ||
     pathname === '/view-daily-progress';
+=======
+<<<<<<< HEAD
+    pathname.startsWith('/arunachal/shl/installation');
+=======
+    (!isVendor && pathname.startsWith('/arunachal'));
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   const isDlePortal = pathname.startsWith('/dle');
   const isVPortal =
     pathname.startsWith('/v-portal') ||
     pathname.startsWith('/v-dashboard') ||
     pathname.startsWith('/v/') ||
     pathname === '/v' ||
+<<<<<<< HEAD
+    (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up') || pathname.startsWith('/arunachal')));
+=======
+<<<<<<< HEAD
     (isVendor && (pathname.startsWith('/vendor') || pathname.startsWith('/assam') || pathname.startsWith('/jammu') || pathname.startsWith('/up')));
+=======
+    pathname.startsWith('/assam') ||
+    pathname.startsWith('/jammu') ||
+    pathname.startsWith('/up') ||
+    pathname.startsWith('/bihar') ||
+    pathname.startsWith('/ssl') ||
+    pathname.startsWith('/srt');
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 
   return (
     <aside className="ax-sidebar" role="navigation" aria-label="Primary" ref={rootRef}>

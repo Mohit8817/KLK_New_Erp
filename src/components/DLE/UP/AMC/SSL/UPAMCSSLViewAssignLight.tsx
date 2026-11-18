@@ -288,8 +288,7 @@ export function UPAMCSSLViewAssignLight() {
       r.block.toLowerCase().includes(s) ||
       r.panchayat.some((p) => p.toLowerCase().includes(s)) ||
       r.date.toLowerCase().includes(s) ||
-      r.remarks.toLowerCase().includes(s) ||
-      r.volume.toLowerCase().includes(s)
+      r.remarks.toLowerCase().includes(s)
     );
   }, [data, deferredQ]);
 

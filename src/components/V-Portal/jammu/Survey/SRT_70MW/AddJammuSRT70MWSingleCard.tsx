@@ -10,8 +10,8 @@ import {
 /* ───────── Unified Single-Card Layout matching Reference Design ───────── */
 const SINGLE_CARD_FORM_CSS = `
 .solar-erp-page {
-  --asw-primary: #2563eb;
-  --asw-primary-rgb: 37, 99, 235;
+  --asw-primary: #2559bf;
+  --asw-primary-rgb: 37, 89, 191;
 }
 .jammu-srt-form .ax-card {
   border: 1px solid var(--ax-border, #e2e8f0);
@@ -54,9 +54,9 @@ const SINGLE_CARD_FORM_CSS = `
   transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
 }
 .swp-section-pill-btn:hover {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
+  border-color: #2559bf;
+  color: #2559bf;
+  background: color-mix(in srgb, #2559bf 6%, var(--ax-surface-solid, #ffffff));
 }
 .swp-section-pill-btn .pill-num {
   width: 18px; height: 18px; border-radius: 50%;
@@ -99,8 +99,8 @@ const SINGLE_CARD_FORM_CSS = `
 .ax-float__input::placeholder { color: transparent; }
 .ax-float__input:focus::placeholder { color: #94a3b8; }
 .ax-float__input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+  border-color: #2559bf;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2559bf 20%, transparent);
 }
 .ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
@@ -129,7 +129,7 @@ const SINGLE_CARD_FORM_CSS = `
   top: 0;
   font-size: 11px;
   font-weight: 500;
-  color: #2563eb;
+  color: #2559bf;
 }
 .ax-float__label.has-val:not(.floating) {
   top: 0;
@@ -333,7 +333,7 @@ function UploadDropzone({
         }}
         style={{
           border: isDragging
-            ? '1.5px dashed #2563eb'
+            ? '1.5px dashed #2559bf'
             : error
             ? '1.5px dashed var(--ax-danger-500, #ef4444)'
             : isHovered
@@ -412,8 +412,8 @@ function UploadDropzone({
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                background: '#eff6ff',
-                color: '#3b82f6',
+                background: 'rgba(37, 89, 191, 0.1)',
+                color: '#2559bf',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -874,7 +874,7 @@ export function AddJammuSRT70MWSingleCard() {
 
         <div className="ax-card__body">
           {loadingInitial && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#2563eb' }}>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#2559bf' }}>
               <span className="ax-spinner" /> Loading existing survey specifications for editing…
             </div>
           )}
@@ -1497,3 +1497,5 @@ export function AddJammuSRT70MWSingleCard() {
 }
 
 export default AddJammuSRT70MWSingleCard;
+
+

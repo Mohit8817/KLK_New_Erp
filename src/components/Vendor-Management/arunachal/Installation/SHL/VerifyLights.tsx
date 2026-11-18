@@ -20,7 +20,15 @@ import {
 /* ───────── Responsive page CSS (all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
+<<<<<<< HEAD
     --asw-primary: var(--ax-accent, #2563eb);
+=======
+<<<<<<< HEAD
+    --asw-primary: var(--ax-accent, #2563eb);
+=======
+    --asw-primary: #2563eb;
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -69,6 +77,7 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
+<<<<<<< HEAD
     border-color: var(--ax-accent, #2563eb);
     color: var(--ax-accent, #2563eb);
   }
@@ -77,6 +86,27 @@ const PAGE_CSS = `
     color: var(--ax-on-accent, #ffffff);
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+=======
+<<<<<<< HEAD
+    border-color: var(--ax-accent, #2563eb);
+    color: var(--ax-accent, #2563eb);
+  }
+  .solar-erp-page .asw-pill-btn.active {
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb));
+    color: var(--ax-on-accent, #ffffff);
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+=======
+    border-color: #2563eb;
+    color: #2563eb;
+  }
+  .solar-erp-page .asw-pill-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
   }
 
   .solar-erp-page .ax-card__header {
@@ -346,7 +376,15 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'rose';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+<<<<<<< HEAD
   accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+=======
+<<<<<<< HEAD
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+=======
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -527,7 +565,15 @@ export function VerifyLights() {
   // Media Lightbox Modal
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+<<<<<<< HEAD
   // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+<<<<<<< HEAD
+  // Vendor Name Lookup Map (populated from getAssignFormData, getDashboard + known fallbacks)
+=======
+  // Vendor Name Lookup Map (populated from getAssignFormData + known fallbacks)
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
     '142': 'App Testing',
     '212': 'mohit',
@@ -537,6 +583,10 @@ export function VerifyLights() {
   const getVendorName = useCallback(
     (item?: Partial<LightVerificationItem> | null): string => {
       if (!item) return '—';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       if (item.vendors && typeof item.vendors === 'object') {
         if (item.vendors.name) return item.vendors.name;
         if (item.vendors.vendor_name) return item.vendors.vendor_name;
@@ -544,12 +594,28 @@ export function VerifyLights() {
       if (typeof item.vendors === 'string' && item.vendors.trim()) return item.vendors.trim();
       if (item.vendor_name) return item.vendor_name;
       const vid = item.inst_vendor ?? item.vendor ?? (item.vendors as any)?.id;
+<<<<<<< HEAD
+=======
+=======
+      if (item.vendors?.name) return item.vendors.name;
+      if (item.vendor_name) return item.vendor_name;
+      const vid = item.inst_vendor ?? item.vendor;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       if (vid !== undefined && vid !== null && String(vid).trim() !== '') {
         const key = String(vid).trim();
         if (vendorMap[key]) return vendorMap[key];
         if (key === '142') return 'App Testing';
         if (key === '212') return 'mohit';
+<<<<<<< HEAD
         return `Vendor ${key}`;
+=======
+<<<<<<< HEAD
+        return `Vendor ${key}`;
+=======
+        return `Vendor #${key}`;
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       }
       return '—';
     },
@@ -561,10 +627,22 @@ export function VerifyLights() {
     setLoading(true);
     setErrorMsg('');
     try {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       const [res, assignFormRes, dashRes] = await Promise.allSettled([
         arunachalAdminService.getViewInstallation(),
         arunachalAdminService.getAssignFormData(),
         arunachalAdminService.getDashboard(),
+<<<<<<< HEAD
+=======
+=======
+      const [res, assignFormRes] = await Promise.allSettled([
+        arunachalAdminService.getViewInstallation(),
+        arunachalAdminService.getAssignFormData(),
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       ]);
 
       if (res.status === 'fulfilled') {
@@ -575,16 +653,34 @@ export function VerifyLights() {
         throw res.reason;
       }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       const vMap: Record<string | number, string> = {
         '142': 'App Testing',
         '212': 'mohit',
       };
       if (assignFormRes.status === 'fulfilled' && Array.isArray(assignFormRes.value.vendors)) {
+<<<<<<< HEAD
+=======
+=======
+      if (assignFormRes.status === 'fulfilled' && Array.isArray(assignFormRes.value.vendors)) {
+        const vMap: Record<string | number, string> = {
+          '142': 'App Testing',
+          '212': 'mohit',
+        };
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
         assignFormRes.value.vendors.forEach((v: any) => {
           const id = v.id ?? v.vendor ?? v.inst_vendor;
           const name = v.name ?? v.vendor_name;
           if (id && name) vMap[String(id).trim()] = String(name).trim();
         });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       }
       if (dashRes.status === 'fulfilled') {
         const d = dashRes.value;
@@ -604,6 +700,13 @@ export function VerifyLights() {
         }
       }
       setVendorMap((prev) => ({ ...prev, ...vMap }));
+<<<<<<< HEAD
+=======
+=======
+        setVendorMap((prev) => ({ ...prev, ...vMap }));
+      }
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
     } catch (err: any) {
       console.error('Failed to load verify installations:', err);
       setErrorMsg(err.message || 'Failed to load installation verification data');
@@ -674,7 +777,15 @@ export function VerifyLights() {
         setSelectedSiteForDetails(updatedSite);
       }
 
+<<<<<<< HEAD
       setSuccessMsg(res.message || `SHL Light ${selectedSiteForAction.uid || selectedSiteForAction.id} verified successfully.`);
+=======
+<<<<<<< HEAD
+      setSuccessMsg(res.message || `SHL Light ${selectedSiteForAction.uid || selectedSiteForAction.id} verified successfully.`);
+=======
+      setSuccessMsg(res.message || `SHL Light #${selectedSiteForAction.uid || selectedSiteForAction.id} verified successfully.`);
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       setSelectedSiteForAction(null);
       setActionStatus('1');
       setActionRemarks('');
@@ -722,6 +833,10 @@ export function VerifyLights() {
         rem.includes(q)
       );
     });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   }, [currentList, searchQuery, getVendorName]);
 
   // Pagination
@@ -730,6 +845,15 @@ export function VerifyLights() {
   useEffect(() => {
     pagination.setPage(1);
   }, [searchQuery, activeTab]);
+<<<<<<< HEAD
+=======
+=======
+  }, [currentList, searchQuery]);
+
+  // Pagination
+  const pagination = usePagination(filteredRows, { initialPageSize: 100 });
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   // Export Columns (Exact 20 fields)
   const exportColumns: ExportColumn<LightVerificationItem>[] = useMemo(
@@ -745,7 +869,15 @@ export function VerifyLights() {
       { header: 'Panchayat', accessor: (r: LightVerificationItem) => r.panchayat || '—' },
       { header: 'Address', accessor: (r: LightVerificationItem) => r.address || r.village || r.post || '—' },
       { header: 'Phase', accessor: (r: LightVerificationItem) => r.phase || r.volume || '—' },
+<<<<<<< HEAD
       { header: 'Vendor', accessor: (r: LightVerificationItem) => getVendorName(r) },
+=======
+<<<<<<< HEAD
+      { header: 'Vendor', accessor: (r: LightVerificationItem) => getVendorName(r) },
+=======
+      { header: 'Vendor', accessor: (r: LightVerificationItem) => r.vendors?.name || r.vendor_name || (r.inst_vendor ? `Vendor #${r.inst_vendor}` : (r.vendor ? `Vendor #${r.vendor}` : '—')) },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
       { header: 'Contact Person', accessor: (r: LightVerificationItem) => r.beneficiary_name || r.contact_person || r.farmer_name || r.customer_name || '—' },
       { header: 'Contact Number', accessor: (r: LightVerificationItem) => r.contact_no || r.contact_number || r.phone || '—' },
       { header: 'Panel No.', accessor: (r: LightVerificationItem) => r.panel_no || r.module_no || '—' },
@@ -1024,27 +1156,59 @@ export function VerifyLights() {
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
           <button
             type="button"
+<<<<<<< HEAD
             className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+=======
+<<<<<<< HEAD
+            className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+=======
+            className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
             onClick={() => {
               setActiveTab('pending');
               pagination.setPage(1);
             }}
           >
             Verification Pending
+<<<<<<< HEAD
             <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+=======
+<<<<<<< HEAD
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+=======
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               {pendingList.length}
             </span>
           </button>
           <button
             type="button"
+<<<<<<< HEAD
             className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
+=======
+<<<<<<< HEAD
+            className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
+=======
+            className={`asw-pill-btn ${activeTab === 'verified' ? 'active' : ''}`}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
             onClick={() => {
               setActiveTab('verified');
               pagination.setPage(1);
             }}
           >
             Approved / Rejected SHL Data
+<<<<<<< HEAD
             <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+=======
+<<<<<<< HEAD
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11, fontWeight: 700 }}>
+=======
+            <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'verified' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               {verifiedList.length}
             </span>
           </button>
@@ -1072,8 +1236,26 @@ export function VerifyLights() {
                       setSearchQuery('');
                       pagination.setPage(1);
                     }}
+<<<<<<< HEAD
                     className="ax-btn ax-btn--ghost ax-btn--sm"
                     style={{ height: 30, padding: '0 8px', fontSize: 12 }}
+=======
+<<<<<<< HEAD
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    style={{ height: 30, padding: '0 8px', fontSize: 12 }}
+=======
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                    }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   >
                     Reset
                   </button>
@@ -1158,14 +1340,30 @@ export function VerifyLights() {
                         <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
 
                         {/* 2. Unique Id */}
+<<<<<<< HEAD
                         <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-accent, #2563eb)' }}>
+=======
+<<<<<<< HEAD
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-accent, #2563eb)' }}>
+=======
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: '#2563eb' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                           <button
                             type="button"
                             onClick={() => setSelectedSiteForDetails(row)}
                             style={{
                               background: 'none',
                               border: 'none',
+<<<<<<< HEAD
                               color: 'var(--ax-accent, #2563eb)',
+=======
+<<<<<<< HEAD
+                              color: 'var(--ax-accent, #2563eb)',
+=======
+                              color: '#2563eb',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                               fontWeight: 700,
                               cursor: 'pointer',
                               padding: 0,
@@ -1214,7 +1412,15 @@ export function VerifyLights() {
 
                         {/* 9. Vendor */}
                         <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+<<<<<<< HEAD
                           {getVendorName(row)}
+=======
+<<<<<<< HEAD
+                          {getVendorName(row)}
+=======
+                          {row.vendors?.name || row.vendor_name || (row.inst_vendor ? `Vendor #${row.inst_vendor}` : (row.vendor ? `Vendor #${row.vendor}` : '—'))}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                         </td>
 
                         {/* 10. Contact Person */}
@@ -1267,7 +1473,15 @@ export function VerifyLights() {
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: 4,
+<<<<<<< HEAD
                                   color: 'var(--ax-accent, #2563eb)',
+=======
+<<<<<<< HEAD
+                                  color: 'var(--ax-accent, #2563eb)',
+=======
+                                  color: '#2563eb',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                                   textDecoration: 'none',
                                   fontWeight: 600,
                                 }}
@@ -1361,11 +1575,26 @@ export function VerifyLights() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedSiteForDetails(row)}
+<<<<<<< HEAD
+                                className="ax-btn ax-btn--secondary ax-btn--sm"
+=======
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--secondary ax-btn--sm"
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: 4,
+=======
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+<<<<<<< HEAD
+                                  gap: 4,
+=======
+                                  gap: 3,
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                                 }}
                                 title="View full site details"
                               >
@@ -1382,7 +1611,24 @@ export function VerifyLights() {
                                   setActionStatus(String(row.inst_verify_status ?? '1'));
                                   setActionRemarks(row.inst_verify_remarks || '');
                                 }}
+<<<<<<< HEAD
                                 className="ax-btn ax-btn--primary ax-btn--sm"
+=======
+<<<<<<< HEAD
+                                className="ax-btn ax-btn--primary ax-btn--sm"
+=======
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: '#2563eb',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                               >
                                 Verify
                               </button>
@@ -1402,12 +1648,24 @@ export function VerifyLights() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={pagination.curPage}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 curPage={pagination.curPage}
                 totalItems={pagination.totalItems}
                 total={pagination.totalItems}
                 pageSize={pagination.pageSize}
                 onPageChange={pagination.setPage}
                 setPage={pagination.setPage}
+<<<<<<< HEAD
+=======
+=======
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPageChange={pagination.setPage}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 onPageSizeChange={pagination.setPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
@@ -1423,7 +1681,15 @@ export function VerifyLights() {
         title="Arunachal SHL Light Installation Details"
         subtitle={
           selectedSiteForDetails
+<<<<<<< HEAD
             ? `Light UID: ${selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id} • Vendor: ${getVendorName(selectedSiteForDetails)} • District: ${selectedSiteForDetails.district}`
+=======
+<<<<<<< HEAD
+            ? `Light UID: ${selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id} • Vendor: ${getVendorName(selectedSiteForDetails)} • District: ${selectedSiteForDetails.district}`
+=======
+            ? `Light UID: #${selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id} • Vendor: ${selectedSiteForDetails.vendors?.name || selectedSiteForDetails.vendor_name || (selectedSiteForDetails.inst_vendor ? `Vendor #${selectedSiteForDetails.inst_vendor}` : selectedSiteForDetails.vendor)} • District: ${selectedSiteForDetails.district}`
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
             : ''
         }
         maxWidth={860}
@@ -1440,8 +1706,25 @@ export function VerifyLights() {
                     setActionStatus(String(site.inst_verify_status ?? '1'));
                     setActionRemarks(site.inst_verify_remarks || '');
                   }}
+<<<<<<< HEAD
                   className="ax-btn ax-btn--primary ax-btn--sm"
                   style={{
+=======
+<<<<<<< HEAD
+                  className="ax-btn ax-btn--primary ax-btn--sm"
+                  style={{
+=======
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
@@ -1457,8 +1740,19 @@ export function VerifyLights() {
             </div>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary ax-btn--sm"
               onClick={() => setSelectedSiteForDetails(null)}
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setSelectedSiteForDetails(null)}
+=======
+              className="ax-button ax-button--secondary"
+              onClick={() => setSelectedSiteForDetails(null)}
+              style={{ padding: '6px 16px', fontSize: 13 }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
             >
               Close
             </button>
@@ -1483,8 +1777,20 @@ export function VerifyLights() {
             >
               <div>
                 <span style={{ fontSize: 12, color: '#64748b' }}>Light UID: </span>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--ax-accent, #2563eb)' }}>
                   {selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
+=======
+                <strong style={{ fontFamily: 'monospace', fontSize: 13, color: '#2563eb' }}>
+<<<<<<< HEAD
+                  {selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
+=======
+                  #{selectedSiteForDetails.unique_id || selectedSiteForDetails.uid || selectedSiteForDetails.id}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                 </strong>
                 {selectedSiteForDetails.phase && (
                   <span style={{ marginLeft: 12, fontSize: 12, color: '#64748b' }}>
@@ -1518,7 +1824,15 @@ export function VerifyLights() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
               {/* Contact Person Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   Contact & Vendor Details
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1534,14 +1848,30 @@ export function VerifyLights() {
 
                   <span style={{ color: '#64748b' }}>Vendor:</span>
                   <span style={{ fontWeight: 600 }}>
+<<<<<<< HEAD
                     {getVendorName(selectedSiteForDetails)}
+=======
+<<<<<<< HEAD
+                    {getVendorName(selectedSiteForDetails)}
+=======
+                    {selectedSiteForDetails.vendors?.name || selectedSiteForDetails.vendor_name || (selectedSiteForDetails.inst_vendor ? `Vendor #${selectedSiteForDetails.inst_vendor}` : (selectedSiteForDetails.vendor ? `Vendor #${selectedSiteForDetails.vendor}` : '—'))}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
                   </span>
                 </div>
               </div>
 
               {/* Location Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   Site Location
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1570,7 +1900,15 @@ export function VerifyLights() {
                           href={`https://www.google.com/maps?q=${dLat},${dLng}`}
                           target="_blank"
                           rel="noopener noreferrer"
+<<<<<<< HEAD
                           style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+=======
+<<<<<<< HEAD
+                          style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+=======
+                          style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                         >
                           {dLat}, {dLng} ↗
                         </a>
@@ -1585,7 +1923,15 @@ export function VerifyLights() {
 
             {/* Grid 2: Hardware & Luminary Specs */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Hardware & Equipment Specifications
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12 }}>
@@ -1618,7 +1964,15 @@ export function VerifyLights() {
 
             {/* Grid 3: Photographic Evidence */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 12, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Photographic Evidence
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
@@ -1649,7 +2003,15 @@ export function VerifyLights() {
                               style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 6 }}
                             />
                           )}
+<<<<<<< HEAD
                           <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview media</div>
+=======
+<<<<<<< HEAD
+                          <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to preview media</div>
+=======
+                          <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to preview media</div>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                         </div>
                       ) : (
                         <div style={{ padding: 30, color: '#94a3b8', fontSize: 12 }}>No Media Attached</div>
@@ -1662,7 +2024,15 @@ export function VerifyLights() {
 
             {/* Grid 4: Audit & QA Verification Notes */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Remarks & Audit Log
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 12 }}>
@@ -1679,7 +2049,15 @@ export function VerifyLights() {
                 <span>{selectedSiteForDetails.inst_verify_date || '—'}</span>
 
                 <span style={{ color: '#64748b' }}>QA Verified By:</span>
+<<<<<<< HEAD
                 <span>{selectedSiteForDetails.inst_verify_by ? `User ID: ${selectedSiteForDetails.inst_verify_by}` : '—'}</span>
+=======
+<<<<<<< HEAD
+                <span>{selectedSiteForDetails.inst_verify_by ? `User ID: ${selectedSiteForDetails.inst_verify_by}` : '—'}</span>
+=======
+                <span>{selectedSiteForDetails.inst_verify_by ? `User #${selectedSiteForDetails.inst_verify_by}` : '—'}</span>
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
                 <span style={{ color: '#64748b' }}>QA Review Remarks:</span>
                 <span style={{ fontWeight: 600, color: selectedSiteForDetails.inst_verify_remarks ? '#b45309' : '#64748b' }}>
@@ -1700,7 +2078,15 @@ export function VerifyLights() {
         title="Verify Installation Status"
         subtitle={
           selectedSiteForAction
+<<<<<<< HEAD
             ? `Light UID: ${selectedSiteForAction.unique_id || selectedSiteForAction.uid || selectedSiteForAction.id} • District: ${selectedSiteForAction.district}`
+=======
+<<<<<<< HEAD
+            ? `Light UID: ${selectedSiteForAction.unique_id || selectedSiteForAction.uid || selectedSiteForAction.id} • District: ${selectedSiteForAction.district}`
+=======
+            ? `Light UID: #${selectedSiteForAction.unique_id || selectedSiteForAction.uid || selectedSiteForAction.id} • District: ${selectedSiteForAction.district}`
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
             : ''
         }
         maxWidth={520}
@@ -1708,7 +2094,15 @@ export function VerifyLights() {
           <>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1717,10 +2111,30 @@ export function VerifyLights() {
             </button>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--primary"
+              onClick={handleActionSubmit}
+              disabled={submittingAction}
+              style={{
+=======
+              className="ax-button ax-button--primary"
+              onClick={handleActionSubmit}
+              disabled={submittingAction}
+              style={{
+                background: '#2563eb',
+                borderColor: '#2563eb',
+                color: '#ffffff',
+                fontWeight: 600,
+                padding: '6px 18px',
+                fontSize: 13,
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -1780,9 +2194,23 @@ export function VerifyLights() {
                 href={lightboxUrl}
                 target="_blank"
                 rel="noreferrer"
+<<<<<<< HEAD
                 className="ax-btn ax-btn--primary ax-btn--sm"
                 style={{
                   textDecoration: 'none',
+=======
+<<<<<<< HEAD
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{
+                  textDecoration: 'none',
+=======
+                style={{
+                  color: '#2563eb',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  textDecoration: 'underline',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 }}
               >
                 Open Original ↗
@@ -1790,7 +2218,15 @@ export function VerifyLights() {
             )}
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >

@@ -488,9 +488,21 @@ export function KarnatakaMaterialDetails() {
     return list;
   }, [rawSites, districtFilter, capacityFilter, search]);
 
+<<<<<<< HEAD
   // Pagination hook (matching reference) - default 100 items per user requirement
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredSites, initialPageSize: 100 });
+=======
+<<<<<<< HEAD
+  // Pagination hook (matching reference) - default 100 items per user requirement
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filteredSites, initialPageSize: 100 });
+=======
+  // Pagination hook (matching reference)
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filteredSites, initialPageSize: 25 });
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
 
   useEffect(() => {
     setPage(1);
@@ -957,7 +969,15 @@ export function KarnatakaMaterialDetails() {
               onPageChange={setPage}
               setPage={setPage}
               onPageSizeChange={setPageSize}
+<<<<<<< HEAD
               pageSizeOptions={[25, 50, 100, 200]}
+=======
+<<<<<<< HEAD
+              pageSizeOptions={[25, 50, 100, 200]}
+=======
+              pageSizeOptions={[10, 25, 50, 100]}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
             />
           </div>
         </div>
@@ -1045,7 +1065,15 @@ export function KarnatakaMaterialDetails() {
                       className="ax-badge ax-badge--soft ax-badge--neutral"
                       style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12, padding: '5px 10px', borderRadius: 6 }}
                     >
+<<<<<<< HEAD
                       <b style={{ color: 'var(--asw-primary)', marginRight: 4 }}>{idx + 1}.</b> {sn.trim()}
+=======
+<<<<<<< HEAD
+                      <b style={{ color: 'var(--asw-primary)', marginRight: 4 }}>{idx + 1}.</b> {sn.trim()}
+=======
+                      <b style={{ color: 'var(--asw-primary)', marginRight: 4 }}>#{idx + 1}</b> {sn.trim()}
+>>>>>>> 2f0aa566777502bc3b3e798fde4619376ae6a976
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
                     </span>
                   ));
                 })()}

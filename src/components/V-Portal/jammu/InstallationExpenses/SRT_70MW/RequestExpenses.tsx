@@ -9,8 +9,8 @@ import {
 /* ───────── Single Card Layout matching Jammu InstallSites pattern ───────── */
 const FORM_PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .jammu-exp-form .ax-card {
     border: 1px solid var(--ax-border, #e2e8f0);
@@ -53,9 +53,9 @@ const FORM_PAGE_CSS = `
     transition: all var(--ax-motion-fast, 0.15s) var(--ax-ease-standard, ease);
   }
   .swp-section-pill-btn:hover {
-    border-color: #2563eb;
-    color: #2563eb;
-    background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
+    border-color: #2559bf;
+    color: #2559bf;
+    background: color-mix(in srgb, #2559bf 6%, var(--ax-surface-solid, #ffffff));
   }
   .swp-section-pill-btn .pill-num {
     width: 18px; height: 18px; border-radius: 50%;
@@ -98,8 +98,8 @@ const FORM_PAGE_CSS = `
   .ax-float__input::placeholder { color: transparent; }
   .ax-float__input:focus::placeholder { color: #94a3b8; }
   .ax-float__input:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+    border-color: #2559bf;
+    box-shadow: 0 0 0 3px color-mix(in srgb, #2559bf 20%, transparent);
   }
   .ax-float__input:disabled { opacity: .75; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
@@ -128,7 +128,7 @@ const FORM_PAGE_CSS = `
     top: 0;
     font-size: 11px;
     font-weight: 500;
-    color: #2563eb;
+    color: #2559bf;
   }
   .ax-float__label.has-val:not(.floating) {
     top: 0;
@@ -157,12 +157,12 @@ const FORM_PAGE_CSS = `
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
   }
   .ax-modern-dropzone:hover {
-    border-color: var(--ax-accent, #2563eb);
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+    border-color: var(--ax-accent, #2559bf);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 5%, var(--ax-surface-subtle, #f8fafc));
   }
   .ax-modern-dropzone__icon {
     width: 44px; height: 44px; border-radius: 50%;
-    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    background: color-mix(in srgb, var(--ax-accent, #2559bf) 10%, #ffffff);
     display: flex; align-items: center; justify-content: center;
   }
   .ax-modern-file-chip {
@@ -539,7 +539,7 @@ export function RequestExpenses() {
                   <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>Selected Site</span>
                   <b style={{ color: 'var(--ax-text-strong)' }}>{selectedSite.site_name}</b>
                   {selectedSite.site_code && (
-                    <span style={{ marginLeft: 8, fontFamily: 'monospace', color: '#2563eb' }}>
+                    <span style={{ marginLeft: 8, fontFamily: 'monospace', color: '#2559bf' }}>
                       ({selectedSite.site_code})
                     </span>
                   )}
@@ -685,7 +685,7 @@ export function RequestExpenses() {
                   }}
                 >
                   <div className="ax-modern-dropzone__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2559bf' }}>
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
@@ -779,3 +779,4 @@ export function RequestExpenses() {
 }
 
 export default RequestExpenses;
+

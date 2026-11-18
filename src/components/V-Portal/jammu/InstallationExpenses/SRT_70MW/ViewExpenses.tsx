@@ -68,7 +68,7 @@ const formatDate = (d?: string | null): string => {
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -376,8 +376,8 @@ const OVERLAY_CSS = `
 
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1106,7 +1106,7 @@ export function ViewExpenses() {
                               target="_blank"
                               rel="noreferrer"
                               className="ax-btn ax-btn--ghost ax-btn--xs"
-                              style={{ color: '#2563eb', padding: '2px 6px', fontSize: 11 }}
+                              style={{ color: '#2559bf', padding: '2px 6px', fontSize: 11 }}
                               title="Open receipt voucher in new tab"
                             >
                               View ↗
@@ -1217,7 +1217,7 @@ export function ViewExpenses() {
             )}
 
             {editLoading ? (
-              <div style={{ textAlign: 'center', padding: '30px 0', color: '#2563eb' }}>
+              <div style={{ textAlign: 'center', padding: '30px 0', color: '#2559bf' }}>
                 <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading claim details from server…
               </div>
             ) : (
@@ -1361,3 +1361,4 @@ export function ViewExpenses() {
 }
 
 export default ViewExpenses;
+
