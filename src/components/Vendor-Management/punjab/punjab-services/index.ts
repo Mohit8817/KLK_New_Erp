@@ -34,5 +34,9 @@ export {
 export {
   PUNJAB_ADMIN_SSL_API,
   PUNJAB_VENDOR_API,
+  ADMIN_BASE_URL,
+  BASE_URL,
+  ROOT_URL,
+  buildCandidateUrls,
 } from '../../Vendor_Management_APIS/Punjab_Vendor_API';
 

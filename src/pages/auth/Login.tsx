@@ -814,6 +814,123 @@ const LOGIN_CSS = `
 }
 .klk-login-fill:hover { color: #1A66FF; }
 
+/* ── Dev Test Accounts Quick Fill (Temporary) ── */
+.klk-dev-box {
+  background: #F8FAFC;
+  border: 1.5px dashed #CBD5E1;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.klk-dev-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.klk-dev-box__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #334155;
+}
+.klk-dev-box__badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #E2E8F0;
+  color: #475569;
+}
+.klk-dev-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+@media (max-width: 480px) {
+  .klk-dev-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.klk-dev-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.klk-dev-card:hover {
+  border-color: #2563EB;
+  background: #F8FAFC;
+}
+.klk-dev-card.selected {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  box-shadow: 0 0 0 1px #2563EB;
+}
+.klk-dev-checkbox {
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #2563EB;
+  flex-shrink: 0;
+}
+.klk-dev-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.klk-dev-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.klk-dev-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.klk-dev-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.klk-dev-type.user {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1D4ED8;
+}
+.klk-dev-type.vendor {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+.klk-dev-id {
+  font-size: 10.5px;
+  color: #64748B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @keyframes klkFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes klkSpin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
@@ -848,15 +965,68 @@ const LOGIN_CSS = `
 }
 `;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEV TEST ACCOUNTS (TEMPORARY - QUICK CREDENTIAL SELECTOR FOR DEVELOPMENT)
+   To remove in production: set ENABLE_DEV_ACCOUNTS = false or delete this block
+   ═══════════════════════════════════════════════════════════════════════════ */
+export const ENABLE_DEV_ACCOUNTS = true;
+
+export interface DevLoginAccount {
+  id: string;
+  name: string;
+  type: 'user' | 'vendor';
+  identifier: string; // Email for user, Vendor ID for vendor
+  password: string;
+  label?: string;
+}
+
+export const DEV_ACCOUNTS: DevLoginAccount[] = [
+  // User Logins
+  {
+    id: 'user_superadmin',
+    name: 'KLK ERP',
+    label: 'Superadmin',
+    type: 'user',
+    identifier: 'Superadmin@klkerp.com',
+    password: 'KLKadmin@1234@',
+  },
+  {
+    id: 'user_manish',
+    name: 'KLKERP',
+    label: 'Manish',
+    type: 'user',
+    identifier: 'dsmanish1090@gmail.com',
+    password: 'Klk@94549',
+  },
+  // Vendor Logins
+  {
+    id: 'vendor_mohit',
+    name: 'vendor Mohit Testing',
+    label: 'Mohit',
+    type: 'vendor',
+    identifier: 'KLK72016',
+    password: 'KLK@7201602',
+  },
+  {
+    id: 'vendor_app_test',
+    name: 'app test vendor',
+    label: 'App Test',
+    type: 'vendor',
+    identifier: 'KLK67695',
+    password: 'KLK@6769511',
+  },
+];
+
 export function SolarLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { loginUser, loginVendor, isAuthenticated, user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'user' | 'vendor'>('user');
-  const [email, setEmail] = useState('');
+  const [selectedDevAccount, setSelectedDevAccount] = useState<string>('user_superadmin');
+  const [email, setEmail] = useState('Superadmin@klkerp.com');
   const [vendorId, setVendorId] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState('KLKadmin@1234@');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -865,6 +1035,34 @@ export function SolarLoginPage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   const redirectTo = () => (location.state as any)?.from?.pathname || '/';
+
+  // Quick Dev Account Selection Handler
+  const handleDevAccountSelect = (acc: DevLoginAccount) => {
+    if (selectedDevAccount === acc.id) {
+      // Toggle off / reset fields
+      setSelectedDevAccount('');
+      if (acc.type === 'user') {
+        setEmail('');
+      } else {
+        setVendorId('');
+      }
+      setPassword('');
+      return;
+    }
+
+    setSelectedDevAccount(acc.id);
+    setActiveTab(acc.type);
+    if (acc.type === 'user') {
+      setEmail(acc.identifier);
+      setVendorId('');
+    } else {
+      setVendorId(acc.identifier);
+      setEmail('');
+    }
+    setPassword(acc.password);
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
 
   // Auto redirect if already authenticated
   useEffect(() => {
@@ -886,6 +1084,22 @@ export function SolarLoginPage() {
     setActiveTab(tab);
     setErrorMessage('');
     setSuccessMessage('');
+
+    // Auto-select first test account for the selected tab
+    const firstAcc = DEV_ACCOUNTS.find((a) => a.type === tab);
+    if (firstAcc) {
+      setSelectedDevAccount(firstAcc.id);
+      if (tab === 'user') {
+        setEmail(firstAcc.identifier);
+        setVendorId('');
+      } else {
+        setVendorId(firstAcc.identifier);
+        setEmail('');
+      }
+      setPassword(firstAcc.password);
+    } else {
+      setSelectedDevAccount('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -980,6 +1194,71 @@ export function SolarLoginPage() {
             ))}
           </div>
 
+          {/* ══════════════════════════════════════════════════════════════════ */}
+          {/* DEV TEST ACCOUNTS (TEMPORARY - REMOVE BEFORE PRODUCTION DEPLOY)  */}
+          {/* ══════════════════════════════════════════════════════════════════ */}
+          {ENABLE_DEV_ACCOUNTS && (
+            <div className="klk-dev-box">
+              <div className="klk-dev-box__head">
+                <div className="klk-dev-box__title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span>Quick Dev Logins (Select Account)</span>
+                </div>
+                <span className="klk-dev-box__badge">Dev Helper</span>
+              </div>
+
+              <div className="klk-dev-grid">
+                {DEV_ACCOUNTS.map((acc) => {
+                  const isSelected = selectedDevAccount === acc.id;
+                  return (
+                    <div
+                      key={acc.id}
+                      className={`klk-dev-card${isSelected ? ' selected' : ''}`}
+                      onClick={() => handleDevAccountSelect(acc)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleDevAccountSelect(acc);
+                        }
+                      }}
+                      title={`Click to fill ${acc.name} credentials`}
+                    >
+                      <input
+                        type="checkbox"
+                        id={`dev-acc-${acc.id}`}
+                        checked={isSelected}
+                        onChange={() => handleDevAccountSelect(acc)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="klk-dev-checkbox"
+                        aria-label={`Select ${acc.name}`}
+                      />
+                      <div className="klk-dev-info">
+                        <div className="klk-dev-name-row">
+                          <span className="klk-dev-name" title={acc.name}>
+                            {acc.name}
+                          </span>
+                          <span className={`klk-dev-type ${acc.type}`}>
+                            {acc.type === 'user' ? 'User' : 'Vendor'}
+                          </span>
+                        </div>
+                        <div className="klk-dev-id" title={acc.identifier}>
+                          {acc.identifier}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {errorMessage && (
             <div role="alert" className="klk-login-alert error">
               {ICONS.alert}
@@ -1007,7 +1286,10 @@ export function SolarLoginPage() {
                     name="email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setSelectedDevAccount('');
+                    }}
                     placeholder="Enter User Email"
                     className="klk-login-input"
                     disabled={loading}
@@ -1025,7 +1307,10 @@ export function SolarLoginPage() {
                     name="vendor_id"
                     autoComplete="username"
                     value={vendorId}
-                    onChange={(e) => setVendorId(e.target.value)}
+                    onChange={(e) => {
+                      setVendorId(e.target.value);
+                      setSelectedDevAccount('');
+                    }}
                     placeholder="KLK29045"
                     className="klk-login-input"
                     disabled={loading}
@@ -1044,7 +1329,10 @@ export function SolarLoginPage() {
                   name="password"
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setSelectedDevAccount('');
+                  }}
                   placeholder="Enter Password"
                   className="klk-login-input has-toggle"
                   disabled={loading}
@@ -1114,15 +1402,13 @@ export function SolarLoginPage() {
               className="klk-login-fill"
               onClick={() => {
                 if (activeTab === 'user') {
-                  setEmail('admin@klkerp.com');
-                  setPassword('admin123');
+                  handleDevAccountSelect(DEV_ACCOUNTS[0]);
                 } else {
-                  setVendorId('KLK29045');
-                  setPassword('vendor123');
+                  handleDevAccountSelect(DEV_ACCOUNTS[2]);
                 }
               }}
             >
-              Auto-fill sample credentials
+              Auto-fill {activeTab === 'user' ? 'KLK ERP (Superadmin)' : 'vendor Mohit Testing (KLK72016)'}
             </button>
           </div>
         </div>

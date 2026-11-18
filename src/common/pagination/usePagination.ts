@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 
 export interface UsePaginationOptions<T> {
   data?: T[];
@@ -45,14 +45,17 @@ export function usePagination<T>(
   const rangeEnd = Math.min(curPage * pageSize, totalItems);
   const pageList = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
 
-  const handlePageChange = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
+  const totalPagesRef = useRef(totalPages);
+  totalPagesRef.current = totalPages;
 
-  const handlePageSizeChange = (newSize: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(Math.max(1, Math.min(newPage, totalPagesRef.current)));
+  }, []);
+
+  const handlePageSizeChange = useCallback((newSize: number) => {
     setPageSize(newSize);
     setPage(1);
-  };
+  }, []);
 
   return {
     // Exact Grid.js names

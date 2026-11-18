@@ -450,6 +450,10 @@ class AuthService {
     );
   }
 
+  getAuthToken(): string | null {
+    return this.getToken();
+  }
+
 
   getCompanyId(): string | null {
     const session =

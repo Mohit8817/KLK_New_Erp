@@ -796,17 +796,46 @@ class KarnatakaAdminService {
       { method: 'GET', headers: this.getHeaders() }
     );
     const json = await res.json();
-    if (!res.ok && !json.success && !json.status) {
+    if (!res.ok || json.success === false || json.status === false) {
       throw new Error(json.message || `Failed to fetch installation documents (${res.status})`);
     }
     const data = json.data || json;
+    const rawVerification: SiteInstallationItem[] = Array.isArray(data?.verification)
+      ? data.verification
+      : Array.isArray(data?.doc_pending)
+      ? data.doc_pending
+      : Array.isArray(data?.verify_pending)
+      ? data.verify_pending
+      : [];
+    const rawVerified: SiteInstallationItem[] = Array.isArray(data?.verified)
+      ? data.verified
+      : Array.isArray(data?.doc_verified)
+      ? data.doc_verified
+      : Array.isArray(data?.verify_complete)
+      ? data.verify_complete
+      : [];
+
+    let verification = rawVerification;
+    let verified = rawVerified;
+    if (rawVerified.length === 0 && rawVerification.length > 0) {
+      const isDocVerified = (s: SiteInstallationItem) => {
+        const raw = s.inst_doc_status ?? (s as any).doc_status ?? (s as any).document_status;
+        const str = String(raw ?? '').trim().toLowerCase();
+        return str === '2' || str === '3' || str === 'approved' || str === 'approve' || str === 'verified' || str === 'complete' || str === 'rejected' || str === 'reject';
+      };
+      if (rawVerification.some(isDocVerified)) {
+        verification = rawVerification.filter((s) => !isDocVerified(s));
+        verified = rawVerification.filter(isDocVerified);
+      }
+    }
+
     return {
       detail: data?.detail || data?.details || {
         total: 0, assigned: 0, not_assigned: 0, complete: 0, pending: 0,
         doc_approved: 0, doc_pending: 0, doc_reject: 0,
       },
-      verification: Array.isArray(data?.verification) ? data.verification : [],
-      verified: Array.isArray(data?.verified) ? data.verified : [],
+      verification,
+      verified,
     };
   }
 
@@ -831,7 +860,7 @@ class KarnatakaAdminService {
       { method: 'POST', headers: this.getHeaders(), body: JSON.stringify(body) }
     );
     const json = await res.json();
-    if (!res.ok && !json.success && !json.status) {
+    if (!res.ok || json.success === false || json.status === false) {
       throw new Error(json.message || `Failed to update document verification status (${res.status})`);
     }
     return { success: true, message: json.message || 'Status updated successfully.', data: json.data };

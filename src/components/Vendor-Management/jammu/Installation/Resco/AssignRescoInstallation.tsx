@@ -1,12 +1,34 @@
-import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import {
+  JAMMU_RESCO_DISTRICTS,
+  JAMMU_RESCO_VOLUMES,
+  JAMMU_RESCO_VENDORS,
+  JAMMU_RESCO_SITES_CATALOG,
+  jammuRescoAdminService,
+  type RescoSiteItem,
+} from './jammuRescoAdminService';
 
-// Unified Single-Card Layout with Floating Labels & Section Dividers matching Reference
+// Unified Single-Card Layout with Floating Labels & Section Dividers
 const SINGLE_CARD_FORM_CSS = `
 .solar-erp-page {
-  --asw-primary: #2563eb;
-  --asw-primary-rgb: 37, 99, 235;
+  --asw-primary: #2559bf;
+  --asw-primary-rgb: 37, 89, 191;
+  --ax-primary: #2559bf;
+  --ax-primary-hover: #1e4699;
+  --ax-primary-rgb: 37, 89, 191;
+}
+.solar-erp-page .ax-btn--primary,
+.solar-erp-page .ax-button--primary {
+  background: #2559bf !important;
+  border-color: #2559bf !important;
+  color: #ffffff !important;
+}
+.solar-erp-page .ax-btn--primary:hover,
+.solar-erp-page .ax-button--primary:hover {
+  background: #1e4699 !important;
+  border-color: #1e4699 !important;
 }
 .resco-inst-form .ax-card {
   border: 1px solid var(--ax-border, #e2e8f0);
@@ -49,9 +71,9 @@ const SINGLE_CARD_FORM_CSS = `
   transition: all var(--ax-motion-fast, 150ms) var(--ax-ease-standard, ease);
 }
 .resco-section-pill-btn:hover {
-  border-color: #2563eb;
-  color: #2563eb;
-  background: color-mix(in srgb, #2563eb 6%, var(--ax-surface-solid, #ffffff));
+  border-color: #2559bf;
+  color: #2559bf;
+  background: color-mix(in srgb, #2559bf 6%, var(--ax-surface-solid, #ffffff));
 }
 .resco-section-pill-btn .pill-num {
   width: 18px; height: 18px; border-radius: 50%;
@@ -93,8 +115,8 @@ const SINGLE_CARD_FORM_CSS = `
 }
 .ax-float__input::placeholder { color: transparent; }
 .ax-float__input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 20%, transparent);
+  border-color: #2559bf;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2559bf 20%, transparent);
 }
 .ax-float__input:disabled { opacity: .7; cursor: not-allowed; background: var(--ax-surface-subtle, #f8fafc); }
 
@@ -123,7 +145,7 @@ const SINGLE_CARD_FORM_CSS = `
   top: 0;
   font-size: 11px;
   font-weight: 500;
-  color: #2563eb;
+  color: #2559bf;
 }
 .ax-float__label.has-val:not(.floating) {
   top: 0;
@@ -164,13 +186,12 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
         className="ax-float__input"
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
-        {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
+        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
       </label>
     </div>
   );
 }
 
-/* ───────── Modern Upload Dropzone ───────── */
 interface UploadDropzoneProps {
   id: string;
   label: string;
@@ -188,7 +209,7 @@ function UploadDropzone({
   label,
   required,
   disabled,
-  accept = '.pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg',
+  accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png',
   file,
   onSelect,
   onRemove,
@@ -196,23 +217,12 @@ function UploadDropzone({
 }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (disabled) return;
     onRemove();
     if (inputRef.current) inputRef.current.value = '';
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (disabled) return;
-    setIsDragging(false);
-    const chosen = e.dataTransfer.files?.[0];
-    if (chosen) {
-      onSelect(chosen);
-    }
   };
 
   return (
@@ -222,14 +232,14 @@ function UploadDropzone({
         style={{
           fontSize: '12.5px',
           fontWeight: 600,
-          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          color: error ? '#ef4444' : '#334155',
           display: 'flex',
           alignItems: 'center',
           gap: 4,
         }}
       >
         <span>{label}</span>
-        {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+        {required && <span style={{ color: '#ef4444' }}>*</span>}
       </label>
 
       <input
@@ -255,41 +265,19 @@ function UploadDropzone({
           if (!disabled) setIsDragging(true);
         }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        onMouseEnter={() => {
-          if (!disabled) setIsHovered(true);
+        onDrop={(e) => {
+          e.preventDefault();
+          if (disabled) return;
+          setIsDragging(false);
+          const chosen = e.dataTransfer.files?.[0];
+          if (chosen) onSelect(chosen);
         }}
-        onMouseLeave={() => setIsHovered(false)}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
         style={{
-          border: disabled
-            ? '1.5px dashed #cbd5e1'
-            : isDragging
-            ? '1.5px dashed #2563eb'
-            : error
-            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
-            : isHovered
-            ? '1.5px dashed #94a3b8'
-            : '1.5px dashed #cbd5e1',
+          border: isDragging ? '1.5px dashed #2559bf' : '1.5px dashed #cbd5e1',
           borderRadius: 8,
-          background: disabled
-            ? 'var(--ax-surface-subtle, #f8fafc)'
-            : isDragging
-            ? '#eff6ff'
-            : error
-            ? '#fef2f2'
-            : isHovered
-            ? '#fbfcfd'
-            : '#ffffff',
-          opacity: disabled ? 0.75 : 1,
+          background: isDragging ? '#eff6ff' : '#ffffff',
           padding: file ? '12px 14px' : '22px 16px',
           display: 'flex',
           flexDirection: 'column',
@@ -297,13 +285,12 @@ function UploadDropzone({
           justifyContent: 'center',
           textAlign: 'center',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          transition: 'all 0.2s ease',
           minHeight: 110,
         }}
       >
         {file ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div
                 style={{
                   width: 36,
@@ -314,113 +301,57 @@ function UploadDropzone({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  flexShrink: 0,
                 }}
               >
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {file.name}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-                  {(file.size / 1024).toFixed(0)} KB · Ready to upload
-                </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{file.name}</div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>{(file.size / 1024).toFixed(0)} KB · Ready to upload</div>
               </div>
             </div>
             <button
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--sm"
               onClick={handleClear}
-              style={{ color: '#ef4444', flexShrink: 0 }}
-              title="Remove file"
+              style={{ color: '#ef4444' }}
             >
               Remove
             </button>
           </div>
         ) : (
           <>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: '50%',
-                background: '#eff6ff',
-                color: '#3b82f6',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 6,
-              }}
-            >
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#eff6ff', color: '#2559bf', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
                 <path d="M12 12v9" />
                 <path d="m8 16 4-4 4 4" />
               </svg>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-              Click to upload or drag &amp; drop
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
-              PDF, Word, Excel, JPG, JPEG or PNG (Max 10 MB) — single file
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>Click to upload or drag &amp; drop PO Document</div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>PDF, DOC, DOCX, JPG or PNG (Max 10MB)</div>
           </>
         )}
       </div>
-
-      {error && (
-        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
-          {error}
-        </span>
-      )}
     </div>
   );
 }
 
-const JAMMU_DISTRICTS = [
-  'Jammu',
-  'Samba',
-  'Kathua',
-  'Udhampur',
-  'Reasi',
-  'Rajouri',
-  'Poonch',
-  'Doda',
-  'Ramban',
-  'Kishtwar',
-];
-
-const DEFAULT_VENDORS = [
-  { id: 'utkarsh', name: 'Utkarsh Solar Systems' },
-  { id: 'Jammu TEsting', name: 'Jammu Renewable Developers' },
-  { id: 'bharti', name: 'Bharti Clean Energy' },
-  { id: '142', name: 'App Testing' },
-  { id: '212', name: 'Mohit Solar Enterprises' },
-];
-
 export function AssignRescoInstallation() {
   const navigate = useNavigate();
 
-  // Form states
+  // Form states matching required fields
   const [vendorName, setVendorName] = useState('');
-  const [volume, setVolume] = useState('Volume 1');
-  const [category, setCategory] = useState('Institutional');
+  const [volume, setVolume] = useState('');
   const [district, setDistrict] = useState('');
-  const [subDivision, setSubDivision] = useState('');
-  const [siteName, setSiteName] = useState('');
-  const [siteAddress, setSiteAddress] = useState('');
-  const [capacityKw, setCapacityKw] = useState('');
-  const [caNo, setCaNo] = useState('');
-  const [contactPerson, setContactPerson] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [deadlineDate, setDeadlineDate] = useState('');
+  const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
+  const [siteSearch, setSiteSearch] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [remarks, setRemarks] = useState('');
 
-  // Status & Feedback
+  // Status feedback
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -435,23 +366,34 @@ export function AssignRescoInstallation() {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleReset = () => {
-    setVendorName('');
-    setVolume('Volume 1');
-    setCategory('Institutional');
-    setDistrict('');
-    setSubDivision('');
-    setSiteName('');
-    setSiteAddress('');
-    setCapacityKw('');
-    setCaNo('');
-    setContactPerson('');
-    setContactPhone('');
-    setDeadlineDate('');
-    setFile(null);
-    setRemarks('');
-    setErrorMsg('');
-    setSuccessMsg('');
+  // Filtered sites based on selected district and search query
+  const eligibleSites = useMemo(() => {
+    let list = JAMMU_RESCO_SITES_CATALOG;
+    if (district) {
+      list = list.filter((s) => s.district.toLowerCase() === district.toLowerCase());
+    }
+    if (siteSearch.trim()) {
+      const q = siteSearch.trim().toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.site_name.toLowerCase().includes(q) ||
+          (s.ca_no && s.ca_no.toLowerCase().includes(q)) ||
+          (s.department && s.department.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [district, siteSearch]);
+
+  const handleToggleSite = (id: number) => {
+    setSelectedSiteIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  };
+
+  const handleSelectAll = () => {
+    if (selectedSiteIds.length === eligibleSites.length) {
+      setSelectedSiteIds([]);
+    } else {
+      setSelectedSiteIds(eligibleSites.map((s) => s.id));
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -459,85 +401,75 @@ export function AssignRescoInstallation() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!vendorName.trim()) {
-      setErrorMsg('Please select a Vendor Name.');
-      return;
-    }
-    if (!district.trim()) {
-      setErrorMsg('Please select a District.');
-      return;
-    }
-    if (!siteName.trim()) {
-      setErrorMsg('Site / Institutional Name is required.');
-      return;
-    }
-    if (!deadlineDate) {
-      setErrorMsg('Target Commissioning Deadline Date is required.');
-      return;
-    }
+    if (!vendorName) return setErrorMsg('Vendor Name is required.');
+    if (!volume) return setErrorMsg('Volume is required.');
+    if (!district) return setErrorMsg('District is required.');
+    if (selectedSiteIds.length === 0) return setErrorMsg('Please select at least one Site Name.');
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      // Simulate/persist assignment
-      setSuccessMsg(`RESCO rooftop solar site "${siteName}" (${district}) allocated successfully to vendor "${vendorName}".`);
+      const fd = new FormData();
+      fd.append('vendor', vendorName);
+      fd.append('volume', volume);
+      fd.append('district', district);
+      selectedSiteIds.forEach((id) => fd.append('site_id[]', String(id)));
+      if (file) fd.append('file', file);
+      if (remarks.trim()) fd.append('remarks', remarks.trim());
+
+      const res = await jammuRescoAdminService.submitAssignInstallation(fd);
+      setSuccessMsg(res.message || 'Jammu RESCO Installation Assigned Successfully!');
+
       setTimeout(() => {
-        navigate('/v/jammu/installation/resco/assigned-sites');
-      }, 1400);
+        navigate('/vendor-management/jammu/installation/resco/view-assign-installation');
+      }, 1500);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to submit RESCO assignment.');
+      console.error('Submit assign error:', err);
+      setErrorMsg(err?.message || 'Failed to assign RESCO installation.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="ax-page resco-inst-form solar-erp-page">
+    <div className="solar-erp-page resco-inst-form">
       <style>{SINGLE_CARD_FORM_CSS}</style>
 
       {/* Page Head */}
       <PageHead
-        title="Assign Jammu RESCO Installation"
-        subtitle="Allocate rooftop solar RESCO projects and commercial site work orders to vendors across Jammu & Kashmir"
+        title="Assign Jammu Resco Installation"
+        subtitle="The field labels marked with * are required input fields."
         breadcrumbs={[
-          { label: 'Home', href: '/vendor-management' },
-          { label: 'Jammu' },
-          { label: 'Installation' },
-          { label: 'RESCO' },
-          { label: 'Assign Installation' },
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu', href: '/vendor-management/jammu' },
+          { label: 'RESCO Installation', href: '/vendor-management/jammu/installation/resco/dashboard' },
+          { label: 'Assign Jammu Resco Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
-            <Link
-              to="/v/jammu/installation/resco/assigned-sites"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
+          <Link
+            to="/vendor-management/jammu/installation/resco/view-assign-installation"
+            className="ax-btn ax-btn--primary ax-btn--sm"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ marginRight: 6 }}
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ marginRight: 6 }}
-              >
-                <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-              </svg>
-              View Assigned Sites
-            </Link>
-            <Link
-              to="/vendor-management/jammu/installation/resco/dashboard"
-              className="ax-btn ax-btn--ghost ax-btn--sm"
-            >
-              RESCO Dashboard
-            </Link>
-          </div>
+              <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+              <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+            </svg>
+            View Assign Jammu Resco Installation
+          </Link>
         }
       />
 
-      {/* Status Alerts */}
+      {/* Status Feedback Banners */}
       {errorMsg && (
         <div
           style={{
@@ -553,7 +485,7 @@ export function AssignRescoInstallation() {
             justifyContent: 'space-between',
           }}
         >
-          <span>{errorMsg}</span>
+          <span>✕ {errorMsg}</span>
           <button
             type="button"
             onClick={() => setErrorMsg('')}
@@ -579,55 +511,56 @@ export function AssignRescoInstallation() {
             justifyContent: 'space-between',
           }}
         >
-          <span>{successMsg}</span>
-          <span style={{ fontSize: 12, opacity: 0.8 }}>Redirecting...</span>
+          <span>✓ {successMsg}</span>
+          <span style={{ fontSize: 12, opacity: 0.8 }}>Redirecting to View Assigned...</span>
         </div>
       )}
 
+      {/* Main Single Card Form */}
       <form onSubmit={handleSubmit} className="ax-card">
-        {/* Header with Quick Navigation Pills */}
+        {/* Header with Section Pills */}
         <div className="ax-card__header">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
-                Assign RESCO Installation Site
+              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                Assign Jammu Resco Installation
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: '#ef4444', margin: '4px 0 0' }}>
                 The field labels marked with * are required input fields.
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
-                <span className="ax-badge__dot" /> Rooftop Solar RESCO
+            {selectedSiteIds.length > 0 && (
+              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '4px 12px', fontSize: 12 }}>
+                {selectedSiteIds.length} Site(s) Selected
               </span>
-            </div>
+            )}
           </div>
 
           {/* Quick Nav Pills */}
           <div className="resco-section-pills">
             <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec1)}>
-              <span className="pill-num">1</span> Vendor &amp; Volume Allocation
+              <span className="pill-num">1</span> Vendor Name &amp; Volume
             </button>
             <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec2)}>
-              <span className="pill-num">2</span> District &amp; Territory Allocation
+              <span className="pill-num">2</span> District
             </button>
             <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec3)}>
-              <span className="pill-num">3</span> Technical &amp; Net-Metering
+              <span className="pill-num">3</span> Site Name
             </button>
             <button type="button" className="resco-section-pill-btn" onClick={() => scrollTo(sec4)}>
-              <span className="pill-num">4</span> Timeline &amp; Work Order
+              <span className="pill-num">4</span> File &amp; Remarks
             </button>
           </div>
         </div>
 
         <div className="ax-card__body">
-          {/* Section 1: Vendor & Volume Allocation */}
+          {/* Section 1: Vendor Name * & Volume * */}
           <div ref={sec1} className="resco-section-block">
             <div className="resco-section-header">
               <div className="resco-section-title-wrap">
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Vendor &amp; Volume Allocation</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Select authorized partner vendor, project volume, and institutional category
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Select authorized EPC vendor partner and allocation volume
                 </span>
               </div>
             </div>
@@ -644,8 +577,8 @@ export function AssignRescoInstallation() {
                   required
                 >
                   <option value="">-- Select Vendor --</option>
-                  {DEFAULT_VENDORS.map((v) => (
-                    <option key={v.id} value={v.name}>
+                  {JAMMU_RESCO_VENDORS.map((v) => (
+                    <option key={v.id} value={v.id}>
                       {v.name}
                     </option>
                   ))}
@@ -655,22 +588,7 @@ export function AssignRescoInstallation() {
                 </label>
               </div>
 
-              {/* State (Read only) */}
-              <div className="ax-float">
-                <input
-                  type="text"
-                  id="state_input"
-                  className="ax-float__input"
-                  value="Jammu & Kashmir"
-                  readOnly
-                  disabled
-                />
-                <label htmlFor="state_input" className="ax-float__label floating">
-                  State <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-              </div>
-
-              {/* Volume */}
+              {/* Volume * */}
               <div className="ax-float">
                 <select
                   id="volume_select"
@@ -680,32 +598,15 @@ export function AssignRescoInstallation() {
                   disabled={submitting}
                   required
                 >
-                  <option value="Volume 1">Volume 1 (General Rooftop)</option>
-                  <option value="Volume 2">Volume 2 (Commercial / Gov)</option>
-                  <option value="Volume 3">Volume 3 (Special Institutional)</option>
+                  <option value="">-- Select Volume --</option>
+                  {JAMMU_RESCO_VOLUMES.map((vol) => (
+                    <option key={vol} value={vol}>
+                      Volume {vol}
+                    </option>
+                  ))}
                 </select>
                 <label htmlFor="volume_select" className="ax-float__label floating">
                   Volume <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-              </div>
-
-              {/* Project Category */}
-              <div className="ax-float">
-                <select
-                  id="category_select"
-                  className="ax-float__input"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={submitting}
-                >
-                  <option value="Institutional">Institutional Building</option>
-                  <option value="Government">Government Office / Complex</option>
-                  <option value="Commercial">Commercial Establishment</option>
-                  <option value="Educational">College / University / School</option>
-                  <option value="Hospital">Hospital / Healthcare</option>
-                </select>
-                <label htmlFor="category_select" className="ax-float__label floating">
-                  Building Category
                 </label>
               </div>
             </div>
@@ -713,30 +614,32 @@ export function AssignRescoInstallation() {
 
           <hr className="resco-section-divider" />
 
-          {/* Section 2: District & Territory Allocation */}
+          {/* Section 2: District * */}
           <div ref={sec2} className="resco-section-block">
             <div className="resco-section-header">
               <div className="resco-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. District &amp; Territory Details</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Location and geographical jurisdiction for solar plant deployment
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. District Allocation</h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Choose targeted Jammu &amp; Kashmir district for rooftop solar installation
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {/* District * */}
+            <div style={{ maxWidth: '480px' }}>
               <div className="ax-float">
                 <select
                   id="district_select"
                   className="ax-float__input"
                   value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
+                  onChange={(e) => {
+                    setDistrict(e.target.value);
+                    setSelectedSiteIds([]);
+                  }}
                   disabled={submitting}
                   required
                 >
                   <option value="">-- Select District --</option>
-                  {JAMMU_DISTRICTS.map((d) => (
+                  {JAMMU_RESCO_DISTRICTS.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
@@ -746,180 +649,190 @@ export function AssignRescoInstallation() {
                   District <span style={{ color: '#ef4444' }}>*</span>
                 </label>
               </div>
-
-              {/* Sub-Division / Block */}
-              <FloatingInput
-                label="Tehsil / Sub-Division"
-                name="subDivision"
-                value={subDivision}
-                onChange={(e) => setSubDivision(e.target.value)}
-                placeholder="e.g. Jammu South, Gandhinagar"
-              />
-
-              {/* Site Name * */}
-              <FloatingInput
-                label="Site / Institutional Name"
-                name="siteName"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                required
-                placeholder="e.g. Govt Degree College Kathua"
-              />
-
-              {/* Site Address */}
-              <FloatingInput
-                label="Site Street Address / Landmark"
-                name="siteAddress"
-                value={siteAddress}
-                onChange={(e) => setSiteAddress(e.target.value)}
-                placeholder="Complete postal address with PIN"
-              />
             </div>
           </div>
 
           <hr className="resco-section-divider" />
 
-          {/* Section 3: Technical & Net-Metering Details */}
+          {/* Section 3: Site Name * */}
           <div ref={sec3} className="resco-section-block">
             <div className="resco-section-header">
               <div className="resco-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Technical &amp; Net-Metering Parameters</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Target solar capacity, DISCOM electricity account, and nodal officer contacts
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                  3. Site Name <span style={{ color: '#ef4444' }}>*</span>
+                </h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Select eligible rooftop institutional or government sites to allocate
                 </span>
               </div>
+              {eligibleSites.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#2559bf' }}>
+                    {selectedSiteIds.length} of {eligibleSites.length} Selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    className="ax-btn ax-btn--secondary ax-btn--sm"
+                    style={{ fontSize: 11, padding: '3px 10px' }}
+                  >
+                    {selectedSiteIds.length === eligibleSites.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {/* Capacity kW */}
-              <FloatingInput
-                label="Proposed Solar Plant Capacity (kW)"
-                name="capacityKw"
-                type="number"
-                value={capacityKw}
-                onChange={(e) => setCapacityKw(e.target.value)}
-                placeholder="e.g. 50"
-              />
+            {/* Quick dropdown for Site Name */}
+            <div className="ax-float" style={{ marginBottom: 16, maxWidth: '640px' }}>
+              <select
+                id="site_quick_dropdown"
+                className="ax-float__input"
+                value=""
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (val && !selectedSiteIds.includes(val)) {
+                    setSelectedSiteIds((prev) => [...prev, val]);
+                  }
+                }}
+                disabled={submitting || eligibleSites.length === 0}
+              >
+                <option value="">
+                  {eligibleSites.length === 0
+                    ? '-- No sites available for selected district --'
+                    : '-- Select Site Name --'}
+                </option>
+                {eligibleSites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.site_name} ({s.capacity_kw ? `${s.capacity_kw} kW` : ''} • {s.district})
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="site_quick_dropdown" className="ax-float__label floating">
+                Site Name <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+            </div>
 
-              {/* CA No */}
-              <FloatingInput
-                label="Consumer Account (CA) No. / Meter No."
-                name="caNo"
-                value={caNo}
-                onChange={(e) => setCaNo(e.target.value)}
-                placeholder="e.g. CA-JK-88219"
-              />
+            {/* Site search & selectable cards */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', background: '#ffffff' }}>
+              <div style={{ padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <input
+                  type="text"
+                  className="ax-form-input"
+                  value={siteSearch}
+                  onChange={(e) => setSiteSearch(e.target.value)}
+                  placeholder="Filter site name, department, CA number..."
+                  style={{ width: '100%', padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
+                />
+              </div>
 
-              {/* Contact Person */}
-              <FloatingInput
-                label="Nodal Contact Person"
-                name="contactPerson"
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
-                placeholder="Full name of site engineer / manager"
-              />
-
-              {/* Contact Phone */}
-              <FloatingInput
-                label="Nodal Contact Phone Number"
-                name="contactPhone"
-                type="tel"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="10-digit mobile number"
-              />
+              <div style={{ maxHeight: 260, overflowY: 'auto', padding: 10 }}>
+                {eligibleSites.length === 0 ? (
+                  <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                    No rooftop sites found matching your filter.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                    {eligibleSites.map((s) => {
+                      const isSelected = selectedSiteIds.includes(s.id);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => handleToggleSite(s.id)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: `1.5px solid ${isSelected ? '#2559bf' : '#e2e8f0'}`,
+                            background: isSelected ? '#eff6ff' : '#ffffff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            fontSize: 12,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleSite(s.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {s.site_name}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              {s.capacity_kw ? `${s.capacity_kw} kW • ` : ''}
+                              {s.district} • {s.department || 'Govt Building'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <hr className="resco-section-divider" />
 
-          {/* Section 4: Timeline & Work Order Document */}
+          {/* Section 4: File & Remarks */}
           <div ref={sec4} className="resco-section-block">
             <div className="resco-section-header">
               <div className="resco-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Timeline &amp; Work Order Document</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Work allocation deadline, project layout files, and special commissioning guidelines
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Work Order PO File &amp; Remarks</h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Attach formal sanction/PO document and optional vendor instructions
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {/* Deadline Date * */}
-              <div className="ax-float">
-                <input
-                  type="date"
-                  id="deadline_date"
-                  name="deadlineDate"
-                  className="ax-float__input"
-                  value={deadlineDate}
-                  onChange={(e) => setDeadlineDate(e.target.value)}
-                  disabled={submitting}
-                  required
-                />
-                <label htmlFor="deadline_date" className="ax-float__label floating">
-                  Target Commissioning Deadline <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-              </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: 20 }}>
               {/* Remarks */}
-              <div className="ax-float" style={{ gridColumn: '1 / -1' }}>
-                <textarea
-                  id="remarks_input"
-                  className="ax-float__input"
-                  style={{ height: 'auto', minHeight: 80, paddingTop: 14, resize: 'vertical' }}
+              <div>
+                <FloatingInput
+                  label="Remarks"
+                  name="remarks"
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   disabled={submitting}
-                  placeholder="Special guidelines, rooftop shadow considerations, grid interconnectivity details..."
-                />
-                <label htmlFor="remarks_input" className="ax-float__label floating">
-                  Special Guidelines / Work Order Remarks
-                </label>
-              </div>
-
-              {/* File Dropzone */}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <UploadDropzone
-                  id="resco_work_order_file"
-                  label="Site Layout / Sanction Work Order File"
-                  accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
-                  file={file}
-                  onSelect={(f) => setFile(f)}
-                  onRemove={() => setFile(null)}
-                  disabled={submitting}
+                  placeholder="Enter assignment remarks, priority instructions..."
                 />
               </div>
             </div>
+
+            {/* File Dropzone */}
+            <div style={{ maxWidth: 540 }}>
+              <UploadDropzone
+                id="assign_file"
+                label="File"
+                file={file}
+                onSelect={setFile}
+                onRemove={() => setFile(null)}
+                disabled={submitting}
+              />
+            </div>
           </div>
 
-          {/* Form Actions */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 12,
-              marginTop: 32,
-              paddingTop: 16,
-              borderTop: '1px solid var(--ax-border, #e2e8f0)',
-            }}
-          >
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary"
-              onClick={handleReset}
-              disabled={submitting}
-            >
-              Reset Form
-            </button>
+          {/* Submit Footer */}
+          <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+            <Link to="/vendor-management/jammu/installation/resco/view-assign-installation" className="ax-btn ax-btn--secondary">
+              Cancel
+            </Link>
             <button
               type="submit"
               className="ax-btn ax-btn--primary"
-              disabled={submitting}
-              style={{ minWidth: 180 }}
+              disabled={submitting || selectedSiteIds.length === 0}
+              style={{ minWidth: 180, fontWeight: 700 }}
             >
-              {submitting ? 'Allocating Site…' : 'Submit RESCO Assignment →'}
+              {submitting ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ax-spinner" /> Assigning...
+                </span>
+              ) : (
+                'Assign Jammu Resco Installation'
+              )}
             </button>
           </div>
         </div>

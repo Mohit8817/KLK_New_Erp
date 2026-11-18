@@ -9,6 +9,65 @@ export const BASE_URL = API_ROOT;
 export const ADMIN_BASE_URL = `${API_ROOT}/admin`;
 export const ROOT_URL = RAW_BASE.replace(/\/api\/?$/, '');
 
+export function buildCandidateUrls(rawPathOrUrl: string): string[] {
+  let path = (rawPathOrUrl || '').trim();
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const u = new URL(path);
+      path = u.pathname + u.search;
+    } catch {
+      // ignore
+    }
+  }
+
+  let pathname = path;
+  let search = '';
+  const qIndex = path.indexOf('?');
+  if (qIndex !== -1) {
+    pathname = path.slice(0, qIndex);
+    search = path.slice(qIndex);
+  }
+
+  // Strip repeated /api/admin, /admin, /api prefixes until clean
+  let cleaned = pathname;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (cleaned.startsWith('/api/admin/')) {
+      cleaned = cleaned.slice('/api/admin'.length);
+      changed = true;
+    } else if (cleaned.startsWith('/admin/')) {
+      cleaned = cleaned.slice('/admin'.length);
+      changed = true;
+    } else if (cleaned.startsWith('/api/')) {
+      cleaned = cleaned.slice('/api'.length);
+      changed = true;
+    }
+  }
+
+  if (!cleaned.startsWith('/')) {
+    cleaned = `/${cleaned}`;
+  }
+
+  const routePath = `${cleaned}${search}`;
+
+  const candidates: string[] = [
+    // 1. API Admin route: e.g. https://klkerp.com/api/admin/arunachal/shl/installation/...
+    `${ADMIN_BASE_URL}${routePath}`,
+
+    // 2. Direct API route: e.g. https://klkerp.com/api/arunachal/shl/installation/...
+    `${BASE_URL}${routePath}`,
+
+    // 3. Direct Web / Admin route: e.g. https://klkerp.com/admin/arunachal/shl/installation/...
+    `${ROOT_URL}/admin${routePath}`,
+
+    // 4. Root web route: e.g. https://klkerp.com/arunachal/shl/installation/...
+    `${ROOT_URL}${routePath}`,
+  ];
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+}
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
  * ARUNACHAL PRADESH - V-PORTAL (EXTERNAL VENDOR) APIS
@@ -55,6 +114,17 @@ export const ARUNACHAL_ADMIN_SHL_API = {
   // 5. POST /store-assign (vendor, state, volume, district, block, panchayat[], ldate, remark)
   STORE_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/store-assign`,
   STORE_ASSIGN_ROOT: `${BASE_URL}/arunachal/shl/installation/store-assign`,
+  STORE_ASSIGN_CANDIDATES: () => [
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/store'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign-light'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign-lights'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign-lights'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/assign-store'),
+    ...buildCandidateUrls('/arunachal/shl/installation/store-assign'),
+    ...buildCandidateUrls('/vendor/arunachal/shl/installation/store-assign'),
+  ],
 
   // 6. GET /edit-assign/{id}
   EDIT_ASSIGN: (id: string | number) =>
@@ -65,10 +135,21 @@ export const ARUNACHAL_ADMIN_SHL_API = {
   // 7. POST /update-assign
   UPDATE_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
   UPDATE_ASSIGN_ROOT: `${BASE_URL}/arunachal/shl/installation/update-assign`,
+  UPDATE_ASSIGN_BASE: `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign`,
   UPDATE_ASSIGN_WITH_ID: (id: string | number) =>
     `${ADMIN_BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`,
   UPDATE_ASSIGN_WITH_ID_ROOT: (id: string | number) =>
     `${BASE_URL}/arunachal/shl/installation/update-assign/${encodeURIComponent(id)}`,
+  UPDATE_ASSIGN_CANDIDATES: (id?: string | number) => [
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/update-assign'),
+    ...(id ? buildCandidateUrls(`/admin/arunachal/shl/installation/update-assign/${id}`) : []),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/store-assign'),
+    ...buildCandidateUrls('/arunachal/shl/installation/update-assign'),
+    ...(id ? buildCandidateUrls(`/arunachal/shl/installation/update-assign/${id}`) : []),
+    ...buildCandidateUrls('/arunachal/shl/installation/store-assign'),
+    ...buildCandidateUrls('/admin/arunachal/shl/installation/update'),
+    ...buildCandidateUrls('/arunachal/shl/installation/update'),
+  ],
 
   // 8. GET /view-assign (dashboard counts + assigned list)
   VIEW_ASSIGN: `${ADMIN_BASE_URL}/arunachal/shl/installation/view-assign`,
