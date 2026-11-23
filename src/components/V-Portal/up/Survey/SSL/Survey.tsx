@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   upSurveyService,
@@ -145,9 +145,9 @@ export function UP_Survey_SSL_Survey() {
   };
 
   // GPS detection
-  const handleGetLocation = () => {
+  const handleGetLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setLocating(true);
@@ -159,11 +159,15 @@ export function UP_Survey_SSL_Survey() {
       },
       (err) => {
         setLocating(false);
-        alert(`Location error: ${err.message}`);
+        if (!silent) alert(`Location error: ${err.message}`);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  useEffect(() => {
+    handleGetLocation(true);
+  }, [selectedSiteId]);
 
   // Submit survey (endpoint 3: up/ssl/survey/update-ssl)
   const handleSubmit = async (e: FormEvent) => {
@@ -199,6 +203,7 @@ export function UP_Survey_SSL_Survey() {
         setImage1(null);
         setImage2(null);
       } else {
+        if (res.errors) setValidationErrors(res.errors);
         setErrorMsg(res.message || 'Failed to update survey details.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -310,7 +315,7 @@ export function UP_Survey_SSL_Survey() {
               />
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput id="up-ssl-fy" label="Financial Year" readOnly value={siteDetail?.fy || siteDetail?.financial_year || ''} />
-                <FloatingInput id="up-ssl-state" label="State" readOnly value={(siteDetail?.state || 'UP').toUpperCase()} />
+                <FloatingInput id="up-ssl-state" label="State" readOnly value={siteDetail?.state ? siteDetail.state.toUpperCase() : ''} />
                 <FloatingInput id="up-ssl-district" label="District" readOnly value={siteDetail?.district || ''} />
                 <FloatingInput id="up-ssl-village" label="Village" readOnly value={siteDetail?.village || ''} />
                 <FloatingInput id="up-ssl-scheme" label="Scheme" readOnly value={siteDetail?.scheme || ''} />
@@ -349,11 +354,27 @@ export function UP_Survey_SSL_Survey() {
                   value={mode}
                   onChange={setMode}
                 />
-                <FloatingInput id="up-ssl-lat" label="Latitude" placeholder="e.g. 26.8467" value={latitude} onChange={setLatitude} />
-                <FloatingInput id="up-ssl-lng" label="Longitude" placeholder="e.g. 80.9462" value={longitude} onChange={setLongitude} />
+                <FloatingInput
+                  id="up-ssl-lat"
+                  label="Latitude"
+                  placeholder="Auto-detected GPS Latitude"
+                  value={latitude}
+                  readOnly={true}
+                  onChange={() => {}}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                />
+                <FloatingInput
+                  id="up-ssl-lng"
+                  label="Longitude"
+                  placeholder="Auto-detected GPS Longitude"
+                  value={longitude}
+                  readOnly={true}
+                  onChange={() => {}}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                />
                 <div>
-                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={handleGetLocation} disabled={locating}>
-                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Get GPS'}</span>
+                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={() => handleGetLocation(false)} disabled={locating}>
+                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Auto-detect GPS'}</span>
                   </button>
                 </div>
                 <div className="up-form-col-span-full">
@@ -525,6 +546,7 @@ interface FloatingInputProps {
   type?: string;
   required?: boolean;
   readOnly?: boolean;
+  style?: CSSProperties;
   maxLength?: number;
   placeholder?: string;
   value: string;
@@ -532,7 +554,7 @@ interface FloatingInputProps {
   error?: string;
 }
 
-function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, style, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   return (
     <div>
       <div className="ax-float">
@@ -543,6 +565,7 @@ function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength
           placeholder={placeholder}
           value={value}
           readOnly={readOnly}
+          style={style}
           maxLength={maxLength}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}

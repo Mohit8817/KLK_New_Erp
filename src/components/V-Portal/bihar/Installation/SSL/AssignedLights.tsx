@@ -107,6 +107,16 @@ const normalizeRecord = (r: any): AssignedSslLightItem => ({
   remarks: r.remarks ?? r.remark ?? '',
   panchayat: parsePanchayat(r.panchayat),
   status: Number(r.status) || 0,
+  uid_file:
+    r.uid_file ||
+    r.file ||
+    r.allotment_file ||
+    r.image ||
+    r.photo ||
+    r.attachment ||
+    r.document ||
+    r.file_path ||
+    null,
 });
 
 const fmtDate = (d?: string | null) => {
@@ -117,15 +127,52 @@ const fmtDate = (d?: string | null) => {
 
 const getFileExt = (url?: string | null) => {
   if (!url) return 'FILE';
-  const clean = url.split('?')[0];
+  const clean = String(url).split('?')[0].trim();
   const ext = clean.includes('.') ? clean.split('.').pop() : '';
   return ext ? ext.toUpperCase() : 'FILE';
 };
 
 const resolveFileUrl = (file?: string | null) => {
   if (!file) return '';
-  if (/^https?:\/\//i.test(file)) return file;
-  return getMediaUrl(file) || '';
+  const clean = String(file).trim().replace(/\\/g, '/');
+  if (/^https?:\/\//i.test(clean)) return clean;
+  return getMediaUrl(clean) || '';
+};
+
+const resolveMediaCandidates = (file?: string | null): string[] => {
+  if (!file) return [];
+  const raw = String(file).trim().replace(/\\/g, '/');
+  if (!raw) return [];
+  if (/^(https?:|blob:|data:)/i.test(raw)) return [raw];
+
+  const clean = raw.replace(/^\/+/, '');
+  const primary = getMediaUrl(raw);
+  const root = 'https://klkerp.com';
+  const cdn = 'https://media.klksolar.in';
+
+  const list: string[] = [];
+  if (primary) list.push(primary);
+  list.push(`${root}/${clean}`);
+  list.push(`${cdn}/${clean}`);
+  list.push(`${root}/public/${clean}`);
+  if (!clean.startsWith('uploads/')) {
+    list.push(`${root}/uploads/${clean}`);
+    list.push(`${cdn}/uploads/${clean}`);
+  }
+  return Array.from(new Set(list));
+};
+
+const isImageFile = (file?: string | null): boolean => {
+  if (!file) return false;
+  const s = String(file).split('?')[0].trim().toLowerCase();
+  if (s.startsWith('data:image/')) return true;
+  return /\.(jpe?g|png|webp|gif|bmp|svg|avif)$/i.test(s);
+};
+
+const isPdfFile = (file?: string | null): boolean => {
+  if (!file) return false;
+  const s = String(file).split('?')[0].trim().toLowerCase();
+  return /\.pdf$/i.test(s);
 };
 
 /* ───────── Responsive page CSS (exact Bihar reference) ───────── */
@@ -302,6 +349,38 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
+
+  .solar-erp-page .ssl-thumb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+    border-radius: 8px !important;
+    border: 1px solid var(--ax-border, #cbd5e1);
+    background: #f8fafc;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    vertical-align: middle;
+  }
+  .solar-erp-page .ssl-thumb-btn:hover {
+    transform: scale(1.08);
+    border-color: var(--asw-primary, #2563eb);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    z-index: 2;
+  }
+  .solar-erp-page .ssl-thumb-btn img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 7px !important;
+    display: block !important;
+  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -359,6 +438,368 @@ function Modal({
   );
 }
 
+/* ───────── Photo Thumbnail & Lightbox ───────── */
+const ZOOM_LEVELS = [1, 1.5, 2, 2.5, 3];
+
+function LightboxModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title?: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = ZOOM_LEVELS[zoomIdx];
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const displayTitle = title || 'Image Preview';
+
+  return createPortal(
+    <div
+      className="ax-modal ax-modal--centered"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ssl-lightbox-title"
+      style={{ zIndex: 99999 }}
+      onClick={onClose}
+    >
+      <div className="ax-modal__backdrop" style={{ background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(3px)' }} />
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: 920,
+          width: '94%',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--ax-surface, #ffffff)',
+          borderRadius: 12,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="ax-modal__header"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 20px',
+            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: 'rgba(37, 99, 235, 0.1)',
+                color: '#2563eb',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </span>
+            <h3
+              id="ssl-lightbox-title"
+              style={{
+                margin: 0,
+                fontSize: 15,
+                fontWeight: 700,
+                color: 'var(--ax-text-strong, #0f172a)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {displayTitle}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="ax-modal__close"
+            onClick={onClose}
+            aria-label="Close preview"
+            style={{
+              width: 32,
+              height: 32,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 6,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ax-text-muted, #64748b)',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div
+          className="ax-modal__body"
+          style={{
+            padding: 16,
+            background: '#090d16',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto',
+            minHeight: 320,
+            maxHeight: '68vh',
+          }}
+        >
+          <img
+            src={url}
+            alt={displayTitle}
+            style={{
+              maxWidth: zoom === 1 ? '100%' : 'none',
+              maxHeight: zoom === 1 ? '64vh' : 'none',
+              width: zoom === 1 ? 'auto' : `${zoom * 100}%`,
+              objectFit: 'contain',
+              borderRadius: 6,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+              transition: 'width 0.2s ease, transform 0.2s ease',
+              display: 'block',
+            }}
+          />
+        </div>
+
+        <div
+          className="ax-modal__footer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 20px',
+            borderTop: '1px solid var(--ax-border, #e2e8f0)',
+            background: 'var(--ax-surface-subtle, #f8fafc)',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-muted, #64748b)', marginRight: 4 }}>
+              Zoom:
+            </span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+              disabled={zoomIdx === 0}
+              title="Zoom out"
+              style={{ width: 30, height: 30, padding: 0, fontWeight: 700 }}
+            >
+              −
+            </button>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--ax-text-strong, #0f172a)',
+                minWidth: 42,
+                textAlign: 'center',
+              }}
+            >
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
+              disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+              title="Zoom in"
+              style={{ width: 30, height: 30, padding: 0, fontWeight: 700 }}
+            >
+              +
+            </button>
+            {zoomIdx !== 0 && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                onClick={() => setZoomIdx(0)}
+                style={{ fontSize: 12, height: 30 }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span>Open in new tab</span>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </a>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={onClose}
+              style={{ background: '#2563eb', borderColor: '#2563eb', color: '#fff' }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function SingleFileThumbnail({
+  file,
+  label,
+  onPreview,
+}: {
+  file: string;
+  label?: string;
+  onPreview: (url: string, title: string) => void;
+}) {
+  const candidates = useMemo(() => resolveMediaCandidates(file), [file]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const currentUrl = candidates[candidateIdx] || resolveFileUrl(file);
+  const ext = getFileExt(file);
+  const isPdf = isPdfFile(file);
+  const isDoc = /\.(docx?|xlsx?|csv|zip|txt)($|\?)/i.test(file);
+  const mightBeImage = !isPdf && !isDoc && (isImageFile(file) || !file.includes('.'));
+
+  const handleImgError = () => {
+    if (candidateIdx + 1 < candidates.length) {
+      setCandidateIdx((i) => i + 1);
+    } else {
+      setImgFailed(true);
+    }
+  };
+
+  const itemTitle = label ? `${label} (${ext})` : `UID File (${ext})`;
+
+  if (isPdf || isDoc || imgFailed || !mightBeImage) {
+    const isRed = isPdf;
+    const isGreen = /\.(xlsx?|csv)($|\?)/i.test(file);
+    const badgeColor = isRed ? '#ef4444' : isGreen ? '#10b981' : '#2563eb';
+    const badgeBg = isRed
+      ? 'rgba(239, 68, 68, 0.1)'
+      : isGreen
+      ? 'rgba(16, 185, 129, 0.1)'
+      : 'rgba(37, 99, 235, 0.1)';
+
+    return (
+      <a
+        href={currentUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="ssl-thumb-btn"
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          textDecoration: 'none',
+          background: badgeBg,
+          borderColor: badgeColor,
+        }}
+        title={`Click to open ${itemTitle}`}
+      >
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={badgeColor} strokeWidth={2}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <span style={{ fontSize: 9, fontWeight: 700, color: badgeColor, lineHeight: 1 }}>
+          {ext.slice(0, 4)}
+        </span>
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="ssl-thumb-btn"
+      onClick={() => onPreview(currentUrl, itemTitle)}
+      title={`Click to preview ${itemTitle}`}
+      aria-label={`Preview ${itemTitle}`}
+    >
+      <img
+        src={currentUrl}
+        alt={itemTitle}
+        loading="lazy"
+        onError={handleImgError}
+      />
+    </button>
+  );
+}
+
+function MediaThumbnailCell({
+  file,
+  label,
+  onPreview,
+}: {
+  file?: string | null;
+  label?: string;
+  onPreview: (url: string, title: string) => void;
+}) {
+  if (!file) {
+    return <span style={{ color: 'var(--ax-text-subtle, #94a3b8)' }}>{DASH}</span>;
+  }
+
+  const fileItems = String(file)
+    .split(/[,;]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (fileItems.length === 0) {
+    return <span style={{ color: 'var(--ax-text-subtle, #94a3b8)' }}>{DASH}</span>;
+  }
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {fileItems.map((item, idx) => (
+        <SingleFileThumbnail
+          key={`${item}-${idx}`}
+          file={item}
+          label={fileItems.length > 1 ? `${label || 'File'} (${idx + 1})` : label}
+          onPreview={onPreview}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function Bihar_Installation_SSL_AssignedLights() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<AssignedSslLightItem[]>([]);
@@ -371,6 +812,9 @@ export function Bihar_Installation_SSL_AssignedLights() {
   const [selectedItem, setSelectedItem] = useState<AssignedSslLightItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+
+  // Lightbox Preview Modal state
+  const [lightbox, setLightbox] = useState<{ url: string; title?: string } | null>(null);
 
   const deferredQuery = useDeferredValue(searchQuery);
 
@@ -474,6 +918,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
       { header: 'Start Date', accessor: (r) => fmtDate(r.start_date) },
       { header: 'End Date', accessor: (r) => fmtDate(r.end_date) },
       { header: 'Site Count', accessor: (r) => String(r.site_count || 0) },
+      { header: 'Image / UID File', accessor: (r) => r.uid_file || '' },
       { header: 'Remarks', accessor: (r) => r.remarks || '' },
       {
         header: 'Status',
@@ -586,7 +1031,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
     'Start Date',
     'End Date',
     'Site Count',
-    "Unique ID's File",
+    'Image / UID File',
     'Remarks',
     'Status',
     'Action',
@@ -808,7 +1253,7 @@ export function Bihar_Installation_SSL_AssignedLights() {
                     className="ax-table__th"
                     scope="col"
                     style={
-                      h === 'Action' || h === 'Status' || h === "Unique ID's File"
+                      h === 'Action' || h === 'Status' || h === "Unique ID's File" || h === 'Image / UID File'
                         ? { textAlign: 'center' }
                         : h === 'Site Count'
                         ? { textAlign: 'right' }
@@ -849,8 +1294,6 @@ export function Bihar_Installation_SSL_AssignedLights() {
               {!loading &&
                 paginatedData.map((r, index) => {
                   const isAccepted = r.status === 2;
-                  const fileUrl = resolveFileUrl(r.uid_file);
-                  const fileExt = getFileExt(r.uid_file);
 
                   return (
                     <tr key={r.id || index} className="ax-table__row">
@@ -889,27 +1332,11 @@ export function Bihar_Installation_SSL_AssignedLights() {
                         {num(r.site_count)}
                       </td>
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {fileUrl ? (
-                          <a
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: 'var(--asw-primary)' }}
-                            title="View / Download UID File"
-                          >
-                            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <polyline points="14 2 14 8 20 8" />
-                              <line x1={12} y1={18} x2={12} y2={12} />
-                              <line x1={9} y1={15} x2={12} y2={18} />
-                              <line x1={15} y1={15} x2={12} y2={18} />
-                            </svg>
-                            <span>{fileExt}</span>
-                          </a>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>
-                        )}
+                        <MediaThumbnailCell
+                          file={r.uid_file}
+                          label={`Batch #${r.id} - ${r.district || ''}`}
+                          onPreview={(url, title) => setLightbox({ url, title })}
+                        />
                       </td>
                       <td className="ax-table__td" style={{ maxWidth: 200, whiteSpace: 'normal', fontSize: 12 }} title={r.remarks || ''}>
                         {r.remarks || DASH}
@@ -1011,6 +1438,16 @@ export function Bihar_Installation_SSL_AssignedLights() {
                   <strong style={{ color: 'var(--ax-text-strong)' }}>Site Count:</strong>{' '}
                   <span style={{ color: 'var(--asw-primary)', fontWeight: 700 }}>{num(selectedItem.site_count)}</span>
                 </div>
+                {selectedItem.uid_file && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <strong style={{ color: 'var(--ax-text-strong)' }}>UID File / Image:</strong>
+                    <MediaThumbnailCell
+                      file={selectedItem.uid_file}
+                      label={`Batch #${selectedItem.id} - ${selectedItem.district || ''}`}
+                      onPreview={(url, title) => setLightbox({ url, title })}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1035,6 +1472,15 @@ export function Bihar_Installation_SSL_AssignedLights() {
           </div>
         )}
       </Modal>
+
+      {/* ── Photo Lightbox Preview Modal ── */}
+      {lightbox && (
+        <LightboxModal
+          url={lightbox.url}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

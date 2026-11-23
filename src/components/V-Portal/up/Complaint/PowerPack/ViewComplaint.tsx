@@ -57,6 +57,7 @@ export function UPComplaintPPView() {
       loadingText="Loading Power Pack complaints…"
       emptyMessage="Power Pack complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getPowerpackViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deletePowerpackComplaint(id)}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),

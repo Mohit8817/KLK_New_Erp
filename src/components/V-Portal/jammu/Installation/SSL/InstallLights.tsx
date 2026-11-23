@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { authService } from '../../../../../services/authService';
@@ -157,6 +157,8 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   placeholder?: string;
   onCameraClick?: () => void;
@@ -169,6 +171,8 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   placeholder,
   onCameraClick,
@@ -188,9 +192,13 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
@@ -596,21 +604,8 @@ export function InstallLights() {
       const detail = await jammuSslService.fetchLightDetail(sslIdStr);
       if (detail) {
         setSiteDetail(detail);
-
-        // Pre-fill fields if returned from detail
-        if (detail.ward_no) setWardNumber(String(detail.ward_no));
-        if (detail.pole_no) setPoleNumber(String(detail.pole_no));
-        if (detail.beneficiary_name) setBeneficiaryName(String(detail.beneficiary_name));
-        if (detail.contact_no) setBeneficiaryContact(String(detail.contact_no));
-        if (detail.imei_no) setImeiNumber(String(detail.imei_no));
-        if (detail.battery_serial_no) setBatteryNumber(String(detail.battery_serial_no));
-        if (detail.module_no) setPanelNumber(String(detail.module_no));
-        if (detail.sim_no) setSimNumber(String(detail.sim_no));
-        if (detail.latitude) setLatitude(String(detail.latitude));
-        if (detail.longitude) setLongitude(String(detail.longitude));
-        if ((detail as any).remark || (detail as any).remarks) {
-          setRemarks(String((detail as any).remark || (detail as any).remarks));
-        }
+        // Note: Do not auto-fill Section 3 ("Fill this Form") fields;
+        // fetched specs are shown only in Section 2 ("Information").
       } else {
         setFeedback({
           type: 'danger',
@@ -650,13 +645,13 @@ export function InstallLights() {
   };
 
   // Auto-detect GPS Coordinates
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
-    setFeedback(null);
+    if (!silent) setFeedback(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -674,7 +669,9 @@ export function InstallLights() {
           },
           (err2) => {
             setGettingLocation(false);
-            alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please enter manually.`);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please allow location access in your browser.`);
+            }
           },
           { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
         );
@@ -682,6 +679,10 @@ export function InstallLights() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSslId]);
 
   // Form Submit Handler (API 5: POST jammu/ssl/installation/site-store)
   const handleSubmit = async (e: FormEvent) => {
@@ -843,11 +844,7 @@ export function InstallLights() {
                 Select accepted unique street light ID, review site specifications, and submit field installation data.
               </p>
             </div>
-            {siteDetail && (
-              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                Light {siteDetail.id} {siteDetail.village ? `· ${siteDetail.village}` : ''}
-              </span>
-            )}
+       
           </div>
 
           {/* Quick Nav Pills */}
@@ -874,15 +871,7 @@ export function InstallLights() {
                   Choose from accepted, pending-install street lights assigned to your vendor account
                 </span>
               </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={fetchUniqueIds}
-                disabled={loadingList}
-                title="Refresh unique ID list"
-              >
-                {loadingList ? 'Refreshing...' : '🔄 Refresh List'}
-              </button>
+            
             </div>
 
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
@@ -1070,7 +1059,7 @@ export function InstallLights() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1171,8 +1160,10 @@ export function InstallLights() {
                   label="Latitude"
                   name="latitude"
                   value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="e.g. 32.5612"
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Latitude"
                   required
                 />
 
@@ -1180,8 +1171,10 @@ export function InstallLights() {
                   label="Longitude"
                   name="longitude"
                   value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="e.g. 75.1234"
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Longitude"
                   required
                 />
 

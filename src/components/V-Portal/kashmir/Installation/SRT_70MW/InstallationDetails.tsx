@@ -282,6 +282,7 @@ function RaiseClaimModal({
       fd.append('inst_claim_amount', claimAmount.trim());
       fd.append('claim_amount', claimAmount.trim());
       if (claimRemarks) {
+        fd.append('remarks', claimRemarks.trim());
         fd.append('inst_claim_remarks', claimRemarks.trim());
         fd.append('claim_remarks', claimRemarks.trim());
       }
@@ -838,26 +839,35 @@ function KpiCard({
   label,
   value,
   sub,
+  onClick,
+  active,
 }: {
   icon: ReactNode;
   tone: KpiTone;
   label: string;
   value: ReactNode;
   sub?: string;
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const t = TONE[tone];
 
   return (
     <div
       className="ax-card"
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
       style={{
         padding: '12px 14px',
         borderRadius: 10,
         minWidth: 0,
-        cursor: 'default',
-        border: '1px solid var(--ax-border, #e2e8f0)',
+        cursor: onClick ? 'pointer' : 'default',
+        border: active ? `2px solid ${t.fg}` : '1px solid var(--ax-border, #e2e8f0)',
         background: 'var(--ax-surface, #ffffff)',
         userSelect: 'none',
+        transition: 'all 0.15s ease-in-out',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
@@ -1035,6 +1045,15 @@ export function Kashmir_Installation_Details() {
   );
   const payment20Count = useMemo(
     () => (data?.payment20 !== undefined ? data.payment20 : paymentSites.filter((s: any) => s.inst_pay20_status === 1 || s.payment2_status).length),
+    [data, paymentSites]
+  );
+  const paymentDoneCount = useMemo(
+    () =>
+      data?.paymentsitecount !== undefined
+        ? data.paymentsitecount
+        : (data as any)?.paymentdone !== undefined
+        ? (data as any).paymentdone
+        : paymentSites.length,
     [data, paymentSites]
   );
 
@@ -1276,7 +1295,7 @@ export function Kashmir_Installation_Details() {
         </div>
       )}
 
-      {/* ── 11 KPI Stat Cards (exact Goa SRT layout & palette) ── */}
+      {/* ── 12 KPI Stat Cards (6 per row on desktop) ── */}
       <div className="srt-kpi-grid">
         <KpiCard
           tone="accent"
@@ -1296,6 +1315,8 @@ export function Kashmir_Installation_Details() {
           label="Complete Sites"
           value={loading ? '…' : Number(completeSitesCount).toLocaleString('en-IN')}
           sub="Installation completed"
+          onClick={() => setTab('completed')}
+          active={tab === 'completed'}
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
@@ -1405,6 +1426,7 @@ export function Kashmir_Installation_Details() {
           label="Payment 80%"
           value={loading ? '…' : Number(payment80Count).toLocaleString('en-IN')}
           sub="80% disbursed"
+          onClick={() => setTab('payment')}
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -1418,10 +1440,26 @@ export function Kashmir_Installation_Details() {
           label="Payment 20%"
           value={loading ? '…' : Number(payment20Count).toLocaleString('en-IN')}
           sub="20% disbursed"
+          onClick={() => setTab('payment')}
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 14 14" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="emerald"
+          label="Payment Done"
+          value={loading ? '…' : Number(paymentDoneCount).toLocaleString('en-IN')}
+          sub="Disbursed & settled"
+          onClick={() => setTab('payment')}
+          active={tab === 'payment'}
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           }
         />

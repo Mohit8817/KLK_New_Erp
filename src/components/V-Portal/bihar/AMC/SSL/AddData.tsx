@@ -7,6 +7,11 @@ import {
   type BiharSslUidItem,
   type BiharSslDetail,
 } from '../../bihar-services/biharAmcService';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout CSS (Same as Bihar Complaints SSL)
 const SINGLE_CARD_FORM_CSS = `
@@ -366,9 +371,9 @@ export function Bihar_AMC_SSL_AddData() {
   }, [selectedUid]);
 
   // GPS Geolocation
-  const handleFetchLocation = () => {
+  const handleFetchLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setFetchingLoc(true);
@@ -386,18 +391,23 @@ export function Bihar_AMC_SSL_AddData() {
       (err) => {
         console.error('Geo error:', err);
         setFetchingLoc(false);
-        alert(`Location error: ${err.message || 'Unable to fetch current coordinates'}`);
+        if (!silent) alert(`Location error: ${err.message || 'Unable to fetch current coordinates'}`);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    handleFetchLocation(true);
+  }, [selectedUid]);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // Validation
-  const validate = (): boolean => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!selectedUid) errs.selectedUid = 'Please select a Unique ID.';
     if (!siteDetail?.id) errs.selectedUid = 'Site record could not be loaded.';
@@ -425,7 +435,7 @@ export function Bihar_AMC_SSL_AddData() {
     }
 
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   // Submit Handler: POST /bihar/ssl/update
@@ -434,9 +444,10 @@ export function Bihar_AMC_SSL_AddData() {
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    if (!validate()) {
-      setErrorMsg('Please resolve all highlighted errors before submitting.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrorMsg(formatMissingRequiredMsg(validationErrors));
+      scrollToFirstError();
       return;
     }
 
@@ -468,8 +479,10 @@ export function Bihar_AMC_SSL_AddData() {
       }, 1500);
     } catch (err: any) {
       console.error('SSL AMC submission error:', err);
-      setErrorMsg(err.message || 'Failed to submit SSL AMC record.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Failed to submit SSL AMC record.');
+      setErrorMsg(extracted.message);
+      setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -707,12 +720,10 @@ export function Bihar_AMC_SSL_AddData() {
                       id="ssl-lat"
                       label="AMC Latitude"
                       required
-                      placeholder="e.g. 25.594095"
+                      readOnly
+                      placeholder="Auto-detected GPS Latitude"
                       value={formData.latitude}
-                      onChange={(val) => {
-                        setFormData((prev) => ({ ...prev, latitude: val }));
-                        clearError('latitude');
-                      }}
+                      onChange={() => {}}
                       error={errors.latitude}
                     />
                   </div>
@@ -720,7 +731,7 @@ export function Bihar_AMC_SSL_AddData() {
                     type="button"
                     className="ax-btn ax-btn--secondary"
                     style={{ height: 46, whiteSpace: 'nowrap', padding: '0 12px' }}
-                    onClick={handleFetchLocation}
+                    onClick={() => handleFetchLocation(false)}
                     disabled={fetchingLoc}
                     title="Get current GPS coordinates"
                   >
@@ -737,12 +748,10 @@ export function Bihar_AMC_SSL_AddData() {
                   id="ssl-lng"
                   label="AMC Longitude"
                   required
-                  placeholder="e.g. 85.137566"
+                  readOnly
+                  placeholder="Auto-detected GPS Longitude"
                   value={formData.longitude}
-                  onChange={(val) => {
-                    setFormData((prev) => ({ ...prev, longitude: val }));
-                    clearError('longitude');
-                  }}
+                  onChange={() => {}}
                   error={errors.longitude}
                 />
 
@@ -890,9 +899,9 @@ function FieldFeedback({ error }: { error?: string }) {
 
 /* ── Floating Input ── */
 function FloatingInput({
-  id, label, type = 'text', required, placeholder = ' ', value, maxLength, onChange, error,
+  id, label, type = 'text', required, readOnly, placeholder = ' ', value, maxLength, onChange, error, style,
 }: {
-  id: string; label: string; type?: string; required?: boolean; placeholder?: string; value: string; maxLength?: number; onChange?: (val: string) => void; error?: string;
+  id: string; label: string; type?: string; required?: boolean; readOnly?: boolean; placeholder?: string; value: string; maxLength?: number; onChange?: (val: string) => void; error?: string; style?: React.CSSProperties;
 }) {
   return (
     <div>
@@ -900,12 +909,17 @@ function FloatingInput({
         <input
           id={id}
           type={type}
+          readOnly={readOnly}
           maxLength={maxLength}
           className={`ax-input ax-float__input ${error ? 'is-invalid' : ''}`}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}
+          style={{
+            ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+            ...style,
+          }}
         />
         <label className="ax-float__label" htmlFor={id}>
           {label}

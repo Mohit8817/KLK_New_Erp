@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   jammuRescoService,
@@ -22,6 +22,7 @@ const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => 
 const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
+const LIGHT_RED = '#ef6a6a';
 
 /* ───────── Types ───────── */
 interface JammuRescoSummary {
@@ -60,7 +61,7 @@ const fmtMonth = (s: string) => {
   return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mi - 1]} ${y}`;
 };
 
-const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
+const onActivate = (fn: () => void) => (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     fn();
@@ -113,8 +114,12 @@ const toSummary = (o: any): JammuRescoSummary => {
   };
 };
 
-/* ───────── Layout CSS (matches Goa SRT & Jammu SRT Dashboard layout) ───────── */
+/* ───────── Layout CSS (Matches Jammu SRT 70MW Dashboard) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
   .solar-erp-page .ax-dash-grid { margin-top: 0; }
@@ -126,111 +131,86 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page .ax-card__header {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .solar-erp-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: max-content;
-    max-width: 55%;
-  }
-  .solar-erp-page .ax-card__title {
-    max-width: none;
-    white-space: normal;
-    word-break: normal;
-    overflow-wrap: normal;
-    hyphens: none;
-  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
   .solar-erp-page .ax-card__eyebrow,
   .solar-erp-page .ax-card__subtitle {
-    word-break: normal;
-    overflow-wrap: normal;
-    line-height: 1.45;
+    max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none;
   }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
   .solar-erp-page .ax-card__actions {
-    flex: 1 1 0;
-    min-width: 0;
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    min-width: 0;
-    width: 100%;
-    justify-content: flex-end;
-  }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
   .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] {
-    flex: 1 1 120px;
-    min-width: 90px;
-    max-width: 260px;
-  }
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 90px; max-width: 260px; }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export"] {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    gap: 4px;
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px;
   }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn,
-  .solar-erp-page .ax-card__actions [class*="export"] .ax-btn {
-    padding-inline: 8px;
-    min-width: 0;
-  }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
 
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ula-table--md { min-width: 900px; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; }
+  .solar-erp-page .ula-table--md { min-width: 960px; }
   .solar-erp-page .ax-welcome__lede { max-width: 780px; }
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
-  @media (min-width: 641px) {
-    .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
+  .asw-interactive-kpi {
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   }
+  .asw-interactive-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ax-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
+  }
+  .solar-erp-page .kpi-seg {
+    cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background 120ms ease, color 120ms ease;
+  }
+  .solar-erp-page .kpi-seg:hover { background: rgba(var(--asw-primary-rgb), 0.12); color: var(--asw-primary); text-decoration: underline; }
+  .solar-erp-page .kpi-seg:focus-visible { outline: 2px solid var(--asw-primary); outline-offset: 1px; }
+  .solar-erp-page .click-cell { cursor: pointer; }
+  .solar-erp-page .click-cell:hover { text-decoration: underline; }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
+    .solar-erp-page .ax-col--6,
     .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn span:not([class*="icon"]),
-    .solar-erp-page .ax-card__actions [class*="export"] .ax-btn span:not([class*="icon"]) {
-      display: none;
-    }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
 
   @media (max-width: 760px) {
     .solar-erp-page { width: 100%; max-width: 100%; overflow-x: hidden; box-sizing: border-box; }
-    .solar-erp-page .ax-welcome__stats {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-    }
+    .solar-erp-page .ax-welcome__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .solar-erp-page .ula-filter-item { width: 100%; justify-content: space-between; }
     .solar-erp-page .ula-filter-item select { flex: 1; width: auto; max-width: 100%; }
     .solar-erp-page .ula-filter-scope { width: 100%; }
-    .solar-erp-page .ax-card__header { gap: 10px; }
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__title { font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md); }
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 130px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
   }
 
-  @media (max-width: 480px) {
-    .solar-erp-page .ax-card__header { flex-wrap: wrap; }
-    .solar-erp-page .ax-card__titles { min-width: 0; max-width: 100%; flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions { flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-start; }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-welcome__stats { grid-template-columns: 1fr !important; }
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
   }
 `;
 
@@ -241,77 +221,98 @@ const ICON_REFRESH = (
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
-const ARROW_UP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>
-);
-const svg = (children: React.ReactNode) => (
+const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
+const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_COIN = svg(<><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 7v10" /></>);
 const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 const I_EYE = svg(<><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" /></>);
+const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_TRUCK = svg(<><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M5 17h-2v-11a1 1 0 0 1 1 -1h9v12m-4 0h6m4 0h2v-6h-4l-2 -3h-4v9" /></>);
 
-/* ───────── KPI Card ───────── */
+/* ───────── KPI Card (clickable card + clickable number segments) ───────── */
 interface KpiProps {
-  icon: React.ReactNode;
+  icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
   label: string;
-  value: string;
+  value?: string;
   unit?: string;
   sub: string;
   badge?: string;
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
+  pills?: { label: string; count: number | string; onClick?: () => void }[];
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)', apex: '--ax-viz-cyan' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)', apex: '--ax-viz-emerald' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)', apex: '--ax-viz-amber' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)', apex: '--ax-viz-violet' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)', apex: '--ax-viz-pink' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb', apex: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2', apex: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a', apex: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706', apex: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed', apex: '#7c3aed' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: '#db2777', apex: '#db2777' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626', apex: '#dc2626' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick, pills }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const safeSpark = allZeros ? [0, 0, 0, 0, 0] : spark;
 
   return (
     <div
-      className="ax-card ax-col--3"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      className={`ax-card ax-col--3 ${onClick ? 'asw-interactive-kpi' : ''}`}
+      role={onClick ? 'button' : 'region'}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={label}
       onClick={onClick}
       onKeyDown={onClick ? onActivate(onClick) : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      style={{
+        borderRadius: 'var(--ax-radius-lg, 12px)',
+        background: 'var(--ax-bg-surface, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+      }}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md, 8px)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
             </span>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
           </div>
           {badge && (
             <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-              {ARROW_UP} {badge}
+              {badge}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-              {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+              {pills && pills.length > 0
+                ? pills.map((seg, i) => (
+                    <span key={seg.label}>
+                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, margin: '0 4px' }}>/</span>}
+                      <span
+                        className={seg.onClick ? 'kpi-seg' : undefined}
+                        role={seg.onClick ? 'button' : undefined}
+                        tabIndex={seg.onClick ? 0 : undefined}
+                        title={seg.onClick ? `View ${seg.label} sites` : undefined}
+                        onClick={seg.onClick ? (e) => { e.stopPropagation(); seg.onClick!(); } : undefined}
+                        onKeyDown={seg.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); seg.onClick!(); } } : undefined}
+                      >
+                        {seg.count}
+                      </span>
+                    </span>
+                  ))
+                : value}{' '}
+              {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
           </div>
           {hasSpark && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
@@ -407,49 +408,20 @@ export function RescoDashboard() {
   const rawSummary: JammuRescoSummary = useMemo(() => toSummary(data), [data]);
 
   const districtwise: DistrictRow[] = useMemo(() => {
-    const map = new Map<string, any>();
-
-    const dInstall = Array.isArray(data?.district_install) ? data!.district_install : [];
-    dInstall.forEach((item: any) => {
-      const dist = String(item?.district || '').trim();
-      if (!dist) return;
-      map.set(dist.toLowerCase(), { ...item, district: dist });
-    });
-
-    const dWise = Array.isArray(data?.districtwise) ? data!.districtwise : [];
-    dWise.forEach((item: any) => {
-      const dist = String(item?.district || '').trim();
-      if (!dist) return;
-      const key = dist.toLowerCase();
-      const existing = map.get(key) || { district: dist };
-      map.set(key, { ...existing, ...item, district: dist });
-    });
-
-    const list = Array.from(map.values());
-    if (list.length === 0 && Array.isArray((data as any)?.districts)) {
-      (data as any).districts.forEach((d: any) => {
-        const dist = String(d?.district || '').trim();
-        if (dist) list.push({ district: dist, ...toSummary(d) });
-      });
-    }
-
-    return list.map((d: any) => {
-      const summary = toSummary(d);
-      return {
-        district: String(d?.district ?? ''),
-        ...summary,
-        site_count: summary.site_count || n(d?.total),
-        complete: summary.complete || n(d?.complete),
-        pending: summary.pending || n(d?.pending),
-      };
-    });
+    const list = Array.isArray(data?.districtwise) && data!.districtwise.length > 0
+      ? data!.districtwise
+      : Array.isArray((data as any)?.district_install)
+      ? (data as any).district_install
+      : [];
+    return list.map((d: any) => ({
+      district: String(d?.district ?? ''),
+      ...toSummary(d),
+      complete: n(d?.complete ?? d?.inst_complete),
+    }));
   }, [data]);
 
   const monthly: Array<{ month_year: string; monthly_installations: number }> = useMemo(() => {
-    const list =
-      (data as any)?.district_installation_month ||
-      (data as any)?.monthly_installations ||
-      (data as any)?.monthly;
+    const list = (data as any)?.district_installation_month || (data as any)?.monthly_installations;
     if (Array.isArray(list)) {
       return list.map((m: any) => ({
         month_year: String(m?.month_year || m?.month || ''),
@@ -493,6 +465,7 @@ export function RescoDashboard() {
 
   useEffect(() => {
     pD.setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qDistrict, selectedDistrict]);
 
   /* ───────── Derived ───────── */
@@ -502,10 +475,14 @@ export function RescoDashboard() {
   const matPct = pctOf(s.material_dispatch, s.site_count);
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
+  const pay80Pending = Math.max(0, s.complete - s.inst_pay80_done);
+  const pay20Pending = Math.max(0, s.complete - s.inst_pay20_done);
 
-  const goStatus = (st: string) => {
+  // Status drill-down navigation (consistent pattern across dashboards)
+  const goStatus = (st: string, dist?: string) => {
     const norm = normalizeRescoStatus(st);
-    const distParam = filtersActive ? `&district=${encodeURIComponent(selectedDistrict)}` : '';
+    const d = dist || (filtersActive ? selectedDistrict : '');
+    const distParam = d ? `&district=${encodeURIComponent(d)}` : '';
     navigate(`/v/jammu/installation/resco/status-view?status=${encodeURIComponent(norm)}${distParam}`);
   };
 
@@ -525,25 +502,23 @@ export function RescoDashboard() {
 
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
-      { header: 'District', accessor: (r: DistrictRow) => r.district || '' },
-      { header: 'Total Sites', accessor: (r: DistrictRow) => n(r.site_count) },
-      { header: 'Install Done', accessor: (r: DistrictRow) => n(r.complete) },
-      { header: 'Install Pending', accessor: (r: DistrictRow) => n(r.pending) },
-      { header: 'Material Dispatched', accessor: (r: DistrictRow) => n(r.material_dispatch) },
-      { header: 'Material Pending', accessor: (r: DistrictRow) => n(r.material_pending) },
-      { header: 'Approved', accessor: (r: DistrictRow) => n(r.verify_approved) },
-      { header: 'Verify Pending', accessor: (r: DistrictRow) => n(r.verify_pending) },
-      { header: 'Verify Rejected', accessor: (r: DistrictRow) => n(r.verify_reject) },
-      { header: 'Claim Applicable', accessor: (r: DistrictRow) => n(r.claim_applicable) },
-      { header: 'Claim Raised', accessor: (r: DistrictRow) => n(r.claim_raised) },
-      { header: '80% Paid Sites', accessor: (r: DistrictRow) => n(r.inst_pay80_done) },
-      { header: '20% Paid Sites', accessor: (r: DistrictRow) => n(r.inst_pay20_done) },
-      { header: 'Completion %', accessor: (r: DistrictRow) => `${pctOf(n(r.complete), n(r.site_count))}%` },
+      { header: 'District', accessor: (r) => r.district || '' },
+      { header: 'Total Sites', accessor: (r) => n(r.site_count) },
+      { header: 'Install Done', accessor: (r) => n(r.complete) },
+      { header: 'Install Pending', accessor: (r) => n(r.pending) },
+      { header: 'Material Dispatched', accessor: (r) => n(r.material_dispatch) },
+      { header: 'Material Pending', accessor: (r) => n(r.material_pending) },
+      { header: 'Approved', accessor: (r) => n(r.verify_approved) },
+      { header: 'Verify Pending', accessor: (r) => n(r.verify_pending) },
+      { header: 'Verify Rejected', accessor: (r) => n(r.verify_reject) },
+      { header: 'Claim Applicable', accessor: (r) => n(r.claim_applicable) },
+      { header: 'Claim Raised', accessor: (r) => n(r.claim_raised) },
+      { header: '80% Paid Sites', accessor: (r) => n(r.inst_pay80_done) },
+      { header: '20% Paid Sites', accessor: (r) => n(r.inst_pay20_done) },
+      { header: 'Completion %', accessor: (r) => `${pctOf(n(r.complete), n(r.site_count))}%` },
     ],
     []
   );
-
-  const stamp = new Date().toISOString().slice(0, 10);
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>) => {
     if (typeof column.accessor === 'function') return column.accessor(row);
@@ -614,27 +589,31 @@ export function RescoDashboard() {
     w.focus();
   };
 
-  const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
+  const makeToolbarColumns = <T,>(columns: ExportColumn<T>, hidden: string[]) =>
+    (columns as any).map((c: any, i: number) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
   const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
     columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));
 
-  const districtToolbarColumns = makeToolbarColumns(districtCols, hiddenDistrictColumns);
+  const districtToolbarColumns = makeToolbarColumns(districtCols as any, hiddenDistrictColumns);
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
     setter((prev) => (prev.includes(key) ? prev.filter((i) => i !== key) : [...prev, key]));
 
-  /* ───────── Chart data ───────── */
-  const statusSeries = [s.verify_approved, s.verify_pending, s.verify_reject, s.pending];
-  const statusLabels = ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'];
+  /* ───────── Chart data (clickable) ───────── */
+  const donutItems = [
+    { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN, key: 'verify_approved' },
+    { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE, key: 'verify_pending' },
+    { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: LIGHT_RED, key: 'verify_reject' },
+    { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER, key: 'pending' },
+  ];
 
   const milestones = [
-    { label: '1. Allocated Sites', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan)' },
-    { label: '2. Material Dispatched', v: s.material_dispatch, of: s.site_count, color: 'var(--ax-viz-amber)' },
-    { label: '3. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)' },
-    { label: '4. Installation Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)' },
-    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)' },
-    { label: '6. 80% / Stage 1 Payment Disbursed', v: s.inst_pay80_done, of: s.complete, color: 'var(--ax-viz-emerald)' },
-    { label: '7. 20% / Final Payment Disbursed', v: s.inst_pay20_done, of: s.complete, color: 'var(--ax-viz-violet)' },
+    { label: '1. Allocated Sites', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan)', key: 'total' },
+    { label: '2. Material Dispatched', v: s.material_dispatch, of: s.site_count, color: 'var(--ax-viz-amber)', key: 'material_dispatch' },
+    { label: '3. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)', key: 'complete' },
+    { label: '4. Installation Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)', key: 'verify_approved' },
+    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)', key: 'claim_raised' },
+    { label: '6. 80% Payment Disbursed', v: s.inst_pay80_done, of: s.complete, color: 'var(--ax-viz-emerald)', key: 'inst_pay80_done' },
+    { label: '7. 20% Final Payment Disbursed', v: s.inst_pay20_done, of: s.complete, color: 'var(--ax-viz-violet)', key: 'inst_pay20_done' },
   ];
 
   return (
@@ -643,17 +622,17 @@ export function RescoDashboard() {
 
       {/* 1. Page Header */}
       <PageHead
-        title="Jammu RESCO Installation Dashboard"
+        title="Jammu Resco Installation Dashboard"
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Jammu &amp; Kashmir Operations · RESCO installation tracking — last updated {updatedAt ? `${fmtDate(updatedAt)} ${fmtTime(updatedAt)}` : '—'}
+            Jammu &amp; Kashmir Operations · Resco installation tracking — last updated {updatedAt ? `${fmtDate(updatedAt)} ${fmtTime(updatedAt)}` : '—'}
           </span>
         }
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu' },
           { label: 'Installation' },
-          { label: 'RESCO' },
+          { label: 'Resco' },
           { label: 'Dashboard' },
         ]}
         actions={
@@ -670,6 +649,9 @@ export function RescoDashboard() {
             >
               <span className={isRefreshing ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
             </button>
+            <Link to="/v/jammu/installation/resco/status-view?status=total" className="ax-btn ax-btn--secondary ax-btn--sm">
+              Status Register
+            </Link>
           </div>
         }
       />
@@ -698,32 +680,26 @@ export function RescoDashboard() {
           className="ax-card ax-card--flat ax-col--12"
           role="region"
           aria-label="Jammu RESCO Dashboard Filters"
-          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border-subtle)', background: 'var(--ax-bg-surface)' }}
+          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg, 12px)', border: '1px solid var(--ax-border-subtle, #f1f5f9)', background: 'var(--ax-bg-surface, #ffffff)' }}
         >
           <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)', alignItems: 'center' }}>
             <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
               <span
                 className="ax-cluster"
                 style={{
-                  gap: '6px',
-                  color: 'var(--ax-text-strong)',
-                  fontSize: 'var(--ax-text-xs)',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '4px 10px',
-                  background: 'rgba(var(--ax-accent-rgb), 0.08)',
-                  borderRadius: 'var(--ax-radius-pill)',
-                  border: '1px solid rgba(var(--ax-accent-rgb), 0.18)',
+                  gap: '6px', color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-xs)', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.04em', padding: '4px 10px',
+                  background: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--ax-radius-pill, 9999px)',
+                  border: '1px solid rgba(37, 99, 235, 0.2)',
                 }}
               >
                 {ICON_FILTER} Filter Operations
               </span>
 
               <div className="ax-cluster ula-filter-item" style={{ alignItems: 'center' }}>
-                <label htmlFor="jammu-resco-district-select" style={labelStyle}>District:</label>
+                <label htmlFor="resco-district-select" style={labelStyle}>District:</label>
                 <select
-                  id="jammu-resco-district-select"
+                  id="resco-district-select"
                   className="ax-input ax-input--sm"
                   style={selectStyle}
                   value={selectedDistrict}
@@ -756,12 +732,12 @@ export function RescoDashboard() {
           </div>
         </section>
 
-        {/* 3. Welcome Banner */}
+        {/* 3. Welcome Banner (clickable stats) */}
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Jammu RESCO Installation Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
               <p className="ax-welcome__eyebrow">RESCO Installation Management System · State Hub</p>
-              <h2 className="ax-card__title">Welcome to Jammu RESCO Installation Dashboard</h2>
+              <h2 className="ax-card__title">Welcome to Jammu Resco Installation Dashboard</h2>
               <p className="ax-welcome__lede">
                 Jammu &amp; Kashmir state installation overview: <b>{dash(s.site_count)} sites</b> tracked across <b>{dash(filtersActive ? 1 : districtwise.length)} districts</b>.
                 <b> {dash(s.complete)} ({instPct}%)</b> installations completed, with <b>{dash(s.verify_approved)} ({approvedPct}%)</b> verified and approved.
@@ -769,37 +745,38 @@ export function RescoDashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('total')} onKeyDown={onActivate(() => goStatus('total'))} title="Click to view all sites">
                 <dt>Total Sites</dt>
                 <dd className="ax-num">{dash(s.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('complete')} onKeyDown={onActivate(() => goStatus('complete'))} title="Click to view installed sites">
                 <dt>Installation Done</dt>
                 <dd className="ax-num">{dash(s.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('material_dispatch')} onKeyDown={onActivate(() => goStatus('material_dispatch'))} title="Click to view dispatched sites">
                 <dt>Material Dispatched</dt>
                 <dd className="ax-num">{dash(s.material_dispatch)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{matPct}% Dispatched</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{matPct}% Dispatched ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('verify_approved')} onKeyDown={onActivate(() => goStatus('verify_approved'))} title="Click to view approved sites">
                 <dt>Approved</dt>
                 <dd className="ax-num">{dash(s.verify_approved)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
-        {/* 4. 8 KPI Cards */}
+        {/* 4. 8 KPI Cards — click card or any number */}
         <KpiCard
-          icon={I_BOLT}
+          icon={I_PIN}
           tone="accent"
           label="Total Sites"
-          value={loading && !data ? '…' : num(s.site_count)}
-          sub="Total allocated RESCO sites"
+          value={dash(s.site_count)}
+          unit="Sites"
+          sub="Total allocated rooftop sites"
           badge={s.site_count ? `${instPct}% installed` : undefined}
           spark={spk((d) => n(d.site_count))}
           onClick={() => goStatus('total')}
@@ -809,75 +786,97 @@ export function RescoDashboard() {
           icon={I_DONE}
           tone="emerald"
           label="Installation Status"
-          value={loading && !data ? '…' : `${num(s.complete)} / ${num(s.pending)}`}
           sub="Installed / Pending"
-          badge={`${instPct}% Done`}
+          badge={`${instPct}%`}
           spark={spk((d) => n(d.complete))}
           onClick={() => goStatus('complete')}
+          pills={[
+            { label: 'Installed', count: dash(s.complete), onClick: () => goStatus('complete') },
+            { label: 'Pending', count: dash(s.pending), onClick: () => goStatus('pending') },
+          ]}
         />
 
         <KpiCard
           icon={I_TRUCK}
           tone="cyan"
           label="Material Dispatch"
-          value={loading && !data ? '…' : `${num(s.material_dispatch)} / ${num(s.material_pending)}`}
           sub="Dispatched / Pending"
-          badge={s.material_dispatch > 0 ? `${matPct}% Dispatched` : undefined}
+          badge={s.material_dispatch > 0 ? `${matPct}%` : undefined}
           spark={spk((d) => n(d.material_dispatch))}
-          onClick={() => goStatus('material-dispatch')}
+          onClick={() => goStatus('material_dispatch')}
+          pills={[
+            { label: 'Dispatched', count: dash(s.material_dispatch), onClick: () => goStatus('material_dispatch') },
+            { label: 'Pending', count: dash(s.material_pending), onClick: () => goStatus('material_pending') },
+          ]}
         />
 
         <KpiCard
-          icon={I_DONE}
+          icon={I_SHIELD}
           tone="amber"
           label="Verification Status"
-          value={loading && !data ? '…' : `${num(s.verify_approved)} / ${num(s.verify_pending)} / ${num(s.verify_reject)}`}
           sub="Approved / Pending / Rejected"
-          badge={s.verify_approved > 0 ? `${approvedPct}% Approved` : undefined}
+          badge={s.verify_approved > 0 ? `${approvedPct}%` : undefined}
           spark={spk((d) => n(d.verify_approved))}
-          onClick={() => goStatus('verify-approved')}
+          onClick={() => goStatus('verify_approved')}
+          pills={[
+            { label: 'Approved', count: dash(s.verify_approved), onClick: () => goStatus('verify_approved') },
+            { label: 'Verify Pending', count: dash(s.verify_pending), onClick: () => goStatus('verify_pending') },
+            { label: 'Rejected', count: dash(s.verify_reject), onClick: () => goStatus('verify_reject') },
+          ]}
         />
 
         <KpiCard
           icon={I_EYE}
           tone="violet"
           label="Verification Pending"
-          value={loading && !data ? '…' : num(s.verify_pending)}
+          value={dash(s.verify_pending)}
+          unit="Sites"
           sub="Awaiting verification"
           badge={s.verify_pending > 0 ? `${num(s.verify_pending)} Sites` : undefined}
           spark={spk((d) => n(d.verify_pending))}
-          onClick={() => goStatus('verify-pending')}
+          onClick={() => goStatus('verify_pending')}
         />
 
         <KpiCard
           icon={I_LIST}
           tone="pink"
           label="Claim Status"
-          value={loading && !data ? '…' : `${num(s.claim_applicable)} / ${num(s.claim_raised)}`}
           sub="Applicable / Raised"
           badge={s.claim_raised > 0 ? `${num(s.claim_raised)} Raised` : undefined}
           spark={spk((d) => n(d.claim_raised))}
-          onClick={() => goStatus('claim1_approved')}
+          onClick={() => goStatus('claim_raised')}
+          pills={[
+            { label: 'Applicable', count: dash(s.claim_applicable), onClick: () => goStatus('claim_applicable') },
+            { label: 'Raised', count: dash(s.claim_raised), onClick: () => goStatus('claim_raised') },
+          ]}
         />
 
         <KpiCard
           icon={I_COIN}
           tone="emerald"
-          label="80% Payment / Stage 1"
-          value={loading && !data ? '…' : `${num(s.inst_pay80_done)} Sites`}
-          sub="Stage 1 Approved Sites"
+          label="80% Payment Status"
+          sub="Paid / Pending (of installed)"
           badge={s.inst_pay80_done > 0 ? 'Disbursed' : undefined}
-          onClick={() => goStatus('claim1_approved')}
+          spark={spk((d) => n(d.inst_pay80_done))}
+          onClick={() => goStatus('inst-pay80-done')}
+          pills={[
+            { label: 'Paid', count: dash(s.inst_pay80_done), onClick: () => goStatus('inst-pay80-done') },
+            { label: 'Pending', count: dash(pay80Pending) },
+          ]}
         />
 
         <KpiCard
           icon={I_COIN}
           tone="amber"
-          label="20% Final Payment / Stage 2"
-          value={loading && !data ? '…' : `${num(s.inst_pay20_done)} Sites`}
-          sub="Stage 2 Disbursed Sites"
+          label="20% Final Payment Status"
+          sub="Paid / Pending (of installed)"
           badge={s.inst_pay20_done > 0 ? 'Disbursed' : undefined}
-          onClick={() => goStatus('claim2_approved')}
+          spark={spk((d) => n(d.inst_pay20_done))}
+          onClick={() => goStatus('inst-pay20-done')}
+          pills={[
+            { label: 'Paid', count: dash(s.inst_pay20_done), onClick: () => goStatus('inst-pay20-done') },
+            { label: 'Pending', count: dash(pay20Pending) },
+          ]}
         />
 
         {/* 5. Monthly Trend (8) + Donut (4) */}
@@ -889,12 +888,7 @@ export function RescoDashboard() {
               <p className="ax-card__subtitle">{num(monthTotal)} installations across {monthly.length} month{monthly.length === 1 ? '' : 's'}</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-                  <i style={{ width: 10, height: 10, borderRadius: 2, background: LIGHT_GREEN }} />
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Monthly Completed</small>
-                </span>
-              </div>
+              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{monthly.length} Months Tracked</span>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0, minHeight: chartH }}>
@@ -920,293 +914,361 @@ export function RescoDashboard() {
                 />
               </Suspense>
             ) : (
-              <TableEmptyState title="No installation trend yet" message="The monthly trend appears once installations are completed." />
+              <div style={{ height: chartH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)' }}>
+                No monthly data recorded yet
+              </div>
             )}
           </div>
         </section>
 
-        <section className="ax-card ax-col--4" role="region" aria-label="Installation status split">
+        {/* Verification Status Donut (4) */}
+        <section className="ax-card ax-card--chart ax-col--4" role="region" aria-label="Verification distribution">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Status Distribution</span>
-              <h2 className="ax-card__title">Installation Status</h2>
-              <p className="ax-card__subtitle">Total {dash(s.site_count)} sites</p>
+              <span className="ax-card__eyebrow">Audit &amp; Inspection</span>
+              <h2 className="ax-card__title">Verification Status</h2>
+              <p className="ax-card__subtitle">{num(s.site_count)} total portfolio sites</p>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+          <div className="ax-card__body" style={{ paddingTop: 0, minHeight: donutH, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <Suspense fallback={<div className="ax-skeleton" style={{ height: donutH }} />}>
               <ApexChart
-                key={`donut-${donutH}-${statusSeries.join('-')}`}
+                key={`donut-${donutH}-${s.verify_approved}-${s.verify_pending}-${s.verify_reject}-${s.pending}`}
                 type="donut"
                 height={donutH}
                 legend="none"
-                ariaLabel="Installation status split"
-                series={statusSeries}
+                ariaLabel="Verification status breakdown"
+                series={[s.verify_approved, s.verify_pending, s.verify_reject, s.pending]}
                 apex={{
-                  labels: statusLabels,
-                  colors: [LIGHT_GREEN, LIGHT_BLUE, '#ef6a6a', LIGHT_AMBER],
-                  stroke: { width: 0 },
+                  colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_RED, LIGHT_AMBER],
+                  labels: ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'],
+                  dataLabels: { enabled: false },
+                  stroke: { width: 2, colors: ['var(--ax-bg-surface, #ffffff)'] },
                   plotOptions: {
                     pie: {
                       donut: {
                         size: '72%',
                         labels: {
                           show: true,
-                          name: { fontFamily: cv('--ax-font-sans') },
-                          value: { fontFamily: cv('--ax-font-mono'), fontWeight: 600 },
-                          total: { show: true, label: 'Sites', formatter: () => num(s.site_count) },
+                          total: {
+                            show: true,
+                            label: 'Approved',
+                            formatter: () => `${approvedPct}%`,
+                            color: 'var(--ax-text-strong)',
+                          },
                         },
                       },
                     },
                   },
+                  tooltip: { y: { formatter: (v: number) => `${v} Sites` } },
                 }}
               />
             </Suspense>
-            <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
-              {[
-                { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN },
-                { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE },
-                { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: '#ef6a6a' },
-                { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER },
-              ].map((r) => (
-                <li key={r.label} className="ax-list__row" style={{ border: 0, paddingInline: 0 }}>
-                  <span className="ax-list__leading"><i style={{ width: 9, height: 9, borderRadius: 3, background: r.color, display: 'inline-block' }} /></span>
-                  <span className="ax-list__content">
-                    <span className="ax-list__title" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{r.label}</span>
-                    <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{r.sub}</span>
-                  </span>
-                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{num(r.v)}</span>
-                </li>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 12px', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)' }}>
+              {donutItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="asw-interactive-kpi"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goStatus(item.key)}
+                  onKeyDown={onActivate(() => goStatus(item.key))}
+                  title={`View ${item.label} sites`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', borderRadius: 6 }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{item.label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-strong)' }}>{num(item.v)}</div>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </section>
 
-        {/* 6. District Chart (8) + Milestones (4) */}
-        <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="District wise installations">
+        {/* 6. Status Register: Milestones + Performance (12) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="District Performance and Milestones">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Geographic Breakdown</span>
-              <h2 className="ax-card__title">District-wise Installation Statistics</h2>
-              <p className="ax-card__subtitle">Installations by progress across Jammu &amp; Kashmir districts · click bar to filter</p>
+              <span className="ax-card__eyebrow">District Milestones &amp; Execution</span>
+              <h2 className="ax-card__title">Status Register &amp; Performance Funnel</h2>
+              <p className="ax-card__subtitle">Field progress comparison across {districtwise.length} administrative districts</p>
             </div>
             <div className="ax-card__actions">
-              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{dash(districtwise.length)} Districts</span>
+              <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">All Targets Active</span>
             </div>
           </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            {chartDistricts.length > 0 ? (
-              <Suspense fallback={<div className="ax-skeleton" style={{ height: districtChartH }} />}>
-                <ApexChart
-                  key={`bar-${districtChartH}-${chartDistricts.length}-${s.site_count}`}
-                  type="bar"
-                  height={districtChartH}
-                  legend="top"
-                  stacked
-                  ariaLabel="Horizontal stacked bar of installations per district by progress"
-                  series={[
-                    { name: 'Installed', data: chartDistricts.map((d) => n(d.complete)) },
-                    { name: 'Material Dispatched', data: chartDistricts.map((d) => n(d.material_dispatch)) },
-                    { name: 'Pending', data: chartDistricts.map((d) => Math.max(0, n(d.site_count) - n(d.complete))) },
-                  ]}
-                  apex={{
-                    colors: [LIGHT_GREEN, LIGHT_AMBER, LIGHT_BLUE],
-                    plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '58%' } },
-                    xaxis: { categories: chartDistricts.map((d) => d.district), labels: { style: { fontSize: '11px' } } },
-                    yaxis: { labels: { maxWidth: isMobile ? 90 : 160, style: { fontSize: '11px' } } },
-                    chart: {
-                      events: {
-                        dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
-                          const dist = chartDistricts[opts?.dataPointIndex]?.district;
-                          if (dist) setSelectedDistrict(dist);
-                        },
-                      },
-                    },
-                  }}
-                />
-              </Suspense>
-            ) : (
-              <TableEmptyState title="No district records" message="District progress appears once sites are allocated." />
-            )}
-          </div>
-        </section>
-
-        <section className="ax-card ax-col--4" role="region" aria-label="Installation Progress">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Workflow Lifecycle</span>
-              <h2 className="ax-card__title">Installation Milestones</h2>
-              <p className="ax-card__subtitle">Progress across execution stages</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)' }}>
-            {milestones.map((m) => {
-              const p = pctOf(m.v, m.of);
-              return (
-                <div key={m.label}>
-                  <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
-                    <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
-                    <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
-                  </div>
-                  <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${p}%`, background: m.color }} /></div></div>
+          <div className="ax-card__body">
+            <div className="ax-dash-grid mt-0 pt-0">
+              {/* Funnel Progress (5 cols) */}
+              <div className="ax-col--5" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Execution Lifecycle Funnel
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {milestones.map((m) => {
+                    const pct = pctOf(m.v, m.of || 1);
+                    return (
+                      <div
+                        key={m.label}
+                        className="asw-interactive-kpi"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => goStatus(m.key)}
+                        onKeyDown={onActivate(() => goStatus(m.key))}
+                        style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--ax-border-subtle, #f1f5f9)', background: 'var(--ax-surface-subtle, #f8fafc)' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-strong)' }}>{m.label}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: m.color }}>{num(m.v)} <small style={{ fontWeight: 500, color: 'var(--ax-text-muted)' }}>({pct}%)</small></span>
+                        </div>
+                        <div className="ax-progress ax-progress--sm" style={{ width: '100%' }}>
+                          <div className="ax-progress__track">
+                            <div className="ax-progress__fill" style={{ width: `${Math.min(100, pct)}%`, background: m.color }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+
+              {/* District Horizontal Bar Chart (7 cols) */}
+              <div className="ax-col--7">
+                <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Top Districts by Capacity Allocation
+                </h4>
+                {chartDistricts.length > 0 ? (
+                  <Suspense fallback={<div className="ax-skeleton" style={{ height: districtChartH }} />}>
+                    <ApexChart
+                      key={`dist-bar-${districtChartH}-${chartDistricts.map((d) => d.district).join('-')}`}
+                      type="bar"
+                      height={districtChartH}
+                      legend="none"
+                      ariaLabel="District installations comparison"
+                      series={[
+                        { name: 'Total Sites', data: chartDistricts.map((d) => n(d.site_count)) },
+                        { name: 'Installed', data: chartDistricts.map((d) => n(d.complete)) },
+                      ]}
+                      apex={{
+                        colors: ['var(--ax-accent)', LIGHT_GREEN],
+                        plotOptions: { bar: { horizontal: true, barHeight: '55%', borderRadius: 3 } },
+                        dataLabels: { enabled: false },
+                        xaxis: { categories: chartDistricts.map((d) => d.district) },
+                        yaxis: { labels: { style: { fontSize: '11px', fontWeight: 600 } } },
+                        tooltip: { y: { formatter: (v: number) => `${v} Sites` } },
+                      }}
+                    />
+                  </Suspense>
+                ) : (
+                  <div style={{ height: districtChartH, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)' }}>
+                    No district breakdown records
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* 7. District Wise Table */}
-        <section className="ax-card ax-col--12" role="region" aria-label="District wise data">
+        {/* 7. District-wise Installation Breakdown Table */}
+        <section className="ax-card ax-col--12" role="region" aria-labelledby="district-table-title">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Enterprise Data Analytics</span>
-              <h2 className="ax-card__title">District Wise Installation Breakdown</h2>
-              <p className="ax-card__subtitle">Installation, dispatch, verification, claims and payment progress</p>
+              <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>DISTRICT DIRECTORY</span>
+              <h2 id="district-table-title" className="ax-card__title">District-wise Installation Breakdown</h2>
+              <p className="ax-card__subtitle ax-num" style={{ fontFamily: 'var(--ax-font-mono)' }}>
+                {tableDistricts.length} of {districtwise.length} administrative districts
+              </p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
-                <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" />
+                <SearchInput
+                  value={qDistrict}
+                  onChange={setQDistrict}
+                  placeholder="Filter district name…"
+                  size="sm"
+                  ariaLabel="Search district"
+                />
                 <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
-                  onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_RESCO_District_Wise_${stamp}`)}
-                  onExportExcel={() => exportToExcel(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_RESCO_District_Wise_${stamp}`)}
-                  onExportPDF={() => exportToPDF(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), 'Jammu RESCO District Wise Installation Breakdown')}
                   columns={districtToolbarColumns}
                   onToggleColumn={toggleIn(setHiddenDistrictColumns)}
+                  onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_RESCO_Districtwise_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_RESCO_Districtwise_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), 'Jammu RESCO Installation - District-wise Summary')}
+                  onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
                 />
               </div>
             </div>
           </div>
+
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--md">
+            <table className="ax-table ax-table--hover ula-table--md" style={{ whiteSpace: 'nowrap' }}>
+              <caption className="ax-visually-hidden">District-wise Installation Breakdown</caption>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Install (Done / Pend)</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Material (Disp / Pend)</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verification (App / Pend / Rej)</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claim (Appl / Raised)</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Payments (80% / 20%)</th>
-                  <th className="ax-table__th" scope="col">Progress</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Total Sites</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Install Done</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Install Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Material Dispatched</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Material Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Approved</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Verify Rejected</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim Applicable</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>Claim Raised</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>80% Paid</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'right' }}>20% Paid</th>
+                  <th className="ax-table__th" scope="col">Completion %</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
+                  <tr>
+                    <td className="ax-table__td" colSpan={15} style={emptyCellStyle}>
+                      <span className="ax-spinner" /> Loading district installation metrics…
+                    </td>
+                  </tr>
                 ) : pD.paginatedData.length === 0 ? (
-                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}>No districts match the filters.</td></tr>
+                  <tr>
+                    <td className="ax-table__td" colSpan={15} style={emptyCellStyle}>
+                      <TableEmptyState title="No district records" message="Try clearing your search query" />
+                    </td>
+                  </tr>
                 ) : (
-                  pD.paginatedData.map((d) => {
-                    const total = n(d.site_count);
-                    const rowPct = pctOf(n(d.complete), total);
-                    const isSelected = selectedDistrict.toLowerCase() === d.district.toLowerCase();
+                  pD.paginatedData.map((row) => {
+                    const rowInstPct = pctOf(row.complete, row.site_count);
                     return (
-                      <tr
-                        key={d.district}
-                        className="ax-table__row"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedDistrict(d.district)}
-                        onKeyDown={onActivate(() => setSelectedDistrict(d.district))}
-                        style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}
-                      >
+                      <tr key={row.district}>
+                        <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                          {row.district}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', fontWeight: 600 }} onClick={() => goStatus('total', row.district)} title="Click to view total sites">
+                          {num(row.site_count)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', fontWeight: 600, color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('complete', row.district)} title="Click to view completed sites">
+                          {num(row.complete)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('pending', row.district)} title="Click to view pending sites">
+                          {num(row.pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_dispatch', row.district)}>
+                          {num(row.material_dispatch)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_pending', row.district)}>
+                          {num(row.material_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)', fontWeight: 600 }} onClick={() => goStatus('verify_approved', row.district)}>
+                          {num(row.verify_approved)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify_pending', row.district)}>
+                          {num(row.verify_pending)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify_reject', row.district)}>
+                          {num(row.verify_reject)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_applicable', row.district)}>
+                          {num(row.claim_applicable)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_raised', row.district)}>
+                          {num(row.claim_raised)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay80-done', row.district)}>
+                          {num(row.inst_pay80_done)}
+                        </td>
+                        <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay20-done', row.district)}>
+                          {num(row.inst_pay20_done)}
+                        </td>
                         <td className="ax-table__td">
-                          <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{d.district}</span>
-                            {isSelected && (
-                              <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontSize: '10px', padding: '1px 6px' }}>Active</span>
-                            )}
-                          </div>
+                          <Bar pct={rowInstPct} />
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(total)}</td>
-                        <td className="ax-table__td ax-table__td--num">
-                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
-                            <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
-                          </div>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            onClick={() => goStatus('total', row.district)}
+                            style={{ padding: '3px 8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                          >
+                            View Sites
+                          </button>
                         </td>
-                        <td className="ax-table__td ax-table__td--num">
-                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.material_dispatch)}</span>
-                            <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.material_pending)}</span>
-                          </div>
-                        </td>
-                        <td className="ax-table__td ax-table__td--num">
-                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }} title="Approved">
-                              <span className="ax-badge__dot" />{num(d.verify_approved)}
-                            </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }} title="Pending Verify">{num(d.verify_pending)}</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }} title="Rejected">{num(d.verify_reject)}</span>
-                          </div>
-                        </td>
-                        <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.claim_applicable)}</span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}> / </span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.claim_raised)}</span>
-                        </td>
-                        <td className="ax-table__td ax-table__td--num ax-num">
-                          {num(d.inst_pay80_done)} / {num(d.inst_pay20_done)}
-                        </td>
-                        <td className="ax-table__td"><Bar pct={rowPct} /></td>
                       </tr>
                     );
                   })
                 )}
-                {tableDistricts.length > 0 && (
-                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
-                    <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total ({filteredDistrictRows.length} Districts)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(districtTotals.site_count)}</td>
-                    <td className="ax-table__td ax-table__td--num">
-                      <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(districtTotals.complete)}</span>
-                        <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 700 }}>{num(districtTotals.pending)}</span>
-                      </div>
+              </tbody>
+              {tableDistricts.length > 0 && (
+                <tfoot className="ax-table__foot" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 700 }}>
+                  <tr>
+                    <td className="ax-table__td">Total ({tableDistricts.length} Districts)</td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('total')}>
+                      {num(districtTotals.site_count)}
                     </td>
-                    <td className="ax-table__td ax-table__td--num">
-                      <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 700 }}>{num(districtTotals.material_dispatch)}</span>
-                        <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(districtTotals.material_pending)}</span>
-                      </div>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('complete')}>
+                      {num(districtTotals.complete)}
                     </td>
-                    <td className="ax-table__td ax-table__td--num">
-                      <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success">{num(districtTotals.verify_approved)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning">{num(districtTotals.verify_pending)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--danger">{num(districtTotals.verify_reject)}</span>
-                      </div>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('pending')}>
+                      {num(districtTotals.pending)}
                     </td>
-                    <td className="ax-table__td ax-table__td--num">
-                      <span style={{ fontWeight: 700 }}>{num(districtTotals.claim_applicable)}</span>
-                      <span> / </span>
-                      <span>{num(districtTotals.claim_raised)}</span>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_dispatch')}>
+                      {num(districtTotals.material_dispatch)}
                     </td>
-                    <td className="ax-table__td ax-table__td--num ax-num">
-                      {num(districtTotals.inst_pay80_done)} / {num(districtTotals.inst_pay20_done)}
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('material_pending')}>
+                      {num(districtTotals.material_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-emerald)' }} onClick={() => goStatus('verify_approved')}>
+                      {num(districtTotals.verify_approved)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-amber)' }} onClick={() => goStatus('verify_pending')}>
+                      {num(districtTotals.verify_pending)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right', color: 'var(--ax-viz-red)' }} onClick={() => goStatus('verify_reject')}>
+                      {num(districtTotals.verify_reject)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_applicable')}>
+                      {num(districtTotals.claim_applicable)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('claim_raised')}>
+                      {num(districtTotals.claim_raised)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay80-done')}>
+                      {num(districtTotals.inst_pay80_done)}
+                    </td>
+                    <td className="ax-table__td click-cell" style={{ textAlign: 'right' }} onClick={() => goStatus('inst-pay20-done')}>
+                      {num(districtTotals.inst_pay20_done)}
                     </td>
                     <td className="ax-table__td">
-                      <Bar pct={Math.round(pctOf(districtTotals.complete, districtTotals.site_count))} />
+                      <Bar pct={pctOf(districtTotals.complete, districtTotals.site_count)} />
+                    </td>
+                    <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--primary ax-btn--xs"
+                        onClick={() => goStatus('total')}
+                        style={{ padding: '3px 8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                      >
+                        All Sites
+                      </button>
                     </td>
                   </tr>
-                )}
-              </tbody>
+                </tfoot>
+              )}
             </table>
           </div>
+
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={pD.currentPage}
-                totalItems={pD.totalItems}
                 pageSize={pD.pageSize}
+                totalItems={tableDistricts.length}
                 onPageChange={pD.setPage}
                 setPage={pD.setPage}
                 onPageSizeChange={pD.setPageSize}
-                pageSizeOptions={[25, 50, 100, 200]}
+                pageSizeOptions={[100, 200, 300]}
               />
             </div>
           </div>
@@ -1218,3 +1280,4 @@ export function RescoDashboard() {
 
 export { RescoDashboard as SolarErp };
 export default RescoDashboard;
+

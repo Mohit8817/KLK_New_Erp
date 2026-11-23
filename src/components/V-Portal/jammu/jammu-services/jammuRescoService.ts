@@ -14,6 +14,14 @@ export interface JammuRescoAssignedSiteItem {
   site_name?: string;
   inst_vendor?: string | number;
   vendor?: string | number;
+  vendor_name?: string;
+  vendors?: {
+    id?: number | string;
+    name?: string;
+    vendor_id?: string;
+    company?: string;
+    [key: string]: any;
+  };
   purpose?: string;
   type?: string;
   status: number; // 1 = Assigned/Pending, 2 = Accepted
@@ -432,11 +440,24 @@ class JammuRescoService {
     }
 
     const json = await res.json();
-    if (Array.isArray(json?.assign_sites)) return json.assign_sites;
-    if (Array.isArray(json?.data)) return json.data;
-    if (Array.isArray(json?.sites)) return json.sites;
-    if (Array.isArray(json)) return json;
-    return [];
+    let rawList: any[] = [];
+    if (Array.isArray(json?.assign_sites)) rawList = json.assign_sites;
+    else if (Array.isArray(json?.data)) rawList = json.data;
+    else if (Array.isArray(json?.sites)) rawList = json.sites;
+    else if (Array.isArray(json?.data?.assign_sites)) rawList = json.data.assign_sites;
+    else if (Array.isArray(json?.data?.data)) rawList = json.data.data;
+    else if (Array.isArray(json)) rawList = json;
+
+    return rawList.map((item: any) => ({
+      ...item,
+      id: Number(item.id),
+      status: Number(item.status ?? 0),
+      vendor_name:
+        item.vendors?.name ||
+        item.vendors?.vendor_name ||
+        item.vendors?.company ||
+        item.vendor_name,
+    }));
   }
 
   /**

@@ -16,18 +16,18 @@ const COLUMNS: ComplaintColumn<Row>[] = [
   T('District', ['district'], { strong: true }),
   T('Village', ['village']),
   T('Location', ['location']),
-  T('Beneficiary Name', ['beneficiary_name'], { strong: true }),
-  T('Father Name', ['father_name']),
-  T('Contact No', ['contact_no']),
+  T('Beneficiary Name', ['beneficiary_name', 'farmer_name', 'f_name'], { strong: true }),
+  T('Father Name', ['father_name', 'f_father_name']),
+  T('Contact No', ['contact_no', 'contact_number', 'f_mobile']),
   T('Saral ID', ['saral_id']),
-  T('Application No', ['application_no']),
+  T('Application No', ['application_no', 'app_no']),
   T('Category', ['category']),
-  T('Installation Date', ['installation_date']),
-  T('Pump Type', ['pump_type', 'pump_sub_type']),
+  T('Installation Date', ['sys_installed', 'installation_date', 'sys_installed_date', 'inst_date']),
+  T('Pump Type', ['required_pump', 'pump_type', 'pump_sub_type']),
   T('Pump Make', ['pump_make']),
   T('Module Make', ['module_make']),
   T('SPV Capacity', ['spv_capacity'], { strong: true }),
-  T('Total Pump Cost', ['total_pump_cost']),
+  T('Total Pump Cost', ['total_pumb_cost', 'total_pump_cost', 'pumb_cost', 'pump_cost']),
   documentCol<Row>(),
   T('Assigned Date', ['assigned_date']),
 ];
@@ -82,10 +82,14 @@ export function UPComplaintKBAssigned() {
           const fd = new FormData();
           fd.append('id', String(item.id || ''));
           if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
+          fd.append('resolved_by', v.resolvedBy);
           fd.append('remarks', v.remarks);
           fd.append('closing_date', v.date);
           fd.append('document', v.file);
           fd.append('file', v.file);
+          fd.append('r_file', v.file);
+          fd.append('r_file1', v.file);
+          fd.append('r_file2', v.file);
           return upComplaintService.closeKusumBComplaint(fd);
         },
       }}

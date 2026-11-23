@@ -89,9 +89,9 @@ const normalizeSite = (r: any): Row => ({
   remark: pickStr(r.inst_remarks, r.remark),
   verify_status: pickNum(r.inst_verify_status, r.verify_status),
   verify_remarks: pickStr(r.inst_verify_remarks, r.verify_remarks),
-  document_status: pickNum(r.inst_doc_status, r.document_status),
-  document_file: pickStr(r.inst_doc_file, r.document_file),
-  document_remarks: pickStr(r.inst_doc_remarks, r.document_remarks),
+  document_status: pickNum(r.inst_doc_status, r.document_status, r.doc_status),
+  document_file: pickStr(r.inst_doc_file, r.document_file, r.doc_file, r.inst_doc),
+  document_remarks: pickStr(r.inst_doc_remarks, r.document_remarks, r.doc_remarks),
   inst_status: pickNum(r.inst_status),
 });
 
@@ -100,6 +100,16 @@ type VerifyFilter = 'all' | 'approved' | 'pending' | 'reject';
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 const isCompleted = (r: Row) => r.inst_status === 1 || !!(r.installation_date && r.inverter_no);
+const isVerifiedApproved = (r: Row) => Number(r.verify_status) === 1;
+const isDocumentSubmitted = (r: Row) => {
+  const docStatus = Number(r.document_status);
+  const hasDocFile = Boolean(
+    r.document_file &&
+    r.document_file !== DASH &&
+    r.document_file.toLowerCase() !== 'null'
+  );
+  return docStatus === 1 || docStatus === 2 || (hasDocFile && docStatus !== 3);
+};
 
 /* ───────── Badges ───────── */
 const VerifyStatusBadge = ({ value }: { value?: number | string }) => {
@@ -327,8 +337,26 @@ const PAGE_CSS = `
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 
-  .ula-menu__item:hover {
+  /* Row action button + menu (Exact Bihar ULA Installation pattern) */
+  .ula-action-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+    font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed; z-index: 99999; box-sizing: border-box;
+    display: flex; flex-direction: column; padding: 4px 0; text-align: left;
+    background: var(--ax-surface-solid, #ffffff); border: 1px solid var(--ax-border, #e2e8f0); border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin: 0; padding: 8px 14px;
+    font: inherit; font-size: 12px; font-weight: 500; text-align: left; text-decoration: none;
+    color: var(--ax-text, #0f172a); background: transparent; border: 0; border-radius: 0; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ula-menu__item:hover, .ula-menu__item:focus-visible {
     background: var(--ax-surface-subtle, #f1f5f9) !important;
+    outline: none;
   }
 
   .ax-modern-field {
@@ -480,55 +508,408 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ───────── Thumbnail (Strict Square Corners) ───────── */
-function Thumb({ path, alt, onPreview }: { path?: string | null; alt: string; onPreview: (url: string, title: string) => void }) {
+/* ── Modern Image Placeholder & Interactive Thumbnail ── */
+function ImagePlaceholder({
+  size = 36,
+  label = 'No photograph uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+function Thumb({ path, alt, onPreview, size = 36 }: { path?: string | null; alt: string; onPreview: (url: string, title: string) => void; size?: number }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [path]);
 
-  if (!path || failed) return <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>;
+  if (!path || failed) return <ImagePlaceholder size={size} label={`No image — ${alt}`} />;
   const url = resolveUpMediaUrl(path);
   return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, flexShrink: 0, margin: '0 auto' }}>
+      <img
+        src={url}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          margin: '0 auto',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--ax-primary-default, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => setFailed(true)}
+        onClick={() => onPreview(url, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
+
+/* ───────── Existing Thumbnail ───────── */
+function ExistingThumbnail({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  const resolved = resolveUpMediaUrl(src);
+  if (failed || !resolved) {
+    return (
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 6,
+          background: '#f1f5f9',
+          color: '#64748b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          flexShrink: 0,
+        }}
+      >
+        File
+      </div>
+    );
+  }
+  return (
     <img
-      src={url}
+      src={resolved}
       alt={alt}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 0,
-        objectFit: 'cover',
-        cursor: 'zoom-in',
-        border: '1px solid var(--ax-border, #cbd5e1)',
-        background: 'var(--ax-surface-subtle, #f8fafc)',
-        display: 'block',
-        margin: '0 auto',
-        flexShrink: 0,
-      }}
+      style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)', flexShrink: 0 }}
       onError={() => setFailed(true)}
-      onClick={() => onPreview(url, alt)}
-      title="Click to preview photograph"
     />
   );
 }
 
-/* ───────── Row Action Dropdown ───────── */
+/* ───────── File Upload Dropzone (matching uploaded design) ───────── */
+interface FileUploadDropzoneProps {
+  id: string;
+  label?: string;
+  required?: boolean;
+  accept?: string;
+  hint?: string;
+  file: File | null;
+  existingUrl?: string | null;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+}
+
+function FileUploadDropzone({
+  id,
+  label,
+  required,
+  accept = 'image/*',
+  hint = 'PDF, JPG or PNG — single file',
+  file,
+  existingUrl,
+  onSelect,
+  onRemove,
+  error,
+}: FileUploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(file.name))) {
+      const url = URL.createObjectURL(file);
+      setLocalPreview(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setLocalPreview(null);
+  }, [file]);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onSelect(chosen);
+  };
+
+  const hasNewFile = Boolean(file);
+  const hasExisting = Boolean(!hasNewFile && existingUrl);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+      {label && (
+        <label
+          htmlFor={id}
+          style={{
+            fontSize: '12.5px',
+            fontWeight: 600,
+            color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <span>{label}</span>
+          {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+        </label>
+      )}
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : hasExisting
+            ? '1.5px solid #cbd5e1'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : hasExisting
+            ? '#f8fafc'
+            : '#ffffff',
+          padding: hasNewFile || hasExisting ? '10px 12px' : '18px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 105,
+        }}
+      >
+        {hasNewFile ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'left' }}>
+              {localPreview ? (
+                <img
+                  src={localPreview}
+                  alt={file!.name}
+                  style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)', flexShrink: 0 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file!.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {`${(file!.size / 1024).toFixed(0)} KB · Ready to upload`}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0, padding: '2px 6px', fontSize: 11 }}
+              title="Remove file"
+            >
+              Remove
+            </button>
+          </div>
+        ) : hasExisting ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'left' }}>
+              <ExistingThumbnail src={existingUrl!} alt={label || 'Existing'} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {label || 'Attached File'}
+                </div>
+                <div style={{ fontSize: 11, color: '#059669', marginTop: 1, fontWeight: 500 }}>
+                  ✓ Existing Photo Attached
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>
+                  Click or drop to replace
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0, fontSize: 11, padding: '2px 6px' }}
+              title="Clear attached photo"
+            >
+              Clear
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+              {hint}
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ───────── Row Action Dropdown (Matching Bihar ULA) ───────── */
 function RowActionDropdown({
   onEdit,
   onSubmitDoc,
   onImportPanel,
   onViewPanel,
+  canEdit = true,
+  canSubmitDoc = true,
 }: {
   onEdit: () => void;
   onSubmitDoc: () => void;
   onImportPanel: () => void;
   onViewPanel: () => void;
+  canEdit?: boolean;
+  canSubmitDoc?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const MENU_W = 160;
-  const MENU_H = 156;
+  const MENU_W = 195;
+  const totalItems = (canEdit ? 1 : 0) + (canSubmitDoc ? 1 : 0) + 2;
+  const MENU_H = totalItems * 36 + 12;
 
   const toggle = () => {
     if (open) {
@@ -573,11 +954,10 @@ function RowActionDropdown({
       <button
         type="button"
         ref={btnRef}
-        className="ax-btn ax-btn--secondary ax-btn--sm"
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={open}
-        style={{ padding: '4px 10px', height: 28, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
       >
         <span>Action</span>
         <svg
@@ -606,98 +986,44 @@ function RowActionDropdown({
               left: pos.left,
               width: MENU_W,
               zIndex: 9999,
-              background: '#ffffff',
-              border: '1px solid var(--ax-border, #e2e8f0)',
-              borderRadius: 8,
-              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-              padding: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
             }}
           >
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => { setOpen(false); onEdit(); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--ax-text, #1e293b)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#2563eb' }}>
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              <span>Edit</span>
-            </button>
-            <button
-              type="button"
-              className="ula-menu__item"
-              role="menuitem"
-              onClick={() => { setOpen(false); onSubmitDoc(); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--ax-text, #1e293b)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="12" y1="18" x2="12" y2="12" />
-                <polyline points="9 15 12 12 15 15" />
-              </svg>
-              <span>Doc Submit</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => { setOpen(false); onEdit(); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#2563eb' }}>
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>Edit</span>
+              </button>
+            )}
+            {canSubmitDoc && (
+              <button
+                type="button"
+                className="ula-menu__item"
+                role="menuitem"
+                onClick={() => { setOpen(false); onSubmitDoc(); }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="18" x2="12" y2="12" />
+                  <polyline points="9 15 12 12 15 15" />
+                </svg>
+                <span>Doc Submit</span>
+              </button>
+            )}
             <button
               type="button"
               className="ula-menu__item"
               role="menuitem"
               onClick={() => { setOpen(false); onImportPanel(); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--ax-text, #1e293b)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#d97706' }}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
               <span>Import Panel</span>
             </button>
             <button
@@ -705,27 +1031,7 @@ function RowActionDropdown({
               className="ula-menu__item"
               role="menuitem"
               onClick={() => { setOpen(false); onViewPanel(); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: 'var(--ax-text, #1e293b)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#7c3aed' }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
               <span>View Panel</span>
             </button>
           </div>,
@@ -774,6 +1080,13 @@ export function UP_Installation_Resco_InstallationDetail() {
   const [editPanelImg, setEditPanelImg] = useState<File | null>(null);
   const [editNetMeterImg, setEditNetMeterImg] = useState<File | null>(null);
   const [editLogerImg, setEditLogerImg] = useState<File | null>(null);
+  const [existingPhotos, setExistingPhotos] = useState<{
+    system?: string | null;
+    inverter?: string | null;
+    panel?: string | null;
+    netMeter?: string | null;
+    loger?: string | null;
+  }>({});
   const [updating, setUpdating] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -931,6 +1244,7 @@ export function UP_Installation_Resco_InstallationDetail() {
   /* ───────── Action Handlers ───────── */
   // 1. Edit
   const handleOpenEdit = async (item: Row) => {
+    if (isVerifiedApproved(item)) return;
     setEditModalSite(item);
     setEditError(null);
     setEditInverterNo(item.inverter_no || '');
@@ -945,6 +1259,13 @@ export function UP_Installation_Resco_InstallationDetail() {
     setEditPanelImg(null);
     setEditNetMeterImg(null);
     setEditLogerImg(null);
+    setExistingPhotos({
+      system: item.system_image,
+      inverter: item.inverter_image,
+      panel: item.panel_image,
+      netMeter: item.net_meter_smart_meter_image,
+      loger: item.loger_image,
+    });
 
     try {
       const fetched = await upInstallationService.getRescoSiteForEdit(item.id);
@@ -959,6 +1280,13 @@ export function UP_Installation_Resco_InstallationDetail() {
         if (r.inst_latitude) setEditLat(r.inst_latitude);
         if (r.inst_longitude) setEditLng(r.inst_longitude);
         if (r.inst_remarks) setEditRemark(r.inst_remarks);
+        setExistingPhotos({
+          system: (r as any).system_image ?? item.system_image,
+          inverter: (r as any).inverter_image ?? item.inverter_image,
+          panel: (r as any).panel_image ?? item.panel_image,
+          netMeter: (r as any).nm_sm_image ?? (r as any).net_meter_smart_meter_image ?? item.net_meter_smart_meter_image,
+          loger: (r as any).loger_image ?? item.loger_image,
+        });
       }
     } catch (e: any) {
       console.warn('Edit fetch warning:', e);
@@ -1012,6 +1340,7 @@ export function UP_Installation_Resco_InstallationDetail() {
 
   // 2. Doc Submit
   const handleOpenDocModal = (item: Row) => {
+    if (isDocumentSubmitted(item)) return;
     setDocModalSite(item);
     setDocFile(null);
     setDocDate(new Date().toISOString().slice(0, 10));
@@ -1379,6 +1708,8 @@ export function UP_Installation_Resco_InstallationDetail() {
                   paged.map((item, idx) => {
                     const sr = (safePage - 1) * pageSize + idx + 1;
                     const docUrl = item.document_file ? resolveUpMediaUrl(item.document_file) : '';
+                    const canEdit = !isVerifiedApproved(item);
+                    const canSubmitDoc = !isDocumentSubmitted(item);
 
                     return (
                       <tr key={item.id ?? idx} className="ax-table__row">
@@ -1442,6 +1773,8 @@ export function UP_Installation_Resco_InstallationDetail() {
                         {/* Action Dropdown */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RowActionDropdown
+                            canEdit={canEdit}
+                            canSubmitDoc={canSubmitDoc}
                             onEdit={() => handleOpenEdit(item)}
                             onSubmitDoc={() => handleOpenDocModal(item)}
                             onImportPanel={() => handleOpenImportModal(item)}
@@ -1534,7 +1867,7 @@ export function UP_Installation_Resco_InstallationDetail() {
       {editModalSite && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="resco-edit-title">
           <div className="ax-modal__backdrop" onClick={() => setEditModalSite(null)} />
-          <div className="ax-modal__dialog ax-modal__dialog--lg">
+          <div className="ax-modal__dialog" style={{ maxWidth: 880, width: '95%' }}>
             <form onSubmit={handleEditSubmit}>
               <div className="ax-modal__header">
                 <div>
@@ -1591,29 +1924,83 @@ export function UP_Installation_Resco_InstallationDetail() {
                     <input type="text" className="ax-input" value={editRemark} onChange={(e) => setEditRemark(e.target.value)} placeholder="Installation remarks…" />
                   </div>
 
-                  <div className="ax-modern-field" style={{ gridColumn: 'span 2' }}>
-                    <label className="ax-modern-label"><span>Replace Photos (optional)</span></label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginTop: 4 }}>
-                      <div className="ax-modern-field">
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>System Image</span>
-                        <input type="file" accept="image/*" onChange={(e) => setEditSystemImg(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
+                  {/* Installation Photo Evidence (matching uploaded design) */}
+                  <div style={{ gridColumn: 'span 2', marginTop: 4 }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-strong)' }}>
+                        Installation Photo Evidence
                       </div>
-                      <div className="ax-modern-field">
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Inverter Image</span>
-                        <input type="file" accept="image/*" onChange={(e) => setEditInverterImg(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                        Upload or replace clear photos of installed components (JPG or PNG, max 5MB each)
                       </div>
-                      <div className="ax-modern-field">
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Panel Image</span>
-                        <input type="file" accept="image/*" onChange={(e) => setEditPanelImg(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
-                      </div>
-                      <div className="ax-modern-field">
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Net Meter Image</span>
-                        <input type="file" accept="image/*" onChange={(e) => setEditNetMeterImg(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
-                      </div>
-                      <div className="ax-modern-field">
-                        <span style={{ fontSize: 11, color: 'var(--ax-text-muted)' }}>Loger Image</span>
-                        <input type="file" accept="image/*" onChange={(e) => setEditLogerImg(e.target.files?.[0] || null)} style={{ fontSize: 11 }} />
-                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+                      <FileUploadDropzone
+                        id="edit-system-img"
+                        label="1. Complete System Photo"
+                        accept="image/*"
+                        hint="JPG or PNG — single file"
+                        file={editSystemImg}
+                        existingUrl={existingPhotos.system}
+                        onSelect={(f) => setEditSystemImg(f)}
+                        onRemove={() => {
+                          setEditSystemImg(null);
+                          setExistingPhotos((p) => ({ ...p, system: null }));
+                        }}
+                      />
+                      <FileUploadDropzone
+                        id="edit-inverter-img"
+                        label="2. Inverter Photo"
+                        accept="image/*"
+                        hint="JPG or PNG — single file"
+                        file={editInverterImg}
+                        existingUrl={existingPhotos.inverter}
+                        onSelect={(f) => setEditInverterImg(f)}
+                        onRemove={() => {
+                          setEditInverterImg(null);
+                          setExistingPhotos((p) => ({ ...p, inverter: null }));
+                        }}
+                      />
+                      <FileUploadDropzone
+                        id="edit-panel-img"
+                        label="3. Panel Photo"
+                        accept="image/*"
+                        hint="JPG or PNG — single file"
+                        file={editPanelImg}
+                        existingUrl={existingPhotos.panel}
+                        onSelect={(f) => setEditPanelImg(f)}
+                        onRemove={() => {
+                          setEditPanelImg(null);
+                          setExistingPhotos((p) => ({ ...p, panel: null }));
+                        }}
+                      />
+                      <FileUploadDropzone
+                        id="edit-netmeter-img"
+                        label="4. Net / Smart Meter Photo"
+                        accept="image/*"
+                        hint="JPG or PNG — single file"
+                        file={editNetMeterImg}
+                        existingUrl={existingPhotos.netMeter}
+                        onSelect={(f) => setEditNetMeterImg(f)}
+                        onRemove={() => {
+                          setEditNetMeterImg(null);
+                          setExistingPhotos((p) => ({ ...p, netMeter: null }));
+                        }}
+                      />
+                      <FileUploadDropzone
+                        id="edit-loger-img"
+                        label="5. Datalogger Photo"
+                        accept="image/*"
+                        hint="JPG or PNG — single file"
+                        file={editLogerImg}
+                        existingUrl={existingPhotos.loger}
+                        onSelect={(f) => setEditLogerImg(f)}
+                        onRemove={() => {
+                          setEditLogerImg(null);
+                          setExistingPhotos((p) => ({ ...p, loger: null }));
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1634,7 +2021,7 @@ export function UP_Installation_Resco_InstallationDetail() {
       {docModalSite && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="resco-doc-title">
           <div className="ax-modal__backdrop" onClick={() => setDocModalSite(null)} />
-          <div className="ax-modal__dialog ax-modal__dialog--md">
+          <div className="ax-modal__dialog" style={{ maxWidth: 560, width: '95%' }}>
             <form onSubmit={handleDocSubmit}>
               <div className="ax-modal__header">
                 <div>
@@ -1669,24 +2056,21 @@ export function UP_Installation_Resco_InstallationDetail() {
                   <input type="date" required className="ax-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} />
                 </div>
 
-                <div className="ax-modern-field">
-                  <label className="ax-modern-label"><span>Document File (PDF / Image)</span><span className="ax-modern-req">*</span></label>
-                  <input
-                    type="file"
-                    required
-                    accept="application/pdf,image/*"
-                    className="ax-input"
-                    onChange={(e) => {
-                      setDocFile(e.target.files?.[0] || null);
-                      if (docError) setDocError(null);
-                    }}
-                  />
-                  {docFile && (
-                    <span style={{ fontSize: 11.5, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
-                      Selected: {docFile.name} ({(docFile.size / 1024).toFixed(1)} KB)
-                    </span>
-                  )}
-                </div>
+                <FileUploadDropzone
+                  id="resco-doc-file"
+                  label="Document File (PDF / Image)"
+                  required
+                  accept="application/pdf,image/*"
+                  hint="PDF, JPG or PNG — single file"
+                  file={docFile}
+                  existingUrl={docModalSite.document_file}
+                  onSelect={(file) => {
+                    setDocFile(file);
+                    if (docError) setDocError(null);
+                  }}
+                  onRemove={() => setDocFile(null)}
+                  error={docError && !docFile ? docError : undefined}
+                />
 
                 <div className="ax-modern-field">
                   <label className="ax-modern-label"><span>Document Remarks</span><span className="ax-modern-req">*</span></label>
@@ -1719,7 +2103,7 @@ export function UP_Installation_Resco_InstallationDetail() {
       {importModalSite && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="resco-import-title">
           <div className="ax-modal__backdrop" onClick={() => setImportModalSite(null)} />
-          <div className="ax-modal__dialog ax-modal__dialog--md">
+          <div className="ax-modal__dialog" style={{ maxWidth: 560, width: '95%' }}>
             <form onSubmit={handleImportSubmit}>
               <div className="ax-modal__header">
                 <div>
@@ -1738,24 +2122,19 @@ export function UP_Installation_Resco_InstallationDetail() {
                   Upload an Excel (.xlsx, .xls) or CSV file containing solar panel serial numbers. First column header should be <strong>Panel No</strong>.
                 </div>
 
-                <div className="ax-modern-field">
-                  <label className="ax-modern-label"><span>Select Excel / CSV File</span><span className="ax-modern-req">*</span></label>
-                  <input
-                    type="file"
-                    required
-                    accept=".xlsx,.xls,.csv"
-                    className="ax-input"
-                    onChange={(e) => {
-                      setImportFile(e.target.files?.[0] || null);
-                      setImportResult(null);
-                    }}
-                  />
-                  {importFile && (
-                    <span style={{ fontSize: 11.5, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
-                      Selected: {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
-                    </span>
-                  )}
-                </div>
+                <FileUploadDropzone
+                  id="resco-import-file"
+                  label="Select Excel / CSV File"
+                  required
+                  accept=".xlsx,.xls,.csv"
+                  hint="Excel (.xlsx, .xls) or CSV — single file"
+                  file={importFile}
+                  onSelect={(file) => {
+                    setImportFile(file);
+                    setImportResult(null);
+                  }}
+                  onRemove={() => setImportFile(null)}
+                />
 
                 {importResult && (
                   <div

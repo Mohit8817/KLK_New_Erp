@@ -82,6 +82,10 @@ export function getJammuMediaCandidates(path?: string | null): string[] {
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/srt70mw/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/Jammu/installation/srt70mw/claim/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt70mw/claim/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt70mw/${filename}`);
+  candidates.push(`${ROOT_URL}/uploads/kashmir/installation/srt/verify_file/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/jammu/installation/expenses/${filename}`);
   candidates.push(`${ROOT_URL}/uploads/${filename}`);
 
@@ -244,17 +248,61 @@ export interface JammuEditSiteData {
 // 11. Claim Request Item
 export interface JammuClaimItem {
   id: number;
+  uid?: string | number;
+  company_id?: string;
   srt_id?: number;
   site_name: string;
-  inst_claim_status: number; // 0 = Not Raised, 1 = Raised, 2 = Approved, 3 = Rejected
+  inst_claim_status: number | string; // 0 = Not Raised, 1 = Raised, 2 = Approved, 3 = Rejected
   inst_claim_date: string;
   inst_claim_amount: string | number;
   inst_claim_invoice: string;
+  inst_claim_update_date?: string;
+  inst_claim_update_by?: string | number;
+  claim_updated_at?: string;
+  claim_updated_by?: string | number;
   district?: string;
   site_code?: string;
-  inst_doc_submit?: number; // 0 = Not Submitted, 1 = Submitted, 2 = Approved, 3 = Rejected
+  state?: string;
+  dept_name?: string;
+  location?: string;
+  ca_no?: string;
+  sanction_load?: string;
+  plant_sc?: string;
+  wo_no?: string;
+  wo_date?: string;
+  phase?: string;
+  vendor?: string | number;
+  contact_person?: string;
+  contact_number?: string;
+  loa_no?: string;
+  inst_doc_submit?: number | string; // 0 = Not Submitted, 1 = Submitted, 2 = Approved, 3 = Rejected
   inst_doc?: string | null;
   document_status?: number;
+  inst_pay80?: string | number | null;
+  inst_pay80_amount?: string | number | null;
+  inst_pay80_status?: string | number;
+  inst_pay80_date?: string | null;
+  inst_pay80_remark?: string | null;
+  inst_pay20?: string | number | null;
+  inst_pay20_amount?: string | number | null;
+  inst_pay20_status?: string | number;
+  inst_pay20_date?: string | null;
+  inst_pay20_remark?: string | null;
+  panel_image?: string | null;
+  system_image?: string | null;
+  inverter_image?: string | null;
+  nm_sm_image?: string | null;
+  loger_image?: string | null;
+  inst_verify_file?: string | null;
+  inst_verify_remark?: string | null;
+  inst_verify_status?: number | string;
+  inst_verify_by?: string | number;
+  inst_verify_date?: string | null;
+  solarmeter_no?: string | null;
+  loger_no?: string | null;
+  nm_sm_no?: string | null;
+  inverter_no?: string | null;
+  panel_no?: string | null;
   [key: string]: any;
 }
 
@@ -721,6 +769,15 @@ class JammuSrt70mwService {
    * 11. View Claim Request: GET /Jammu/srt70mw/view-claim-request
    */
   async getClaimRequests(): Promise<JammuClaimItem[]> {
+    const extractList = (json: any): JammuClaimItem[] => {
+      if (Array.isArray(json?.data)) return json.data;
+      if (Array.isArray(json?.data?.claims)) return json.data.claims;
+      if (Array.isArray(json?.data?.srt)) return json.data.srt;
+      if (Array.isArray(json?.data?.data)) return json.data.data;
+      if (Array.isArray(json)) return json;
+      return [];
+    };
+
     try {
       const res = await fetch(JAMMU_API.INSTALLATION.SRT_70MW.VIEW_CLAIM_REQUEST, {
         method: 'GET',
@@ -729,7 +786,8 @@ class JammuSrt70mwService {
 
       if (res.ok) {
         const json = await res.json();
-        return Array.isArray(json?.data) ? json.data : [];
+        const list = extractList(json);
+        if (list.length > 0 || json?.status) return list;
       }
     } catch {}
 
@@ -744,7 +802,7 @@ class JammuSrt70mwService {
     }
 
     const jsonAlt = await resAlt.json();
-    return Array.isArray(jsonAlt?.data) ? jsonAlt.data : [];
+    return extractList(jsonAlt);
   }
 
   /**

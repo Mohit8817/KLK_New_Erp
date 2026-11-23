@@ -17,6 +17,7 @@ import {
   TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
+import { Link } from 'react-router-dom';
 
 const DASH = '—';
 
@@ -92,6 +93,13 @@ const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
+  </svg>
+);
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </svg>
 );
 
@@ -518,6 +526,57 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Row action button + menu (Exact View UP Resco Installation pattern) */
+  .solar-erp-page .ula-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 0;
+    cursor: pointer;
+  }
+  .ula-menu {
+    position: fixed;
+    z-index: 99999;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+    text-align: left;
+    background: var(--ax-surface-solid, #ffffff);
+    border: 1px solid var(--ax-border, #e2e8f0);
+    border-radius: 0;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+  .ula-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    color: var(--ax-text, #0f172a);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .ula-menu__item:hover,
+  .ula-menu__item:focus-visible {
+    background: var(--ax-surface-subtle, #f1f5f9) !important;
+    outline: none;
+  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -533,7 +592,144 @@ const footerStyle = {
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 const monoCell = { fontFamily: 'var(--ax-font-mono)', fontSize: '12px' } as const;
 
-// Table Column Headers (Exact 17 columns per specification)
+/* ───────── Row Action Dropdown (Exact View UP Resco Installation pattern) ───────── */
+function RowActionDropdown({
+  onViewData,
+  onSubmitDoc,
+}: {
+  onViewData: () => void;
+  onSubmitDoc: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const MENU_W = 160;
+  const MENU_H = 2 * 36 + 12;
+
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const top = spaceBelow < MENU_H + 8 && r.top > MENU_H + 8 ? r.top - MENU_H - 4 : r.bottom + 4;
+    const left = Math.max(8, Math.min(r.right - MENU_W, window.innerWidth - MENU_W - 8));
+    setPos({ top, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const close = () => setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="ax-btn ax-btn--secondary ax-btn--sm ula-action-btn"
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span>Action</span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            width: 12,
+            height: 12,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6l6 -6" />
+        </svg>
+      </button>
+
+      {open && pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="ula-menu"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: MENU_W,
+              zIndex: 99999,
+            }}
+          >
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onViewData();
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#2563eb' }}>
+                <circle cx="12" cy="12" r="2" />
+                <path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" />
+              </svg>
+              <span>View Data</span>
+            </button>
+            <button
+              type="button"
+              className="ula-menu__item"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onSubmitDoc();
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} style={{ width: 14, height: 14, color: '#16a34a' }}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <polyline points="9 15 12 12 15 15" />
+              </svg>
+              <span>Submit Doc</span>
+            </button>
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
+// Table Column Headers (Exact 17 columns per specification + Action)
 const CLAIM_HEADERS = [
   'Sr. No.',
   'State',
@@ -552,6 +748,7 @@ const CLAIM_HEADERS = [
   'Payment 20% Date',
   'Payment 20% Amount',
   'Payment 20% Status',
+  'Action',
 ];
 
 export function ClaimRequest() {
@@ -562,6 +759,9 @@ export function ClaimRequest() {
   const [search, setSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [districtFilter, setDistrictFilter] = useState<string>('all');
+
+  // Detail Modal State
+  const [selectedDetailSite, setSelectedDetailSite] = useState<JammuClaimItem | null>(null);
 
   // Notification Toast
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
@@ -751,7 +951,7 @@ export function ClaimRequest() {
     let pendingAmount = 0;
 
     claims.forEach((c) => {
-      const amt = Number(c.inst_claim_amount) || 0;
+      const amt = Number(c.inst_claim_amount ?? (c as any).claim_amount) || 0;
       totalAmount += amt;
       if (Number(c.inst_claim_status) === 2) {
         approvedCount++;
@@ -783,7 +983,7 @@ export function ClaimRequest() {
     let list = claims;
 
     if (districtFilter !== 'all') {
-      list = list.filter((c) => c.district === districtFilter);
+      list = list.filter((c) => (c.district || '').toLowerCase() === districtFilter.toLowerCase());
     }
 
     if (statusFilter === 'approved') {
@@ -797,13 +997,23 @@ export function ClaimRequest() {
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((item) => {
-        const amtStr = String(item.inst_claim_amount || '');
+        const amtStr = String(item.inst_claim_amount ?? (item as any).claim_amount ?? '');
+        const pay80Str = String(item.inst_pay80 ?? item.inst_pay80_amount ?? '');
+        const pay20Str = String(item.inst_pay20 ?? item.inst_pay20_amount ?? '');
         return (
-          String(item.id).includes(q) ||
+          String(item.id || '').toLowerCase().includes(q) ||
+          String(item.uid || '').toLowerCase().includes(q) ||
           txt(item, 'site_name').toLowerCase().includes(q) ||
           txt(item, 'district').toLowerCase().includes(q) ||
           txt(item, 'site_code').toLowerCase().includes(q) ||
-          amtStr.includes(q)
+          txt(item, 'dept_name').toLowerCase().includes(q) ||
+          txt(item, 'ca_no').toLowerCase().includes(q) ||
+          txt(item, 'wo_no').toLowerCase().includes(q) ||
+          txt(item, 'contact_person').toLowerCase().includes(q) ||
+          txt(item, 'contact_number').toLowerCase().includes(q) ||
+          amtStr.includes(q) ||
+          pay80Str.includes(q) ||
+          pay20Str.includes(q)
         );
       });
     }
@@ -827,18 +1037,23 @@ export function ClaimRequest() {
   };
 
   // Export Columns definition
-  // Export Columns definition (Exact 17 columns)
   const exportCols: ExportColumn<JammuClaimItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: (r) => r.state || 'Jammu & Kashmir' },
+      { header: 'State', accessor: (r) => (r.state ? String(r.state).charAt(0).toUpperCase() + String(r.state).slice(1) : '') || 'Jammu & Kashmir' },
       { header: 'District', accessor: (r) => txt(r, 'district') || DASH },
       { header: 'Site Name', accessor: (r) => txt(r, 'site_name') || DASH },
-      { header: 'Claim Raised Date', accessor: (r) => txt(r, 'inst_claim_date') || DASH },
+      { header: 'Claim Raised Date', accessor: (r) => txt(r, 'inst_claim_date') || txt(r, 'claim_date') || DASH },
       { header: 'Claim Invoice', accessor: (r) => txt(r, 'inst_claim_invoice') || DASH },
-      { header: 'Claim Amount', accessor: (r) => (r.inst_claim_amount ? `₹ ${Number(r.inst_claim_amount).toLocaleString('en-IN')}` : DASH) },
-      { header: 'Claim Update Date', accessor: (r) => txt(r, 'claim_updated_at') || txt(r, 'updated_at') || DASH },
-      { header: 'Claim Update by', accessor: (r) => txt(r, 'claim_updated_by') || txt(r, 'updated_by') || DASH },
+      {
+        header: 'Claim Amount',
+        accessor: (r) => {
+          const amt = r.inst_claim_amount ?? (r as any).claim_amount;
+          return amt !== null && amt !== undefined && amt !== '' && !isNaN(Number(amt)) ? `₹ ${Number(amt).toLocaleString('en-IN')}` : DASH;
+        },
+      },
+      { header: 'Claim Update Date', accessor: (r) => txt(r, 'inst_claim_update_date') || txt(r, 'claim_updated_at') || (r.updated_at ? String(r.updated_at).slice(0, 10) : '') || DASH },
+      { header: 'Claim Update by', accessor: (r) => txt(r, 'inst_claim_update_by') || txt(r, 'claim_updated_by') || txt(r, 'updated_by') || DASH },
       {
         header: 'Claim Status',
         accessor: (r) =>
@@ -850,12 +1065,34 @@ export function ClaimRequest() {
             ? 'Rejected'
             : 'Not Raised',
       },
-      { header: 'Payment 80% Date', accessor: (r) => txt(r, 'inst_pay80_date') || DASH },
-      { header: 'Payment 80% Amount', accessor: (r) => (r.inst_pay80_amount ? `₹ ${Number(r.inst_pay80_amount).toLocaleString('en-IN')}` : DASH) },
+      { header: 'Payment 80% Date', accessor: (r) => txt(r, 'inst_pay80_date') || txt(r, 'pay80_date') || DASH },
+      {
+        header: 'Payment 80% Amount',
+        accessor: (r) => {
+          const amt = r.inst_pay80 ?? r.inst_pay80_amount ?? (r as any).pay80;
+          return amt !== null && amt !== undefined && amt !== '' && !isNaN(Number(amt)) ? `₹ ${Number(amt).toLocaleString('en-IN')}` : DASH;
+        },
+      },
       { header: 'Payment 80% Status', accessor: (r) => (Number(r.inst_pay80_status) === 1 ? 'Paid' : 'Pending') },
-      { header: 'Document Submit', accessor: (r) => (Number(r.inst_doc_submit) === 1 ? 'Submitted' : 'Pending') },
-      { header: 'Payment 20% Date', accessor: (r) => txt(r, 'inst_pay20_date') || DASH },
-      { header: 'Payment 20% Amount', accessor: (r) => (r.inst_pay20_amount ? `₹ ${Number(r.inst_pay20_amount).toLocaleString('en-IN')}` : DASH) },
+      {
+        header: 'Document Submit',
+        accessor: (r) =>
+          Number(r.inst_doc_submit) === 2
+            ? 'Approved'
+            : Number(r.inst_doc_submit) === 1
+            ? 'Submitted'
+            : Number(r.inst_doc_submit) === 3
+            ? 'Rejected'
+            : 'Not Submitted',
+      },
+      { header: 'Payment 20% Date', accessor: (r) => txt(r, 'inst_pay20_date') || txt(r, 'pay20_date') || DASH },
+      {
+        header: 'Payment 20% Amount',
+        accessor: (r) => {
+          const amt = r.inst_pay20 ?? r.inst_pay20_amount ?? (r as any).pay20;
+          return amt !== null && amt !== undefined && amt !== '' && !isNaN(Number(amt)) ? `₹ ${Number(amt).toLocaleString('en-IN')}` : DASH;
+        },
+      },
       { header: 'Payment 20% Status', accessor: (r) => (Number(r.inst_pay20_status) === 1 ? 'Paid' : 'Pending') },
     ],
     []
@@ -954,13 +1191,23 @@ export function ClaimRequest() {
           { label: 'Claim Request' },
         ]}
         actions={
-          <button
-            type="button"
-            className="ax-btn ax-btn--primary ax-btn--sm"
-            onClick={handleOpenRaiseModal}
-          >
-            <span className="ax-btn__label">+ Raise New Claim</span>
-          </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadClaims}
+              disabled={loading}
+            >
+              {ICON_REFRESH}
+              <span className="ax-btn__label">Refresh</span>
+            </button>
+            <Link
+              to="/v/jammu/installation/srt-70mw/installation-details"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+            >
+              <span className="ax-btn__label">View Installation Details →</span>
+            </Link>
+          </div>
         }
       />
 
@@ -1146,7 +1393,7 @@ export function ClaimRequest() {
                     key={h}
                     className="ax-table__th"
                     scope="col"
-                    style={h === 'Action' ? { textAlign: 'center' } : undefined}
+                    style={h === 'Action' ? { textAlign: 'center', width: 110 } : undefined}
                   >
                     {h}
                   </th>
@@ -1169,7 +1416,7 @@ export function ClaimRequest() {
                       message={
                         hasFilters
                           ? 'No claim records match your current search or status filter.'
-                          : 'No installation claims have been raised yet. Click "+ Raise New Claim" to initiate.'
+                          : 'No installation claims have been raised yet. Claims can be raised directly from the Installation Details register once site verification is approved.'
                       }
                       onClear={hasFilters ? resetFilters : undefined}
                       clearLabel="Clear filters"
@@ -1179,23 +1426,40 @@ export function ClaimRequest() {
               )}
               {!loading &&
                 paginatedData.map((row, index) => {
-                  const invoiceUrl = resolveJammuMediaUrl(row.inst_claim_invoice);
-                  const docUrl = resolveJammuMediaUrl(row.inst_doc || (row as any).document || (row as any).doc_file);
+                  const invoiceUrl = resolveJammuMediaUrl(row.inst_claim_invoice || (row as any).claim_invoice);
+                  const docUrl = resolveJammuMediaUrl(
+                    row.inst_doc || (row as any).document || (row as any).doc_file || row.inst_verify_file || row.cr_doc || row.iv_curv_doc
+                  );
                   const dStatus = Number(row.inst_doc_submit ?? (row as any).document_status ?? 0);
                   const isApproved = Number(row.inst_claim_status) === 2;
+                  const stateDisplay = row.state ? String(row.state).charAt(0).toUpperCase() + String(row.state).slice(1) : 'Jammu & Kashmir';
+                  const claimAmt = row.inst_claim_amount ?? (row as any).claim_amount;
+                  const pay80Amt = row.inst_pay80 ?? row.inst_pay80_amount ?? (row as any).pay80;
+                  const pay20Amt = row.inst_pay20 ?? row.inst_pay20_amount ?? (row as any).pay20;
+                  const claimUpDate = txt(row, 'inst_claim_update_date') || txt(row, 'claim_updated_at') || (row.updated_at ? String(row.updated_at).slice(0, 10) : '') || DASH;
+                  const claimUpBy = txt(row, 'inst_claim_update_by') || txt(row, 'claim_updated_by') || txt(row, 'updated_by') || DASH;
+                  const pay80Date = txt(row, 'inst_pay80_date') || txt(row, 'pay80_date') || DASH;
+                  const pay20Date = txt(row, 'inst_pay20_date') || txt(row, 'pay20_date') || DASH;
+                  const pay80Status = Number(row.inst_pay80_status ?? 0);
+                  const pay20Status = Number(row.inst_pay20_status ?? 0);
 
                   return (
-                    <tr key={row.id} className="ax-table__row">
+                    <tr key={row.id || index} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="ax-table__td">{row.state || 'Jammu & Kashmir'}</td>
+                      <td className="ax-table__td">{stateDisplay}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
                       <td className="ax-table__td">
                         <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                           {row.site_name || DASH}
                         </span>
+                        {row.site_code && (
+                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)' }}>
+                            Code: {row.site_code}
+                          </div>
+                        )}
                       </td>
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'inst_claim_date') || DASH}
+                        {txt(row, 'inst_claim_date') || txt(row, 'claim_date') || DASH}
                       </td>
 
                       {/* Claim Invoice */}
@@ -1226,17 +1490,19 @@ export function ClaimRequest() {
 
                       {/* Claim Amount */}
                       <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--asw-primary)' }}>
-                        {row.inst_claim_amount ? `₹ ${Number(row.inst_claim_amount).toLocaleString('en-IN')}` : DASH}
+                        {claimAmt !== null && claimAmt !== undefined && claimAmt !== '' && !isNaN(Number(claimAmt))
+                          ? `₹ ${Number(claimAmt).toLocaleString('en-IN')}`
+                          : DASH}
                       </td>
 
                       {/* Claim Update Date */}
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'claim_updated_at') || txt(row, 'updated_at') || DASH}
+                        {claimUpDate}
                       </td>
 
                       {/* Claim Update by */}
                       <td className="ax-table__td">
-                        {txt(row, 'claim_updated_by') || txt(row, 'updated_by') || DASH}
+                        {claimUpBy}
                       </td>
 
                       {/* Claim Status */}
@@ -1246,19 +1512,23 @@ export function ClaimRequest() {
 
                       {/* Payment 80% Date */}
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'inst_pay80_date') || DASH}
+                        {pay80Date}
                       </td>
 
                       {/* Payment 80% Amount */}
-                      <td className="ax-table__td">
-                        {row.inst_pay80_amount ? `₹ ${Number(row.inst_pay80_amount).toLocaleString('en-IN')}` : DASH}
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {pay80Amt !== null && pay80Amt !== undefined && pay80Amt !== '' && !isNaN(Number(pay80Amt))
+                          ? `₹ ${Number(pay80Amt).toLocaleString('en-IN')}`
+                          : DASH}
                       </td>
 
                       {/* Payment 80% Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.inst_pay80_status) === 1 ? 'success' : 'warning'}>
-                          {Number(row.inst_pay80_status) === 1 ? 'Paid' : 'Pending'}
-                        </Badge>
+                        <span title={row.inst_pay80_remark || undefined}>
+                          <Badge tone={pay80Status === 1 ? 'success' : pay80Status === 2 ? 'info' : 'warning'}>
+                            {pay80Status === 1 ? 'Paid' : pay80Status === 2 ? 'Partially' : 'Pending'}
+                          </Badge>
+                        </span>
                       </td>
 
                       {/* Document Submit */}
@@ -1268,19 +1538,31 @@ export function ClaimRequest() {
 
                       {/* Payment 20% Date */}
                       <td className="ax-table__td" style={{ fontSize: '12px' }}>
-                        {txt(row, 'inst_pay20_date') || DASH}
+                        {pay20Date}
                       </td>
 
                       {/* Payment 20% Amount */}
-                      <td className="ax-table__td">
-                        {row.inst_pay20_amount ? `₹ ${Number(row.inst_pay20_amount).toLocaleString('en-IN')}` : DASH}
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {pay20Amt !== null && pay20Amt !== undefined && pay20Amt !== '' && !isNaN(Number(pay20Amt))
+                          ? `₹ ${Number(pay20Amt).toLocaleString('en-IN')}`
+                          : DASH}
                       </td>
 
                       {/* Payment 20% Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <Badge tone={Number(row.inst_pay20_status) === 1 ? 'success' : 'warning'}>
-                          {Number(row.inst_pay20_status) === 1 ? 'Paid' : 'Pending'}
-                        </Badge>
+                        <span title={row.inst_pay20_remark || undefined}>
+                          <Badge tone={pay20Status === 1 ? 'success' : pay20Status === 2 ? 'info' : 'warning'}>
+                            {pay20Status === 1 ? 'Paid' : pay20Status === 2 ? 'Partially' : 'Pending'}
+                          </Badge>
+                        </span>
+                      </td>
+
+                      {/* Action Dropdown (Matching View UP Resco Installation) */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <RowActionDropdown
+                          onViewData={() => setSelectedDetailSite(row)}
+                          onSubmitDoc={() => handleOpenDocModal(row)}
+                        />
                       </td>
                     </tr>
                   );
@@ -1658,6 +1940,182 @@ export function ClaimRequest() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+      {/* ── Site Full Details Modal ── */}
+      <Modal open={!!selectedDetailSite} onClose={() => setSelectedDetailSite(null)} labelledBy="site-detail-title" dialogClass="ax-modal__dialog--lg">
+        {selectedDetailSite && (
+          <div>
+            <div className="ax-modal__header">
+              <div>
+                <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="site-detail-title">
+                  Site &amp; Claim Details: {selectedDetailSite.site_name}
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+                  UID: <b>{selectedDetailSite.uid || selectedDetailSite.id}</b> · District: <b>{selectedDetailSite.district || DASH}</b> · State: <b>{selectedDetailSite.state || 'Jammu & Kashmir'}</b>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ax-modal__close"
+                onClick={() => setSelectedDetailSite(null)}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="ax-modal__body" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Site Information */}
+              <div>
+                <h5 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                  Site &amp; Consumer Information
+                </h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, fontSize: 12.5 }}>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Department:</span> <b>{selectedDetailSite.dept_name || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>CA Number:</span> <b>{selectedDetailSite.ca_no || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Sanction Load:</span> <b>{selectedDetailSite.sanction_load || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Plant Capacity / SC:</span> <b>{selectedDetailSite.plant_sc || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Location:</span> <b>{selectedDetailSite.location || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Firm Name:</span> <b>{selectedDetailSite.firm_name || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Contact Person:</span> <b>{selectedDetailSite.contact_person || DASH} ({selectedDetailSite.contact_number || DASH})</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>WO / LOA No:</span> <b>{selectedDetailSite.wo_no || DASH} / {selectedDetailSite.loa_no || DASH}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Equipment & Metering */}
+              <div>
+                <h5 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                  Equipment &amp; Meter Serial Numbers
+                </h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, fontSize: 12.5 }}>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Inverter No:</span> <b>{selectedDetailSite.inverter_no || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Solar Meter No:</span> <b>{selectedDetailSite.solarmeter_no || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Net / Smart Meter No:</span> <b>{selectedDetailSite.nm_sm_no || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Logger No:</span> <b>{selectedDetailSite.loger_no || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0', gridColumn: '1 / -1' }}>
+                    <span style={{ color: '#64748b' }}>Panel Serial Numbers:</span> <b>{selectedDetailSite.panel_no || DASH}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Claim & Payments Breakdown */}
+              <div>
+                <h5 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                  Milestone Claim &amp; Disbursal Status
+                </h5>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10, fontSize: 12.5 }}>
+                  <div style={{ background: '#f0fdf4', padding: '8px 12px', border: '1px solid #bbf7d0' }}>
+                    <span style={{ color: '#166534' }}>Claim Status:</span>{' '}
+                    <b>
+                      {Number(selectedDetailSite.inst_claim_status) === 2
+                        ? 'Approved'
+                        : Number(selectedDetailSite.inst_claim_status) === 1
+                        ? 'Raised'
+                        : Number(selectedDetailSite.inst_claim_status) === 3
+                        ? 'Rejected'
+                        : 'Not Raised'}
+                    </b>
+                  </div>
+                  <div style={{ background: '#f0fdf4', padding: '8px 12px', border: '1px solid #bbf7d0' }}>
+                    <span style={{ color: '#166534' }}>Claim Amount:</span>{' '}
+                    <b>{selectedDetailSite.inst_claim_amount ? `₹ ${Number(selectedDetailSite.inst_claim_amount).toLocaleString('en-IN')}` : DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Claim Raised Date:</span> <b>{selectedDetailSite.inst_claim_date || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Claim Update Date:</span> <b>{selectedDetailSite.inst_claim_update_date || selectedDetailSite.claim_updated_at || DASH}</b>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Claim Update By:</span> <b>{selectedDetailSite.inst_claim_update_by || selectedDetailSite.claim_updated_by || DASH}</b>
+                  </div>
+                  <div style={{ background: '#eff6ff', padding: '8px 12px', border: '1px solid #bfdbfe' }}>
+                    <span style={{ color: '#1e40af' }}>Payment 80%:</span>{' '}
+                    <b>
+                      {selectedDetailSite.inst_pay80 ? `₹ ${Number(selectedDetailSite.inst_pay80).toLocaleString('en-IN')}` : DASH} (
+                      {Number(selectedDetailSite.inst_pay80_status) === 1 ? 'Paid' : 'Pending'})
+                    </b>
+                    {selectedDetailSite.inst_pay80_remark && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 2 }}>Note: {selectedDetailSite.inst_pay80_remark}</div>}
+                  </div>
+                  <div style={{ background: '#eff6ff', padding: '8px 12px', border: '1px solid #bfdbfe' }}>
+                    <span style={{ color: '#1e40af' }}>Payment 20%:</span>{' '}
+                    <b>
+                      {selectedDetailSite.inst_pay20 ? `₹ ${Number(selectedDetailSite.inst_pay20).toLocaleString('en-IN')}` : DASH} (
+                      {Number(selectedDetailSite.inst_pay20_status) === 1 ? 'Paid' : 'Pending'})
+                    </b>
+                    {selectedDetailSite.inst_pay20_remark && <div style={{ fontSize: 11, color: '#3b82f6', marginTop: 2 }}>Note: {selectedDetailSite.inst_pay20_remark}</div>}
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                    <span style={{ color: '#64748b' }}>Verify Remarks:</span> <b>{selectedDetailSite.inst_verify_remark || DASH}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Uploaded Evidence Gallery */}
+              <div>
+                <h5 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+                  Uploaded Documents &amp; Evidence
+                </h5>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+                  {[
+                    { label: 'Tax Invoice', file: selectedDetailSite.inst_claim_invoice },
+                    { label: 'Verify Doc', file: selectedDetailSite.inst_verify_file },
+                    { label: 'Panel Photo', file: selectedDetailSite.panel_image },
+                    { label: 'System Photo', file: selectedDetailSite.system_image },
+                    { label: 'Inverter Photo', file: selectedDetailSite.inverter_image },
+                    { label: 'Meter Photo', file: selectedDetailSite.nm_sm_image },
+                    { label: 'Logger Photo', file: selectedDetailSite.loger_image },
+                  ].map((item, i) =>
+                    item.file ? (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <InstallationThumbnail src={item.file} alt={item.label} onPreview={openPreview} size={56} />
+                        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{item.label}</span>
+                        <a
+                          href={resolveJammuMediaUrl(item.file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}
+                        >
+                          View ↗
+                        </a>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="ax-modal__footer">
+              <button type="button" className="ax-btn ax-btn--primary" onClick={() => setSelectedDetailSite(null)}>
+                Close
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

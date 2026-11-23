@@ -183,6 +183,12 @@ const emptyCellStyle = { textAlign: 'center', padding: 24, color: 'var(--ax-text
 
 
 /* ───────── KPI card ───────── */
+interface KpiPart {
+  label?: string;
+  value: number;
+  status: string;
+}
+
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -192,8 +198,10 @@ interface KpiProps {
   sub: string;
   badge?: string;
   spark?: number[];
+  parts?: KpiPart[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
+  onNavigateStatus?: (status: string) => void;
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
   accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
@@ -205,20 +213,21 @@ const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> =
   red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, parts, sparkType = 'line', onClick, onNavigateStatus }: KpiProps) {
   const t = TONE[tone];
-  const hasSpark = Array.isArray(spark) && spark.length > 1;
-  const allZeros = hasSpark && spark!.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const hasSpark = Array.isArray(spark) && spark.length > 1 && spark.some((v) => v > 0);
+  const safeSpark = spark;
+  const isMultiPart = Boolean(parts && parts.length > 1);
+  const cardClickable = Boolean(onClick && !isMultiPart);
 
   return (
     <div
       className="ax-card ax-col--3"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? onActivate(onClick) : undefined}
+      style={{ cursor: cardClickable ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      onClick={cardClickable ? onClick : undefined}
+      role={cardClickable ? 'button' : undefined}
+      tabIndex={cardClickable ? 0 : undefined}
+      onKeyDown={cardClickable && onClick ? onActivate(onClick) : undefined}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
@@ -236,10 +245,72 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-              {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+            <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: parts && parts.length > 2 ? '1.1rem' : '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
+              {parts ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' }}>
+                  {parts.map((p, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, marginInline: '3px' }}>/</span>}
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onNavigateStatus) onNavigateStatus(p.status);
+                        }}
+                        style={{
+                          color: 'inherit',
+                          cursor: 'pointer',
+                          padding: '1px 3px',
+                          borderRadius: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        title={p.label ? `View ${p.label}: ${num(p.value)} lights` : `View: ${num(p.value)} lights`}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = t.bg;
+                          e.currentTarget.style.color = t.fg;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'inherit';
+                        }}
+                      >
+                        {num(p.value)}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span>
+                  {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+                </span>
+              )}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            {parts && parts.some((p) => p.label) ? (
+              <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '3px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {parts.map((p, i) => (
+                  <span key={i}>
+                    {i > 0 && <span style={{ opacity: 0.6 }}> / </span>}
+                    {p.label ? (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onNavigateStatus) onNavigateStatus(p.status);
+                        }}
+                        style={{ color: 'inherit', cursor: 'pointer' }}
+                        title={`View ${p.label} lights`}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = t.fg)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = 'inherit')}
+                      >
+                        {p.label}
+                      </span>
+                    ) : (
+                      sub
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            )}
           </div>
           {hasSpark && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
@@ -668,13 +739,38 @@ const toggleIn = (setter: Dispatch<SetStateAction<string[]>>) => (key: string) =
 interface DistrictRow {
   district: string;
   total: number;
-  assigned: number;
-  accept: number;
   complete: number;
   pending: number;
   verify_approved: number;
-  claim_applicable: number;
-  payment_complete: number;
+  verify_pending: number;
+  verify_reject: number;
+  doc_approved: number;
+  doc_pending: number;
+  doc_reject: number;
+  claim1_applicable: number;
+  claim1_submitted: number;
+  claim1_approved: number;
+  claim1_pending: number;
+  claim1_reject: number;
+  claim2_applicable: number;
+  claim2_submitted: number;
+  claim2_approved: number;
+  claim2_pending: number;
+  claim2_reject: number;
+  claim3_applicable: number;
+  claim3_submitted: number;
+  claim3_approved: number;
+  claim3_pending: number;
+  claim3_reject: number;
+  pay1_complete: number;
+  pay1_partially: number;
+  pay1_pending: number;
+  pay2_complete: number;
+  pay2_partially: number;
+  pay2_pending: number;
+  pay3_complete: number;
+  pay3_partially: number;
+  pay3_pending: number;
 }
 
 export function UP_Installation_SSL_Dashboard() {
@@ -729,14 +825,39 @@ export function UP_Installation_SSL_Dashboard() {
   const districtwise: DistrictRow[] = useMemo(
     () => (data?.districtwise || []).map((d: any) => ({
       district: d.district || '',
-      total: n(d.total),
-      assigned: n(d.assigned ?? d.total),
-      accept: n(d.accept),
-      complete: n(d.complete),
-      pending: n(d.pending),
-      verify_approved: n(d.verify_approved),
-      claim_applicable: n(d.claim_applicable),
-      payment_complete: n(d.payment_complete),
+      total: n(d.total ?? d.total_allocation ?? 0),
+      complete: n(d.complete ?? d.total_installed ?? 0),
+      pending: n(d.pending ?? d.pending_installation ?? 0),
+      verify_approved: n(d.verify_approved ?? 0),
+      verify_pending: n(d.verify_pending ?? 0),
+      verify_reject: n(d.verify_reject ?? 0),
+      doc_approved: n(d.doc_approved ?? d.document_approved ?? 0),
+      doc_pending: n(d.doc_pending ?? d.document_pending ?? 0),
+      doc_reject: n(d.doc_reject ?? d.document_reject ?? 0),
+      claim1_applicable: n(d.claim1_applicable ?? d.claim_applicable ?? 0),
+      claim1_submitted: n(d.claim1_submitted ?? d.claim1_raised ?? d.claim_raised ?? 0),
+      claim1_approved: n(d.claim1_approved ?? d.claim_verify_approved ?? 0),
+      claim1_pending: n(d.claim1_pending ?? d.claim_verify_pending ?? 0),
+      claim1_reject: n(d.claim1_reject ?? d.claim_verify_reject ?? 0),
+      claim2_applicable: n(d.claim2_applicable ?? 0),
+      claim2_submitted: n(d.claim2_submitted ?? d.claim2_raised ?? 0),
+      claim2_approved: n(d.claim2_approved ?? 0),
+      claim2_pending: n(d.claim2_pending ?? 0),
+      claim2_reject: n(d.claim2_reject ?? 0),
+      claim3_applicable: n(d.claim3_applicable ?? 0),
+      claim3_submitted: n(d.claim3_submitted ?? d.claim3_raised ?? 0),
+      claim3_approved: n(d.claim3_approved ?? 0),
+      claim3_pending: n(d.claim3_pending ?? 0),
+      claim3_reject: n(d.claim3_reject ?? 0),
+      pay1_complete: n(d.pay1_complete ?? d.payment_complete ?? 0),
+      pay1_partially: n(d.pay1_partially ?? d.payment_partially ?? 0),
+      pay1_pending: n(d.pay1_pending ?? d.payment_pending ?? 0),
+      pay2_complete: n(d.pay2_complete ?? 0),
+      pay2_partially: n(d.pay2_partially ?? 0),
+      pay2_pending: n(d.pay2_pending ?? 0),
+      pay3_complete: n(d.pay3_complete ?? 0),
+      pay3_partially: n(d.pay3_partially ?? 0),
+      pay3_pending: n(d.pay3_pending ?? 0),
     })),
     [data]
   );
@@ -766,11 +887,75 @@ export function UP_Installation_SSL_Dashboard() {
   const totals = useMemo(
     () => filteredRows.reduce(
       (a, d) => ({
-        total: a.total + d.total, assigned: a.assigned + d.assigned, accept: a.accept + d.accept,
-        complete: a.complete + d.complete, pending: a.pending + d.pending,
-        verify_approved: a.verify_approved + d.verify_approved, claim_applicable: a.claim_applicable + d.claim_applicable,
+        total: a.total + d.total,
+        complete: a.complete + d.complete,
+        pending: a.pending + d.pending,
+        verify_approved: a.verify_approved + d.verify_approved,
+        verify_pending: a.verify_pending + d.verify_pending,
+        verify_reject: a.verify_reject + d.verify_reject,
+        doc_approved: a.doc_approved + d.doc_approved,
+        doc_pending: a.doc_pending + d.doc_pending,
+        doc_reject: a.doc_reject + d.doc_reject,
+        claim1_applicable: a.claim1_applicable + d.claim1_applicable,
+        claim1_submitted: a.claim1_submitted + d.claim1_submitted,
+        claim1_approved: a.claim1_approved + d.claim1_approved,
+        claim1_pending: a.claim1_pending + d.claim1_pending,
+        claim1_reject: a.claim1_reject + d.claim1_reject,
+        claim2_applicable: a.claim2_applicable + d.claim2_applicable,
+        claim2_submitted: a.claim2_submitted + d.claim2_submitted,
+        claim2_approved: a.claim2_approved + d.claim2_approved,
+        claim2_pending: a.claim2_pending + d.claim2_pending,
+        claim2_reject: a.claim2_reject + d.claim2_reject,
+        claim3_applicable: a.claim3_applicable + d.claim3_applicable,
+        claim3_submitted: a.claim3_submitted + d.claim3_submitted,
+        claim3_approved: a.claim3_approved + d.claim3_approved,
+        claim3_pending: a.claim3_pending + d.claim3_pending,
+        claim3_reject: a.claim3_reject + d.claim3_reject,
+        pay1_complete: a.pay1_complete + d.pay1_complete,
+        pay1_partially: a.pay1_partially + d.pay1_partially,
+        pay1_pending: a.pay1_pending + d.pay1_pending,
+        pay2_complete: a.pay2_complete + d.pay2_complete,
+        pay2_partially: a.pay2_partially + d.pay2_partially,
+        pay2_pending: a.pay2_pending + d.pay2_pending,
+        pay3_complete: a.pay3_complete + d.pay3_complete,
+        pay3_partially: a.pay3_partially + d.pay3_partially,
+        pay3_pending: a.pay3_pending + d.pay3_pending,
       }),
-      { total: 0, assigned: 0, accept: 0, complete: 0, pending: 0, verify_approved: 0, claim_applicable: 0 }
+      {
+        total: 0,
+        complete: 0,
+        pending: 0,
+        verify_approved: 0,
+        verify_pending: 0,
+        verify_reject: 0,
+        doc_approved: 0,
+        doc_pending: 0,
+        doc_reject: 0,
+        claim1_applicable: 0,
+        claim1_submitted: 0,
+        claim1_approved: 0,
+        claim1_pending: 0,
+        claim1_reject: 0,
+        claim2_applicable: 0,
+        claim2_submitted: 0,
+        claim2_approved: 0,
+        claim2_pending: 0,
+        claim2_reject: 0,
+        claim3_applicable: 0,
+        claim3_submitted: 0,
+        claim3_approved: 0,
+        claim3_pending: 0,
+        claim3_reject: 0,
+        pay1_complete: 0,
+        pay1_partially: 0,
+        pay1_pending: 0,
+        pay2_complete: 0,
+        pay2_partially: 0,
+        pay2_pending: 0,
+        pay3_complete: 0,
+        pay3_partially: 0,
+        pay3_pending: 0,
+      }
     ),
     [filteredRows]
   );
@@ -801,15 +986,39 @@ export function UP_Installation_SSL_Dashboard() {
   const cols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
       { header: 'District', accessor: (r) => r.district },
-      { header: 'Total Lights', accessor: (r) => r.total },
-      { header: 'Assigned', accessor: (r) => r.assigned },
-      { header: 'Accepted', accessor: (r) => r.accept },
-      { header: 'Complete', accessor: (r) => r.complete },
-      { header: 'Pending', accessor: (r) => r.pending },
-      { header: 'Verified Approved', accessor: (r) => r.verify_approved },
-      { header: 'Claim Applicable', accessor: (r) => r.claim_applicable },
-      { header: 'Payment Done', accessor: (r) => r.payment_complete },
-      { header: 'Completion %', accessor: (r) => `${pctOf(r.complete, r.total)}%` },
+      { header: 'Total allocation', accessor: (r) => r.total },
+      { header: 'Total Installed', accessor: (r) => r.complete },
+      { header: 'Pending Installation', accessor: (r) => r.pending },
+      { header: 'Verify Approved', accessor: (r) => r.verify_approved },
+      { header: 'Verify Pending', accessor: (r) => r.verify_pending },
+      { header: 'Verify Reject', accessor: (r) => r.verify_reject },
+      { header: 'Document Approved', accessor: (r) => r.doc_approved },
+      { header: 'Document Pending', accessor: (r) => r.doc_pending },
+      { header: 'Document Reject', accessor: (r) => r.doc_reject },
+      { header: 'Claim 1 Applicable', accessor: (r) => r.claim1_applicable },
+      { header: 'Claim 1 Submitted', accessor: (r) => r.claim1_submitted },
+      { header: 'Claim 1 Approved', accessor: (r) => r.claim1_approved },
+      { header: 'Claim 1 Pending', accessor: (r) => r.claim1_pending },
+      { header: 'Claim 1 Reject', accessor: (r) => r.claim1_reject },
+      { header: 'Claim 2 Applicable', accessor: (r) => r.claim2_applicable },
+      { header: 'Claim 2 Submitted', accessor: (r) => r.claim2_submitted },
+      { header: 'Claim 2 Approved', accessor: (r) => r.claim2_approved },
+      { header: 'Claim 2 Pending', accessor: (r) => r.claim2_pending },
+      { header: 'Claim 2 Reject', accessor: (r) => r.claim2_reject },
+      { header: 'Claim 3 Applicable', accessor: (r) => r.claim3_applicable },
+      { header: 'Claim 3 Submitted', accessor: (r) => r.claim3_submitted },
+      { header: 'Claim 3 Approved', accessor: (r) => r.claim3_approved },
+      { header: 'Claim 3 Pending', accessor: (r) => r.claim3_pending },
+      { header: 'Claim 3 Reject', accessor: (r) => r.claim3_reject },
+      { header: 'Pay1 Complete', accessor: (r) => r.pay1_complete },
+      { header: 'Pay1 Partially', accessor: (r) => r.pay1_partially },
+      { header: 'Pay1 Pending', accessor: (r) => r.pay1_pending },
+      { header: 'Pay2 Complete', accessor: (r) => r.pay2_complete },
+      { header: 'Pay2 Partially', accessor: (r) => r.pay2_partially },
+      { header: 'Pay2 Pending', accessor: (r) => r.pay2_pending },
+      { header: 'Pay3 Complete', accessor: (r) => r.pay3_complete },
+      { header: 'Pay3 Partially', accessor: (r) => r.pay3_partially },
+      { header: 'Pay3 Pending', accessor: (r) => r.pay3_pending },
     ],
     []
   );
@@ -839,7 +1048,7 @@ export function UP_Installation_SSL_Dashboard() {
           </span>
         }
         breadcrumbs={[
-          { label: 'Home', href: '/v' },
+          { label: 'Home', href: '/v-dashboard' },
           { label: 'Uttar Pradesh' },
           { label: 'Installation' },
           { label: 'SSL 18W Dashboard' },
@@ -907,34 +1116,69 @@ export function UP_Installation_SSL_Dashboard() {
         <KpiCard
           icon={I_DONE} tone="emerald" label="Accepted Lights"
           value={initialLoad ? '…' : num(rawDetail.accept || 0)} sub="Assignment accepted"
-          spark={spk((d) => d.accept)} onClick={() => navigateToStatus('accept')}
+          spark={spk((d) => d.total)} onClick={() => navigateToStatus('accept')}
         />
         <KpiCard
           icon={I_BOLT} tone="cyan" label="Installation Status"
-          value={initialLoad ? '…' : `${num(rawDetail.complete)} / ${num(rawDetail.pending)}`} sub="Complete / Pending"
-          badge={`${compPct}% Done`} spark={spk((d) => d.complete)} onClick={() => navigateToStatus('complete')}
+          value={initialLoad ? '…' : `${num(rawDetail.complete)} / ${num(rawDetail.pending)}`}
+          sub="Complete / Pending"
+          badge={`${compPct}% Done`}
+          spark={spk((d) => d.complete)}
+          parts={[
+            { label: 'Installed', value: rawDetail.complete, status: 'complete' },
+            { label: 'Pending', value: rawDetail.pending, status: 'pending' },
+          ]}
+          onNavigateStatus={navigateToStatus}
         />
         <KpiCard
           icon={I_DONE} tone="emerald" label="Verification Status"
-          value={initialLoad ? '…' : `${num(rawDetail.verify_approved)} / ${num(rawDetail.verify_pending)} / ${num(rawDetail.verify_reject)}`} sub="Approved / Pending / Rejected"
-          badge={`${appPct}% Approved`} spark={spk((d) => d.verify_approved)} onClick={() => navigateToStatus('verify-approved')}
+          value={initialLoad ? '…' : `${num(rawDetail.verify_approved)} / ${num(rawDetail.verify_pending)} / ${num(rawDetail.verify_reject)}`}
+          sub="Approved / Pending / Rejected"
+          badge={`${appPct}% Approved`}
+          spark={spk((d) => d.verify_approved)}
+          parts={[
+            { label: 'Approved', value: rawDetail.verify_approved, status: 'verify-approved' },
+            { label: 'Pending', value: rawDetail.verify_pending, status: 'verify-pending' },
+            { label: 'Rejected', value: rawDetail.verify_reject, status: 'verify-reject' },
+          ]}
+          onNavigateStatus={navigateToStatus}
         />
         <KpiCard
           icon={I_LIST} tone="amber" label="Claim Status"
-          value={initialLoad ? '…' : `${num(rawDetail.claim_applicable)} / ${num(rawDetail.claim_raised)} / ${num(rawDetail.claim_not_applicable)}`} sub="Applicable / Raised / N/A"
+          value={initialLoad ? '…' : `${num(rawDetail.claim_applicable)} / ${num(rawDetail.claim_raised)} / ${num(rawDetail.claim_not_applicable)}`}
+          sub="Applicable / Raised / N/A"
           badge={n(rawDetail.claim_raised) > 0 ? `${num(rawDetail.claim_raised)} Raised` : undefined}
-          spark={spk((d) => d.claim_applicable)} onClick={() => navigateToStatus('claim-applicable')}
+          spark={spk((d) => d.claim1_applicable)}
+          parts={[
+            { label: 'Applicable', value: rawDetail.claim_applicable, status: 'claim-applicable' },
+            { label: 'Raised', value: rawDetail.claim_raised, status: 'claim-raised' },
+            { label: 'Not Applicable', value: rawDetail.claim_not_applicable, status: 'claim-not-applicable' },
+          ]}
+          onNavigateStatus={navigateToStatus}
         />
         <KpiCard
           icon={I_DONE} tone="violet" label="Claim Verification"
-          value={initialLoad ? '…' : `${num(rawDetail.claim_verify_approved)} / ${num(rawDetail.claim_verify_pending)} / ${num(rawDetail.claim_verify_reject)}`} sub="Approved / Pending / Rejected"
-          badge={n(rawDetail.claim_verify_approved) > 0 ? 'Approved' : undefined} onClick={() => navigateToStatus('claim-verify-approved')}
+          value={initialLoad ? '…' : `${num(rawDetail.claim_verify_approved)} / ${num(rawDetail.claim_verify_pending)} / ${num(rawDetail.claim_verify_reject)}`}
+          sub="Approved / Pending / Rejected"
+          badge={n(rawDetail.claim_verify_approved) > 0 ? 'Approved' : undefined}
+          parts={[
+            { label: 'Approved', value: rawDetail.claim_verify_approved, status: 'claim-verify-approved' },
+            { label: 'Pending', value: rawDetail.claim_verify_pending, status: 'claim-verify-pending' },
+            { label: 'Rejected', value: rawDetail.claim_verify_reject, status: 'claim-verify-reject' },
+          ]}
+          onNavigateStatus={navigateToStatus}
         />
         <KpiCard
           icon={I_COIN} tone="cyan" label="Payment Status"
-          value={initialLoad ? '…' : `${num(rawDetail.payment_complete)} / ${num(rawDetail.payment_pending)}`} sub="Complete / Pending"
+          value={initialLoad ? '…' : `${num(rawDetail.payment_complete)} / ${num(rawDetail.payment_pending)}`}
+          sub="Complete / Pending"
           badge={n(rawDetail.payment_complete) > 0 ? 'Disbursed' : undefined}
-          spark={spk((d) => d.payment_complete)} onClick={() => navigateToStatus('payment-complete')}
+          spark={spk((d) => d.pay1_complete)}
+          parts={[
+            { label: 'Complete', value: rawDetail.payment_complete, status: 'payment-complete' },
+            { label: 'Pending', value: rawDetail.payment_pending, status: 'payment-pending' },
+          ]}
+          onNavigateStatus={navigateToStatus}
         />
 
         <MonthlyCard
@@ -1004,48 +1248,232 @@ export function UP_Installation_SSL_Dashboard() {
             </div>
           </div>
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover ula-table--md">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 2800 }}>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">Sr. No.</th>
-                  <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Total</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Assigned</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Accepted</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Install (Done / Pend)</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Verified</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Claim Applicable</th>
-                  <th className="ax-table__th" scope="col">Progress</th>
-                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
+                  <th className="ax-table__th" scope="col" style={{ minWidth: 150 }}>District</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Total allocation</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Total Installed</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending Installation</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Document Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Document Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Document Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 1 Applicable</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 1 Submitted</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 1 Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 1 Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 1 Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 2 Applicable</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 2 Submitted</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 2 Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 2 Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 2 Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 3 Applicable</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 3 Submitted</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 3 Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 3 Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Claim 3 Reject</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay1 Complete</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay1 Partially</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay1 Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay2 Complete</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay2 Partially</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay2 Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay3 Complete</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay3 Partially</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pay3 Pending</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center', minWidth: 90 }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {initialLoad ? (
-                  <tr><td className="ax-table__td" colSpan={10} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
+                  <tr><td className="ax-table__td" colSpan={36} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
                 ) : pD.paginatedData.length === 0 ? (
-                  <tr><td className="ax-table__td" colSpan={10} style={{ padding: 0 }}>
-                    <TableEmptyState title="No districts found" message={qDistrict ? 'Try adjusting your search query' : 'No district records available'} />
+                  <tr><td className="ax-table__td" colSpan={36} style={{ padding: 0 }}>
+                    <TableEmptyState title="No districts found" message={qDistrict ? 'Try adjusting your search criteria' : 'No records available'} />
                   </td></tr>
                 ) : (
                   pD.paginatedData.map((d: DistrictRow, idx: number) => {
                     const isSelected = filtersActive && selectedDistrict.toLowerCase() === d.district.toLowerCase();
+                    const enc = encodeURIComponent(d.district);
+                    const linkOf = (slug: string) => `/v/up/ssl-18w-installation-dashboard-status?status=${slug}&district=${enc}`;
                     return (
-                      <tr key={d.district || idx} className="ax-table__row" style={{ background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}>
+                      <tr key={d.district} className="ax-table__row" style={{ background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}>
                         <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{(pD.currentPage - 1) * pD.pageSize + idx + 1}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{d.district}</td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(d.total)}</td>
-                        <td className="ax-table__td ax-table__td--num ax-num">{num(d.assigned)}</td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald)', fontWeight: 600 }}>{num(d.accept)}</td>
-                        <td className="ax-table__td ax-table__td--num">
-                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
-                            <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
-                          </div>
+                        <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                          <Link to={linkOf('total')} style={{ color: 'inherit', textDecoration: 'none' }}>
+                            <b>{d.district}</b>
+                          </Link>
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num">{num(d.verify_approved)}</td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-accent)' }}>{num(d.claim_applicable)}</td>
-                        <td className="ax-table__td"><Bar pct={pctOf(d.complete, d.total)} /></td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                          <Link to={linkOf('total')} style={{ color: 'inherit', textDecoration: 'none' }}>
+                            {num(d.total)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('complete')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.complete)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('verify-approved')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.verify_approved)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('verify-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.verify_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('verify-reject')} className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.verify_reject)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('doc-approved')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.doc_approved)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('doc-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.doc_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('doc-reject')} className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.doc_reject)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim-applicable')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim1_applicable)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim-raised')} className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim1_submitted)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim-verify-approved')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim1_approved)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim-verify-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim1_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim-verify-reject')} className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim1_reject)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim2-applicable')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim2_applicable)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim2-raised')} className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim2_submitted)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim2-verify-approved')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim2_approved)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim2-verify-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim2_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim2-verify-reject')} className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim2_reject)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim3-applicable')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim3_applicable)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim3-raised')} className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim3_submitted)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim3-verify-approved')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim3_approved)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim3-verify-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim3_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('claim3-verify-reject')} className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.claim3_reject)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('payment-complete')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay1_complete)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('payment-partially')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay1_partially)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('payment-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay1_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay2-complete')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay2_complete)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay2-partially')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay2_partially)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay2-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay2_pending)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay3-complete')} className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay3_complete)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay3-partially')} className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay3_partially)}
+                          </Link>
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link to={linkOf('pay3-pending')} className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px', textDecoration: 'none' }}>
+                            {num(d.pay3_pending)}
+                          </Link>
+                        </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <button
                             type="button"
@@ -1067,18 +1495,102 @@ export function UP_Installation_SSL_Dashboard() {
                     <td className="ax-table__td" style={{ background: 'var(--ax-surface-subtle)' }} />
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)', background: 'var(--ax-surface-subtle)' }}>Total ({filteredRows.length} Districts)</td>
                     <td className="ax-table__td ax-table__td--num ax-num">{num(totals.total)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(totals.assigned)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(totals.accept)}</td>
                     <td className="ax-table__td ax-table__td--num">
-                      <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.complete)}</span>
-                        <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.pending)}</span>
-                      </div>
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.complete)}</span>
                     </td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(totals.verify_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(totals.claim_applicable)}</td>
-                    <td className="ax-table__td"><Bar pct={Math.round(pctOf(totals.complete, totals.total))} /></td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.verify_approved)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.verify_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 700 }}>{num(totals.verify_reject)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.doc_approved)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.doc_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 700 }}>{num(totals.doc_reject)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.claim1_applicable)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 700 }}>{num(totals.claim1_submitted)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.claim1_approved)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.claim1_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 700 }}>{num(totals.claim1_reject)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.claim2_applicable)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 700 }}>{num(totals.claim2_submitted)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.claim2_approved)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.claim2_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 700 }}>{num(totals.claim2_reject)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.claim3_applicable)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontWeight: 700 }}>{num(totals.claim3_submitted)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.claim3_approved)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.claim3_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ fontWeight: 700 }}>{num(totals.claim3_reject)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.pay1_complete)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.pay1_partially)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.pay1_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.pay2_complete)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.pay2_partially)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.pay2_pending)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(totals.pay3_complete)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--cyan" style={{ fontWeight: 700 }}>{num(totals.pay3_partially)}</span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(totals.pay3_pending)}</span>
+                    </td>
                     <td />
                   </tr>
                 )}

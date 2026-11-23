@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   jammuSslService,
@@ -22,6 +22,7 @@ const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => 
 const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
+const LIGHT_RED = '#ef6a6a';
 
 /* ───────── Types ───────── */
 interface JammuSslSummary {
@@ -60,7 +61,7 @@ const fmtMonth = (s: string) => {
   return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mi - 1]} ${y}`;
 };
 
-const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
+const onActivate = (fn: () => void) => (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     fn();
@@ -92,13 +93,17 @@ const toSummary = (o: any): JammuSslSummary => {
     claim_raised: n(src?.claim_raised),
     claim_approved: n(src?.claim_approved),
     pay_done: n(src?.pay_done),
-    pay_partial: n(src?.pay_partial),
+    pay_partial: n(src?.pay_partial ?? src?.pay_partially),
     pay_pending: n(src?.pay_pending),
   };
 };
 
-/* ───────── Layout CSS (Matches Reference Design) ───────── */
+/* ───────── Layout CSS (SRT 70MW match) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
   .solar-erp-page .ax-dash-grid { margin-top: 0; }
@@ -110,83 +115,59 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page .ax-card__header {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .solar-erp-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: max-content;
-    max-width: 55%;
-  }
-  .solar-erp-page .ax-card__title {
-    max-width: none;
-    white-space: normal;
-    word-break: normal;
-    overflow-wrap: normal;
-    hyphens: none;
-  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
   .solar-erp-page .ax-card__eyebrow,
   .solar-erp-page .ax-card__subtitle {
-    word-break: normal;
-    overflow-wrap: normal;
-    line-height: 1.45;
+    max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none;
   }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
   .solar-erp-page .ax-card__actions {
-    flex: 1 1 0;
-    min-width: 0;
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    min-width: 0;
-    width: 100%;
-    justify-content: flex-end;
-  }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
   .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] {
-    flex: 1 1 120px;
-    min-width: 90px;
-    max-width: 260px;
-  }
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 90px; max-width: 260px; }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export"] {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    gap: 4px;
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px;
   }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn,
-  .solar-erp-page .ax-card__actions [class*="export"] .ax-btn {
-    padding-inline: 8px;
-    min-width: 0;
-  }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
 
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ula-table--md { min-width: 900px; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; }
+  .solar-erp-page .ula-table--md { min-width: 960px; }
   .solar-erp-page .ax-welcome__lede { max-width: 780px; }
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
-  @media (min-width: 641px) {
-    .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
+  .asw-interactive-kpi {
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   }
+  .asw-interactive-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ax-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
+  }
+  .solar-erp-page .kpi-seg {
+    cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background 120ms ease, color 120ms ease;
+  }
+  .solar-erp-page .kpi-seg:hover { background: rgba(var(--asw-primary-rgb), 0.12); color: var(--asw-primary); text-decoration: underline; }
+  .solar-erp-page .kpi-seg:focus-visible { outline: 2px solid var(--asw-primary); outline-offset: 1px; }
+  .solar-erp-page .click-cell { cursor: pointer; }
+  .solar-erp-page .click-cell:hover { text-decoration: underline; }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
     .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn span:not([class*="icon"]),
-    .solar-erp-page .ax-card__actions [class*="export"] .ax-btn span:not([class*="icon"]) {
-      display: none;
-    }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
   }
@@ -198,27 +179,23 @@ const PAGE_CSS = `
     }
     .solar-erp-page .ula-filter-item { width: 100%; justify-content: space-between; }
     .solar-erp-page .ula-filter-item select { flex: 1; width: auto; max-width: 100%; }
-    .solar-erp-page .ula-filter-scope { width: 100%; }
-    .solar-erp-page .ax-card__header { gap: 10px; }
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 130px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
   }
 
   @media (max-width: 480px) {
-    .solar-erp-page .ax-card__header { flex-wrap: wrap; }
-    .solar-erp-page .ax-card__titles { min-width: 0; max-width: 100%; flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions { flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-start; }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
   }
 `;
 
-/* ───────── Icons (Tabler design) ───────── */
+/* ───────── Icons ───────── */
 const ICON_REFRESH = (
   <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>
 );
@@ -228,7 +205,7 @@ const ICON_FILTER = (
 const ARROW_UP = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>
 );
-const svg = (children: React.ReactNode) => (
+const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
 const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
@@ -239,7 +216,7 @@ const I_EYE = svg(<><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667
 
 /* ───────── KPI Card ───────── */
 interface KpiProps {
-  icon: React.ReactNode;
+  icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
   label: string;
   value: string;
@@ -249,36 +226,42 @@ interface KpiProps {
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
+  pills?: { label: string; count: number | string; onClick?: () => void }[];
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)', apex: '--ax-viz-cyan' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)', apex: '--ax-viz-emerald' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)', apex: '--ax-viz-amber' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)', apex: '--ax-viz-violet' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)', apex: '--ax-viz-pink' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb', apex: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2', apex: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a', apex: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706', apex: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed', apex: '#7c3aed' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: '#db2777', apex: '#db2777' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626', apex: '#dc2626' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick, pills }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const safeSpark = allZeros ? [0, 0, 0, 0, 0] : spark;
 
   return (
     <div
-      className="ax-card ax-col--3"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      className={`ax-card ax-col--3 ${onClick ? 'asw-interactive-kpi' : ''}`}
+      role={onClick ? 'button' : 'region'}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={label}
       onClick={onClick}
       onKeyDown={onClick ? onActivate(onClick) : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      style={{
+        borderRadius: 'var(--ax-radius-lg, 12px)',
+        background: 'var(--ax-bg-surface, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+      }}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md, 8px)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
             </span>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
@@ -292,7 +275,24 @@ function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType 
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-              {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+              {pills && pills.length > 0
+                ? pills.map((seg, i) => (
+                    <span key={seg.label}>
+                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, margin: '0 4px' }}>/</span>}
+                      <span
+                        className={seg.onClick ? 'kpi-seg' : undefined}
+                        role={seg.onClick ? 'button' : undefined}
+                        tabIndex={seg.onClick ? 0 : undefined}
+                        title={seg.onClick ? `View ${seg.label} lights` : undefined}
+                        onClick={seg.onClick ? (e) => { e.stopPropagation(); seg.onClick!(); } : undefined}
+                        onKeyDown={seg.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); seg.onClick!(); } } : undefined}
+                      >
+                        {seg.count}
+                      </span>
+                    </span>
+                  ))
+                : value}{' '}
+              {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
           </div>
@@ -334,7 +334,7 @@ function Bar({ pct }: { pct: number }) {
 
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const selectStyle = { height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'flex-end', width: '100%' } as const;
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -456,9 +456,10 @@ export function SSLDashboard() {
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
 
-  const goStatus = (st: string) => {
+  const goStatus = (st: string, district?: string) => {
     const norm = normalizeJammuSslStatus(st);
-    const distParam = filtersActive ? `&district=${encodeURIComponent(selectedDistrict)}` : '';
+    const targetDistrict = district || (filtersActive ? selectedDistrict : '');
+    const distParam = targetDistrict && targetDistrict !== 'All' ? `&district=${encodeURIComponent(targetDistrict)}` : '';
     navigate(`/v/jammu/installation/ssl/status-view?status=${encodeURIComponent(norm)}${distParam}`);
   };
 
@@ -473,9 +474,7 @@ export function SSLDashboard() {
   );
   const districtChartH = Math.min(560, Math.max(isMobile ? 280 : 320, chartDistricts.length * (isMobile ? 38 : 44)));
 
-  /* ───────── Export ───────── */
-  const [hiddenDistrictColumns, setHiddenDistrictColumns] = useState<string[]>([]);
-
+  /* ───────── Export Columns ───────── */
   const districtCols: ExportColumn<DistrictRow>[] = useMemo(
     () => [
       { header: 'District', accessor: (r) => r.district || '' },
@@ -495,96 +494,19 @@ export function SSLDashboard() {
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
-
-  const getExportValue = <T,>(row: T, column: ExportColumn<T>) => {
-    if (typeof column.accessor === 'function') return column.accessor(row);
-    return (row as unknown as Record<string, unknown>)[column.accessor as string];
-  };
-  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
-
-  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const exportToCSV = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
-    if (!dataToExport.length || !columns.length) return;
-    const rows = [
-      columns.map((c) => c.header),
-      ...dataToExport.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
-  };
-
-  const copyToClipboard = async <T,>(dataToCopy: T[], columns: ExportColumn<T>[]) => {
-    if (!dataToCopy.length || !columns.length) return;
-    const text = [
-      columns.map((c) => c.header).join('\t'),
-      ...dataToCopy.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c))).join('\t')),
-    ].join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-  };
-
-  const exportToExcel = <T,>(dataToExport: T[], columns: ExportColumn<T>[], filename: string) => {
-    if (!dataToExport.length || !columns.length) return;
-    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${dataToExport.map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
-    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
-  };
-
-  const exportToPDF = <T,>(dataToExport: T[], columns: ExportColumn<T>[], title: string) => {
-    if (!dataToExport.length || !columns.length) return;
-    const rows = dataToExport.map((row) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c)))));
-    const w = window.open('', '_blank', 'width=1200,height=800');
-    if (!w) return;
-    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
-      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
-      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:7px 8px;text-align:left;vertical-align:top}
-      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:12mm}}
-    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
-    w.document.close();
-    w.focus();
-  };
-
-  const makeToolbarColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.map((c, i) => ({ key: `${c.header}-${i}`, label: c.header, visible: !hidden.includes(`${c.header}-${i}`) }));
-  const visibleColumns = <T,>(columns: ExportColumn<T>[], hidden: string[]) =>
-    columns.filter((c, i) => !hidden.includes(`${c.header}-${i}`));
-
-  const districtToolbarColumns = makeToolbarColumns(districtCols, hiddenDistrictColumns);
-  const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
-    setter((prev) => (prev.includes(key) ? prev.filter((i) => i !== key) : [...prev, key]));
+  const pageTitle = 'Jammu SSL District Wise Installation Breakdown';
 
   /* ───────── Chart data ───────── */
   const statusSeries = [s.verify_approved, s.verify_pending, s.verify_reject, s.pending];
   const statusLabels = ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'];
 
   const milestones = [
-    { label: '1. Allocated Sites', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan)' },
-    { label: '2. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)' },
-    { label: '3. Installation Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)' },
-    { label: '4. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)' },
-    { label: '5. Payment Disbursed', v: s.pay_done, of: s.complete, color: 'var(--ax-viz-emerald)' },
-    { label: '6. Payment Pending', v: s.pay_pending, of: s.complete, color: 'var(--ax-viz-amber)' },
+    { label: '1. Allocated Street Lights', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan, #06b6d4)', key: 'total' },
+    { label: '2. Installation Done', v: s.complete, of: s.site_count, color: 'var(--ax-accent, #2563eb)', key: 'completed' },
+    { label: '3. Installation Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald, #10b981)', key: 'verify-approved' },
+    { label: '4. Claim Applicable', v: s.claim_applicable, of: s.complete, color: 'var(--ax-viz-violet, #8b5cf6)', key: 'claim-applicable' },
+    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink, #ec4899)', key: 'claim-raised' },
+    { label: '6. Payment Settled', v: s.pay_done, of: s.complete, color: 'var(--ax-viz-emerald, #10b981)', key: 'pay-done' },
   ];
 
   return (
@@ -601,7 +523,7 @@ export function SSLDashboard() {
         }
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
-          { label: 'Jammu' },
+          { label: 'Jammu & Kashmir' },
           { label: 'Installation' },
           { label: 'SSL' },
           { label: 'Dashboard' },
@@ -620,6 +542,9 @@ export function SSLDashboard() {
             >
               <span className={isRefreshing ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
             </button>
+            <Link to="/v/jammu/installation/ssl/status-view?status=total" className="ax-btn ax-btn--secondary ax-btn--sm">
+              View Status Register
+            </Link>
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
@@ -655,7 +580,7 @@ export function SSLDashboard() {
           className="ax-card ax-card--flat ax-col--12"
           role="region"
           aria-label="Jammu SSL Dashboard Filters"
-          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border-subtle)', background: 'var(--ax-bg-surface)' }}
+          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border, #e2e8f0)', background: 'var(--ax-bg-surface, #ffffff)' }}
         >
           <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)', alignItems: 'center' }}>
             <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -669,18 +594,18 @@ export function SSLDashboard() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   padding: '4px 10px',
-                  background: 'rgba(var(--ax-accent-rgb), 0.08)',
+                  background: 'rgba(var(--asw-primary-rgb), 0.08)',
                   borderRadius: 'var(--ax-radius-pill)',
-                  border: '1px solid rgba(var(--ax-accent-rgb), 0.18)',
+                  border: '1px solid rgba(var(--asw-primary-rgb), 0.18)',
                 }}
               >
                 {ICON_FILTER} Filter Operations
               </span>
 
               <div className="ax-cluster ula-filter-item" style={{ alignItems: 'center' }}>
-                <label htmlFor="jammu-district-select" style={labelStyle}>District:</label>
+                <label htmlFor="jammu-ssl-district-select" style={labelStyle}>District:</label>
                 <select
-                  id="jammu-district-select"
+                  id="jammu-ssl-district-select"
                   className="ax-input ax-input--sm"
                   style={selectStyle}
                   value={selectedDistrict}
@@ -706,14 +631,14 @@ export function SSLDashboard() {
             </div>
 
             <div className="ax-cluster ula-filter-scope" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-subtle)' }}>
-                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(s.site_count)}</b> installations · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
+              <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+                Showing <b style={{ color: 'var(--ax-text-strong)' }}>{dash(s.site_count)}</b> lights · Live: <b style={{ color: 'var(--ax-text-strong)' }}>{todayLabel}</b>
               </span>
             </div>
           </div>
         </section>
 
-        {/* 3. Welcome Banner */}
+        {/* 3. Welcome Banner with Interactive Clickable Tiles */}
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Jammu SSL Installation Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
@@ -726,31 +651,59 @@ export function SSLDashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => goStatus('total')}
+                onKeyDown={onActivate(() => goStatus('total'))}
+                title="View All Street Lights"
+              >
                 <dt>Total Street Lights</dt>
                 <dd className="ax-num">{dash(s.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => goStatus('completed')}
+                onKeyDown={onActivate(() => goStatus('completed'))}
+                title="View Installed Street Lights"
+              >
                 <dt>Installation Done</dt>
                 <dd className="ax-num">{dash(s.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
-                <dt>Claim Applicable</dt>
-                <dd className="ax-num">{dash(s.claim_applicable)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{pctOf(s.claim_applicable, s.complete)}% Eligible</small>
-              </div>
-              <div className="ax-welcome__stat">
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => goStatus('verify-approved')}
+                onKeyDown={onActivate(() => goStatus('verify-approved'))}
+                title="View Approved Street Lights"
+              >
                 <dt>Approved</dt>
                 <dd className="ax-num">{dash(s.verify_approved)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
+              </div>
+              <div
+                className="ax-welcome__stat asw-interactive-kpi"
+                role="button"
+                tabIndex={0}
+                onClick={() => goStatus('claim-applicable')}
+                onKeyDown={onActivate(() => goStatus('claim-applicable'))}
+                title="View Claim Eligible Street Lights"
+              >
+                <dt>Claim Applicable</dt>
+                <dd className="ax-num">{dash(s.claim_applicable)}</dd>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{pctOf(s.claim_applicable, s.complete)}% Eligible ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
-        {/* 4. 8 KPI Cards */}
+        {/* 4. 8 KPI Cards with Clickable Segments (Pills) */}
         <KpiCard
           icon={I_BOLT}
           tone="accent"
@@ -766,7 +719,11 @@ export function SSLDashboard() {
           icon={I_DONE}
           tone="emerald"
           label="Installation Status"
-          value={loading && !data ? '…' : `${num(s.complete)} / ${num(s.pending)}`}
+          value=""
+          pills={[
+            { label: 'Installed', count: loading && !data ? '…' : num(s.complete), onClick: () => goStatus('completed') },
+            { label: 'Pending', count: loading && !data ? '…' : num(s.pending), onClick: () => goStatus('pending') },
+          ]}
           sub="Installed / Pending"
           badge={`${instPct}% Done`}
           spark={spk((d) => n(d.complete))}
@@ -777,7 +734,12 @@ export function SSLDashboard() {
           icon={I_DONE}
           tone="amber"
           label="Verification Status"
-          value={loading && !data ? '…' : `${num(s.verify_approved)} / ${num(s.verify_pending)} / ${num(s.verify_reject)}`}
+          value=""
+          pills={[
+            { label: 'Approved', count: loading && !data ? '…' : num(s.verify_approved), onClick: () => goStatus('verify-approved') },
+            { label: 'Pending', count: loading && !data ? '…' : num(s.verify_pending), onClick: () => goStatus('verify-pending') },
+            { label: 'Rejected', count: loading && !data ? '…' : num(s.verify_reject), onClick: () => goStatus('verify-reject') },
+          ]}
           sub="Approved / Pending / Rejected"
           badge={s.verify_approved > 0 ? `${approvedPct}% Approved` : undefined}
           spark={spk((d) => n(d.verify_approved))}
@@ -809,7 +771,11 @@ export function SSLDashboard() {
           icon={I_LIST}
           tone="pink"
           label="Claim Status"
-          value={loading && !data ? '…' : `${num(s.claim_applicable)} / ${num(s.claim_raised)}`}
+          value=""
+          pills={[
+            { label: 'Applicable', count: loading && !data ? '…' : num(s.claim_applicable), onClick: () => goStatus('claim-applicable') },
+            { label: 'Raised', count: loading && !data ? '…' : num(s.claim_raised), onClick: () => goStatus('claim-raised') },
+          ]}
           sub="Applicable / Raised"
           badge={s.claim_raised > 0 ? `${num(s.claim_raised)} Raised` : undefined}
           spark={spk((d) => n(d.claim_raised))}
@@ -830,8 +796,12 @@ export function SSLDashboard() {
           icon={I_COIN}
           tone="amber"
           label="Payment Pending"
-          value={loading && !data ? '…' : `${num(s.pay_pending)} Lights`}
-          sub="Awaiting disbursement"
+          value=""
+          pills={[
+            { label: 'Partial', count: loading && !data ? '…' : num(s.pay_partial), onClick: () => goStatus('pay-partially') },
+            { label: 'Pending', count: loading && !data ? '…' : num(s.pay_pending), onClick: () => goStatus('pay-pending') },
+          ]}
+          sub="Partial / Pending Disbursement"
           badge={s.pay_pending > 0 ? 'Pending' : undefined}
           onClick={() => goStatus('pay-pending')}
         />
@@ -886,7 +856,7 @@ export function SSLDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Status Distribution</span>
               <h2 className="ax-card__title">Installation Status</h2>
-              <p className="ax-card__subtitle">Total {dash(s.site_count)} lights</p>
+              <p className="ax-card__subtitle">Total {dash(s.site_count)} lights · Click slice to filter</p>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
@@ -900,8 +870,17 @@ export function SSLDashboard() {
                 series={statusSeries}
                 apex={{
                   labels: statusLabels,
-                  colors: [LIGHT_GREEN, LIGHT_BLUE, '#ef6a6a', LIGHT_AMBER],
+                  colors: [LIGHT_GREEN, LIGHT_BLUE, LIGHT_RED, LIGHT_AMBER],
                   stroke: { width: 0 },
+                  chart: {
+                    events: {
+                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                        const idx = opts?.dataPointIndex;
+                        const map = ['verify-approved', 'verify-pending', 'verify-reject', 'pending'];
+                        if (idx !== undefined && map[idx]) goStatus(map[idx]);
+                      },
+                    },
+                  },
                   plotOptions: {
                     pie: {
                       donut: {
@@ -920,18 +899,27 @@ export function SSLDashboard() {
             </Suspense>
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
-                { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN },
-                { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE },
-                { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: '#ef6a6a' },
-                { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER },
+                { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN, key: 'verify-approved' },
+                { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE, key: 'verify-pending' },
+                { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: LIGHT_RED, key: 'verify-reject' },
+                { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER, key: 'pending' },
               ].map((r) => (
-                <li key={r.label} className="ax-list__row" style={{ border: 0, paddingInline: 0 }}>
+                <li
+                  key={r.label}
+                  className="ax-list__row asw-interactive-kpi"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goStatus(r.key)}
+                  onKeyDown={onActivate(() => goStatus(r.key))}
+                  style={{ border: 0, paddingInline: 6, borderRadius: 6 }}
+                  title={`View ${r.label} street lights`}
+                >
                   <span className="ax-list__leading"><i style={{ width: 9, height: 9, borderRadius: 3, background: r.color, display: 'inline-block' }} /></span>
                   <span className="ax-list__content">
-                    <span className="ax-list__title" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{r.label}</span>
+                    <span className="ax-list__title" style={{ fontWeight: 500 }}>{r.label}</span>
                     <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{r.sub}</span>
                   </span>
-                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{num(r.v)}</span>
+                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{num(r.v)} ↗</span>
                 </li>
               ))}
             </ul>
@@ -999,10 +987,19 @@ export function SSLDashboard() {
             {milestones.map((m) => {
               const p = pctOf(m.v, m.of);
               return (
-                <div key={m.label}>
+                <div
+                  key={m.label}
+                  className="asw-interactive-kpi"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goStatus(m.key)}
+                  onKeyDown={onActivate(() => goStatus(m.key))}
+                  style={{ padding: '4px 6px', borderRadius: 6 }}
+                  title={`View ${m.label} lights`}
+                >
                   <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
                     <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
-                    <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
+                    <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%) ↗</b>
                   </div>
                   <div className="ax-progress ax-progress--sm"><div className="ax-progress__track"><div className="ax-progress__fill" style={{ width: `${p}%`, background: m.color }} /></div></div>
                 </div>
@@ -1011,24 +1008,22 @@ export function SSLDashboard() {
           </div>
         </section>
 
-        {/* 7. District Wise Table */}
+        {/* 7. District Wise Table with Click-Cell Drilldown */}
         <section className="ax-card ax-col--12" role="region" aria-label="District wise data">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Enterprise Data Analytics</span>
               <h2 className="ax-card__title">District Wise Installation Breakdown</h2>
-              <p className="ax-card__subtitle">Installation, verification, claims and payment progress across districts</p>
+              <p className="ax-card__subtitle">Installation, verification, claims and payment progress across districts · click cells to drill down</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
                 <SearchInput value={qDistrict} onChange={setQDistrict} placeholder="Search district..." size="sm" />
                 <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns))}
-                  onExportCSV={() => exportToCSV(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_SSL_District_Wise_${stamp}`)}
-                  onExportExcel={() => exportToExcel(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), `Jammu_SSL_District_Wise_${stamp}`)}
-                  onExportPDF={() => exportToPDF(tableDistricts, visibleColumns(districtCols, hiddenDistrictColumns), 'Jammu SSL District Wise Installation Breakdown')}
-                  columns={districtToolbarColumns}
-                  onToggleColumn={toggleIn(setHiddenDistrictColumns)}
+                  onCopy={() => copyTableDataToClipboard(tableDistricts, districtCols)}
+                  onExportCSV={() => exportDataToCSV(`Jammu_SSL_District_Wise_${stamp}`, tableDistricts, districtCols)}
+                  onExportExcel={() => exportDataToExcel(`Jammu_SSL_District_Wise_${stamp}`, tableDistricts, districtCols)}
+                  onExportPDF={() => printTableData(pageTitle, tableDistricts, districtCols)}
                 />
               </div>
             </div>
@@ -1044,102 +1039,139 @@ export function SSLDashboard() {
                   <th className="ax-table__th ax-table__th--num" scope="col">Claim (Appl / Raised)</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Payments (Done / Pending)</th>
                   <th className="ax-table__th" scope="col">Progress</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <tr><td className="ax-table__td" colSpan={7} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
+                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
                 ) : pD.paginatedData.length === 0 ? (
-                  <tr><td className="ax-table__td" colSpan={7} style={emptyCellStyle}>No districts match the filters.</td></tr>
+                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}>No districts match the filters.</td></tr>
                 ) : (
                   pD.paginatedData.map((d) => {
                     const total = n(d.site_count);
                     const rowPct = pctOf(n(d.complete), total);
                     const isSelected = selectedDistrict.toLowerCase() === d.district.toLowerCase();
+                    const go = (key: string) => (e: React.MouseEvent) => { e.stopPropagation(); goStatus(key, d.district); };
                     return (
                       <tr
                         key={d.district}
                         className="ax-table__row"
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSelectedDistrict(d.district)}
-                        onKeyDown={onActivate(() => setSelectedDistrict(d.district))}
-                        style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}
+                        onClick={() => goStatus('total', d.district)}
+                        onKeyDown={onActivate(() => goStatus('total', d.district))}
+                        style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--asw-primary-rgb), 0.05)' : undefined }}
                       >
                         <td className="ax-table__td">
                           <div className="ax-cluster" style={{ gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>{d.district}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{d.district}</span>
                             {isSelected && (
                               <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontSize: '10px', padding: '1px 6px' }}>Active</span>
                             )}
                           </div>
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(total)}</td>
+                        <td className="ax-table__td ax-table__td--num ax-num click-cell" style={{ fontWeight: 600 }} onClick={go('total')} title={`View all lights in ${d.district}`}>
+                          {num(total)}
+                        </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('completed')} title={`View installed in ${d.district}`}>
+                              {num(d.complete)}
+                            </span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('pending')} title={`View pending in ${d.district}`}>
+                              {num(d.pending)}
+                            </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }} title="Approved">
+                            <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-approved')} title="Approved">
                               <span className="ax-badge__dot" />{num(d.verify_approved)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }} title="Pending Verify">{num(d.verify_pending)}</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }} title="Rejected">{num(d.verify_reject)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-pending')} title="Pending Verify">
+                              {num(d.verify_pending)}
+                            </span>
+                            <span className="ax-badge ax-badge--soft ax-badge--danger click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-reject')} title="Rejected">
+                              {num(d.verify_reject)}
+                            </span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.claim_applicable)}</span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}> / </span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.claim_raised)}</span>
+                          <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
+                            <span className="ax-badge ax-badge--soft ax-badge--accent click-cell" style={{ fontWeight: 600, padding: '2px 6px' }} onClick={go('claim-applicable')} title="Claim Applicable">
+                              {num(d.claim_applicable)}
+                            </span>
+                            <span style={{ color: 'var(--ax-text-muted)' }}>/</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--pink click-cell" style={{ padding: '2px 6px' }} onClick={go('claim-raised')} title="Claim Raised">
+                              {num(d.claim_raised)}
+                            </span>
+                          </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num ax-num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pay_done)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('pay-done')} title="Payment Done">
+                              {num(d.pay_done)}
+                            </span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pay_pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('pay-pending')} title="Payment Pending">
+                              {num(d.pay_pending)}
+                            </span>
                           </div>
                         </td>
                         <td className="ax-table__td"><Bar pct={rowPct} /></td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            onClick={go('total')}
+                            title={`Open status view for ${d.district}`}
+                          >
+                            View →
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
                 )}
                 {tableDistricts.length > 0 && (
-                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
+                  <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 700 }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total ({filteredDistrictRows.length} Districts)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(districtTotals.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num click-cell" onClick={() => goStatus('total')}>{num(districtTotals.site_count)}</td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(districtTotals.complete)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('completed')}>{num(districtTotals.complete)}</span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 700 }}>{num(districtTotals.pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--neutral click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('pending')}>{num(districtTotals.pending)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success">{num(districtTotals.verify_approved)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning">{num(districtTotals.verify_pending)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--danger">{num(districtTotals.verify_reject)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--success click-cell" onClick={() => goStatus('verify-approved')}>{num(districtTotals.verify_approved)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" onClick={() => goStatus('verify-pending')}>{num(districtTotals.verify_pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--danger click-cell" onClick={() => goStatus('verify-reject')}>{num(districtTotals.verify_reject)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
-                      <span style={{ fontWeight: 700 }}>{num(districtTotals.claim_applicable)}</span>
-                      <span> / </span>
-                      <span>{num(districtTotals.claim_raised)}</span>
+                      <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
+                        <span className="ax-badge ax-badge--soft ax-badge--accent click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('claim-applicable')}>{num(districtTotals.claim_applicable)}</span>
+                        <span>/</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--pink click-cell" onClick={() => goStatus('claim-raised')}>{num(districtTotals.claim_raised)}</span>
+                      </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num ax-num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(districtTotals.pay_done)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('pay-done')}>{num(districtTotals.pay_done)}</span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(districtTotals.pay_pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('pay-pending')}>{num(districtTotals.pay_pending)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td">
                       <Bar pct={Math.round(pctOf(districtTotals.complete, districtTotals.site_count))} />
+                    </td>
+                    <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                      <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => goStatus('total')}>All →</button>
                     </td>
                   </tr>
                 )}

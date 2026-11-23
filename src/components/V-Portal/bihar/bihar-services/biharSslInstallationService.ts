@@ -1,5 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 /**
  * Universal token getter checking all localStorage and sessionStorage keys
@@ -67,6 +68,48 @@ export const getMediaUrl = (path?: string | null): string => {
     .replace(/\/+$/, '');
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   return `${root}${cleanPath}`;
+};
+
+/**
+ * Returns candidate URLs for Bihar SSL media to handle path formatting variations.
+ */
+export const getBiharSslMediaCandidates = (path?: string | null): string[] => {
+  if (!path) return [];
+  const trimmed = String(path).trim();
+  if (!trimmed) return [];
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:')
+  ) {
+    return [trimmed];
+  }
+
+  const root = (API_BASE_URL || 'https://klkerp.com/api')
+    .replace(/\/api\/?$/, '')
+    .replace(/\/+$/, '');
+  const normalized = trimmed.replace(/\\/g, '/').replace(/^\/+/, '');
+  const filename = normalized.split('/').pop() || normalized;
+
+  const candidates: string[] = [];
+
+  if (normalized.startsWith('uploads/')) {
+    candidates.push(`${root}/${normalized}`);
+  } else if (normalized.startsWith('storage/')) {
+    candidates.push(`${root}/${normalized}`);
+  }
+
+  candidates.push(`${root}/${normalized}`);
+  candidates.push(`${root}/uploads/bihar/installation/ssl/${filename}`);
+  candidates.push(`${root}/uploads/bihar/ssl/installation/${filename}`);
+  candidates.push(`${root}/uploads/bihar/ssl/${filename}`);
+  candidates.push(`${root}/uploads/ssl/${filename}`);
+  candidates.push(`${root}/uploads/${filename}`);
+  candidates.push(`${root}/storage/bihar/installation/ssl/${filename}`);
+  candidates.push(`${root}/storage/${normalized}`);
+
+  return Array.from(new Set(candidates));
 };
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -523,7 +566,7 @@ class BiharSslInstallationService {
      5. Install SSL Light Store
      POST /bihar/ssl-install-ssl-light-store (multipart/form-data)
      ───────────────────────────────────────────────────────────────────────── */
-  async installLightStore(formData: FormData): Promise<{ status: boolean; message: string }> {
+  async installLightStore(formData: FormData): Promise<{ status: boolean; message: string; errors?: any }> {
     try {
       const res = await this.fetchWithFallback(
         BIHAR_API.INSTALLATION.SSL.INSTALL_LIGHT_STORE,
@@ -533,13 +576,12 @@ class BiharSslInstallationService {
           body: formData,
         }
       );
-      const json = await res.json();
-      if (!res.ok || json?.status === false || json?.success === false) {
-        const errorMsg =
-          json?.message ||
-          (json?.errors && Object.values(json.errors).flat().join(', ')) ||
-          'Failed to install SSL light.';
-        throw new Error(errorMsg);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.status === false || json?.success === false || json?.errors) {
+        const extracted = extractBackendError(json, 'Failed to install SSL light.');
+        const err: any = new Error(extracted.message);
+        err.errors = json?.errors || extracted.rawErrors;
+        throw err;
       }
       return { status: true, message: json?.message || 'Details saved successfully.' };
     } catch (err: any) {
@@ -613,12 +655,11 @@ class BiharSslInstallationService {
       }
     );
     const json = await res.json().catch(() => null);
-    if (!res.ok || json?.status === false) {
-      if (res.status === 422 && json?.errors) {
-        const first = Object.values(json.errors).flat()[0] as string;
-        throw new Error(first || json.message || 'Validation failed');
-      }
-      throw new Error(json?.message || `Failed to update installed light details (HTTP ${res.status}).`);
+    if (!res.ok || json?.status === false || json?.success === false || json?.errors) {
+      const extracted = extractBackendError(json, `Failed to update installed light details (HTTP ${res.status}).`);
+      const err: any = new Error(extracted.message);
+      err.errors = json?.errors || extracted.rawErrors;
+      throw err;
     }
     return { status: true, message: json?.message || 'Details Updated Successfully' };
   }
@@ -645,6 +686,11 @@ class BiharSslInstallationService {
       throw new Error(json?.message || `Failed to raise claim request (HTTP ${res.status}).`);
     }
     return { status: true, message: json?.message || 'Claim Raised Successfully!!!' };
+  }
+
+  /* 9b. Raise Install Claim (Direct Alias for installation view) */
+  async raiseInstallClaim(formData: FormData): Promise<{ status: boolean; message: string }> {
+    return this.raiseClaim(formData);
   }
 
   /* ─────────────────────────────────────────────────────────────────────────

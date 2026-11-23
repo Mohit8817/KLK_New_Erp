@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -7,6 +7,11 @@ import {
   type InstallableSiteName,
   type InstallSiteDetails,
 } from '../../assam-services';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout with Floating Labels & Section Dividers (matching Bihar reference)
 const SINGLE_CARD_FORM_CSS = `
@@ -154,11 +159,14 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   type?: string;
   placeholder?: string;
+  error?: string;
+  style?: React.CSSProperties;
 }
 
-function FloatingInput({ label, name, value, onChange, required, disabled, type = 'text', placeholder }: FloatingInputProps) {
+function FloatingInput({ label, name, value, onChange, required, disabled, readOnly, type = 'text', placeholder, error, style }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
 
@@ -174,12 +182,24 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
-        className="ax-float__input"
+        className={`ax-float__input ${error ? 'is-invalid' : ''}`}
+        aria-invalid={error ? 'true' : 'false'}
+        style={{
+          ...(error ? { borderColor: 'var(--ax-danger, #ef4444)' } : {}),
+          ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
       </label>
+      {error && (
+        <span className="ax-field-feedback--error" style={{ color: 'var(--ax-danger, #ef4444)', fontSize: '11px', marginTop: '3px', display: 'block' }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -381,7 +401,7 @@ function UploadDropzone({
       </div>
 
       {error && (
-        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+        <span className="ax-field-feedback--error" style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 4, display: 'block' }}>
           {error}
         </span>
       )}
@@ -434,6 +454,7 @@ export function Assam_Installation_SWP_Site() {
   // UI state
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [gettingLocation, setGettingLocation] = useState(false);
 
   // Section refs for smooth scrolling
@@ -581,51 +602,89 @@ export function Assam_Installation_SWP_Site() {
   };
 
   // Geolocation
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLatitude(String(pos.coords.latitude.toFixed(6)));
-        setLongitude(String(pos.coords.longitude.toFixed(6)));
+        const lat = String(pos.coords.latitude.toFixed(6));
+        const lng = String(pos.coords.longitude.toFixed(6));
+        setLatitude(lat);
+        setLongitude(lng);
+        setFieldErrors((prev) => {
+          const n = { ...prev };
+          delete n.inst_latitude;
+          delete n.latitude;
+          delete n.inst_longitude;
+          delete n.longitude;
+          return n;
+        });
         setGettingLocation(false);
       },
       (err) => {
         console.warn('Geolocation error:', err);
-        alert('Could not retrieve GPS coordinates. Please enter manually.');
+        if (!silent) {
+          alert('Could not retrieve GPS coordinates. Please check location permissions.');
+        }
         setGettingLocation(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSiteId]);
+
   // Form Submit (API 6 or API 9)
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const missing: Record<string, string> = {};
+
     if (!selectedSiteId) {
-      setFeedback({ type: 'danger', text: 'Please select an installation site first.' });
-      scrollTo(sec1);
-      return;
+      missing.selectedSiteId = 'Installation Site is required';
     }
 
     if (!inverterNo.trim()) {
-      setFeedback({ type: 'danger', text: 'Inverter Number is required.' });
-      scrollTo(sec3);
-      return;
+      missing.inverter_no = 'Inverter Number is required';
     }
     if (!vfdNo.trim()) {
-      setFeedback({ type: 'danger', text: 'VFD Number is required.' });
-      scrollTo(sec3);
-      return;
+      missing.vfd_no = 'VFD Number is required';
     }
 
     const filteredModules = moduleSerials.map((s) => s.trim()).filter(Boolean);
     if (filteredModules.length === 0) {
-      setFeedback({ type: 'danger', text: 'At least one Module Serial Number is required.' });
-      scrollTo(sec3);
+      missing.moduleSerials = 'At least one Module Serial Number is required';
+    }
+
+    if (!latitude.trim()) {
+      missing.inst_latitude = 'Installation Latitude is required';
+    }
+    if (!longitude.trim()) {
+      missing.inst_longitude = 'Installation Longitude is required';
+    }
+
+    if (!isEditMode) {
+      if (!files.module_image) {
+        missing.module_image = 'Farmer with Module Image is required';
+      }
+      if (!files.inverter_vfd_image) {
+        missing.inverter_vfd_image = 'Farmer with VFD & Inverter Image is required';
+      }
+      if (!files.running_water_image) {
+        missing.running_water_image = 'Farmer with Running Water Image is required';
+      }
+    }
+
+    if (Object.keys(missing).length > 0) {
+      setFieldErrors(missing);
+      const msg = formatMissingRequiredMsg(missing);
+      setFeedback({ type: 'danger', text: msg });
+      scrollToFirstError();
       return;
     }
 
@@ -633,37 +692,15 @@ export function Assam_Installation_SWP_Site() {
     const uniqueSerials = new Set(filteredModules);
     if (uniqueSerials.size !== filteredModules.length) {
       setFeedback({ type: 'danger', text: 'Duplicate Module Serial Numbers entered in the form.' });
+      setFieldErrors((prev) => ({ ...prev, moduleSerials: 'Duplicate Module Serial Numbers entered' }));
       scrollTo(sec3);
       return;
-    }
-
-    if (!latitude.trim() || !longitude.trim()) {
-      setFeedback({ type: 'danger', text: 'GPS Latitude and Longitude are required.' });
-      scrollTo(sec4);
-      return;
-    }
-
-    if (!isEditMode) {
-      if (!files.module_image) {
-        setFeedback({ type: 'danger', text: 'Farmer with Module Image is required.' });
-        scrollTo(sec5);
-        return;
-      }
-      if (!files.inverter_vfd_image) {
-        setFeedback({ type: 'danger', text: 'Farmer with VFD and Inverter Image is required.' });
-        scrollTo(sec5);
-        return;
-      }
-      if (!files.running_water_image) {
-        setFeedback({ type: 'danger', text: 'Farmer with Running Water Image is required.' });
-        scrollTo(sec5);
-        return;
-      }
     }
 
     try {
       setSubmitting(true);
       setFeedback(null);
+      setFieldErrors({});
 
       const fd = new FormData();
       fd.append('site_id', selectedSiteId);
@@ -713,7 +750,10 @@ export function Assam_Installation_SWP_Site() {
       }, 1500);
     } catch (err: any) {
       console.error('[Assam SWP Installation] submit error:', err);
-      setFeedback({ type: 'danger', text: err?.message || 'Failed to submit SWP installation.' });
+      const extracted = extractBackendError(err, 'Failed to submit SWP installation.');
+      setFieldErrors(extracted.fieldErrors);
+      setFeedback({ type: 'danger', text: extracted.message });
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -826,9 +866,18 @@ export function Assam_Installation_SWP_Site() {
                   <>
                     <select
                       id="site_id_select"
-                      className="ax-float__input"
+                      className={`ax-float__input ${fieldErrors.selectedSiteId || fieldErrors.site_id ? 'is-invalid' : ''}`}
+                      aria-invalid={fieldErrors.selectedSiteId || fieldErrors.site_id ? 'true' : 'false'}
                       value={selectedSiteId}
-                      onChange={(e) => handleSiteSelect(e.target.value)}
+                      onChange={(e) => {
+                        handleSiteSelect(e.target.value);
+                        setFieldErrors((prev) => {
+                          const n = { ...prev };
+                          delete n.selectedSiteId;
+                          delete n.site_id;
+                          return n;
+                        });
+                      }}
                       disabled={loadingSites || submitting}
                       required
                     >
@@ -842,6 +891,11 @@ export function Assam_Installation_SWP_Site() {
                     <label htmlFor="site_id_select" className="ax-float__label floating">
                       Assigned Site <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
                     </label>
+                    {(fieldErrors.selectedSiteId || fieldErrors.site_id) && (
+                      <span className="ax-field-feedback--error" style={{ color: 'var(--ax-danger, #ef4444)', fontSize: '11px', marginTop: '3px', display: 'block' }}>
+                        {fieldErrors.selectedSiteId || fieldErrors.site_id}
+                      </span>
+                    )}
                   </>
                 )}
               </div>
@@ -901,14 +955,32 @@ export function Assam_Installation_SWP_Site() {
                 label="Inverter Number"
                 name="inverter_no"
                 value={inverterNo}
-                onChange={(e) => setInverterNo(e.target.value)}
+                onChange={(e) => {
+                  setInverterNo(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.inverter_no;
+                    delete n.inverterNo;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.inverter_no || fieldErrors.inverterNo}
                 required
               />
               <FloatingInput
                 label="VFD Serial Number"
                 name="vfd_no"
                 value={vfdNo}
-                onChange={(e) => setVfdNo(e.target.value)}
+                onChange={(e) => {
+                  setVfdNo(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.vfd_no;
+                    delete n.vfdNo;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.vfd_no || fieldErrors.vfdNo}
                 required
               />
             </div>
@@ -923,6 +995,11 @@ export function Assam_Installation_SWP_Site() {
                   <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)' }}>
                     Add each installed panel module serial number individually
                   </span>
+                  {(fieldErrors.moduleSerials || fieldErrors.module_serial_no) && (
+                    <span className="ax-field-feedback--error" style={{ color: 'var(--ax-danger, #ef4444)', fontSize: '11px', marginTop: '3px', display: 'block' }}>
+                      {fieldErrors.moduleSerials || fieldErrors.module_serial_no}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -942,7 +1019,17 @@ export function Assam_Installation_SWP_Site() {
                         label={`Module ${idx + 1} Serial`}
                         name={`module_serial_${idx}`}
                         value={serial}
-                        onChange={(e) => handleModuleChange(idx, e.target.value)}
+                        onChange={(e) => {
+                          handleModuleChange(idx, e.target.value);
+                          setFieldErrors((prev) => {
+                            const n = { ...prev };
+                            delete n.moduleSerials;
+                            delete n.module_serial_no;
+                            delete n[`module_serial_${idx}`];
+                            return n;
+                          });
+                        }}
+                        error={fieldErrors[`module_serial_${idx}`]}
                         required
                       />
                     </div>
@@ -977,7 +1064,7 @@ export function Assam_Installation_SWP_Site() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -989,14 +1076,20 @@ export function Assam_Installation_SWP_Site() {
                 label="Installation Latitude"
                 name="inst_latitude"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Latitude"
+                error={fieldErrors.inst_latitude || fieldErrors.latitude}
                 required
               />
               <FloatingInput
                 label="Installation Longitude"
                 name="inst_longitude"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Longitude"
+                error={fieldErrors.inst_longitude || fieldErrors.longitude}
                 required
               />
               <FloatingInput
@@ -1028,9 +1121,15 @@ export function Assam_Installation_SWP_Site() {
                 required={!isEditMode}
                 file={files.module_image}
                 preview={previews.module_image}
+                error={fieldErrors.module_image}
                 onSelect={(f) => {
                   setFiles((prev) => ({ ...prev, module_image: f }));
                   setPreviews((prev) => ({ ...prev, module_image: URL.createObjectURL(f) }));
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.module_image;
+                    return n;
+                  });
                 }}
                 onRemove={() => removeFile('module_image')}
               />
@@ -1041,9 +1140,15 @@ export function Assam_Installation_SWP_Site() {
                 required={!isEditMode}
                 file={files.inverter_vfd_image}
                 preview={previews.inverter_vfd_image}
+                error={fieldErrors.inverter_vfd_image}
                 onSelect={(f) => {
                   setFiles((prev) => ({ ...prev, inverter_vfd_image: f }));
                   setPreviews((prev) => ({ ...prev, inverter_vfd_image: URL.createObjectURL(f) }));
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.inverter_vfd_image;
+                    return n;
+                  });
                 }}
                 onRemove={() => removeFile('inverter_vfd_image')}
               />
@@ -1054,9 +1159,15 @@ export function Assam_Installation_SWP_Site() {
                 required={!isEditMode}
                 file={files.running_water_image}
                 preview={previews.running_water_image}
+                error={fieldErrors.running_water_image}
                 onSelect={(f) => {
                   setFiles((prev) => ({ ...prev, running_water_image: f }));
                   setPreviews((prev) => ({ ...prev, running_water_image: URL.createObjectURL(f) }));
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.running_water_image;
+                    return n;
+                  });
                 }}
                 onRemove={() => removeFile('running_water_image')}
               />

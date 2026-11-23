@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { authService } from '../../../../../services/authService';
@@ -10,6 +10,11 @@ import {
   type KarnatakaSiteDetailItem,
 } from '../../karnataka-services';
 import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout with Floating Labels & Section Dividers (matching exact reference)
 const SINGLE_CARD_FORM_CSS = `
@@ -155,6 +160,8 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   placeholder?: string;
   onCameraClick?: () => void;
@@ -167,6 +174,8 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   placeholder,
   onCameraClick,
@@ -186,9 +195,13 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
@@ -803,12 +816,14 @@ export function KarnatakaInstallationSite() {
   };
 
   // Auto-detect GPS
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
+    if (!silent) setFeedback(null);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setInstLatitude(pos.coords.latitude.toFixed(6));
@@ -817,12 +832,18 @@ export function KarnatakaInstallationSite() {
       },
       (err) => {
         console.warn('Geolocation error:', err);
-        alert('Could not retrieve GPS coordinates. Please ensure location permissions are enabled.');
         setGettingLocation(false);
+        if (!silent) {
+          alert('Could not retrieve GPS coordinates. Please ensure location permissions are enabled.');
+        }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSiteId]);
 
   // Form Submit Handler (API 4 for Store, API 7 for Update)
   const handleSubmit = async (e: FormEvent) => {
@@ -830,41 +851,30 @@ export function KarnatakaInstallationSite() {
     setFeedback(null);
     setFieldErrors({});
 
+    const missingErrors: Record<string, string> = {};
     const siteNumericId = Number(selectedSiteId);
     if (!siteNumericId) {
-      setFeedback({ type: 'error', text: 'Please select an assigned installation site.' });
-      scrollTo(sec1);
-      return;
+      missingErrors.site_id = 'Installation site selection is required';
     }
 
     // Required image validation for new installations
     if (!isEditMode) {
-      if (!moduleImage) {
-        setFeedback({ type: 'error', text: 'Solar Module photograph is required.' });
-        scrollTo(sec5);
-        return;
-      }
-      if (!controllerImage) {
-        setFeedback({ type: 'error', text: 'Controller photograph is required.' });
-        scrollTo(sec5);
-        return;
-      }
-      if (!structureImage) {
-        setFeedback({ type: 'error', text: 'Structure photograph is required.' });
-        scrollTo(sec5);
-        return;
-      }
-      if (!runningWaterImage) {
-        setFeedback({ type: 'error', text: 'Running Water photograph is required.' });
-        scrollTo(sec5);
-        return;
-      }
+      if (!moduleImage) missingErrors.module_image = 'Solar Module photograph is required';
+      if (!controllerImage) missingErrors.controller_image = 'Controller photograph is required';
+      if (!structureImage) missingErrors.structure_image = 'Structure photograph is required';
+      if (!runningWaterImage) missingErrors.running_water_image = 'Running Water photograph is required';
     }
 
     const cleanSerials = moduleSerials.map((s) => s.trim()).filter(Boolean);
     if (cleanSerials.length === 0) {
-      setFeedback({ type: 'error', text: 'Please enter at least one Solar Module serial number.' });
-      scrollTo(sec3);
+      missingErrors.module_serial = 'At least one Solar Module serial number is required';
+    }
+
+    if (Object.keys(missingErrors).length > 0) {
+      setFieldErrors(missingErrors);
+      const msg = formatMissingRequiredMsg(missingErrors);
+      setFeedback({ type: 'error', text: msg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -917,18 +927,15 @@ export function KarnatakaInstallationSite() {
       }, 1200);
     } catch (err: any) {
       console.error('[Karnataka SWP Installation] submit error:', err);
-      if (err?.errors) {
-        const errs: Record<string, string> = {};
-        Object.entries(err.errors).forEach(([k, v]) => {
-          errs[k] = Array.isArray(v) ? v.join(', ') : String(v);
-        });
-        setFieldErrors(errs);
+      const extracted = extractBackendError(err, 'Failed to submit Karnataka SWP installation.');
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setFieldErrors(extracted.fieldErrors);
       }
       setFeedback({
         type: 'error',
-        text: err?.message || 'Failed to submit Karnataka SWP installation.',
+        text: extracted.message,
       });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => scrollToFirstError(), 50);
     } finally {
       setSubmitting(false);
     }
@@ -1239,7 +1246,7 @@ export function KarnatakaInstallationSite() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1252,16 +1259,20 @@ export function KarnatakaInstallationSite() {
                 label="Installation Latitude"
                 name="inst_latitude"
                 value={instLatitude}
-                onChange={(e) => setInstLatitude(e.target.value)}
-                placeholder="e.g. 15.3173"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Latitude"
                 required
               />
               <FloatingInput
                 label="Installation Longitude"
                 name="inst_longitude"
                 value={instLongitude}
-                onChange={(e) => setInstLongitude(e.target.value)}
-                placeholder="e.g. 75.7139"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Longitude"
                 required
               />
               <FloatingInput

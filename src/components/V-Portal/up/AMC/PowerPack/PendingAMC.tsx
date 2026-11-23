@@ -6,7 +6,7 @@ export function UP_AMC_PowerPack_PendingAMC() {
     const res = await upPowerPackAmcApi.getYears();
     const arr = Array.isArray(res) ? res : res?.data;
     if (Array.isArray(arr) && arr.length > 0) return arr;
-    return [new Date().getFullYear()];
+    return [];
   };
 
   const fetchMonths = async (year: number) => {
@@ -16,7 +16,8 @@ export function UP_AMC_PowerPack_PendingAMC() {
     return [];
   };
 
-  const fetchSites = async (year: number) => {
+  const fetchSites = async (year?: number) => {
+    if (!year) return [];
     const res = await upPowerPackAmcApi.getSites(year);
     const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
     if (Array.isArray(arr)) {
@@ -35,7 +36,7 @@ export function UP_AMC_PowerPack_PendingAMC() {
     if (p) {
       return {
         ...p,
-        state: p.state || 'UP',
+        state: p.state || '',
         district: p.district || '',
         village: p.village || p.block || '',
         beneficiary_name: p.beneficiary_name || '',
@@ -46,7 +47,7 @@ export function UP_AMC_PowerPack_PendingAMC() {
         address: p.address || p.location || '',
         volume: p.capacity || p.plant_capacity || p.volume || '',
         contractor_name: p.contractor_name || '',
-        amc_type: p.amc_type || 'Monthly',
+        amc_type: p.amc_type || '',
         pending_months: res?.pending_months || p?.pending_months || [],
         schedule: res?.schedule || p?.schedule || [],
         current_due: res?.current_due || p?.current_due || null,
@@ -72,7 +73,6 @@ export function UP_AMC_PowerPack_PendingAMC() {
       ]}
       viewLink="/v/up/powerpack/amc/completed-details"
       viewLabel="View Completed AMC"
-      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchMonths={fetchMonths}
       onFetchSites={fetchSites}

@@ -128,6 +128,11 @@ export interface KashmirAssignSiteItem {
     id: number;
     state?: string;
     vendor?: number | string;
+    vendors?: {
+      id?: number;
+      name?: string;
+      [key: string]: any;
+    };
     district?: string;
     sitecount?: number;
     site_name?: string | number[];
@@ -145,6 +150,11 @@ export interface KashmirAssignSiteItem {
     [key: string]: any;
   }[];
   vendor_name?: string;
+  vendors?: {
+    id?: number;
+    name?: string;
+    [key: string]: any;
+  };
 }
 
 export interface KashmirInstalledSiteItem {
@@ -389,7 +399,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load status data: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 3. Dashboard Districtwise: GET kashmir/srt/70mw-installation-districtwise/{status}/{district}
@@ -400,7 +439,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load district status data: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 4. Assigned Sites: GET kashmir/srt/70mw/installation/assign-site
@@ -411,7 +479,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load assigned sites: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 5. Accept Assignment: POST / ANY kashmir/srt/70mw/installation/assign-site-status
@@ -438,7 +535,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to fetch sites: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 7. Fetch Site Detail: GET kashmir/srt/70mw/installation/fetch-site-detail?srt_id={srt_id}
@@ -590,7 +716,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load claim requests: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 14. Raise Installation Claim: POST kashmir/srt70mw/install-claim-raised (multipart)
@@ -630,7 +785,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load assigned survey sites: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 17. Survey View: GET kashmir/srt70mw/survey-view
@@ -652,7 +836,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load pending survey sites: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 19. Survey Site Detail: GET kashmir/srt70mw/survey-fetch-site-detail?srt_id={srt_id}
@@ -716,7 +929,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load expenses: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 24. Expense Create Sites: GET kashmir/srt70mw/installation-expenses-create
@@ -727,7 +969,36 @@ class KashmirSrtService {
     });
     if (!res.ok) throw new Error(`Failed to load sites for expense claim: ${res.statusText}`);
     const json = await res.json();
-    return json.data ?? [];
+    const list = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.data?.claims)
+      ? json.data.claims
+      : Array.isArray(json?.data?.srt)
+      ? json.data.srt
+      : Array.isArray(json)
+      ? json
+      : [];
+    return list.map((item: any) => {
+      const a = item.assign_srt || ({} as any);
+      const vObj = a.vendors || item.vendors || a.vendor || item.vendor;
+      let vName = '';
+      if (vObj && typeof vObj === 'object') {
+        if (Array.isArray(vObj) && vObj[0]?.name) vName = String(vObj[0].name).trim();
+        else if (vObj.name) vName = String(vObj.name).trim();
+      }
+      if (!vName) {
+        vName = String(
+          item.vendor_name ||
+          a.vendor_name ||
+          (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '') ||
+          ''
+        ).trim();
+      }
+      return {
+        ...item,
+        vendor_name: vName || item.vendor_name,
+      };
+    });
   }
 
   // 25. Submit Expense Claim: POST kashmir/srt70mw/installation-expenses-store (multipart)

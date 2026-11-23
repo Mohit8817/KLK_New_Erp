@@ -19,6 +19,11 @@ import {
 } from '../../bihar-services';
 import { SkeletonLine, SkeletonRect } from '../../../../../common/skeletons/SkeletonPrimitives';
 import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout matching Karnataka SWP Site Reference
 const SINGLE_CARD_FORM_CSS = `
@@ -619,11 +624,16 @@ export function Bihar_Installation_SSL_InstallLight() {
       },
       (err) => {
         setGpsDetecting(false);
-        setGpsStatusMsg(`Unable to lock GPS: ${err.message}. Please enter coordinates manually.`);
+        setGpsStatusMsg(`Unable to lock GPS: ${err.message}.`);
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
   }, []);
+
+  // Auto-detect GPS coordinates on mount or light selection
+  useEffect(() => {
+    handleDetectGps();
+  }, [selectedUniqueId, handleDetectGps]);
 
   // Photo handlers
   const handleFileChange = (file: File) => {
@@ -705,12 +715,14 @@ export function Bihar_Installation_SSL_InstallLight() {
 
     const firstKey = ORDER.find((k) => newErrors[k]);
     if (firstKey) {
-      setErrorMsg(newErrors[firstKey]);
+      const missingMsg = formatMissingRequiredMsg(newErrors);
+      setErrorMsg(missingMsg);
       if (firstKey === 'unique_id') scrollTo(sec1);
       else if (firstKey === 'wardNo' || firstKey === 'poleNo' || firstKey === 'beneficiaryName' || firstKey === 'contactNo') scrollTo(sec2);
       else if (firstKey === 'uuidNo' || firstKey === 'batteryNo' || firstKey === 'panelNo' || firstKey === 'lightNo') scrollTo(sec3);
       else if (firstKey === 'latitude' || firstKey === 'longitude') scrollTo(sec4);
       else if (firstKey === 'light_file') scrollTo(sec5);
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -758,9 +770,12 @@ export function Bihar_Installation_SSL_InstallLight() {
       }
     } catch (err: any) {
       console.error('[InstallLight] submit error:', err);
-      const msg = err?.message || 'Failed to submit installation details.';
-      setErrorMsg(msg);
-      if (typeof msg === 'string' && msg.toLowerCase().includes('master')) {
+      const extracted = extractBackendError(err, 'Failed to submit installation details.');
+      setErrorMsg(extracted.message);
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      } else if (typeof extracted.message === 'string' && extracted.message.toLowerCase().includes('master')) {
         setErrors((prev) => ({
           ...prev,
           uuidNo: 'UUID No. must be registered in ERP Master',
@@ -768,8 +783,10 @@ export function Bihar_Installation_SSL_InstallLight() {
           panelNo: 'Module No. must be registered in ERP Master',
           lightNo: 'Light No. must be registered in ERP Master',
         }));
+        setTimeout(() => scrollToFirstError(), 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
     }
@@ -1157,9 +1174,9 @@ export function Bihar_Installation_SSL_InstallLight() {
                 label="Installation Latitude"
                 name="latitude"
                 value={form.latitude}
-                onChange={(e) => setField('latitude', e.target.value)}
-                onBlur={() => handleBlur('latitude')}
-                placeholder="e.g. 25.6093"
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Latitude"
                 required
                 error={touched.latitude || submitted ? errors.latitude : undefined}
               />
@@ -1168,9 +1185,9 @@ export function Bihar_Installation_SSL_InstallLight() {
                 label="Installation Longitude"
                 name="longitude"
                 value={form.longitude}
-                onChange={(e) => setField('longitude', e.target.value)}
-                onBlur={() => handleBlur('longitude')}
-                placeholder="e.g. 85.1376"
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Longitude"
                 required
                 error={touched.longitude || submitted ? errors.longitude : undefined}
               />
@@ -1354,11 +1371,13 @@ interface FloatingInputProps {
   onBlur?: () => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   type?: string;
   maxLength?: number;
   placeholder?: string;
   onCameraClick?: () => void;
   error?: string;
+  style?: React.CSSProperties;
 }
 
 function FloatingInput({
@@ -1369,11 +1388,13 @@ function FloatingInput({
   onBlur,
   required,
   disabled,
+  readOnly,
   type = 'text',
   maxLength,
   placeholder,
   onCameraClick,
   error,
+  style,
 }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
@@ -1394,10 +1415,16 @@ function FloatingInput({
         }}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+          ...style,
+        }}
       />
+     
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
       </label>

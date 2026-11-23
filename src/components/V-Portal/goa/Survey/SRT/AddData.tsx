@@ -300,9 +300,9 @@ export function Goa_Survey_SRT_AddData() {
   }, [selectedSiteId, editId]);
 
   // GPS detection
-  const handleGetLocation = () => {
+  const handleGetLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGeoLocating(true);
@@ -316,12 +316,18 @@ export function Goa_Survey_SRT_AddData() {
         setGeoLocating(false);
       },
       (err) => {
-        alert(`Location retrieval failed: ${err.message}`);
+        console.warn('Geolocation error:', err);
+        if (!silent) alert(`Location retrieval failed: ${err.message}`);
         setGeoLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    handleGetLocation(true);
+  }, [selectedSiteId]);
 
   // Validation
   const validate = () => {
@@ -575,14 +581,14 @@ export function Goa_Survey_SRT_AddData() {
                 desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
               />
               <div className="goa-form-grid goa-form-grid--3col">
-                <FloatingInput id="goa-lat" label="Latitude" required placeholder="e.g. 15.2993" {...f('latitude')} />
-                <FloatingInput id="goa-lng" label="Longitude" required placeholder="e.g. 74.1240" {...f('longitude')} />
+                <FloatingInput id="goa-lat" label="Latitude" required readOnly placeholder="Auto-detected GPS Latitude" {...f('latitude')} onChange={() => {}} />
+                <FloatingInput id="goa-lng" label="Longitude" required readOnly placeholder="Auto-detected GPS Longitude" {...f('longitude')} onChange={() => {}} />
                 <div>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary goa-gps-cell"
                     style={{ width: '100%' }}
-                    onClick={handleGetLocation}
+                    onClick={() => handleGetLocation(false)}
                     disabled={geoLocating}
                   >
                     <span className="ax-btn__label">{geoLocating ? 'Detecting GPS...' : '📍 Get GPS'}</span>

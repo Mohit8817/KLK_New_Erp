@@ -242,9 +242,9 @@ export function Goa_AMC_SRT_AddData() {
   }, [selectedSiteId]);
 
   // GPS detection
-  const handleDetectGPS = () => {
+  const handleDetectGPS = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGeoLocating(true);
@@ -257,12 +257,18 @@ export function Goa_AMC_SRT_AddData() {
         setGeoLocating(false);
       },
       (err) => {
-        alert(`Failed to detect location: ${err.message}`);
+        console.warn('Geolocation error:', err);
+        if (!silent) alert(`Failed to detect location: ${err.message}`);
         setGeoLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    handleDetectGPS(true);
+  }, [selectedSiteId]);
 
   // Image handler
   const handleFileChange = (index: number, file: File | null) => {
@@ -600,18 +606,20 @@ export function Goa_AMC_SRT_AddData() {
                   id="goa-amc-lat"
                   label="Amc Latitude"
                   required
-                  placeholder="e.g. 15.2993"
+                  readOnly
+                  placeholder="Auto-detected GPS Latitude"
                   value={latitude}
-                  onChange={(v) => { setLatitude(v); clearError('amc_latitude'); }}
+                  onChange={() => {}}
                   error={errors.amc_latitude}
                 />
                 <FloatingInput
                   id="goa-amc-lng"
                   label="Amc Longitude"
                   required
-                  placeholder="e.g. 74.1240"
+                  readOnly
+                  placeholder="Auto-detected GPS Longitude"
                   value={longitude}
-                  onChange={(v) => { setLongitude(v); clearError('amc_longitude'); }}
+                  onChange={() => {}}
                   error={errors.amc_longitude}
                 />
                 <div>
@@ -619,7 +627,7 @@ export function Goa_AMC_SRT_AddData() {
                     type="button"
                     className="ax-btn ax-btn--secondary goa-gps-cell"
                     style={{ width: '100%' }}
-                    onClick={handleDetectGPS}
+                    onClick={() => handleDetectGPS(false)}
                     disabled={geoLocating}
                   >
                     <span className="ax-btn__label">{geoLocating ? 'Detecting GPS...' : '📍 Get GPS'}</span>

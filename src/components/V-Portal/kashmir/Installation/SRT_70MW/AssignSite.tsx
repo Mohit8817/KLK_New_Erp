@@ -17,10 +17,11 @@ import {
 import {
   kashmirSrtService,
   getKashmirMediaUrl,
+  getKashmirMediaCandidates,
   type KashmirAssignSiteItem,
 } from '../../kashmir-services';
 
-/* ───────── Responsive page CSS (Exact Karnataka SWP style) ───────── */
+/* ───────── Responsive page CSS (Exact UP RESCO / Karnataka SWP style) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -33,13 +34,6 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  .solar-erp-page img,
-  .solar-erp-page .ula-table--wide img,
-  .solar-erp-page .ax-card img {
-    border-radius: 0 !important;
-  }
-
-  /* Responsive 4 KPI cards in 1 row */
   .solar-erp-page .asw-cards-row {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -199,7 +193,7 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── Overlay CSS (modals) ───────── */
+/* ───────── Overlay CSS (modals & lightbox) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -241,6 +235,7 @@ const OVERLAY_CSS = `
   }
 `;
 
+const DASH = '—';
 const actionsRowStyle = {
   gap: 'var(--ax-space-2)',
   flexWrap: 'wrap',
@@ -263,7 +258,7 @@ const centerCell = { textAlign: 'center', padding: 24 } as const;
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`} style={{ fontWeight: 600 }}>{children}</span>
 );
 
 const X_ICON = (
@@ -279,6 +274,13 @@ const X_ICON = (
   >
     <path d="M18 6l-12 12" />
     <path d="M6 6l12 12" />
+  </svg>
+);
+
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
   </svg>
 );
 
@@ -339,7 +341,219 @@ function Modal({
   );
 }
 
-/* ── Top Metric KPI Card Component (matching Karnataka SWP style) ── */
+/* ── Modern Image Placeholder & Interactive Lightbox (Matching UP RESCO pattern) ── */
+function ImagePlaceholder({
+  size = 36,
+  label = 'No photo uploaded',
+}: {
+  size?: number;
+  label?: string;
+}) {
+  return (
+    <div
+      className="ax-img-placeholder"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 6,
+        border: '1px dashed var(--ax-border, #cbd5e1)',
+        background: 'var(--ax-surface-subtle, #f8fafc)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--ax-text-muted, #94a3b8)',
+        flexShrink: 0,
+        cursor: 'default',
+        userSelect: 'none',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        transition: 'all 0.18s ease',
+      }}
+      title={label}
+      aria-label={label}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={Math.max(14, Math.round(size * 0.48))}
+        height={Math.max(14, Math.round(size * 0.48))}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        style={{ opacity: 0.7 }}
+      >
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+    </div>
+  );
+}
+
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 100000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{ maxWidth: 840, width: '92vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{title || 'Image Preview'}</h3>
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            {X_ICON}
+          </button>
+        </div>
+        <div
+          className="ax-modal__body"
+          style={{
+            padding: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f172a',
+            overflow: 'auto',
+            minHeight: 360,
+          }}
+        >
+          <img
+            src={url}
+            alt={title}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '65vh',
+              transform: `scale(${zoom})`,
+              transition: 'transform 0.2s ease',
+              borderRadius: 6,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            }}
+          />
+        </div>
+        <div className="ax-modal__footer" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+              disabled={zoomIdx === 0}
+            >
+              −
+            </button>
+            <span style={{ fontSize: 12, minWidth: 44, textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+              disabled={zoomIdx === ZOOM_STEPS.length - 1}
+            >
+              +
+            </button>
+          </div>
+          <div style={{ display: 'inline-flex', gap: 8 }}>
+            <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost ax-btn--sm">
+              Open in new tab ↗
+            </a>
+            <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getKashmirMediaCandidates(src), [src]);
+  const [candIdx, setCandIdx] = useState(0);
+
+  useEffect(() => {
+    setCandIdx(0);
+  }, [src]);
+
+  if (!src || candidates.length === 0 || candIdx >= candidates.length) {
+    return <ImagePlaceholder size={size} label={`No image — ${alt}`} />;
+  }
+
+  const currentUrl = candidates[candIdx];
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--ax-primary-default, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => setCandIdx((prev) => prev + 1)}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
+
+/* ── Top Metric KPI Card Component (matching UP RESCO pattern) ── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -415,7 +629,7 @@ const getAssignId = (item?: any): number => {
 
 // Date formatter
 const fmtDate = (val?: string | null): string => {
-  if (!val) return '—';
+  if (!val) return DASH;
   try {
     const cleanStr = String(val).trim().replace(' ', 'T');
     const d = new Date(cleanStr);
@@ -424,6 +638,22 @@ const fmtDate = (val?: string | null): string => {
     }
   } catch {}
   return String(val).slice(0, 10);
+};
+
+const isImage = (url?: string | null) =>
+  Boolean(url && /\.(jpe?g|png|webp|gif|svg)(\?.*)?$/i.test(String(url)));
+
+const getFileExt = (url?: string | null) => {
+  if (!url) return 'FILE';
+  const clean = url.split('?')[0];
+  const ext = clean.includes('.') ? clean.split('.').pop() : '';
+  return ext ? ext.toUpperCase() : 'FILE';
+};
+
+const resolveFileUrl = (file?: string | null) => {
+  if (!file) return '';
+  if (/^https?:\/\//i.test(file)) return file;
+  return getKashmirMediaUrl(file) || '';
 };
 
 // Site list extractor for batch
@@ -465,6 +695,44 @@ const isSiteAccepted = (item: KashmirAssignSiteItem): boolean => {
   return Number(status) === 2 || String(status) === '2' || String(status).toLowerCase() === 'accepted';
 };
 
+const getDeadlineDate = (item: KashmirAssignSiteItem | null | undefined): string => {
+  if (!item) return '';
+  if (item.jammu_srt70mws?.[0]?.inst_deadline) return item.jammu_srt70mws[0].inst_deadline;
+  if (item.assign_srt?.deadline_date) return item.assign_srt.deadline_date;
+  const list = getBatchSites(item);
+  const found = list.find((s) => s.inst_deadline || s.deadline_date);
+  return found?.inst_deadline || found?.deadline_date || '';
+};
+
+const getSitesSummaryText = (item: KashmirAssignSiteItem): string => {
+  const sites = getBatchSites(item);
+  if (sites.length > 0) {
+    return sites
+      .map((s) => {
+        const dl = s.inst_deadline || s.deadline_date;
+        return dl ? `${s.site_name || `Site #${s.id}`} (${fmtDate(dl)})` : s.site_name || `Site #${s.id}`;
+      })
+      .join(', ');
+  }
+  return typeof item.assign_srt?.site_name === 'string' ? item.assign_srt.site_name : '';
+};
+
+// Vendor Name Helper (extracts name from assign_srt.vendors.name per API)
+const getVendorName = (item: KashmirAssignSiteItem | null | undefined): string => {
+  if (!item) return '';
+  const a = item.assign_srt || ({} as any);
+  const vObj = a.vendors || (item as any).vendors || a.vendor || (item as any).vendor;
+  if (vObj && typeof vObj === 'object') {
+    if (Array.isArray(vObj) && vObj[0]?.name) return String(vObj[0].name).trim();
+    if (vObj.name) return String(vObj.name).trim();
+  }
+  const direct =
+    item.vendor_name ||
+    a.vendor_name ||
+    (typeof a.vendor === 'string' && isNaN(Number(a.vendor)) ? a.vendor : '');
+  return String(direct || '').trim();
+};
+
 export function Kashmir_Installation_AssignSite() {
   const navigate = useNavigate();
 
@@ -481,6 +749,12 @@ export function Kashmir_Installation_AssignSite() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<KashmirAssignSiteItem | null>(null);
   const [modalSearch, setModalSearch] = useState('');
+
+  // Interactive Lightbox state
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
+  const openPreview = useCallback((url: string, title: string) => {
+    setLightbox({ url, title });
+  }, []);
 
   // Accept Action state
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
@@ -505,6 +779,15 @@ export function Kashmir_Installation_AssignSite() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!acceptSuccessMsg && !acceptErrorMsg) return;
+    const t = window.setTimeout(() => {
+      setAcceptSuccessMsg(null);
+      setAcceptErrorMsg(null);
+    }, 4500);
+    return () => window.clearTimeout(t);
+  }, [acceptSuccessMsg, acceptErrorMsg]);
 
   // Handle View Details
   const handleViewDetail = (item: KashmirAssignSiteItem) => {
@@ -576,6 +859,7 @@ export function Kashmir_Installation_AssignSite() {
     return data.filter((r) => {
       const a = r.assign_srt || ({} as any);
       const accepted = isSiteAccepted(r);
+      const vName = getVendorName(r).toLowerCase();
 
       if (statusFilter === 'pending' && accepted) return false;
       if (statusFilter === 'accepted' && !accepted) return false;
@@ -589,7 +873,7 @@ export function Kashmir_Installation_AssignSite() {
         String(a.id || '').includes(q) ||
         (a.district && a.district.toLowerCase().includes(q)) ||
         (a.state && a.state.toLowerCase().includes(q)) ||
-        (r.vendor_name && r.vendor_name.toLowerCase().includes(q)) ||
+        (vName && vName.includes(q)) ||
         (a.remarks && String(a.remarks).toLowerCase().includes(q)) ||
         (r.jammu_srt70mws && r.jammu_srt70mws.some((s) => s.site_name?.toLowerCase().includes(q)))
       );
@@ -628,30 +912,19 @@ export function Kashmir_Installation_AssignSite() {
     });
   }, [modalSites, modalSearch, activeItem]);
 
-  // Export Columns (13 Columns matching Karnataka table headers)
+  // Export Columns (11 Columns matching UP RESCO table headers)
   const exportCols: ExportColumn<KashmirAssignSiteItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => String(idx + 1) },
-      { header: 'Vendor', accessor: (r) => r.vendor_name || String(r.assign_srt?.vendor || '') },
+      { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
+      { header: 'Batch ID', accessor: (r) => String(r.assign_srt?.id || '') },
+      { header: 'Vendor', accessor: (r) => getVendorName(r) || DASH },
       { header: 'Assign Date', accessor: (r) => fmtDate(r.assign_srt?.assign_date || r.assign_srt?.created_at) },
       { header: 'State', accessor: (r) => (r.assign_srt?.state || 'Kashmir').toUpperCase() },
-      { header: 'District', accessor: (r) => r.assign_srt?.district || '—' },
-      {
-        header: 'Site Name - Deadline',
-        accessor: (r) => {
-          const list = getBatchSites(r);
-          return list
-            .map((s) => `${s.site_name}${s.inst_deadline ? ` (${s.inst_deadline})` : ''}`)
-            .join('; ') || '—';
-        },
-      },
+      { header: 'District', accessor: (r) => r.assign_srt?.district || DASH },
+      { header: 'Sites & Deadlines', accessor: (r) => getSitesSummaryText(r) },
       { header: 'Count', accessor: (r) => String(getSiteCount(r)) },
-      {
-        header: 'Deadline Date',
-        accessor: (r) => fmtDate(r.jammu_srt70mws?.[0]?.inst_deadline || r.assign_srt?.deadline_date),
-      },
-      { header: 'File', accessor: (r) => r.assign_srt?.file || '—' },
-      { header: 'Remarks', accessor: (r) => r.assign_srt?.remarks || '—' },
+      { header: 'Deadline Date', accessor: (r) => fmtDate(getDeadlineDate(r)) },
+      { header: 'Remarks', accessor: (r) => r.assign_srt?.remarks || DASH },
       { header: 'Status', accessor: (r) => (isSiteAccepted(r) ? 'Accepted' : 'Pending Accept') },
     ],
     []
@@ -679,7 +952,7 @@ export function Kashmir_Installation_AssignSite() {
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Header (exact Karnataka pattern) ── */}
+      {/* ── Page Header (matching reference pattern) ── */}
       <PageHead
         title="View Assigned SRT Installation"
         subtitle="Manage assigned installation batches and accept assignments for site execution in Kashmir"
@@ -687,11 +960,21 @@ export function Kashmir_Installation_AssignSite() {
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Kashmir' },
           { label: 'Installation' },
-          { label: 'SRT 70MW' },
+          { label: 'SRT 70MW', href: '/v/kashmir/srt/70mw/installation/dashboard' },
           { label: 'View Assigned SRT Installation' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadData}
+              disabled={loading}
+              title="Refresh assignments"
+            >
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
+              <span className="ax-btn__label">Refresh</span>
+            </button>
             <Link to="/v/kashmir/srt/70mw/installation/site" className="ax-btn ax-btn--primary ax-btn--sm">
               <span className="ax-btn__label">+ Add Installation Site</span>
             </Link>
@@ -702,33 +985,33 @@ export function Kashmir_Installation_AssignSite() {
       {/* Success notification */}
       {acceptSuccessMsg && (
         <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
-          <div className="ax-alert__title">Success</div>
-          <div className="ax-alert__text">{acceptSuccessMsg}</div>
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Success</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{acceptSuccessMsg}</div>
         </div>
       )}
 
       {/* Error notification */}
       {acceptErrorMsg && (
         <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
-          <div className="ax-alert__title">Accept Error</div>
-          <div className="ax-alert__text">{acceptErrorMsg}</div>
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Accept Error</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{acceptErrorMsg}</div>
         </div>
       )}
 
       {error && (
         <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
-          <div className="ax-alert__title">Error Loading Assignments</div>
-          <div className="ax-alert__text">{error}</div>
+          <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Error Loading Assignments</div>
+          <div className="ax-alert__text" style={{ fontSize: '13px' }}>{error}</div>
         </div>
       )}
 
-      {/* ── Top Metric KPI Cards (4 cards in 1 row - exact Karnataka SWP pattern) ── */}
+      {/* ── Top Metric KPI Cards (4 cards in 1 row matching reference pattern) ── */}
       <div className="asw-cards-row">
         <KpiCard
           tone="accent"
           label="Total Assignments"
           value={summary.total.toLocaleString('en-IN')}
-          sub={`${summary.accepted} accepted · ${summary.pending} pending`}
+          sub={districtFilter !== 'all' ? `Filtered in ${districtFilter}` : `${summary.accepted} accepted · ${summary.pending} pending`}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -870,8 +1153,8 @@ export function Kashmir_Installation_AssignSite() {
                     scope="col"
                     style={
                       h === 'Action'
-                        ? { textAlign: 'right', minWidth: 160 }
-                        : h === 'Count' || h === 'View' || h === 'File' || h === 'Sr. No.'
+                        ? { textAlign: 'right', minWidth: 140 }
+                        : h === 'Count' || h === 'View' || h === 'File' || h === 'Sr. No.' || h === 'Status'
                         ? { textAlign: 'center' }
                         : h === 'Vendor'
                         ? { minWidth: 220, maxWidth: 280, width: 250 }
@@ -915,7 +1198,11 @@ export function Kashmir_Installation_AssignSite() {
                   const isAccepted = isSiteAccepted(item);
                   const count = getSiteCount(item);
                   const sitesList = getBatchSites(item);
-                  const firstDeadline = (item.jammu_srt70mws && item.jammu_srt70mws[0]?.inst_deadline) || a.deadline_date;
+                  const deadlineDate = getDeadlineDate(item);
+                  const fileUrl = resolveFileUrl(a.file);
+                  const fileExt = getFileExt(a.file);
+                  const vendorName = getVendorName(item);
+                  const vendorLabel = vendorName || DASH;
 
                   return (
                     <tr key={a.id || index} className="ax-table__row">
@@ -930,41 +1217,7 @@ export function Kashmir_Installation_AssignSite() {
                         style={{ minWidth: 220, maxWidth: 280, whiteSpace: 'normal', wordBreak: 'break-word' }}
                       >
                         <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)', wordBreak: 'break-word' }}>
-                          {item.vendor_name ? (
-                            item.vendor_name
-                          ) : a.vendor ? (
-                            <>
-                              {a.vendor}
-                          
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 4, lineHeight: 1.4 }}>
-                        
-                          {sitesList.length > 0 && (
-                            <div style={{ marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-                              {sitesList.length > 3 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleViewDetail(item)}
-                                  style={{
-                                    border: 'none',
-                                    background: 'none',
-                                    padding: 0,
-                                    fontSize: '11px',
-                                    color: 'var(--asw-primary, #2563eb)',
-                                    cursor: 'pointer',
-                                    textDecoration: 'underline',
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  View all
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          {vendorName || DASH}
                         </div>
                       </td>
 
@@ -974,13 +1227,13 @@ export function Kashmir_Installation_AssignSite() {
                       </td>
 
                       {/* 4. State */}
-                      <td className="ax-table__td" style={{ fontSize: '13px', fontWeight: 500 }}>
+                      <td className="ax-table__td" style={{ fontSize: '13px', fontWeight: 600 }}>
                         {(a.state || 'Kashmir').toUpperCase()}
                       </td>
 
                       {/* 5. District */}
                       <td className="ax-table__td">
-                        <b>{a.district || '—'}</b>
+                        <b>{a.district || DASH}</b>
                         {a.volume && (
                           <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
                             Vol: {a.volume}
@@ -1031,7 +1284,7 @@ export function Kashmir_Installation_AssignSite() {
                             )}
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>—</span>
+                          <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>{DASH}</span>
                         )}
                       </td>
 
@@ -1044,24 +1297,31 @@ export function Kashmir_Installation_AssignSite() {
 
                       {/* 8. Deadline Date */}
                       <td className="ax-table__td" style={{ fontSize: '13px' }}>
-                        {fmtDate(firstDeadline)}
+                        {fmtDate(deadlineDate)}
                       </td>
 
-                      {/* 9. File */}
+                      {/* 9. File (Thumbnail if Image, else File Link - matching UP RESCO) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {a.file ? (
+                        {a.file && isImage(a.file) ? (
+                          <InstallationThumbnail
+                            src={a.file}
+                            alt={`${vendorLabel} - File Photo`}
+                            onPreview={openPreview}
+                            size={36}
+                          />
+                        ) : fileUrl ? (
                           <a
-                            href={getKashmirMediaUrl(a.file)}
+                            href={fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ax-btn ax-btn--ghost ax-btn--sm"
                             style={{ color: 'var(--asw-primary, #2563eb)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
-                            title="View / Download Assignment File"
+                            title="View / Download Assigned Site File"
                           >
-                            📎 File ↗
+                            📎 {fileExt} ↗
                           </a>
                         ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
+                          <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
                         )}
                       </td>
 
@@ -1082,11 +1342,11 @@ export function Kashmir_Installation_AssignSite() {
                         style={{ maxWidth: 160, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                         title={a.remarks || ''}
                       >
-                        {a.remarks || '—'}
+                        {a.remarks || DASH}
                       </td>
 
                       {/* 12. Status */}
-                      <td className="ax-table__td">
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {isAccepted ? (
                           <Badge tone="success">✓ Accepted</Badge>
                         ) : (
@@ -1107,7 +1367,7 @@ export function Kashmir_Installation_AssignSite() {
                               {acceptingId === a.id ? 'Accepting…' : 'Accept'}
                             </button>
                           ) : (
-                            <Badge tone="success">Done</Badge>
+                            <Badge tone="success">✓ Done</Badge>
                           )}
                         </div>
                       </td>
@@ -1136,22 +1396,22 @@ export function Kashmir_Installation_AssignSite() {
         </div>
       </section>
 
-      {/* ── Assignment Details Modal (exact Karnataka SWP pattern) ── */}
+      {/* ── Assignment Details Modal (Exact UP RESCO Pattern) ── */}
       <Modal
         open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         title={activeItem ? `Assignment Details · #${activeItem.assign_srt?.id || activeItem.id}` : 'Assignment Details'}
-        subtitle="Individual site and assignment configuration details"
+        subtitle="Individual site allocation and assignment configuration details"
         maxWidth={1100}
         footer={
           activeItem && !isSiteAccepted(activeItem) ? (
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' }}>
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setDetailModalOpen(false)}>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setDetailModalOpen(false)}>
                 Close
               </button>
               <button
                 type="button"
-                className="ax-btn ax-btn--primary"
+                className="ax-btn ax-btn--primary ax-btn--sm"
                 onClick={async () => {
                   const ok = await handleAccept(activeItem);
                   if (ok) setDetailModalOpen(false);
@@ -1162,61 +1422,57 @@ export function Kashmir_Installation_AssignSite() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' }}>
-              <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setDetailModalOpen(false)}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setDetailModalOpen(false)}>
                 Close
               </button>
-              {activeItem && (
-                <Link
-                  to={`/v/kashmir/srt/70mw/installation/site?assign_id=${activeItem.assign_srt?.id || activeItem.id}`}
-                  className="ax-btn ax-btn--primary"
-                  onClick={() => setDetailModalOpen(false)}
-                  style={{ textDecoration: 'none' }}
-                >
-                  + Install Site
-                </Link>
-              )}
             </div>
           )
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Top Info Banner */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Top metadata info card */}
           <div
             style={{
               display: 'flex',
               flexWrap: 'wrap',
               gap: 16,
-              padding: '12px 16px',
+              padding: '12px 18px',
               background: 'var(--ax-surface-subtle, #f8fafc)',
               borderRadius: 8,
               border: '1px solid var(--ax-border, #e2e8f0)',
-              fontSize: '13px',
+              fontSize: 12.5,
             }}
           >
             <div>
               <span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span>
-              <strong>{activeItem?.vendor_name || `${activeItem?.assign_srt?.vendor || '—'}`}</strong>
-            </div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span>
-              <strong>{fmtDate(activeItem?.assign_srt?.assign_date || activeItem?.assign_srt?.created_at)}</strong>
-            </div>
-            <div>
-              <span style={{ color: 'var(--ax-text-muted)' }}>State: </span>
-              <strong>{(activeItem?.assign_srt?.state || 'Kashmir').toUpperCase()}</strong>
+              <b>{getVendorName(activeItem) || DASH}</b>
             </div>
             <div>
               <span style={{ color: 'var(--ax-text-muted)' }}>District: </span>
-              <strong>{activeItem?.assign_srt?.district || '—'}</strong>
+              <b>{activeItem?.assign_srt?.district || DASH}</b>
+            </div>
+            <div>
+              <span style={{ color: 'var(--ax-text-muted)' }}>State: </span>
+              <b>{(activeItem?.assign_srt?.state || 'Kashmir').toUpperCase()}</b>
+            </div>
+            <div>
+              <span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span>
+              <b>{fmtDate(activeItem?.assign_srt?.assign_date || activeItem?.assign_srt?.created_at)}</b>
+            </div>
+            <div>
+              <span style={{ color: 'var(--ax-text-muted)' }}>Deadline: </span>
+              <b>{fmtDate(getDeadlineDate(activeItem))}</b>
             </div>
             <div>
               <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
-              {activeItem && isSiteAccepted(activeItem) ? (
-                <Badge tone="success">✓ Accepted</Badge>
-              ) : (
-                <Badge tone="warning">Pending Accept</Badge>
-              )}
+              <Badge tone={activeItem && isSiteAccepted(activeItem) ? 'success' : 'warning'}>
+                {activeItem && isSiteAccepted(activeItem) ? '✓ Accepted' : 'Pending Accept'}
+              </Badge>
+            </div>
+            <div>
+              <span style={{ color: 'var(--ax-text-muted)' }}>Total Sites: </span>
+              <b style={{ color: 'var(--asw-primary)' }}>{activeItem ? getSiteCount(activeItem) : 0}</b>
             </div>
           </div>
 
@@ -1233,7 +1489,7 @@ export function Kashmir_Installation_AssignSite() {
               type="text"
               className="ax-input ax-input--sm"
               style={{ width: 280, height: 32 }}
-              placeholder="Search site name, deadline, ID…"
+              placeholder="Search site name, deadline…"
               value={modalSearch}
               onChange={(e) => setModalSearch(e.target.value)}
             />
@@ -1249,27 +1505,31 @@ export function Kashmir_Installation_AssignSite() {
             )}
           </div>
 
-          {/* Popup Table */}
+          {/* Popup Table: Sr. No., Site ID, Site Name, State, District, Deadline Date, File */}
           <div className="ax-table-wrap" style={{ maxHeight: '60vh', overflow: 'auto' }}>
             <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" style={{ textAlign: 'center', width: 60 }}>Sr. No.</th>
+                  <th className="ax-table__th" style={{ textAlign: 'center', width: 50 }}>Sr. No.</th>
                   <th className="ax-table__th">Site ID</th>
                   <th className="ax-table__th">Site Name</th>
+                  <th className="ax-table__th">State</th>
                   <th className="ax-table__th">District</th>
                   <th className="ax-table__th">Deadline Date</th>
-                  <th className="ax-table__th">Assign Date</th>
-                  <th className="ax-table__th" style={{ textAlign: 'right' }}>Action</th>
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>File</th>
                 </tr>
               </thead>
               <tbody className="ax-table__body">
                 {filteredModalSites.map((site: any, idx: number) => {
-                  const assignDate = site.assign_date || activeItem?.assign_srt?.assign_date || activeItem?.assign_srt?.created_at;
                   const deadlineDate = site.inst_deadline || site.deadline_date || activeItem?.assign_srt?.deadline_date;
-                  const districtVal = site.district || activeItem?.assign_srt?.district || '—';
+                  const districtVal = site.district || activeItem?.assign_srt?.district || DASH;
+                  const stateVal = (site.state || activeItem?.assign_srt?.state || 'Kashmir').toUpperCase();
                   const siteId = site.id || site.site_id || idx + 1;
                   const siteName = site.site_name || site.name || `Site #${siteId}`;
+                  const siteFile = site.file || activeItem?.assign_srt?.file;
+                  const fileUrl = resolveFileUrl(siteFile);
+                  const fileExt = getFileExt(siteFile);
+                  const isImg = isImage(siteFile);
 
                   return (
                     <tr key={site.id || idx} className="ax-table__row">
@@ -1282,33 +1542,62 @@ export function Kashmir_Installation_AssignSite() {
                       <td className="ax-table__td">
                         <strong style={{ color: 'var(--ax-text-strong)' }}>{siteName}</strong>
                       </td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {stateVal}
+                      </td>
                       <td className="ax-table__td">
                         <b>{districtVal}</b>
                       </td>
                       <td className="ax-table__td" style={{ fontSize: '13px' }}>
                         {fmtDate(deadlineDate)}
                       </td>
-                      <td className="ax-table__td" style={{ fontSize: '13px' }}>
-                        {fmtDate(assignDate)}
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
-                        <Link
-                          to={`/v/kashmir/srt/70mw/installation/site?site=${encodeURIComponent(siteName)}&assign_id=${activeItem?.assign_srt?.id || ''}`}
-                          className="ax-btn ax-btn--primary ax-btn--xs"
-                          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                          onClick={() => setDetailModalOpen(false)}
-                        >
-                          Install Site &rarr;
-                        </Link>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {siteFile && isImg ? (
+                          <InstallationThumbnail
+                            src={siteFile}
+                            alt={`${siteName} Photo`}
+                            onPreview={openPreview}
+                            size={34}
+                          />
+                        ) : fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                            style={{ color: 'var(--asw-primary, #2563eb)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
+                            title="View / Download File"
+                          >
+                            📎 {fileExt} ↗
+                          </a>
+                        ) : (
+                          <ImagePlaceholder size={34} label={`No image — ${siteName}`} />
+                        )}
                       </td>
                     </tr>
                   );
                 })}
+                {filteredModalSites.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="ax-table__td" style={{ textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' }}>
+                      No specific site detail entries found matching your query.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </Modal>
+
+      {/* ── Interactive Lightbox Modal ── */}
+      {lightbox && (
+        <ImagePreviewModal
+          url={lightbox.url}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

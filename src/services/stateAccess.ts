@@ -1,4 +1,5 @@
 import { authService } from './authService';
+import { isStatePermitted, getPermittedStates } from './vPortalPermissionsService';
 
 /** "Uttar Pradesh" / "UP" → "up", baaki lowercase */
 export const normState = (s: any): string => {
@@ -43,14 +44,14 @@ export const getAllowedStates = (): string[] | 'ALL' => {
   const session = authService.getSession();
 
   const isSuperAdmin =
-    u?.usertype === '0' || u?.usertype === 0 ||
-    session?.usertype === '0' || session?.usertype === 0 ||
-    u?.user_type === '0' || u?.user_type === 0 ||
-    session?.user_type === '0' || session?.user_type === 0 ||
-    u?.role === '0' || u?.role === 0 ||
-    session?.role === '0' || session?.role === 0 ||
-    u?.role_id === '0' || u?.role_id === 0 ||
-    session?.role_id === '0' || session?.role_id === 0 ||
+    String(u?.usertype ?? '') === '0' ||
+    String(session?.usertype ?? '') === '0' ||
+    String(u?.user_type ?? '') === '0' ||
+    String(session?.user_type ?? '') === '0' ||
+    String(u?.role ?? '') === '0' ||
+    String(session?.role ?? '') === '0' ||
+    String(u?.role_id ?? '') === '0' ||
+    String(session?.role_id ?? '') === '0' ||
     u?.role === 'super_admin' || session?.role === 'super_admin' ||
     u?.role === 'admin' || session?.role === 'admin';
 
@@ -59,7 +60,8 @@ export const getAllowedStates = (): string[] | 'ALL' => {
   }
 
   if (session?.role === 'vendor' || u?.role === 'vendor' || session?.vendor_id || u?.vendor_id) {
-    return 'ALL';
+    const permStates = getPermittedStates();
+    return permStates.length > 0 ? permStates : [];
   }
 
   let list: any =
@@ -82,6 +84,16 @@ export const getAllowedStates = (): string[] | 'ALL' => {
 };
 
 export const canAccessState = (state: string): boolean => {
+  const u = loginUser();
+  const session = authService.getSession();
+  const isVendor = session?.role === 'vendor' || u?.role === 'vendor' || session?.vendor_id || u?.vendor_id;
+
+  // For vendors, state access is strictly governed by the permissions API:
+  // "1 hoga to show krna hai state verna nhi"
+  if (isVendor) {
+    return isStatePermitted(state);
+  }
+
   const allowed = getAllowedStates();
   if (allowed === 'ALL') return true;
   const nState = normState(state);

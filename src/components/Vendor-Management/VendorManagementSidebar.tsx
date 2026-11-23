@@ -46,6 +46,159 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
+
+    {
+    section: 'Jammu',
+    state: 'jammu',
+    items: [
+      {
+        id: 'grp.vm.jammu.survey',
+        title: 'Survey System',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.jammu.survey.srt',
+            title: 'SRT 70MW Survey',
+            tag: '70MW',
+            children: [
+              {
+                id: 'vm.jammu.survey.srt.verify',
+                title: 'Verify 70MW Survey',
+                to: '/vendor-management/jammu/survey/srt-70mw/verify',
+                iconType: 'view-survey',
+                keywords: ['jammu', 'survey', 'srt', '70mw', 'verify', 'solar rooftop'],
+              },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.survey.resco',
+            title: 'Resco Survey',
+            tag: 'RESCO',
+            children: [
+              {
+                id: 'vm.jammu.survey.resco.dashboard',
+                title: 'Resco Dashboard',
+                to: '/vendor-management/jammu/survey/resco/dashboard',
+                iconType: 'analytics',
+                keywords: ['jammu', 'survey', 'resco', 'dashboard', 'analytics'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.assign',
+                title: 'Assign Survey',
+                to: '/vendor-management/jammu/survey/resco/assign',
+                iconType: 'assign',
+                keywords: ['jammu', 'survey', 'resco', 'assign', 'allocation'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.view-assign',
+                title: 'Assign View Survey',
+                to: '/vendor-management/jammu/survey/resco/view-assign',
+                iconType: 'view-assign',
+                keywords: ['jammu', 'survey', 'resco', 'view assign', 'assigned surveys'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.assigned-vendor',
+                title: 'Assigned Survey Vendor',
+                to: '/vendor-management/jammu/survey/resco/assigned-vendor',
+                iconType: 'view-data',
+                keywords: ['jammu', 'survey', 'resco', 'assigned vendor', 'conduct survey', 'audit'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.verify',
+                title: 'Verify Survey',
+                to: '/vendor-management/jammu/survey/resco/verify',
+                iconType: 'view-survey',
+                keywords: ['jammu', 'survey', 'resco', 'verify', 'bos', 'approval'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.jammu.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.jammu.inst.srt',
+            title: 'SRT (70MW Rooftop)',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.jammu.inst.srt.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/srt-70mw/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/assign-sites', iconType: 'assign' },
+              { id: 'vm.jammu.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/view-assign-sites', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/jammu/installation/srt-70mw/verify-sites', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.srt.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/srt-70mw/view-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.srt.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/srt-70mw/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.inst.ssl',
+            title: 'SSL (Street Light)',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.jammu.inst.ssl.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/ssl/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.ssl.assign', title: 'Assign Light', to: '/vendor-management/jammu/installation/ssl/assign-lights', iconType: 'assign' },
+              { id: 'vm.jammu.inst.ssl.view-assign', title: 'View Assign Light', to: '/vendor-management/jammu/installation/ssl/view-assign-lights', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.ssl.verify', title: 'Verify Light', to: '/vendor-management/jammu/installation/ssl/verify-lights', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.ssl.claim', title: 'Claim Request', to: '/vendor-management/jammu/installation/ssl/claim-request', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.ssl.payment', title: 'Payment Request', to: '/vendor-management/jammu/installation/ssl/payment-request', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.inst.swp',
+            title: 'SWP (Water Pump)',
+            tag: 'SWP',
+            children: [
+              { id: 'vm.jammu.inst.swp.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/swp/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.swp.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/swp/assign-installation', iconType: 'assign' },
+              { id: 'vm.jammu.inst.swp.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/swp/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.swp.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/swp/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.swp.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/swp/verify-document', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.swp.verify-claim', title: 'Verify Claim', to: '/vendor-management/jammu/installation/swp/verify-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.swp.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/swp/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.inst.resco',
+            title: 'RESCO Installation',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.jammu.inst.resco.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/resco/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/resco/assign-installation', iconType: 'assign' },
+              { id: 'vm.jammu.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/resco/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.resco.view-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/jammu/installation/resco/view-assign-vendor-installation', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/resco/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/resco/verify-document', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/resco/view-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/resco/view-payment', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.bills', title: 'View Created Bills', to: '/vendor-management/jammu/installation/resco/view-bills', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.jammu.expenses',
+        title: 'Installation Expenses',
+        icon: 'management',
+        children: [
+          {
+            id: 'grp.vm.jammu.expenses.srt',
+            title: 'SRT 70MW Expense',
+            tag: 'EXP',
+            children: [
+              { id: 'vm.jammu.expenses.srt.claims', title: 'Claim Requests', to: '/vendor-management/jammu/expenses/srt-70mw/claim-requests', iconType: 'view-data' },
+              { id: 'vm.jammu.expenses.srt.payments', title: 'View Payments', to: '/vendor-management/jammu/expenses/srt-70mw/view-payments', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+  
   {
     section: 'Assam',
     state: 'assam',
@@ -286,6 +439,7 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
+
   {
     section: 'Karnataka',
     state: 'karnataka',
@@ -329,10 +483,6 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-
-
-
-
 
     {
     section: 'Bihar',
@@ -444,9 +594,6 @@ const VENDOR_SECTIONS: NavSection[] = [
       },
     ],
   },
-
-
-
 
 
   {
@@ -567,154 +714,7 @@ const VENDOR_SECTIONS: NavSection[] = [
     ],
   },
 
-  {
-    section: 'Jammu',
-    state: 'jammu',
-    items: [
-      {
-        id: 'grp.vm.jammu.survey',
-        title: 'Survey System',
-        icon: 'survey',
-        children: [
-          {
-            id: 'grp.vm.jammu.survey.srt',
-            title: 'SRT 70MW Survey',
-            tag: '70MW',
-            children: [
-              {
-                id: 'vm.jammu.survey.srt.verify',
-                title: 'Verify 70MW Survey',
-                to: '/vendor-management/jammu/survey/srt-70mw/verify',
-                iconType: 'view-survey',
-                keywords: ['jammu', 'survey', 'srt', '70mw', 'verify', 'solar rooftop'],
-              },
-            ],
-          },
-          {
-            id: 'grp.vm.jammu.survey.resco',
-            title: 'Resco Survey',
-            tag: 'RESCO',
-            children: [
-              {
-                id: 'vm.jammu.survey.resco.dashboard',
-                title: 'Resco Dashboard',
-                to: '/vendor-management/jammu/survey/resco/dashboard',
-                iconType: 'analytics',
-                keywords: ['jammu', 'survey', 'resco', 'dashboard', 'analytics'],
-              },
-              {
-                id: 'vm.jammu.survey.resco.assign',
-                title: 'Assign Survey',
-                to: '/vendor-management/jammu/survey/resco/assign',
-                iconType: 'assign',
-                keywords: ['jammu', 'survey', 'resco', 'assign', 'allocation'],
-              },
-              {
-                id: 'vm.jammu.survey.resco.view-assign',
-                title: 'Assign View Survey',
-                to: '/vendor-management/jammu/survey/resco/view-assign',
-                iconType: 'view-assign',
-                keywords: ['jammu', 'survey', 'resco', 'view assign', 'assigned surveys'],
-              },
-              {
-                id: 'vm.jammu.survey.resco.assigned-vendor',
-                title: 'Assigned Survey Vendor',
-                to: '/vendor-management/jammu/survey/resco/assigned-vendor',
-                iconType: 'view-data',
-                keywords: ['jammu', 'survey', 'resco', 'assigned vendor', 'conduct survey', 'audit'],
-              },
-              {
-                id: 'vm.jammu.survey.resco.verify',
-                title: 'Verify Survey',
-                to: '/vendor-management/jammu/survey/resco/verify',
-                iconType: 'view-survey',
-                keywords: ['jammu', 'survey', 'resco', 'verify', 'bos', 'approval'],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'grp.vm.jammu.inst',
-        title: 'Installation System',
-        icon: 'installation',
-        children: [
-          {
-            id: 'grp.vm.jammu.inst.srt',
-            title: 'SRT (70MW Rooftop)',
-            tag: 'SRT',
-            children: [
-              { id: 'vm.jammu.inst.srt.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/srt-70mw/dashboard', iconType: 'analytics' },
-              { id: 'vm.jammu.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/assign-sites', iconType: 'assign' },
-              { id: 'vm.jammu.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/view-assign-sites', iconType: 'view-assign' },
-              { id: 'vm.jammu.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/jammu/installation/srt-70mw/verify-sites', iconType: 'view-survey' },
-              { id: 'vm.jammu.inst.srt.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/srt-70mw/view-claim', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.srt.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/srt-70mw/view-payment', iconType: 'view-data' },
-            ],
-          },
-          {
-            id: 'grp.vm.jammu.inst.ssl',
-            title: 'SSL (Street Light)',
-            tag: 'SSL',
-            children: [
-              { id: 'vm.jammu.inst.ssl.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/ssl/dashboard', iconType: 'analytics' },
-              { id: 'vm.jammu.inst.ssl.assign', title: 'Assign Light', to: '/vendor-management/jammu/installation/ssl/assign-lights', iconType: 'assign' },
-              { id: 'vm.jammu.inst.ssl.view-assign', title: 'View Assign Light', to: '/vendor-management/jammu/installation/ssl/view-assign-lights', iconType: 'view-assign' },
-              { id: 'vm.jammu.inst.ssl.verify', title: 'Verify Light', to: '/vendor-management/jammu/installation/ssl/verify-lights', iconType: 'view-survey' },
-              { id: 'vm.jammu.inst.ssl.claim', title: 'Claim Request', to: '/vendor-management/jammu/installation/ssl/claim-request', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.ssl.payment', title: 'Payment Request', to: '/vendor-management/jammu/installation/ssl/payment-request', iconType: 'view-data' },
-            ],
-          },
-          {
-            id: 'grp.vm.jammu.inst.swp',
-            title: 'SWP (Water Pump)',
-            tag: 'SWP',
-            children: [
-              { id: 'vm.jammu.inst.swp.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/swp/dashboard', iconType: 'analytics' },
-              { id: 'vm.jammu.inst.swp.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/swp/assign-installation', iconType: 'assign' },
-              { id: 'vm.jammu.inst.swp.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/swp/view-assign-installation', iconType: 'view-assign' },
-              { id: 'vm.jammu.inst.swp.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/swp/verify-installation', iconType: 'view-survey' },
-              { id: 'vm.jammu.inst.swp.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/swp/verify-document', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.swp.verify-claim', title: 'Verify Claim', to: '/vendor-management/jammu/installation/swp/verify-claim', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.swp.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/swp/view-payment', iconType: 'view-data' },
-            ],
-          },
-          {
-            id: 'grp.vm.jammu.inst.resco',
-            title: 'RESCO Installation',
-            tag: 'RESCO',
-            children: [
-              { id: 'vm.jammu.inst.resco.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/resco/dashboard', iconType: 'analytics' },
-              { id: 'vm.jammu.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/resco/assign-installation', iconType: 'assign' },
-              { id: 'vm.jammu.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/resco/view-assign-installation', iconType: 'view-assign' },
-              { id: 'vm.jammu.inst.resco.view-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/jammu/installation/resco/view-assign-vendor-installation', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.resco.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/resco/verify-installation', iconType: 'view-survey' },
-              { id: 'vm.jammu.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/resco/verify-document', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.resco.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/resco/view-claim', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.resco.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/resco/view-payment', iconType: 'view-data' },
-              { id: 'vm.jammu.inst.resco.bills', title: 'View Created Bills', to: '/vendor-management/jammu/installation/resco/view-bills', iconType: 'view-data' },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'grp.vm.jammu.expenses',
-        title: 'Installation Expenses',
-        icon: 'management',
-        children: [
-          {
-            id: 'grp.vm.jammu.expenses.srt',
-            title: 'SRT 70MW Expense',
-            tag: 'EXP',
-            children: [
-              { id: 'vm.jammu.expenses.srt.claims', title: 'Claim Requests', to: '/vendor-management/jammu/expenses/srt-70mw/claim-requests', iconType: 'view-data' },
-              { id: 'vm.jammu.expenses.srt.payments', title: 'View Payments', to: '/vendor-management/jammu/expenses/srt-70mw/view-payments', iconType: 'view-data' },
-            ],
-          },
-        ],
-      },
-    ],
-  },
+
 
   
   {
@@ -1024,6 +1024,13 @@ const ROUTE_ALIASES: Record<string, string[]> = {
   '/vendor-management/up/resco/installation/view-assign-vendor': [
     '/up/resco-view-assign-v-installation',
     '/vendor-management/up/resco-view-assign-v-installation',
+    '/vendor-management/up/resco/installation/vendor-installation-desk',
+    '/up/resco-vendor-installation-desk',
+  ],
+  '/vendor-management/up/resco/installation/status-view': [
+    '/up/resco/installation/status-view',
+    '/vendor-management/up/resco-status-view',
+    '/up/resco-status-view',
   ],
 
   // ── Uttar Pradesh Installation: SSL 18W ──
@@ -1099,6 +1106,12 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/up/resco-survey-dashboard',
     '/vendor-management/up/resco-survey-dashboard',
   ],
+  '/vendor-management/up/resco/survey/status-view': [
+    '/up/resco-survey-status-view',
+    '/vendor-management/up/resco-survey-status-view',
+    '/up/resco-survey-status',
+    '/vendor-management/up/resco/survey/status',
+  ],
   '/vendor-management/up/resco/survey/assign': [
     '/up/resco-survey-assign',
     '/vendor-management/up/resco-survey-assign',
@@ -1116,6 +1129,7 @@ const ROUTE_ALIASES: Record<string, string[]> = {
     '/vendor-management/up/resco-survey-assign-vendor',
   ],
 
+
   // ── Bihar Survey: SRT 200MW ──
   '/vendor-management/bihar/srt200mw/survey/dashboard': [
     '/bihar/srt200mw-survey-dashbboard',
@@ -1128,11 +1142,16 @@ const ROUTE_ALIASES: Record<string, string[]> = {
   '/vendor-management/bihar/srt200mw/survey/assign-view': [
     '/bihar/srt200mw-survey-assign-view',
     '/vendor-management/bihar/srt200mw-survey-assign-view',
+    '/vendor-management/bihar/srt200mw/survey/view-survey',
+    '/bihar/srt200mw/survey/view-survey',
+    '/vendor-management/bihar/srt200mw-view-survey',
+    '/bihar/srt200mw-view-survey',
   ],
   '/vendor-management/bihar/srt200mw/survey/verify': [
     '/bihar/srt200mw-survey-verify',
     '/vendor-management/bihar/srt200mw-survey-verify',
   ],
+
 
   // ── Bihar Survey: ULA ──
   '/vendor-management/bihar/ula/survey/view': [

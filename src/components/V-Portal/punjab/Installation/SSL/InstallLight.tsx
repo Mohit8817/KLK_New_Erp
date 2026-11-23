@@ -158,9 +158,11 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   type?: string;
   placeholder?: string;
   onCameraClick?: () => void;
+  style?: React.CSSProperties;
 }
 
 function FloatingInput({
@@ -170,9 +172,11 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
   type = 'text',
   placeholder,
   onCameraClick,
+  style,
 }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
@@ -189,9 +193,14 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
@@ -745,9 +754,9 @@ export function Punjab_Installation_SSL_InstallLight() {
   };
 
   // Geolocation
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
@@ -759,12 +768,19 @@ export function Punjab_Installation_SSL_InstallLight() {
       },
       (err) => {
         console.warn('Geolocation error:', err);
-        alert('Could not retrieve GPS coordinates. Please enter manually.');
+        if (!silent) {
+          alert('Could not retrieve GPS coordinates. Please check location permissions.');
+        }
         setGettingLocation(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  // Auto-detect GPS location when light is selected or mounted
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedLightId]);
 
   // Form Submit (API 5 or API 7)
   const handleSubmit = async (e: FormEvent) => {
@@ -1237,8 +1253,9 @@ export function Punjab_Installation_SSL_InstallLight() {
                 label="Installation Latitude"
                 name="latitude"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-                placeholder="e.g. 30.9010"
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Latitude"
                 required
               />
 
@@ -1246,8 +1263,9 @@ export function Punjab_Installation_SSL_InstallLight() {
                 label="Installation Longitude"
                 name="longitude"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                placeholder="e.g. 75.8573"
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Longitude"
                 required
               />
 

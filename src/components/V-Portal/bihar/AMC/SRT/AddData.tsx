@@ -6,6 +6,11 @@ import {
   type BiharSrtAmcSiteOption,
   type BiharSrtSiteDetail,
 } from '../../bihar-services/biharAmcService';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout CSS with Floating Labels (Exact Bihar Complaints SSL Design)
 const SINGLE_CARD_FORM_CSS = `
@@ -401,9 +406,9 @@ export function Bihar_AMC_SRT_AddData() {
   }, [selectedSiteId]);
 
   // GPS Geolocation
-  const handleFetchLocation = () => {
+  const handleFetchLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setFetchingLoc(true);
@@ -421,18 +426,23 @@ export function Bihar_AMC_SRT_AddData() {
       (err) => {
         console.error('Geo error:', err);
         setFetchingLoc(false);
-        alert(`Location error: ${err.message || 'Unable to fetch current coordinates'}`);
+        if (!silent) alert(`Location error: ${err.message || 'Unable to fetch current coordinates'}`);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  // Auto-detect GPS coordinates on mount or site change
+  useEffect(() => {
+    handleFetchLocation(true);
+  }, [selectedSiteId]);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   // Validation
-  const validate = (): boolean => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!selectedAmc) errs.selectedAmc = 'Please select AMC Type.';
     if (!selectedSiteId) errs.selectedSiteId = 'Please select Site.';
@@ -455,7 +465,7 @@ export function Bihar_AMC_SRT_AddData() {
     }
 
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   // Submit Handler: POST /bihar/srt/amc/update-site
@@ -464,9 +474,10 @@ export function Bihar_AMC_SRT_AddData() {
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    if (!validate()) {
-      setErrorMsg('Please resolve all highlighted errors before submitting.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrorMsg(formatMissingRequiredMsg(validationErrors));
+      scrollToFirstError();
       return;
     }
 
@@ -505,8 +516,10 @@ export function Bihar_AMC_SRT_AddData() {
       }, 1500);
     } catch (err: any) {
       console.error('SRT AMC submission error:', err);
-      setErrorMsg(err.message || 'Failed to submit SRT AMC record.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Failed to submit SRT AMC record.');
+      setErrorMsg(extracted.message);
+      setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -715,12 +728,10 @@ export function Bihar_AMC_SRT_AddData() {
                       id="srt-lat"
                       label="Amc Latitude"
                       required
-                      placeholder="e.g. 25.594095"
+                      readOnly
+                      placeholder="Auto-detected GPS Latitude"
                       value={formData.amc_latitude}
-                      onChange={(val) => {
-                        setFormData((prev) => ({ ...prev, amc_latitude: val }));
-                        clearError('amc_latitude');
-                      }}
+                      onChange={() => {}}
                       error={errors.amc_latitude}
                     />
                   </div>
@@ -728,7 +739,7 @@ export function Bihar_AMC_SRT_AddData() {
                     type="button"
                     className="ax-btn ax-btn--secondary"
                     style={{ height: 46, whiteSpace: 'nowrap', padding: '0 12px' }}
-                    onClick={handleFetchLocation}
+                    onClick={() => handleFetchLocation(false)}
                     disabled={fetchingLoc}
                     title="Get current GPS coordinates"
                   >
@@ -745,12 +756,10 @@ export function Bihar_AMC_SRT_AddData() {
                   id="srt-lng"
                   label="Amc Longitude"
                   required
-                  placeholder="e.g. 85.137566"
+                  readOnly
+                  placeholder="Auto-detected GPS Longitude"
                   value={formData.amc_longitude}
-                  onChange={(val) => {
-                    setFormData((prev) => ({ ...prev, amc_longitude: val }));
-                    clearError('amc_longitude');
-                  }}
+                  onChange={() => {}}
                   error={errors.amc_longitude}
                 />
 
@@ -942,9 +951,9 @@ function FieldFeedback({ error }: { error?: string }) {
 
 /* ── Floating Input ── */
 function FloatingInput({
-  id, label, type = 'text', required, placeholder = ' ', value, maxLength, onChange, error,
+  id, label, type = 'text', required, readOnly, placeholder = ' ', value, maxLength, onChange, error, style,
 }: {
-  id: string; label: string; type?: string; required?: boolean; placeholder?: string; value: string; maxLength?: number; onChange?: (val: string) => void; error?: string;
+  id: string; label: string; type?: string; required?: boolean; readOnly?: boolean; placeholder?: string; value: string; maxLength?: number; onChange?: (val: string) => void; error?: string; style?: React.CSSProperties;
 }) {
   return (
     <div>
@@ -952,12 +961,17 @@ function FloatingInput({
         <input
           id={id}
           type={type}
+          readOnly={readOnly}
           maxLength={maxLength}
           className={`ax-input ax-float__input ${error ? 'is-invalid' : ''}`}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}
+          style={{
+            ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+            ...style,
+          }}
         />
         <label className="ax-float__label" htmlFor={id}>
           {label}

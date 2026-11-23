@@ -1,36 +1,55 @@
 import { authService, API_BASE_URL } from '../../../../services/authService';
 import { BIHAR_COMPLAINT_API } from '../../V_Portal_APIS/Bihar_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
-const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
+const RAW_BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
   .replace(/\/+$/, '');
-const R2_BASE = 'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev';
+const BACKEND_BASE = /^https?:\/\//i.test(RAW_BACKEND_BASE) ? RAW_BACKEND_BASE : 'https://klkerp.com';
+const R2_BASE = (
+  (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ||
+  'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev'
+).replace(/\/+$/, '');
 
 /**
  * Returns an ordered list of candidate URLs for a given Bihar complaint attachment.
  * Solves 404 errors by mapping bare filenames (e.g. 'srtcomp_r_file_1778347794.jpg')
- * to their real server upload directories ('uploads/bihar/complaint/srt/image/...').
+ * and relative paths (e.g. 'uploads/bihar/complaint/srt/image/file_xxx.png')
+ * to their real server / R2 upload directories.
  */
 export function getBiharComplaintMediaCandidates(path?: string | null, type?: 'srt' | 'ssl'): string[] {
   if (!path) return [];
-  const trimmed = String(path).trim();
-  if (!trimmed) return [];
+  const trimmed = String(path).trim().replace(/\\/g, '/');
+  if (!trimmed || /^(null|undefined|na|n\/a)$/i.test(trimmed)) return [];
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
+
+  if (trimmed.startsWith('r2:')) {
+    const key = trimmed.slice(3).replace(/^\/+/, '');
+    const urls: string[] = [];
+    if (R2_BASE) urls.push(`${R2_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/${key}`);
+    urls.push(`${BACKEND_BASE}/uploads/${key}`);
+    return Array.from(new Set(urls));
+  }
 
   const normalized = trimmed.replace(/^\/+/, '');
   const filename = normalized.split('/').pop() || normalized;
   const candidates: string[] = [];
 
-  // If already full relative path starting with uploads/ or storage/
-  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/')) {
+  // If already full relative path starting with uploads/, public/uploads/, or storage/
+  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/') || normalized.startsWith('public/')) {
     candidates.push(`${BACKEND_BASE}/${normalized}`);
+    if (!normalized.startsWith('public/')) {
+      candidates.push(`${BACKEND_BASE}/public/${normalized}`);
+    }
   }
 
   const isSrt = type === 'srt' || normalized.includes('srt') || /^srtcomp/i.test(filename);
-  const isSsl = type === 'ssl' || normalized.includes('ssl') || /^sslcomp/i.test(filename) || /^r_file/i.test(filename);
+  const isSsl = type === 'ssl' || normalized.includes('ssl') || /^sslcomp/i.test(filename);
 
   if (isSrt) {
     candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/srt/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/bihar/complaint/srt/image/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/srt/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/complaint/srt/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
@@ -38,6 +57,7 @@ export function getBiharComplaintMediaCandidates(path?: string | null, type?: 's
 
   if (isSsl) {
     candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/ssl/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/bihar/complaint/ssl/image/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/bihar/complaint/ssl/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/complaint/ssl/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
@@ -50,11 +70,19 @@ export function getBiharComplaintMediaCandidates(path?: string | null, type?: 's
   candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
   candidates.push(`${BACKEND_BASE}/${normalized}`);
+  candidates.push(`${BACKEND_BASE}/public/${normalized}`);
 
   // R2 storage fallbacks
   if (R2_BASE) {
-    if (isSrt) candidates.push(`${R2_BASE}/uploads/bihar/complaint/srt/${filename}`);
-    if (isSsl) candidates.push(`${R2_BASE}/uploads/bihar/complaint/ssl/${filename}`);
+    candidates.push(`${R2_BASE}/${normalized}`);
+    if (isSrt) {
+      candidates.push(`${R2_BASE}/uploads/bihar/complaint/srt/image/${filename}`);
+      candidates.push(`${R2_BASE}/uploads/bihar/complaint/srt/${filename}`);
+    }
+    if (isSsl) {
+      candidates.push(`${R2_BASE}/uploads/bihar/complaint/ssl/image/${filename}`);
+      candidates.push(`${R2_BASE}/uploads/bihar/complaint/ssl/${filename}`);
+    }
     candidates.push(`${R2_BASE}/${filename}`);
   }
 
@@ -66,8 +94,8 @@ export function getBiharComplaintMediaCandidates(path?: string | null, type?: 's
  */
 export function getBiharComplaintMediaUrl(path?: string | null, type?: 'srt' | 'ssl'): string {
   if (!path) return '';
-  const trimmed = String(path).trim();
-  if (!trimmed) return '';
+  const trimmed = String(path).trim().replace(/\\/g, '/');
+  if (!trimmed || /^(null|undefined|na|n\/a)$/i.test(trimmed)) return '';
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
 
   const candidates = getBiharComplaintMediaCandidates(trimmed, type);
@@ -209,7 +237,7 @@ export interface SrtSiteDetailsResponse {
   phase: string;
 }
 
-type MutationResult = { success: boolean; message: string; data?: any };
+type MutationResult = { success: boolean; message: string; data?: any; errors?: any; raw?: any };
 
 class BiharComplaintService {
   /* ─────────────────────────────────────────────────────────────────────────
@@ -226,12 +254,8 @@ class BiharComplaintService {
 
   private errorMessage(json: any, status: number): string {
     if (status === 401) return 'Session expired. Please login again.';
-    if (json?.message) return json.message;
-    if (json?.error) return json.error;
-    if (json?.errors && typeof json.errors === 'object') {
-      return Object.values(json.errors).flat().join(', ');
-    }
-    return `Request failed (${status})`;
+    const extracted = extractBackendError(json, `Request failed (${status})`);
+    return extracted.message;
   }
 
   /** GET request. Throws on any failure so the UI can show the real error. */
@@ -260,16 +284,18 @@ class BiharComplaintService {
       });
       const json = await res.json().catch(() => null);
 
-      if (res.ok && json?.success !== false && json?.status !== false) {
+      if (res.ok && json?.success !== false && json?.status !== false && !json?.errors) {
         return { success: true, message: json?.message || okMessage, data: json?.data ?? json?.complaint };
       }
       // Backend quirk: record saved but notification (WhatsApp) failed with 500
       if (softSuccessMatch && res.status === 500 && json?.message?.includes(softSuccessMatch)) {
         return { success: true, message: okMessage };
       }
-      return { success: false, message: json ? this.errorMessage(json, res.status) : failMessage };
+      const extracted = extractBackendError(json, failMessage);
+      return { success: false, message: extracted.message, errors: json?.errors || extracted.rawErrors, raw: json };
     } catch (err: any) {
-      return { success: false, message: err?.message || failMessage };
+      const extracted = extractBackendError(err, err?.message || failMessage);
+      return { success: false, message: extracted.message };
     }
   }
 

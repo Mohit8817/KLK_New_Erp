@@ -1,5 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 /* ── Base URLs for media assets ── */
 const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://klkerp.com/api')
@@ -55,6 +56,12 @@ export function getSrtInstallationImageCandidates(path?: string | null): string[
   return Array.from(new Set(candidates));
 }
 
+export function getMediaUrl(path?: string | null): string {
+  if (!path) return '';
+  const c = getSrtInstallationImageCandidates(path);
+  return c[0] || '';
+}
+
 /* ───────── TypeScript Interfaces for Bihar SRT Installation ───────── */
 export interface SrtBatchSiteNameItem {
   id: number;
@@ -65,13 +72,17 @@ export interface SrtBatchSiteNameItem {
 
 export interface SrtAssignBatchItem {
   id: number;
-  company_id?: number;
-  vendor?: number;
+  company_id?: number | string;
+  vendor?: number | string;
   state?: string;
   district?: string;
-  sitecount?: number;
-  site_name?: string;
-  status: number;
+  sitecount?: number | string;
+  site_count?: number | string;
+  site_name?: string | any[];
+  status: number | string;
+  inst_deadline?: string;
+  deadline_date?: string;
+  assign_date?: string;
   site_names?: SrtBatchSiteNameItem[];
   [key: string]: any;
 }
@@ -184,11 +195,85 @@ export interface SrtDashboardData {
 
 export interface SrtInstallClaimItem {
   id: number;
+  company_id?: string | number;
+  unique_id?: string | number | null;
+  discom?: string;
+  state?: string;
+  volume?: string;
+  district?: string;
+  dept_name?: string;
   site_name?: string;
-  inst_claim_status?: number;
-  inst_claim_date?: string;
-  inst_claim_amount?: string | number;
-  inst_claim_invoice?: string;
+  location?: string;
+  firm_name?: string;
+  ca_no?: string;
+  sanction_load?: string;
+  plant_sc?: string;
+  wo_no?: string | null;
+  phase?: string;
+  survey_by?: string | null;
+  survey_status?: number;
+  survey_id?: number | null;
+  vendor?: string | number;
+  contact_person?: string;
+  contact_number?: string;
+  inst_vendor?: string | number;
+  inst_accept?: string | number;
+  inst_date?: string | null;
+  inst_assign_date?: string | null;
+  inst_deadline?: string | null;
+  inst_assigned_id?: string | null;
+  inst_assigned_by?: string | null;
+  site_inst_status?: string | number;
+  inst_verify_status?: string | number;
+  inst_verify_date?: string | null;
+  inst_verify_by?: string | null;
+  inst_claim_status?: string | number;
+  inst_claim_invoice?: string | null;
+  inst_claim_amount?: string | number | null;
+  inst_claim_date?: string | null;
+  inst_claim_update_by?: string | null;
+  inst_claim_update_date?: string | null;
+  inst_pay1?: string | number | null;
+  inst_pay1_amount?: string | number | null;
+  inst_pay1_status?: string | number | null;
+  inst_pay1_date?: string | null;
+  inst_pay1_remark?: string | null;
+  inst_doc_submit?: string | number | null;
+  inst_pay2?: string | number | null;
+  inst_pay2_amount?: string | number | null;
+  inst_pay2_status?: string | number | null;
+  inst_pay2_date?: string | null;
+  inst_pay2_remark?: string | null;
+  inst_pay3?: string | number | null;
+  inst_pay3_amount?: string | number | null;
+  inst_pay3_status?: string | number | null;
+  inst_pay3_date?: string | null;
+  inst_pay3_remark?: string | null;
+  inst_pay3_raised_status?: string | number | null;
+  inst_gen_image?: string | null;
+  inst_rms_loger_image?: string | null;
+  inst_inspection?: string | number | null;
+  // Aliases for backward compatibility
+  claim_status?: string | number;
+  claim_invoice?: string | null;
+  claim_amount?: string | number | null;
+  claim_raised_date?: string | null;
+  claim_date?: string | null;
+  claim_update_by?: string | null;
+  claim_update_date?: string | null;
+  payment1_date?: string | null;
+  payment1_amount?: string | number | null;
+  payment1_status?: string | number | null;
+  doc_submit?: string | number | null;
+  payment2_date?: string | null;
+  payment2_amount?: string | number | null;
+  payment2_status?: string | number | null;
+  payment3_raised?: string | number | null;
+  generation_image?: string | null;
+  rms_loger_image?: string | null;
+  payment3_date?: string | null;
+  payment3_amount?: string | number | null;
+  payment3_status?: string | number | null;
   [key: string]: any;
 }
 
@@ -313,13 +398,13 @@ class BiharSrtInstallationService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 422 && json?.errors) {
-        const first = Object.values(json.errors).flat()[0] as string;
-        throw new Error(first || json.message || 'Validation failed');
-      }
-      throw new Error(json?.message || `Failed to store installation (HTTP ${res.status})`);
+      const extracted = extractBackendError(json, `Failed to store installation (HTTP ${res.status})`);
+      const err: any = new Error(extracted.message);
+      err.errors = json.errors || extracted.fieldErrors;
+      err.data = json;
+      throw err;
     }
     return json;
   }
@@ -363,13 +448,13 @@ class BiharSrtInstallationService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (res.status === 422 && json?.errors) {
-        const first = Object.values(json.errors).flat()[0] as string;
-        throw new Error(first || json.message || 'Validation failed');
-      }
-      throw new Error(json?.message || `Failed to update installation (HTTP ${res.status})`);
+      const extracted = extractBackendError(json, `Failed to update installation (HTTP ${res.status})`);
+      const err: any = new Error(extracted.message);
+      err.errors = json.errors || extracted.fieldErrors;
+      err.data = json;
+      throw err;
     }
     return json;
   }
@@ -395,9 +480,17 @@ class BiharSrtInstallationService {
         method: 'GET',
         headers: this.getHeaders(),
       });
-      if (!res.ok) return [];
       const json = await res.json();
-      return json?.data || [];
+      const list = Array.isArray(json?.data)
+        ? json.data
+        : Array.isArray(json)
+        ? json
+        : Array.isArray(json?.data?.data)
+        ? json.data.data
+        : Array.isArray(json?.claimrequest)
+        ? json.claimrequest
+        : [];
+      return list;
     } catch (err) {
       console.error('[SRT Installation] getViewInstallClaims error:', err);
       return [];

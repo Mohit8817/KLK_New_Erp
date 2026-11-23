@@ -1,65 +1,20 @@
-import { JAMMU_API, ROOT_URL } from '../../../../V-Portal/V_Portal_APIS/Jammu_API';
-import { getAuthHeaders } from '../../../../V-Portal/jammu/jammu-services/jammuSrt70mwService';
+import { API_BASE_URL, authService } from '../../../../../services/authService';
 import {
-  jammuSslService,
   resolveJammuSslMediaUrl,
   getJammuSslMediaCandidates,
   type JammuSslAssignedLightItem,
   type JammuSslCompletedSiteItem,
   type JammuSslClaimItem,
 } from '../../../../V-Portal/jammu/jammu-services/jammuSslService';
+import { JAMMU_VENDOR_API, buildCandidateUrls as buildCentralCandidateUrls } from '../../../Vendor_Management_APIS/Jammu_Vendor_API';
 
-export { resolveJammuSslMediaUrl, getJammuSslMediaCandidates };
+export { resolveJammuSslMediaUrl, resolveJammuSslMediaUrl as resolveJammuMediaUrl, getJammuSslMediaCandidates };
+export type { JammuSslAssignedLightItem, JammuSslCompletedSiteItem, JammuSslClaimItem };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Jammu & Kashmir Master Geographies & Reference Data
+   TypeScript Interfaces for Jammu SSL Installation
+   Controller: App\Http\Controllers\admin\jammu\JammuSslInstallationController
    ═══════════════════════════════════════════════════════════════════════════ */
-
-export const JAMMU_SSL_DISTRICTS = [
-  'Jammu',
-  'Kathua',
-  'Samba',
-  'Udhampur',
-  'Reasi',
-  'Rajouri',
-  'Poonch',
-  'Doda',
-  'Ramban',
-  'Kishtwar',
-  'Srinagar',
-  'Baramulla',
-  'Anantnag',
-  'Pulwama',
-  'Kupwara',
-  'Budgam',
-  'Ganderbal',
-  'Kulgam',
-  'Bandipora',
-  'Shopian',
-] as const;
-
-export const JAMMU_SSL_BLOCKS: Record<string, string[]> = {
-  Jammu: ['Bhalwal', 'Bishnah', 'Dansal', 'Marh', 'Mandal', 'R.S. Pura', 'Satwari', 'Akhnoor', 'Khour', 'Maira Mandrian', 'Chowki Choura', 'Arnia'],
-  Kathua: ['Barnoti', 'Hiranagar', 'Kathua', 'Marheen', 'Nagri', 'Dingla Amb', 'Billawar', 'Basohli', 'Bani', 'Dhar Mahanpur'],
-  Samba: ['Samba', 'Vijaypur', 'Purmandal', 'Bari Brahmana', 'Ghagwal', 'Rajpura', 'Nud', 'Ramgarh'],
-  Udhampur: ['Udhampur', 'Chenani', 'Ramnagar', 'Majalta', 'Tikri', 'Jib', 'Khoon', 'Ghordi', 'Panchari', 'Moungri'],
-  Reasi: ['Reasi', 'Pouni', 'Katra', 'Mahore', 'Arnas', 'Thuroo', 'Chassana', 'Jij Bagli'],
-  Rajouri: ['Rajouri', 'Thanamandi', 'Manjakote', 'Darhal', 'Doongi', 'Budhal', 'Kalakote', 'Sunderbani', 'Nowshera', 'Qila Darhal'],
-  Poonch: ['Haveli', 'Mandi', 'Surankote', 'Mendhar', 'Balakote', 'Mankote', 'Loran'],
-  Doda: ['Doda', 'Bhaderwah', 'Gundna', 'Thathri', 'Gandoh', 'Chiralla', 'Bhalla', 'Marmat', 'Assar', 'Khellani'],
-  Ramban: ['Ramban', 'Banihal', 'Gool', 'Ramsoo', 'Batote', 'Ukhral', 'Khari', 'Rajgarh'],
-  Kishtwar: ['Kishtwar', 'Padder', 'Marwah', 'Warwan', 'Dachhan', 'Drabshalla', 'Nagseni', 'Bounjwah', 'Mughal Maidan'],
-  Srinagar: ['Srinagar', 'Harwan', 'Khonmoh', 'Qamarwari', 'Eidgah'],
-  Baramulla: ['Baramulla', 'Pattan', 'Uri', 'Rafiabad', 'Tangmarg', 'Sopore', 'Wagoora', 'Zaingeer', 'Boniyar', 'Kunzer'],
-  Anantnag: ['Anantnag', 'Achabal', 'Bijbehara', 'Dooru', 'Kokernag', 'Pahalgam', 'Qazigund', 'Shangus', 'Vessu'],
-  Pulwama: ['Pulwama', 'Tral', 'Pampore', 'Awantipora', 'Kakapora', 'Shadimarg', 'Newa'],
-  Kupwara: ['Kupwara', 'Handwara', 'Karnah', 'Langate', 'Sogam', 'Trehgam', 'Kralpora', 'Ramhal', 'Mawar'],
-  Budgam: ['Budgam', 'Beerwah', 'Chadoora', 'Khansahib', 'Magam', 'B.K. Pora', 'Narbal', 'Surasyar', 'Pakherpora'],
-  Ganderbal: ['Ganderbal', 'Kangan', 'Lar', 'Wakura', 'Safapora', 'Gund'],
-  Kulgam: ['Kulgam', 'Damhal Hanjipora', 'Devsar', 'Frisal', 'Pahloo', 'Kund', 'Behibagh'],
-  Bandipora: ['Bandipora', 'Sumbal', 'Gurez', 'Tulail', 'Aloosa', 'Naidkhai', 'Arin'],
-  Shopian: ['Shopian', 'Keller', 'Hermain', 'Zainapora', 'Imamsahib', 'Kanjiullar'],
-};
 
 export interface VendorItem {
   id: number | string;
@@ -91,6 +46,7 @@ export interface PanchayatItem {
   panchayat: string;
   count?: number;
   block?: string;
+  village?: string;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -166,20 +122,43 @@ export interface ShlDashboardData {
    Assign Light Types
    ═══════════════════════════════════════════════════════════════════════════ */
 
-export interface AssignLightPayload {
-  id?: string | number;
+export interface AdminAssignLightItem {
+  id: number;
+  company_id?: string;
   vendor: string | number;
+  vendor_name: string;
   state: string;
-  volume: string;
   district: string;
   block: string;
   panchayat: string[];
-  ldate: string;
-  file?: File | null;
+  village?: string;
+  volume?: string;
+  count: number;
+  sitecount?: number;
+  lights_count?: number;
+  assign_date?: string;
+  ldate?: string;
+  status: number; // 0 = pending approval, 1 = approved / active
+  uid_file?: string;
+  file?: string;
+  battery_file?: string;
+  sim_file?: string;
+  panel_file?: string;
+  imei_file?: string;
   remark?: string;
+  remarks?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
+
+export interface ViewAssignLightResponse {
+  summary: AssignSummaryCounts;
+  viewassign: AdminAssignLightItem[];
 }
 
 export interface EditAssignData {
+  assign?: any;
   assignShl?: any;
   assign_shl?: any;
   vendor?: VendorItem[];
@@ -190,9 +169,11 @@ export interface EditAssignData {
 }
 
 export interface AdminApiResponse {
+  success: boolean;
   status: boolean;
   message: string;
   data?: any;
+  errors?: any;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -243,6 +224,8 @@ export interface LightVerificationItem {
   inst_verify_remarks?: string;
   remark?: string;
   inst_verify_status?: number; // 0 = Pending, 1 = Approved, 2 = Rejected
+  inst_verify_file?: string;
+  verify_file?: string;
   inst_verify_date?: string;
   inst_claim_status?: number;
   inst_pay_status?: number;
@@ -277,6 +260,7 @@ export interface ViewInstallationResponse {
 
 export interface SslClaimDeskItem {
   id: number;
+  state?: string;
   claim_id?: string;
   vendor_id?: number | string;
   vendor_name: string;
@@ -284,18 +268,24 @@ export interface SslClaimDeskItem {
   phase?: string;
   district?: string;
   claim_site_count: number;
+  site_count?: number;
   claim_amount: number | string;
   claim_raised_date: string;
+  created_at?: string;
   claim_invoice?: string;
+  invoice_file?: string;
   ca_certificate?: string;
   claim_status: number; // 1 = Raised / In Audit, 2 = Approved, 3 = Rejected
-  payment_status: number; // 0 = Pending, 1 = Paid
+  status?: number;
+  payment_status?: number; // 0 = Pending, 1 = Paid
   payment_date?: string;
   payment_amount?: number | string;
   payment_remark?: string;
   remarks?: string;
   audit_remarks?: string;
+  claim_update_date?: string;
   updated_at?: string;
+  [key: string]: any;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -304,119 +294,202 @@ export interface SslClaimDeskItem {
 
 export interface SslPaymentRegisterItem {
   id: number;
+  state?: string;
   voucher_no?: string;
-  claim_id: number | string;
+  claim_id?: number | string;
   vendor_id?: number | string;
   vendor_name: string;
+  site_count?: number;
+  claim_site_count?: number;
+  claim_invoice?: string;
+  claim_amount?: number | string;
+  claim_approved_date?: string;
+  claim_approved_by?: string;
+  payment_date?: string;
+  payment_by?: string;
+  pay_amount?: number | string;
+  payment_amount?: number | string;
+  payment_remark?: string;
+  payment_remarks?: string;
   bank_name?: string;
   account_no?: string;
   ifsc_code?: string;
   utr_no?: string;
-  disbursed_amount: number | string;
+  disbursed_amount?: number | string;
+  amount?: number | string;
   disbursed_date?: string;
-  payment_status: number; // 1 = Paid/Settled, 0 = Pending
+  date?: string;
+  payment_status?: number; // 1 = Paid/Settled, 0 = Pending
+  status?: number; // 1 = Paid, 0 = Pending
   payment_mode?: string; // RTGS, NEFT, IMPS
   remarks?: string;
   created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
+
+export interface ViewPaymentData {
+  payment_request: number;
+  payment_complete: number;
+  payment_pending: number;
+  vendors: VendorItem[];
+  payments: SslPaymentRegisterItem[];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Default Mock Datasets (Realistically populated for Jammu & Kashmir SSL)
+   HTTP Request Helper with Multi-Candidate Fallback & Working-Prefix Cache
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const MOCK_VENDORS: VendorItem[] = [
-  { id: 142, name: 'Surya Roshni Solar Infrastructure', phone: '+91 94191 23456', email: 'surya.jk@suryaroshni.com', rating: '4.8' },
-  { id: 212, name: 'Havells India Lighting Division', phone: '+91 94192 87654', email: 'havells.north@havells.com', rating: '4.7' },
-  { id: 304, name: 'Signify Innovations Solar Systems', phone: '+91 94190 55432', email: 'signify.jk@signify.com', rating: '4.9' },
-  { id: 418, name: 'Microsun Solar Tech J&K', phone: '+91 94193 11223', email: 'projects@microsunjk.in', rating: '4.5' },
-  { id: 520, name: 'Tata Power Solar Systems J&K', phone: '+91 94191 99887', email: 'epc.solar@tatapower.com', rating: '4.9' },
-  { id: 630, name: 'Jakson Green Power & Lighting', phone: '+91 94194 77665', email: 'info@jaksonpower.in', rating: '4.6' },
-];
+const RAW_BASE = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
+export const BASE_API_URL = RAW_BASE.endsWith('/api') ? RAW_BASE : `${RAW_BASE}/api`;
+export const BASE_ROOT_URL = BASE_API_URL.replace(/\/api\/?$/, '');
+export const ADMIN_API_URL = `${BASE_API_URL}/admin`;
+export const ADMIN_ROOT_URL = `${BASE_ROOT_URL}/admin`;
 
-const MOCK_VOLUMES: VolumeItem[] = [
-  { volume: 'Phase I - Volume 1 (1,200 SSL)', phase: 'Phase I', description: 'Priority border blocks & remote villages', target_lights: 1200 },
-  { volume: 'Phase I - Volume 2 (2,500 SSL)', phase: 'Phase I', description: 'Gram panchayat road safety illumination', target_lights: 2500 },
-  { volume: 'Phase II - Volume 1 (3,500 SSL)', phase: 'Phase II', description: 'High-density community clusters & shrines', target_lights: 3500 },
-  { volume: 'Phase II - Volume 2 (5,000 SSL)', phase: 'Phase II', description: 'State-wide PM-KUSUM & Solar Rural Allotments', target_lights: 5000 },
-];
-
-const MOCK_DISTRICTS_DATA: DistrictWiseItem[] = [
-  { district: 'Jammu', light_count: 1850, inst_complete: 1540, inst_pending: 310, verify_approved: 1480, verify_pending: 45, verify_reject: 15, claim_raised: 1420, claim_approved: 1380, claim_reject: 40, payment_done: 1300, payment_pending: 80 },
-  { district: 'Kathua', light_count: 1250, inst_complete: 1040, inst_pending: 210, verify_approved: 990, verify_pending: 35, verify_reject: 15, claim_raised: 920, claim_approved: 890, claim_reject: 30, payment_done: 840, payment_pending: 50 },
-  { district: 'Samba', light_count: 920, inst_complete: 780, inst_pending: 140, verify_approved: 740, verify_pending: 28, verify_reject: 12, claim_raised: 700, claim_approved: 680, claim_reject: 20, payment_done: 640, payment_pending: 40 },
-  { district: 'Udhampur', light_count: 840, inst_complete: 690, inst_pending: 150, verify_approved: 650, verify_pending: 30, verify_reject: 10, claim_raised: 600, claim_approved: 580, claim_reject: 20, payment_done: 540, payment_pending: 40 },
-  { district: 'Rajouri', light_count: 760, inst_complete: 590, inst_pending: 170, verify_approved: 550, verify_pending: 28, verify_reject: 12, claim_raised: 510, claim_approved: 490, claim_reject: 20, payment_done: 450, payment_pending: 40 },
-  { district: 'Reasi', light_count: 620, inst_complete: 490, inst_pending: 130, verify_approved: 460, verify_pending: 22, verify_reject: 8, claim_raised: 420, claim_approved: 400, claim_reject: 20, payment_done: 370, payment_pending: 30 },
-  { district: 'Poonch', light_count: 580, inst_complete: 440, inst_pending: 140, verify_approved: 410, verify_pending: 20, verify_reject: 10, claim_raised: 370, claim_approved: 350, claim_reject: 20, payment_done: 320, payment_pending: 30 },
-  { district: 'Doda', light_count: 540, inst_complete: 410, inst_pending: 130, verify_approved: 380, verify_pending: 22, verify_reject: 8, claim_raised: 340, claim_approved: 320, claim_reject: 20, payment_done: 290, payment_pending: 30 },
-  { district: 'Ramban', light_count: 480, inst_complete: 360, inst_pending: 120, verify_approved: 330, verify_pending: 20, verify_reject: 10, claim_raised: 300, claim_approved: 280, claim_reject: 20, payment_done: 250, payment_pending: 30 },
-  { district: 'Kishtwar', light_count: 450, inst_complete: 330, inst_pending: 120, verify_approved: 300, verify_pending: 20, verify_reject: 10, claim_raised: 270, claim_approved: 250, claim_reject: 20, payment_done: 220, payment_pending: 30 },
-  { district: 'Srinagar', light_count: 1100, inst_complete: 960, inst_pending: 140, verify_approved: 930, verify_pending: 22, verify_reject: 8, claim_raised: 890, claim_approved: 870, claim_reject: 20, payment_done: 820, payment_pending: 50 },
-  { district: 'Baramulla', light_count: 980, inst_complete: 820, inst_pending: 160, verify_approved: 780, verify_pending: 28, verify_reject: 12, claim_raised: 740, claim_approved: 710, claim_reject: 30, payment_done: 660, payment_pending: 50 },
-  { district: 'Anantnag', light_count: 880, inst_complete: 710, inst_pending: 170, verify_approved: 670, verify_pending: 28, verify_reject: 12, claim_raised: 620, claim_approved: 590, claim_reject: 30, payment_done: 550, payment_pending: 40 },
-  { district: 'Pulwama', light_count: 720, inst_complete: 590, inst_pending: 130, verify_approved: 560, verify_pending: 22, verify_reject: 8, claim_raised: 520, claim_approved: 500, claim_reject: 20, payment_done: 460, payment_pending: 40 },
-  { district: 'Kupwara', light_count: 650, inst_complete: 510, inst_pending: 140, verify_approved: 470, verify_pending: 26, verify_reject: 14, claim_raised: 430, claim_approved: 410, claim_reject: 20, payment_done: 370, payment_pending: 40 },
-  { district: 'Budgam', light_count: 610, inst_complete: 480, inst_pending: 130, verify_approved: 450, verify_pending: 22, verify_reject: 8, claim_raised: 410, claim_approved: 390, claim_reject: 20, payment_done: 350, payment_pending: 40 },
-  { district: 'Ganderbal', light_count: 490, inst_complete: 390, inst_pending: 100, verify_approved: 370, verify_pending: 15, verify_reject: 5, claim_raised: 340, claim_approved: 330, claim_reject: 10, payment_done: 300, payment_pending: 30 },
-  { district: 'Kulgam', light_count: 460, inst_complete: 360, inst_pending: 100, verify_approved: 340, verify_pending: 15, verify_reject: 5, claim_raised: 310, claim_approved: 300, claim_reject: 10, payment_done: 270, payment_pending: 30 },
-  { district: 'Bandipora', light_count: 420, inst_complete: 320, inst_pending: 100, verify_approved: 300, verify_pending: 14, verify_reject: 6, claim_raised: 280, claim_approved: 270, claim_reject: 10, payment_done: 240, payment_pending: 30 },
-  { district: 'Shopian', light_count: 380, inst_complete: 290, inst_pending: 90, verify_approved: 270, verify_pending: 15, verify_reject: 5, claim_raised: 250, claim_approved: 240, claim_reject: 10, payment_done: 210, payment_pending: 30 },
-];
-
-const MOCK_VENDORS_WISE_DATA: VendorWiseItem[] = [
-  { inst_vendor: 142, vendor_name: 'Surya Roshni Solar Infrastructure', light_count: 3800, inst_complete: 3250, inst_pending: 550, verify_approved: 3120, verify_pending: 90, verify_reject: 40, claim_approved: 2980, payment_done: 2820, performance_score: '96.2%' },
-  { inst_vendor: 212, vendor_name: 'Havells India Lighting Division', light_count: 3200, inst_complete: 2680, inst_pending: 520, verify_approved: 2550, verify_pending: 85, verify_reject: 45, claim_approved: 2420, payment_done: 2280, performance_score: '94.8%' },
-  { inst_vendor: 304, vendor_name: 'Signify Innovations Solar Systems', light_count: 2800, inst_complete: 2420, inst_pending: 380, verify_approved: 2340, verify_pending: 55, verify_reject: 25, claim_approved: 2260, payment_done: 2150, performance_score: '97.1%' },
-  { inst_vendor: 418, vendor_name: 'Microsun Solar Tech J&K', light_count: 1800, inst_complete: 1390, inst_pending: 410, verify_approved: 1290, verify_pending: 65, verify_reject: 35, claim_approved: 1180, payment_done: 1060, performance_score: '91.5%' },
-  { inst_vendor: 520, vendor_name: 'Tata Power Solar Systems J&K', light_count: 1600, inst_complete: 1380, inst_pending: 220, verify_approved: 1320, verify_pending: 42, verify_reject: 18, claim_approved: 1270, payment_done: 1210, performance_score: '98.0%' },
-  { inst_vendor: 630, vendor_name: 'Jakson Green Power & Lighting', light_count: 1430, inst_complete: 1110, inst_pending: 320, verify_approved: 1040, verify_pending: 50, verify_reject: 20, claim_approved: 970, payment_done: 880, performance_score: '92.4%' },
-];
-
-const MOCK_MONTHLY_INSTALLATIONS: MonthInstallationItem[] = [
-  { month_year: 'May 2025', monthly_installations: 650 },
-  { month_year: 'Jun 2025', monthly_installations: 1120 },
-  { month_year: 'Jul 2025', monthly_installations: 1480 },
-  { month_year: 'Aug 2025', monthly_installations: 1950 },
-  { month_year: 'Sep 2025', monthly_installations: 2380 },
-  { month_year: 'Oct 2025', monthly_installations: 2640 },
-  { month_year: 'Nov 2025', monthly_installations: 2010 },
-];
-
-const MOCK_TODAY_INSTALLATIONS: TodayInstallationItem[] = [
-  { inst_vendor: 142, vendor_name: 'Surya Roshni Solar Infrastructure', today_install: 48 },
-  { inst_vendor: 212, vendor_name: 'Havells India Lighting Division', today_install: 36 },
-  { inst_vendor: 304, vendor_name: 'Signify Innovations Solar Systems', today_install: 42 },
-  { inst_vendor: 520, vendor_name: 'Tata Power Solar Systems J&K', today_install: 28 },
-  { inst_vendor: 418, vendor_name: 'Microsun Solar Tech J&K', today_install: 18 },
-];
-
-const STORAGE_KEY_ASSIGN = 'jammu_ssl_assigned_work_orders_v2';
-const STORAGE_KEY_VERIFY = 'jammu_ssl_verified_lights_v2';
-const STORAGE_KEY_CLAIMS = 'jammu_ssl_claim_requests_v2';
-const STORAGE_KEY_PAYMENTS = 'jammu_ssl_payment_settlements_v2';
-
-/* Helper to initialize and persist mock data into local storage safely */
-function getStored<T>(key: string, fallback: T): T {
+export const getAuthToken = (): string | null => {
+  const fromAuth = authService.getToken();
+  if (fromAuth) return fromAuth;
+  const session = authService.getSession();
+  if (session?.token) return session.token;
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
-  } catch (err) {
-    console.warn(`Failed to read ${key} from storage:`, err);
-  }
-  return fallback;
-}
-
-function setStored<T>(key: string, val: T): void {
+    const rawLocal = localStorage.getItem('klk_user_session');
+    if (rawLocal) {
+      const p = JSON.parse(rawLocal);
+      if (p?.token) return p.token;
+    }
+  } catch {}
   try {
-    localStorage.setItem(key, JSON.stringify(val));
-  } catch (err) {
-    console.warn(`Failed to save ${key} to storage:`, err);
-  }
-}
+    const rawSession = sessionStorage.getItem('klk_user_session');
+    if (rawSession) {
+      const p = JSON.parse(rawSession);
+      if (p?.token) return p.token;
+    }
+  } catch {}
+  return localStorage.getItem('token') || localStorage.getItem('access_token') || null;
+};
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Jammu SSL Admin Service Implementation
-   ═══════════════════════════════════════════════════════════════════════════ */
+export const getAuthHeaders = (isFormData = false): Record<string, string> => {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+};
+
+let knownWorkingBase: string | null = null;
+
+async function apiRequest<T = any>(
+  path: string,
+  options: RequestInit = {}
+): Promise<{ success: boolean; data?: T; message?: string; errors?: any; raw?: any }> {
+  let urlsToTry = buildCentralCandidateUrls(path);
+  if (knownWorkingBase) {
+    urlsToTry.sort((a, b) => {
+      const aMatch = a.startsWith(knownWorkingBase!) ? -1 : 0;
+      const bMatch = b.startsWith(knownWorkingBase!) ? -1 : 0;
+      return aMatch - bMatch;
+    });
+  }
+
+  let lastError: any = null;
+  let lastJson: any = null;
+  const isPost = (options.method || 'GET').toUpperCase() === 'POST';
+
+  for (const url of urlsToTry) {
+    try {
+      const isFormData = options.body instanceof FormData;
+      const headers = {
+        ...getAuthHeaders(isFormData),
+        ...((options.headers as Record<string, string>) || {}),
+      };
+
+      const res = await fetch(url, {
+        credentials: 'include',
+        ...options,
+        headers,
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let json: any = null;
+      if (contentType.includes('application/json')) {
+        json = await res.json().catch(() => null);
+      } else {
+        const text = await res.text().catch(() => '');
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          json = { rawText: text };
+        }
+      }
+      lastJson = json;
+
+      if (res.ok) {
+        for (const base of [ADMIN_API_URL, BASE_API_URL, ADMIN_ROOT_URL, BASE_ROOT_URL]) {
+          if (url.startsWith(base)) {
+            knownWorkingBase = base;
+            break;
+          }
+        }
+        return {
+          success: json?.success ?? true,
+          data: json?.data !== undefined ? json.data : json,
+          message: json?.message || 'Success',
+          raw: json,
+        };
+      }
+
+      if (res.status === 404 && url !== urlsToTry[urlsToTry.length - 1]) {
+        continue;
+      }
+
+      if (res.status === 405 && isPost) {
+        let queryParams = '';
+        if (options.body instanceof FormData) {
+          const q = new URLSearchParams();
+          options.body.forEach((val, key) => {
+            if (typeof val === 'string') q.append(key, val);
+          });
+          queryParams = q.toString();
+        }
+        const getUrl = queryParams ? `${url}${url.includes('?') ? '&' : '?'}${queryParams}` : url;
+        try {
+          const getRes = await fetch(getUrl, {
+            method: 'GET',
+            credentials: 'include',
+            headers: getAuthHeaders(false),
+          });
+          if (getRes.ok) {
+            const getJson = await getRes.json().catch(() => ({}));
+            return {
+              success: getJson?.success ?? true,
+              data: getJson?.data !== undefined ? getJson.data : getJson,
+              message: getJson?.message || 'Success (GET Fallback)',
+              raw: getJson,
+            };
+          }
+        } catch {}
+      }
+
+      lastError = new Error(json?.message || `HTTP ${res.status}: ${res.statusText}`);
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  return {
+    success: false,
+    message: lastError?.message || 'Failed to fetch from Jammu SSL API',
+    errors: lastJson?.errors || lastError,
+    raw: lastJson,
+  };
+}
 
 export const normalizeJammuDashboardStatus = (raw?: string): string => {
   if (!raw) return 'total';
@@ -431,788 +504,1041 @@ export const normalizeJammuDashboardStatus = (raw?: string): string => {
   return 'total';
 };
 
-export const jammuSslAdminService = {
-  /* 1. Dashboard Data */
-  async getDashboard(): Promise<ShlDashboardData> {
-    try {
-      const res = await jammuSslService.getInstallationDashboard();
-      if (res && res.ssl && res.ssl.site_count > 0) {
-        return {
-          shldatas: {
-            site_count: res.ssl.site_count || 14630,
-            site_assigned: res.ssl.site_count || 14630,
-            site_not_assigned: 0,
-            complete: res.ssl.complete || 12230,
-            pending: res.ssl.pending || 2400,
-            verify_pending: res.ssl.verify_pending || 487,
-            verify_approved: res.ssl.verify_approved || 11650,
-            verify_reject: res.ssl.verify_reject || 93,
-            claim_applicable: res.ssl.claim_applicable || 11650,
-            claim_raised: res.ssl.claim_raised || 11200,
-            claim_approved: res.ssl.claim_approved || 10850,
-            claim_pending: 350,
-            inst_pay_done: res.ssl.pay_done || 10200,
-            inst_pay_pending: res.ssl.pay_pending || 650,
-          },
-          districtwise: res.districtwise && res.districtwise.length > 0 ? (res.districtwise as any) : MOCK_DISTRICTS_DATA,
-          vendorswise: MOCK_VENDORS_WISE_DATA,
-          vendor_installation_month: res.district_installation_month && res.district_installation_month.length > 0
-            ? res.district_installation_month
-            : MOCK_MONTHLY_INSTALLATIONS,
-          vendor_today_installation: MOCK_TODAY_INSTALLATIONS,
-        };
-      }
-    } catch (err) {
-      console.warn('Real Jammu SSL dashboard API fallback:', err);
+/* ═══════════════════════════════════════════════════════════════════════════
+   Robust Admin SSL Service — 100% Live Backend APIs (Zero Mock Data)
+   Controller: App\Http\Controllers\admin\jammu\JammuSslInstallationController
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+export const jammuAdminSslService = {
+  /**
+   * 22. SSL Dashboard Summary
+   */
+  getDashboard: async (): Promise<ShlDashboardData> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_DASHBOARD, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload: any = res.data?.ssl ? res.data : res.raw?.data || res.data || {};
+    const ssl = payload.ssl || {};
+
+    const totals: ShlDashboardTotals = {
+      site_count: Number(ssl.site_count ?? 0),
+      site_assigned: Number(ssl.site_assigned ?? ssl.site_count ?? 0),
+      site_not_assigned: Number(ssl.site_not_assigned ?? 0),
+      complete: Number(ssl.complete ?? 0),
+      pending: Number(ssl.pending ?? 0),
+      verify_pending: Number(ssl.verify_pending ?? 0),
+      verify_approved: Number(ssl.verify_approved ?? 0),
+      verify_reject: Number(ssl.verify_reject ?? 0),
+      claim_applicable: Number(ssl.claim_applicable ?? 0),
+      claim_raised: Number(ssl.claim_raised ?? 0),
+      claim_approved: Number(ssl.claim_approved ?? 0),
+      claim_pending: Number(
+        ssl.claim_pending ?? Math.max(0, Number(ssl.claim_raised ?? 0) - Number(ssl.claim_approved ?? 0))
+      ),
+      inst_pay_done: Number(ssl.pay_done ?? ssl.inst_pay_done ?? 0),
+      inst_pay_pending: Number(ssl.pay_pending ?? ssl.inst_pay_pending ?? 0),
+    };
+
+    return {
+      shldatas: totals,
+      districtwise: Array.isArray(payload.districtwise) ? payload.districtwise : [],
+      vendorswise: Array.isArray(payload.vendorswise) ? payload.vendorswise : [],
+      vendor_installation_month: Array.isArray(payload.vendor_installation_month)
+        ? payload.vendor_installation_month
+        : [],
+      vendor_today_installation: Array.isArray(payload.vendor_today_installation)
+        ? payload.vendor_today_installation
+        : [],
+    };
+  },
+
+  /**
+   * 23. Drill-down: View Dashboard
+   */
+  getViewDashboard: async (status: string): Promise<any[]> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_VIEW_DASHBOARD(status), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    const payload = res.data?.ssl ? res.data.ssl : res.raw?.data?.ssl || res.data || [];
+    return Array.isArray(payload) ? payload : [];
+  },
+
+  /**
+   * 24. Drill-down: Vendor-wise Data
+   */
+  getVendorWiseData: async (status: string, vendor: string | number): Promise<any[]> => {
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_VENDORWISE_DATA(status, vendor),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+    const payload = res.data?.ssl ? res.data.ssl : res.raw?.data?.ssl || res.data || [];
+    return Array.isArray(payload) ? payload : [];
+  },
+
+  /**
+   * 25. Drill-down: District-wise Data
+   */
+  getDistrictWiseData: async (status: string, district: string): Promise<any[]> => {
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_DISTRICTWISE_DATA(status, district),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+    const payload = res.data?.ssl ? res.data.ssl : res.raw?.data?.ssl || res.data || [];
+    return Array.isArray(payload) ? payload : [];
+  },
+
+  /**
+   * Universal Drill-down router
+   */
+  getDrillDownData: async (status: string, vendor?: string | number, district?: string): Promise<any[]> => {
+    if (vendor !== undefined && vendor !== '' && vendor !== 'all') {
+      return jammuAdminSslService.getVendorWiseData(status, vendor);
     }
-
-    const totalAllocated = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.light_count, 0);
-    const totalInstalled = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.inst_complete, 0);
-    const totalPending = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.inst_pending, 0);
-    const totalVerified = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.verify_approved, 0);
-    const totalVerifyPending = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.verify_pending, 0);
-    const totalVerifyReject = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.verify_reject, 0);
-    const totalClaimApproved = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.claim_approved, 0);
-    const totalClaimRaised = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.claim_raised, 0);
-    const totalPaid = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.payment_done, 0);
-    const totalPayPending = MOCK_DISTRICTS_DATA.reduce((s, d) => s + d.payment_pending, 0);
-
-    return {
-      shldatas: {
-        site_count: totalAllocated,
-        site_assigned: totalAllocated,
-        site_not_assigned: 0,
-        complete: totalInstalled,
-        pending: totalPending,
-        verify_pending: totalVerifyPending,
-        verify_approved: totalVerified,
-        verify_reject: totalVerifyReject,
-        claim_applicable: totalVerified,
-        claim_raised: totalClaimRaised,
-        claim_approved: totalClaimApproved,
-        claim_pending: totalClaimRaised - totalClaimApproved,
-        inst_pay_done: totalPaid,
-        inst_pay_pending: totalPayPending,
-      },
-      districtwise: MOCK_DISTRICTS_DATA,
-      vendorswise: MOCK_VENDORS_WISE_DATA,
-      vendor_installation_month: MOCK_MONTHLY_INSTALLATIONS,
-      vendor_today_installation: MOCK_TODAY_INSTALLATIONS,
-    };
+    if (district !== undefined && district !== '' && district !== 'all') {
+      return jammuAdminSslService.getDistrictWiseData(status, district);
+    }
+    return jammuAdminSslService.getViewDashboard(status);
   },
 
-  /* 2. Vendor Name Map Lookup */
-  async getVendorMap(): Promise<Record<string | number, string>> {
-    const map: Record<string | number, string> = {
-      '142': 'Surya Roshni Solar Infrastructure',
-      '212': 'Havells India Lighting Division',
-      '304': 'Signify Innovations Solar Systems',
-      '418': 'Microsun Solar Tech J&K',
-      '520': 'Tata Power Solar Systems J&K',
-      '630': 'Jakson Green Power & Lighting',
-    };
-    return map;
+  /**
+   * 1. Assign Form Data (Vendors)
+   */
+  getAssignFormData: async (): Promise<{ vendors: VendorItem[]; volumes: VolumeItem[] }> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_ASSIGN, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload = res.data || res.raw?.data || {};
+    const rawVendors = Array.isArray(payload.vendor)
+      ? payload.vendor
+      : Array.isArray(payload.vendors)
+      ? payload.vendors
+      : [];
+
+    const vendors: VendorItem[] = rawVendors.map((v: any) => ({
+      id: v.id ?? v.vendor ?? v.inst_vendor,
+      name: v.name || v.vendor_name || `Vendor #${v.id ?? v.vendor}`,
+      state: v.state || 'jammu',
+      phone: v.phone || v.contact_number,
+      email: v.email,
+      contact_person: v.contact_person,
+    }));
+
+    const rawVolumes = Array.isArray(payload.volumes)
+      ? payload.volumes
+      : Array.isArray(payload.volume)
+      ? payload.volume
+      : [];
+
+    return { vendors, volumes: rawVolumes };
   },
 
-  /* 3. Assign Form Master Data */
-  async getAssignFormData(): Promise<{ vendors: VendorItem[]; volumes: VolumeItem[] }> {
-    return {
-      vendors: MOCK_VENDORS,
-      volumes: MOCK_VOLUMES,
-    };
-  },
+  /**
+   * 2. Fetch Districts for Jammu State
+   */
+  fetchDistricts: async (state = 'jammu'): Promise<DistrictItem[]> => {
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_FETCH_DISTRICT(state),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
 
-  /* 4. Cascading Territory Loaders */
-  async fetchDistricts(_volume?: string | number): Promise<DistrictItem[]> {
-    return JAMMU_SSL_DISTRICTS.map((d) => ({ district: d }));
-  },
-
-  async fetchBlocks(_volume: string | number, district: string): Promise<BlockItem[]> {
-    const matched = JAMMU_SSL_BLOCKS[district] || ['Main Block', 'Block HQ', 'North Block', 'South Block'];
-    return matched.map((b) => ({ block: b }));
-  },
-
-  async fetchPanchayats(_volume: string | number, district: string, block: string): Promise<PanchayatItem[]> {
-    // Generate realistic panchayats for the block
-    const basePanchayats = [
-      `${block} Panchayat-A`,
-      `${block} Panchayat-B`,
-      `${block} Panchayat-C`,
-      `${block} Khas`,
-      `${block} Lower`,
-      `${block} Upper`,
-      `${block} Mandi`,
-      `${block} Pur`,
-    ];
-    return basePanchayats.map((p, idx) => ({
-      panchayat: p,
-      count: 10 + (idx * 5) + (district.length * 2),
-      block,
+    const payload = Array.isArray(res.data) ? res.data : Array.isArray(res.raw?.data) ? res.raw.data : [];
+    return payload.map((d: any) => ({
+      district: typeof d === 'string' ? d : d.district || d.name || String(d),
     }));
   },
 
-  /* 5. Store New Assignment */
-  async storeAssign(payload: FormData | AssignLightPayload): Promise<AdminApiResponse> {
-    try {
-      const vendor = payload instanceof FormData ? String(payload.get('vendor')) : String(payload.vendor);
-      const volume = payload instanceof FormData ? String(payload.get('volume')) : String(payload.volume);
-      const district = payload instanceof FormData ? String(payload.get('district')) : String(payload.district);
-      const block = payload instanceof FormData ? String(payload.get('block')) : String(payload.block);
-      const ldate = payload instanceof FormData ? String(payload.get('ldate')) : String(payload.ldate);
-      const remark = payload instanceof FormData ? String(payload.get('remark') || '') : String(payload.remark || '');
+  /**
+   * 3. Fetch Blocks for District
+   * Accepts (district) or (volume, district)
+   */
+  fetchBlocks: async (arg1: string, arg2?: string, state = 'jammu'): Promise<BlockItem[]> => {
+    const district = arg2 ? arg2 : arg1;
+    if (!district) return [];
 
-      let panchayats: string[] = [];
-      if (payload instanceof FormData) {
-        panchayats = payload.getAll('panchayat[]').map((p) => String(p));
-      } else if (Array.isArray(payload.panchayat)) {
-        panchayats = payload.panchayat;
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_FETCH_BLOCK(district, state),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+
+    const payload = Array.isArray(res.data) ? res.data : Array.isArray(res.raw?.data) ? res.raw.data : [];
+    return payload.map((b: any) => ({
+      block: typeof b === 'string' ? b : b.block || b.name || String(b),
+    }));
+  },
+
+  /**
+   * 4. Fetch Panchayats / Villages with Light Counts
+   * Accepts (district, block) or (volume, district, block)
+   */
+  fetchPanchayats: async (
+    arg1: string,
+    arg2?: string,
+    arg3?: string,
+    state = 'jammu'
+  ): Promise<PanchayatItem[]> => {
+    const district = arg3 ? arg2! : arg1;
+    const block = arg3 ? arg3 : arg2!;
+    if (!district || !block) return [];
+
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_FETCH_PANCHAYAT(district, block, state),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+
+    const payload = Array.isArray(res.data) ? res.data : Array.isArray(res.raw?.data) ? res.raw.data : [];
+    return payload.map((p: any) => {
+      const name = p.village || p.panchayat || p.name || (typeof p === 'string' ? p : 'Unknown');
+      const count = Number(p.count ?? p.light_count ?? 0);
+      return {
+        panchayat: name,
+        village: name,
+        count,
+        block,
+      };
+    });
+  },
+
+  /**
+   * 5. Store Assign Light Order
+   * Form-Data: sitecount, vendor, state, uid_file, district, block, panchayat[], ldate, remark
+   */
+  storeAssign: async (payloadOrFormData: AssignLightPayload | FormData): Promise<AdminApiResponse> => {
+    let body: FormData;
+
+    if (payloadOrFormData instanceof FormData) {
+      body = payloadOrFormData;
+      if (!body.has('state')) body.append('state', 'jammu');
+    } else {
+      body = new FormData();
+      const countVal = String(payloadOrFormData.sitecount ?? payloadOrFormData.total_light ?? 0);
+      body.append('sitecount', countVal);
+      body.append('total_light', countVal);
+      body.append('vendor', String(payloadOrFormData.vendor));
+      body.append('state', payloadOrFormData.state || 'jammu');
+      body.append('district', payloadOrFormData.district);
+      body.append('block', payloadOrFormData.block);
+
+      if (Array.isArray(payloadOrFormData.panchayat)) {
+        payloadOrFormData.panchayat.forEach((p) => body.append('panchayat[]', p));
+      } else if (payloadOrFormData.panchayat) {
+        body.append('panchayat[]', String(payloadOrFormData.panchayat));
       }
 
-      const vendorMap = await this.getVendorMap();
-      const vendorName = vendorMap[vendor] || `Vendor ${vendor}`;
+      const ldate = payloadOrFormData.ldate || payloadOrFormData.assign_date || '';
+      if (ldate) {
+        body.append('ldate', ldate);
+        body.append('assign_date', ldate);
+      }
+      if (payloadOrFormData.uid_file) {
+        body.append('uid_file', payloadOrFormData.uid_file);
+        body.append('file', payloadOrFormData.uid_file);
+      } else if (payloadOrFormData.file) {
+        body.append('uid_file', payloadOrFormData.file);
+        body.append('file', payloadOrFormData.file);
+      }
+      if (payloadOrFormData.remark) {
+        body.append('remark', payloadOrFormData.remark);
+        body.append('remarks', payloadOrFormData.remark);
+      }
+    }
 
-      const newId = Date.now();
-      const newWorkOrder: JammuSslAssignedLightItem = {
-        id: newId,
-        company_id: 'JK-ENERGY-2025',
-        vendor,
-        vendor_name: vendorName,
-        state: 'Jammu & Kashmir',
-        volume,
-        district,
-        block,
-        panchayat: panchayats.join(', '),
-        village: `${panchayats[0] || 'Central'} Cluster`,
-        sdate: new Date().toISOString().split('T')[0],
-        ldate: ldate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-        site_count: panchayats.length * 15 || 25,
-        count: panchayats.length * 15 || 25,
-        status: 1, // 1 = Assigned / Pending Acceptance
-        remark,
-        created_at: new Date().toISOString(),
-      };
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_STORE_ASSIGN, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
 
-      const existing = getStored<JammuSslAssignedLightItem[]>(STORAGE_KEY_ASSIGN, []);
-      setStored(STORAGE_KEY_ASSIGN, [newWorkOrder, ...existing]);
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'SSL lights assigned successfully.' : 'Failed to assign lights'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  /**
+   * 6. View Assigned Lights
+   */
+  getViewAssignWithSummary: async (): Promise<ViewAssignLightResponse> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_VIEW_ASSIGN, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload = res.data || res.raw?.data || {};
+    const summary: AssignSummaryCounts = {
+      totalsite: Number(payload.totalsite ?? payload.summary?.totalsite ?? 0),
+      complete: Number(payload.complete ?? payload.summary?.complete ?? 0),
+      pendingsite: Number(payload.pendingsite ?? payload.summary?.pendingsite ?? 0),
+      approvedsite: Number(payload.approvedsite ?? payload.summary?.approvedsite ?? 0),
+      rejectsite: Number(payload.rejectsite ?? payload.summary?.rejectsite ?? 0),
+      verifypending: Number(payload.verifypending ?? payload.summary?.verifypending ?? 0),
+      claimedapplicable: Number(payload.claimedapplicable ?? payload.summary?.claimedapplicable ?? 0),
+      paymentsitecount: Number(payload.paymentsitecount ?? payload.summary?.paymentsitecount ?? 0),
+    };
+
+    const rawList = Array.isArray(payload.assignedsite)
+      ? payload.assignedsite
+      : Array.isArray(payload.assigned_site)
+      ? payload.assigned_site
+      : Array.isArray(payload.viewassign)
+      ? payload.viewassign
+      : Array.isArray(payload.assigned_sites)
+      ? payload.assigned_sites
+      : Array.isArray(payload.data)
+      ? payload.data
+      : Array.isArray(payload)
+      ? payload
+      : [];
+
+    const viewassign: AdminAssignLightItem[] = rawList.map((item: any) => {
+      let parsedPanchayat = item.panchayat;
+      if (typeof parsedPanchayat === 'string') {
+        try {
+          parsedPanchayat = JSON.parse(parsedPanchayat);
+        } catch {
+          parsedPanchayat = [parsedPanchayat];
+        }
+      }
+      if (!Array.isArray(parsedPanchayat)) {
+        parsedPanchayat = parsedPanchayat ? [String(parsedPanchayat)] : [];
+      }
+      // Filter out literal "null" strings
+      parsedPanchayat = parsedPanchayat.filter(
+        (p: any) => p && String(p).trim() !== '' && String(p).trim().toLowerCase() !== 'null' && String(p).trim().toLowerCase() !== 'undefined'
+      );
+
+      const lightCount = Number(item.sitecount ?? item.total_light ?? item.count ?? item.lights_count ?? 0);
 
       return {
-        status: true,
-        message: `Jammu SSL Lights Assigned Successfully! Work Order #${newId}`,
-        data: newWorkOrder,
+        id: item.id,
+        vendor: item.vendor,
+        vendor_name: item.vendors?.name || item.vendor_name || `Vendor ${item.vendor}`,
+        state: 'jammu',
+        district: item.district,
+        block: item.block,
+        panchayat: parsedPanchayat,
+        village: parsedPanchayat.length > 0 ? parsedPanchayat.join(', ') : (item.village || '—'),
+        volume: item.volume || 'Solar Street Light',
+        count: lightCount,
+        sitecount: lightCount,
+        lights_count: lightCount,
+        ldate: item.ldate || item.assign_date,
+        assign_date: item.assign_date || item.sdate || item.created_at || item.ldate,
+        status: Number(item.status ?? 0),
+        uid_file: item.uid_file || item.file,
+        file: item.uid_file || item.file,
+        battery_file: item.battery_no_file || item.battery_file || item.state_battery_no,
+        sim_file: item.sim_no_file || item.sim_file || item.state_sim_no,
+        panel_file: item.panel_no_file || item.panel_file || item.state_panel_no,
+        imei_file: item.imei_no_file || item.imei_file || item.state_imei_no,
+        company_id: item.company_id,
+        remark: item.remark || item.remarks,
+        remarks: item.remarks || item.remark,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
       };
-    } catch (err: any) {
-      console.error('Store Assign Error:', err);
-      throw new Error(err?.message || 'Failed to assign Jammu SSL lights');
-    }
-  },
-
-  /* 6. Edit Assignment Load */
-  async getEditAssign(id: string | number): Promise<EditAssignData> {
-    const list = await this.getViewAssign();
-    const item = list.find((a) => String(a.id) === String(id));
-    if (!item) {
-      throw new Error(`Assignment #${id} not found.`);
-    }
-
-    const panchayatList = typeof item.panchayat === 'string'
-      ? item.panchayat.split(',').map((p) => p.trim()).filter(Boolean)
-      : Array.isArray(item.panchayat) ? item.panchayat : [];
-
-    return {
-      assignShl: item,
-      vendor: MOCK_VENDORS,
-      volumes: MOCK_VOLUMES,
-      districts: JAMMU_SSL_DISTRICTS.map((d) => ({ district: d })),
-      blocks: (JAMMU_SSL_BLOCKS[item.district || 'Jammu'] || ['Block 1']).map((b) => ({ block: b })),
-      panchayats: panchayatList.map((p) => ({ panchayat: p, count: 15 })),
-    };
-  },
-
-  /* 7. Update Assignment */
-  async updateAssign(payload: FormData | AssignLightPayload): Promise<AdminApiResponse> {
-    const id = payload instanceof FormData ? String(payload.get('id')) : String(payload.id);
-    const ldate = payload instanceof FormData ? String(payload.get('ldate')) : String(payload.ldate);
-    const remark = payload instanceof FormData ? String(payload.get('remark') || '') : String(payload.remark || '');
-
-    const list = getStored<JammuSslAssignedLightItem[]>(STORAGE_KEY_ASSIGN, []);
-    const updated = list.map((item) => {
-      if (String(item.id) === String(id)) {
-        return {
-          ...item,
-          ldate: ldate || item.ldate,
-          remark: remark || item.remark,
-          updated_at: new Date().toISOString(),
-        };
-      }
-      return item;
     });
 
-    setStored(STORAGE_KEY_ASSIGN, updated);
+    return { summary, viewassign };
+  },
+
+  getViewAssign: async (): Promise<AdminAssignLightItem[]> => {
+    const res = await jammuAdminSslService.getViewAssignWithSummary();
+    const list: any = res.viewassign;
+    list.summary = res.summary;
+    return list;
+  },
+
+  getViewAssigned: async () => jammuAdminSslService.getViewAssign(),
+
+  /**
+   * 7. Approval of Assigned Lights Batch
+   */
+  approvalAssign: async (id: number | string): Promise<AdminApiResponse> => {
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_APPROVAL_ASSIGN(id), {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+    });
+
     return {
-      status: true,
-      message: `Assigned Lights Work Order #${id} Updated Successfully!`,
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Assignment approved successfully.' : 'Failed to approve assignment'),
+      data: res.data,
     };
   },
 
-  /* 8. View Assigned Lights */
-  async getViewAssign(): Promise<JammuSslAssignedLightItem[]> {
-    try {
-      const apiData = await jammuSslService.getAssignedLights();
-      if (Array.isArray(apiData) && apiData.length > 0) {
-        return apiData;
+  /**
+   * 8. View Vendor-wise Light Allocation Details
+   */
+  viewVendorWiseDetails: async (id: number | string): Promise<any[]> => {
+    const res = await apiRequest<any>(
+      JAMMU_VENDOR_API.ADMIN_SSL_VIEW_VENDOR_WISE_DETAILS(id),
+      { method: 'GET', headers: getAuthHeaders() }
+    );
+
+    const payload = res.data || res.raw?.data || {};
+    return Array.isArray(payload.vendor_details)
+      ? payload.vendor_details
+      : Array.isArray(payload)
+      ? payload
+      : [];
+  },
+
+  /**
+   * 9. Edit Assign Light
+   */
+  getEditAssign: async (id: number | string): Promise<EditAssignData> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_EDIT_ASSIGN(id), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload = res.data || res.raw?.data || {};
+    return {
+      assign: payload.assign || payload.assignShl || payload.assign_shl,
+      assignShl: payload.assign || payload.assignShl || payload.assign_shl,
+      vendor: payload.vendor || payload.vendors || [],
+      districts: payload.district || payload.districts || [],
+      blocks: payload.block || payload.blocks || [],
+      panchayats: payload.panchayat || payload.panchayats || [],
+    };
+  },
+
+  /**
+   * 10. Update Assign Light (id sent in FormData)
+   */
+  updateAssign: async (payloadOrFormData: AssignLightPayload | FormData): Promise<AdminApiResponse> => {
+    let body: FormData;
+
+    if (payloadOrFormData instanceof FormData) {
+      body = payloadOrFormData;
+      if (!body.has('state')) body.append('state', 'jammu');
+    } else {
+      body = new FormData();
+      if (payloadOrFormData.id) body.append('id', String(payloadOrFormData.id));
+      body.append('vendor', String(payloadOrFormData.vendor));
+      body.append('state', payloadOrFormData.state || 'jammu');
+      body.append('district', payloadOrFormData.district);
+      body.append('block', payloadOrFormData.block);
+
+      if (Array.isArray(payloadOrFormData.panchayat)) {
+        payloadOrFormData.panchayat.forEach((p) => body.append('panchayat[]', p));
+      } else if (payloadOrFormData.panchayat) {
+        body.append('panchayat[]', String(payloadOrFormData.panchayat));
       }
-    } catch {
-      // Use stored / mock
+
+      if (payloadOrFormData.total_light !== undefined) {
+        body.append('total_light', String(payloadOrFormData.total_light));
+      }
+      if (payloadOrFormData.assign_date || payloadOrFormData.ldate) {
+        body.append('assign_date', payloadOrFormData.assign_date || payloadOrFormData.ldate || '');
+      }
+      if (payloadOrFormData.uid_file) {
+        body.append('uid_file', payloadOrFormData.uid_file);
+      } else if (payloadOrFormData.file) {
+        body.append('uid_file', payloadOrFormData.file);
+      }
+      if (payloadOrFormData.remark) {
+        body.append('remark', payloadOrFormData.remark);
+      }
     }
 
-    const defaultAssignments: JammuSslAssignedLightItem[] = [
-      {
-        id: 9021,
-        company_id: 'JK-SSL-2025-01',
-        vendor: 142,
-        vendor_name: 'Surya Roshni Solar Infrastructure',
-        state: 'Jammu & Kashmir',
-        volume: 'Phase I - Volume 1 (1,200 SSL)',
-        district: 'Jammu',
-        block: 'Bhalwal',
-        panchayat: 'Bhalwal A, Bhalwal B, Amb, Seri Panditan',
-        sdate: '2025-05-10',
-        ldate: '2025-08-30',
-        site_count: 120,
-        status: 2, // Accepted
-        remark: 'Border area high luminous efficiency solar street lights',
-        created_at: '2025-05-10 10:30:00',
-      },
-      {
-        id: 9022,
-        company_id: 'JK-SSL-2025-02',
-        vendor: 212,
-        vendor_name: 'Havells India Lighting Division',
-        state: 'Jammu & Kashmir',
-        volume: 'Phase I - Volume 2 (2,500 SSL)',
-        district: 'Kathua',
-        block: 'Barnoti',
-        panchayat: 'Barnoti, Forelain, Nihalpur, Chhan Rorian',
-        sdate: '2025-06-01',
-        ldate: '2025-09-15',
-        site_count: 95,
-        status: 2, // Accepted
-        remark: 'Highway connecting gram panchayats & primary schools',
-        created_at: '2025-06-01 11:15:00',
-      },
-      {
-        id: 9023,
-        company_id: 'JK-SSL-2025-03',
-        vendor: 304,
-        vendor_name: 'Signify Innovations Solar Systems',
-        state: 'Jammu & Kashmir',
-        volume: 'Phase II - Volume 1 (3,500 SSL)',
-        district: 'Samba',
-        block: 'Purmandal',
-        panchayat: 'Purmandal, Uttarbehani, Birpur, Deon',
-        sdate: '2025-06-15',
-        ldate: '2025-10-15',
-        site_count: 80,
-        status: 1, // Pending Acceptance
-        remark: 'Pilgrimage route illumination project',
-        created_at: '2025-06-15 09:40:00',
-      },
-      {
-        id: 9024,
-        company_id: 'JK-SSL-2025-04',
-        vendor: 520,
-        vendor_name: 'Tata Power Solar Systems J&K',
-        state: 'Jammu & Kashmir',
-        volume: 'Phase II - Volume 2 (5,000 SSL)',
-        district: 'Srinagar',
-        block: 'Harwan',
-        panchayat: 'Harwan A, Harwan B, New Theed, Dara',
-        sdate: '2025-07-01',
-        ldate: '2025-11-30',
-        site_count: 140,
-        status: 2, // Accepted
-        remark: 'High-altitude sub-zero rated lithium ferro phosphate battery fixtures',
-        created_at: '2025-07-01 14:20:00',
-      },
-      {
-        id: 9025,
-        company_id: 'JK-SSL-2025-05',
-        vendor: 418,
-        vendor_name: 'Microsun Solar Tech J&K',
-        state: 'Jammu & Kashmir',
-        volume: 'Phase I - Volume 1 (1,200 SSL)',
-        district: 'Udhampur',
-        block: 'Chenani',
-        panchayat: 'Chenani, Madha, Kud, Patnitop Cluster',
-        sdate: '2025-07-15',
-        ldate: '2025-12-10',
-        site_count: 75,
-        status: 1, // Pending Acceptance
-        remark: 'Hill terrain solar street light poles with RMS telemetry',
-        created_at: '2025-07-15 16:00:00',
-      },
-    ];
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_UPDATE_ASSIGN, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
 
-    const stored = getStored<JammuSslAssignedLightItem[]>(STORAGE_KEY_ASSIGN, defaultAssignments);
-    return stored;
-  },
-
-  /* 9. Accept / Approve Assignment */
-  async acceptAssign(id: string | number): Promise<AdminApiResponse> {
-    const list = await this.getViewAssign();
-    const updated = list.map((item) => (String(item.id) === String(id) ? { ...item, status: 2 } : item));
-    setStored(STORAGE_KEY_ASSIGN, updated);
     return {
-      status: true,
-      message: `Work Order #${id} Accepted & Approved for Field Installation!`,
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Assignment updated successfully.' : 'Failed to update assignment'),
+      data: res.data,
+      errors: res.errors,
     };
   },
 
-  /* 10. View Installation / Verification Desk */
-  async getViewInstallation(): Promise<ViewInstallationResponse> {
-    const defaultPending: LightVerificationItem[] = [
-      {
-        id: 701,
-        unique_id: 'JK-SSL-JAM-001',
-        uid: 'JK-SSL-JAM-001',
-        state: 'JAMMU & KASHMIR',
-        district: 'Jammu',
-        block: 'Bhalwal',
-        panchayat: 'Bhalwal A',
-        village: 'Kanger Morh',
-        phase: 'Phase I',
-        inst_vendor: 142,
-        vendor_name: 'Surya Roshni Solar Infrastructure',
-        beneficiary_name: 'Gram Panchayat Bhalwal / Sarpanch Ashok Kumar',
-        contact_no: '+91 94191 55678',
-        panel_no: 'SR-PV-50W-88912',
-        pole_no: 'POLE-JAM-401',
-        battery_serial_no: 'LFP-12.8V-30AH-1049',
-        light_no: 'LUM-18W-LED-552',
-        imei_no: '867540049182341',
-        sim_no: '8991400294817263541',
-        latitude: '32.7845',
-        longitude: '74.8321',
-        light_file: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'Installed at Panchayat Bhawan Junction. Pole cemented, lux level tested 28 Lux at 4m radius.',
-        inst_verify_status: 0, // Pending
-        created_at: '2025-07-20 12:30:00',
-      },
-      {
-        id: 702,
-        unique_id: 'JK-SSL-KTH-002',
-        uid: 'JK-SSL-KTH-002',
-        state: 'JAMMU & KASHMIR',
-        district: 'Kathua',
-        block: 'Barnoti',
-        panchayat: 'Barnoti',
-        village: 'Govt High School Crossing',
-        phase: 'Phase I',
-        inst_vendor: 212,
-        vendor_name: 'Havells India Lighting Division',
-        beneficiary_name: 'Headmaster Subhash Sharma',
-        contact_no: '+91 94192 44321',
-        panel_no: 'HVL-SPV-55W-6623',
-        pole_no: 'POLE-KTH-112',
-        battery_serial_no: 'HVL-BAT-LFP-360WH-402',
-        light_no: 'HVL-SSL-15W-893',
-        imei_no: '867540049182998',
-        sim_no: '8991400294817288771',
-        latitude: '32.3789',
-        longitude: '75.5214',
-        light_file: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'School gate lighting pole erected with anti-theft battery clamping mechanism.',
-        inst_verify_status: 0, // Pending
-        created_at: '2025-07-21 15:45:00',
-      },
-      {
-        id: 703,
-        unique_id: 'JK-SSL-SMB-003',
-        uid: 'JK-SSL-SMB-003',
-        state: 'JAMMU & KASHMIR',
-        district: 'Samba',
-        block: 'Purmandal',
-        panchayat: 'Purmandal',
-        village: 'Temple Chowk Main Road',
-        phase: 'Phase II',
-        inst_vendor: 304,
-        vendor_name: 'Signify Innovations Solar Systems',
-        beneficiary_name: 'Panchayat Committee / Vijay Singh',
-        contact_no: '+91 94190 66789',
-        panel_no: 'SIG-PV-60W-7741',
-        pole_no: 'POLE-SMB-089',
-        battery_serial_no: 'SIG-LFP-30AH-8832',
-        light_no: 'SIG-LUM-20W-443',
-        imei_no: '867540049183452',
-        sim_no: '8991400294817299102',
-        latitude: '32.7011',
-        longitude: '75.0567',
-        light_file: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'RMS telemetry active, auto on-off functional at dusk and dawn.',
-        inst_verify_status: 0, // Pending
-        created_at: '2025-07-22 10:10:00',
-      },
-    ];
+  /**
+   * 11. View Installation (Verification Desk)
+   */
+  getViewInstallation: async (): Promise<ViewInstallationResponse> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_VIEW_INSTALLATION, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
 
-    const defaultVerified: LightVerificationItem[] = [
-      {
-        id: 601,
-        unique_id: 'JK-SSL-JAM-088',
-        uid: 'JK-SSL-JAM-088',
-        state: 'JAMMU & KASHMIR',
-        district: 'Jammu',
-        block: 'Bishnah',
-        panchayat: 'Bishnah Rural',
-        village: 'Ward 4 Community Hall',
-        phase: 'Phase I',
-        inst_vendor: 142,
-        vendor_name: 'Surya Roshni Solar Infrastructure',
-        beneficiary_name: 'Mohinder Paul / Ward Incharge',
-        contact_no: '+91 94191 11223',
-        panel_no: 'SR-PV-50W-33411',
-        pole_no: 'POLE-JAM-224',
-        battery_serial_no: 'LFP-12.8V-30AH-0988',
-        light_no: 'LUM-18W-LED-321',
-        imei_no: '867540049181122',
-        sim_no: '8991400294817211223',
-        latitude: '32.6124',
-        longitude: '74.8611',
-        light_file: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'Pole erected and all components verified matching work order.',
-        inst_verify_status: 1, // Approved
-        inst_verify_remarks: 'QA Passed: Lux level 30.5 Lux, battery enclosure sealed and geo-tagged properly.',
-        inst_verify_date: '2025-07-23 16:30:00',
-        created_at: '2025-07-18 11:00:00',
-      },
-      {
-        id: 602,
-        unique_id: 'JK-SSL-UDH-045',
-        uid: 'JK-SSL-UDH-045',
-        state: 'JAMMU & KASHMIR',
-        district: 'Udhampur',
-        block: 'Ramnagar',
-        panchayat: 'Ramnagar East',
-        village: 'Sub District Hospital Gate',
-        phase: 'Phase I',
-        inst_vendor: 418,
-        vendor_name: 'Microsun Solar Tech J&K',
-        beneficiary_name: 'Dr. Ramesh Kumar / BMO',
-        contact_no: '+91 94193 99887',
-        panel_no: 'MS-PV-50W-44321',
-        pole_no: 'POLE-UDH-188',
-        battery_serial_no: 'MS-BAT-30AH-552',
-        light_no: 'MS-LED-18W-901',
-        imei_no: '867540049187766',
-        sim_no: '8991400294817244556',
-        latitude: '32.9211',
-        longitude: '75.1423',
-        light_file: 'https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'Hospital ambulance ramp illuminated 24/7.',
-        inst_verify_status: 1, // Approved
-        inst_verify_remarks: 'QA Approved: Battery voltage reading 13.2V, anchor bolts fully grouted.',
-        inst_verify_date: '2025-07-23 18:00:00',
-        created_at: '2025-07-17 14:15:00',
-      },
-      {
-        id: 603,
-        unique_id: 'JK-SSL-KTH-092',
-        uid: 'JK-SSL-KTH-092',
-        state: 'JAMMU & KASHMIR',
-        district: 'Kathua',
-        block: 'Basohli',
-        panchayat: 'Basohli Town',
-        village: 'Ranjit Sagar Dam Viewpoint',
-        phase: 'Phase I',
-        inst_vendor: 212,
-        vendor_name: 'Havells India Lighting Division',
-        beneficiary_name: 'Panchayat Secretary Rajat Verma',
-        contact_no: '+91 94192 77665',
-        panel_no: 'HVL-SPV-55W-9012',
-        pole_no: 'POLE-KTH-341',
-        battery_serial_no: 'HVL-BAT-LFP-360WH-994',
-        light_no: 'HVL-SSL-15W-441',
-        imei_no: '867540049189912',
-        sim_no: '8991400294817299881',
-        latitude: '32.4891',
-        longitude: '75.8123',
-        light_file: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=600&auto=format&fit=crop&q=80',
-        inst_remark: 'Windy terrain, guy wires installed.',
-        inst_verify_status: 2, // Rejected / Rework Required
-        inst_verify_remarks: 'Audit Failed: Luminary tilted 15 degrees off horizontal, battery box lock loose. Vendor rectification required.',
-        inst_verify_date: '2025-07-24 11:20:00',
-        created_at: '2025-07-16 16:30:00',
-      },
-    ];
+    const payload = res.data || res.raw?.data || {};
 
-    const storedPending = getStored<LightVerificationItem[]>(STORAGE_KEY_VERIFY + '_pending', defaultPending);
-    const storedVerified = getStored<LightVerificationItem[]>(STORAGE_KEY_VERIFY + '_verified', defaultVerified);
+    const summary: AssignSummaryCounts = {
+      totalsite: Number(payload.totalsite ?? payload.summary?.totalsite ?? 0),
+      complete: Number(payload.complete ?? payload.summary?.complete ?? 0),
+      pendingsite: Number(payload.pendingsite ?? payload.summary?.pendingsite ?? 0),
+      approvedsite: Number(payload.approvedsite ?? payload.summary?.approvedsite ?? 0),
+      rejectsite: Number(payload.rejectsite ?? payload.summary?.rejectsite ?? 0),
+      verifypending: Number(payload.verifypending ?? payload.summary?.verifypending ?? 0),
+      claimedapplicable: Number(payload.claimedapplicable ?? payload.summary?.claimedapplicable ?? 0),
+      paymentsitecount: Number(payload.paymentsitecount ?? payload.summary?.paymentsitecount ?? 0),
+    };
+
+    const mapItem = (item: any, defaultStatus = 0): LightVerificationItem => {
+      let panelClean = item.panel_no || item.module_no;
+      if (typeof panelClean === 'string' && panelClean.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(panelClean);
+          panelClean = Array.isArray(parsed) ? parsed.join(', ') : panelClean;
+        } catch {}
+      }
+
+      return {
+        id: item.id,
+        unique_id: item.unique_id || item.uid,
+        uid: item.uid || item.unique_id,
+        state: item.state || 'jammu',
+        district: item.district,
+        block: item.block,
+        panchayat: item.panchayat || item.village,
+        address: item.address,
+        village: item.village,
+        phase: item.phase,
+        volume: item.volume,
+        inst_vendor: item.inst_vendor ?? item.vendor,
+        vendor: item.vendor ?? item.inst_vendor,
+        vendor_name: item.vendor_name || (typeof item.vendors === 'object' ? item.vendors?.name : undefined),
+        vendors: item.vendors,
+        beneficiary_name: item.beneficiary_name || item.contact_person,
+        contact_person: item.contact_person || item.beneficiary_name,
+        contact_no: item.contact_no || item.contact_number || item.phone,
+        contact_number: item.contact_number || item.contact_no || item.phone,
+        phone: item.phone || item.contact_no,
+        panel_no: panelClean,
+        module_no: panelClean,
+        pole_no: item.pole_no,
+        battery_serial_no: item.battery_serial_no || item.battery_no,
+        battery_no: item.battery_no || item.battery_serial_no,
+        light_no: item.light_no || item.luminary_no,
+        luminary_no: item.luminary_no || item.light_no,
+        imei_no: item.imei_no,
+        sim_no: item.sim_no,
+        inst_latitude: item.inst_latitude ?? item.latitude ?? item.lat,
+        latitude: item.latitude ?? item.inst_latitude ?? item.lat,
+        lat: item.lat ?? item.latitude,
+        inst_longitude: item.inst_longitude ?? item.longitude ?? item.long ?? item.lng,
+        longitude: item.longitude ?? item.inst_longitude ?? item.long ?? item.lng,
+        long: item.long ?? item.longitude,
+        lng: item.lng ?? item.longitude,
+        light_file: item.light_file || item.light_image || item.photo,
+        light_image: item.light_image || item.light_file || item.photo,
+        photo: item.photo || item.light_file,
+        inst_remark: item.inst_remark || item.remark,
+        inst_verify_remarks: item.inst_verify_remarks || item.remarks || item.verify_remarks,
+        remark: item.remark || item.inst_remark,
+        inst_verify_status: Number(item.inst_verify_status ?? defaultStatus),
+        inst_verify_file: item.inst_verify_file || item.verify_file || item.file,
+        verify_file: item.verify_file || item.inst_verify_file || item.file,
+        inst_verify_date: item.inst_verify_date,
+        inst_claim_status: item.inst_claim_status,
+        inst_pay_status: item.inst_pay_status,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      };
+    };
+
+    const verification: LightVerificationItem[] = Array.isArray(payload.verification)
+      ? payload.verification.map((x: any) => mapItem(x, 0))
+      : [];
+
+    let verifiedList: LightVerificationItem[] = [];
+    if (Array.isArray(payload.verified?.data)) {
+      verifiedList = payload.verified.data.map((x: any) => mapItem(x, 1));
+    } else if (Array.isArray(payload.verified)) {
+      verifiedList = payload.verified.map((x: any) => mapItem(x, 1));
+    }
 
     return {
-      summary: {
-        totalsite: 14630,
-        complete: 12230,
-        pendingsite: 2400,
-        approvedsite: 11650,
-        rejectsite: 93,
-        verifypending: storedPending.length,
-        claimedapplicable: 11650,
-        paymentsitecount: 10200,
-      },
-      verification: storedPending,
+      summary,
+      verification,
       verified: {
-        data: storedVerified,
-        total: storedVerified.length,
+        data: verifiedList,
+        total: payload.verified?.total ?? verifiedList.length,
       },
     };
   },
 
-  /* 11. Verify Installation Status (Approve / Reject) */
-  async verifyInstallationStatus(id: number, status: 1 | 2, remark?: string): Promise<AdminApiResponse> {
-    const data = await this.getViewInstallation();
-    const item = data.verification.find((i) => i.id === id) || data.verified.data.find((i) => i.id === id);
+  /**
+   * 12. Verify Installation Status
+   * Multipart Form-Data: id, status (1: approve, 2: reject), file, remark
+   */
+  verifyInstallationStatus: async (payload: {
+    id: number | string;
+    status: number | string;
+    file?: File | null;
+    remark?: string;
+    inst_verify_remarks?: string;
+  }): Promise<AdminApiResponse> => {
+    const fd = new FormData();
+    fd.append('id', String(payload.id));
+    fd.append('status', String(payload.status));
 
-    if (!item) {
-      throw new Error(`Light inspection item #${id} not found.`);
+    if (payload.file) {
+      fd.append('file', payload.file);
+    }
+    const remarks = payload.remark || payload.inst_verify_remarks;
+    if (remarks) {
+      fd.append('remark', remarks);
     }
 
-    const updatedItem: LightVerificationItem = {
-      ...item,
-      inst_verify_status: status,
-      inst_verify_remarks: remark || (status === 1 ? 'Approved by Field Auditor' : 'Audit Rejected: Vendor rework requested'),
-      inst_verify_date: new Date().toISOString().replace('T', ' ').slice(0, 19),
-    };
-
-    const nextPending = data.verification.filter((i) => i.id !== id);
-    const nextVerified = [updatedItem, ...data.verified.data.filter((i) => i.id !== id)];
-
-    setStored(STORAGE_KEY_VERIFY + '_pending', nextPending);
-    setStored(STORAGE_KEY_VERIFY + '_verified', nextVerified);
-
-    return {
-      status: true,
-      message: `Solar Street Light #${item.unique_id || id} has been ${status === 1 ? 'APPROVED' : 'REJECTED'} successfully!`,
-      data: updatedItem,
-    };
-  },
-
-  /* 12. Claim Request Desk Data */
-  async getClaimRequests(): Promise<SslClaimDeskItem[]> {
-    const defaultClaims: SslClaimDeskItem[] = [
-      {
-        id: 501,
-        claim_id: 'JK-CLM-2025-001',
-        vendor_id: 142,
-        vendor_name: 'Surya Roshni Solar Infrastructure',
-        volume: 'Phase I - Volume 1 (1,200 SSL)',
-        district: 'Jammu',
-        claim_site_count: 350,
-        claim_amount: '42,00,000',
-        claim_raised_date: '2025-07-15',
-        claim_invoice: 'INV-SURYA-JK-881.pdf',
-        ca_certificate: 'CA-CERT-SURYA-2025.pdf',
-        claim_status: 2, // Approved
-        payment_status: 1, // Paid
-        payment_date: '2025-07-22',
-        payment_amount: '42,00,000',
-        payment_remark: 'Disbursed via RTGS UTR #SBIN22520911823',
-        audit_remarks: 'All 350 poles audited with GPS coordinates and CA billing verified.',
-      },
-      {
-        id: 502,
-        claim_id: 'JK-CLM-2025-002',
-        vendor_id: 212,
-        vendor_name: 'Havells India Lighting Division',
-        volume: 'Phase I - Volume 2 (2,500 SSL)',
-        district: 'Kathua',
-        claim_site_count: 280,
-        claim_amount: '33,60,000',
-        claim_raised_date: '2025-07-18',
-        claim_invoice: 'INV-HVL-JK-449.pdf',
-        ca_certificate: 'CA-CERT-HVL-2025.pdf',
-        claim_status: 1, // In Audit / Pending
-        payment_status: 0,
-        audit_remarks: 'Field audit documents in verification desk.',
-      },
-      {
-        id: 503,
-        claim_id: 'JK-CLM-2025-003',
-        vendor_id: 304,
-        vendor_name: 'Signify Innovations Solar Systems',
-        volume: 'Phase II - Volume 1 (3,500 SSL)',
-        district: 'Samba',
-        claim_site_count: 220,
-        claim_amount: '26,40,000',
-        claim_raised_date: '2025-07-20',
-        claim_invoice: 'INV-SIG-JK-102.pdf',
-        ca_certificate: 'CA-CERT-SIG-2025.pdf',
-        claim_status: 1, // In Audit / Pending
-        payment_status: 0,
-        audit_remarks: 'Awaiting vendor CA verification signoff.',
-      },
-      {
-        id: 504,
-        claim_id: 'JK-CLM-2025-004',
-        vendor_id: 520,
-        vendor_name: 'Tata Power Solar Systems J&K',
-        volume: 'Phase II - Volume 2 (5,000 SSL)',
-        district: 'Srinagar',
-        claim_site_count: 400,
-        claim_amount: '48,00,000',
-        claim_raised_date: '2025-07-10',
-        claim_invoice: 'INV-TPS-JK-304.pdf',
-        ca_certificate: 'CA-CERT-TPS-2025.pdf',
-        claim_status: 2, // Approved
-        payment_status: 1, // Paid
-        payment_date: '2025-07-19',
-        payment_amount: '48,00,000',
-        payment_remark: 'Settled via HDFC Bank NEFT #HDFCN25200918',
-        audit_remarks: 'Milestone 100% verified by J&K Energy Development Agency.',
-      },
-      {
-        id: 505,
-        claim_id: 'JK-CLM-2025-005',
-        vendor_id: 418,
-        vendor_name: 'Microsun Solar Tech J&K',
-        volume: 'Phase I - Volume 1 (1,200 SSL)',
-        district: 'Udhampur',
-        claim_site_count: 150,
-        claim_amount: '18,00,000',
-        claim_raised_date: '2025-07-12',
-        claim_invoice: 'INV-MS-JK-908.pdf',
-        ca_certificate: 'CA-CERT-MS-2025.pdf',
-        claim_status: 3, // Rejected
-        payment_status: 0,
-        audit_remarks: 'Audit Rejected: 18 poles reported battery telemetry offline. Resubmit after field repair.',
-      },
-    ];
-
-    const stored = getStored<SslClaimDeskItem[]>(STORAGE_KEY_CLAIMS, defaultClaims);
-    return stored;
-  },
-
-  /* 13. Audit Claim Request (Approve / Reject) */
-  async auditClaimRequest(claimId: number | string, status: 2 | 3, remarks?: string): Promise<AdminApiResponse> {
-    const list = await this.getClaimRequests();
-    const updated = list.map((c) => {
-      if (String(c.id) === String(claimId) || c.claim_id === String(claimId)) {
-        return {
-          ...c,
-          claim_status: status,
-          audit_remarks: remarks || (status === 2 ? 'Approved by Admin Audit Desk' : 'Claim Audit Rejected'),
-          updated_at: new Date().toISOString(),
-        };
-      }
-      return c;
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_VERIFY_INSTALLATION, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: fd,
     });
 
-    setStored(STORAGE_KEY_CLAIMS, updated);
     return {
-      status: true,
-      message: `Claim #${claimId} has been ${status === 2 ? 'APPROVED' : 'REJECTED'} successfully!`,
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Verification status updated successfully.' : 'Failed to update status'),
+      data: res.data,
+      errors: res.errors,
     };
   },
 
-  /* 14. Payment & Settlement Register Data */
-  async getPaymentSettlements(): Promise<SslPaymentRegisterItem[]> {
-    const defaultPayments: SslPaymentRegisterItem[] = [
-      {
-        id: 301,
-        voucher_no: 'JK-PAY-2025-001',
-        claim_id: 'JK-CLM-2025-001',
-        vendor_id: 142,
-        vendor_name: 'Surya Roshni Solar Infrastructure',
-        bank_name: 'State Bank of India',
-        account_no: '381900210084321',
-        ifsc_code: 'SBIN0001524',
-        utr_no: 'SBIN22520911823',
-        disbursed_amount: '42,00,000',
-        disbursed_date: '2025-07-22',
-        payment_status: 1, // Settled
-        payment_mode: 'RTGS',
-        remarks: 'Batch 1 milestone disbursement for 350 solar street light installations in Jammu District.',
-      },
-      {
-        id: 302,
-        voucher_no: 'JK-PAY-2025-002',
-        claim_id: 'JK-CLM-2025-004',
-        vendor_id: 520,
-        vendor_name: 'Tata Power Solar Systems J&K',
-        bank_name: 'HDFC Bank Ltd',
-        account_no: '50200034918234',
-        ifsc_code: 'HDFC0000128',
-        utr_no: 'HDFCN25200918',
-        disbursed_amount: '48,00,000',
-        disbursed_date: '2025-07-19',
-        payment_status: 1, // Settled
-        payment_mode: 'NEFT',
-        remarks: 'Phase II Srinagar community lighting milestone settlement.',
-      },
-      {
-        id: 303,
-        voucher_no: 'JK-PAY-2025-003',
-        claim_id: 'JK-CLM-2025-002',
-        vendor_id: 212,
-        vendor_name: 'Havells India Lighting Division',
-        bank_name: 'Punjab National Bank',
-        account_no: '018200210099432',
-        ifsc_code: 'PUNB0018200',
-        utr_no: '',
-        disbursed_amount: '33,60,000',
-        disbursed_date: '',
-        payment_status: 0, // Pending Disbursement
-        payment_mode: 'RTGS',
-        remarks: 'Awaiting finance treasury clearance for Kathua batch 280 lights.',
-      },
-      {
-        id: 304,
-        voucher_no: 'JK-PAY-2025-004',
-        claim_id: 'JK-CLM-2025-003',
-        vendor_id: 304,
-        vendor_name: 'Signify Innovations Solar Systems',
-        bank_name: 'ICICI Bank Ltd',
-        account_no: '003405009823',
-        ifsc_code: 'ICIC0000034',
-        utr_no: '',
-        disbursed_amount: '26,40,000',
-        disbursed_date: '',
-        payment_status: 0, // Pending Disbursement
-        payment_mode: 'NEFT',
-        remarks: 'Under final sanction order generation for Samba installations.',
-      },
-    ];
+  /**
+   * 13. State Battery Import (Excel)
+   * Multipart Form-Data: state_battery_no (file), vendor_id, assigned_id
+   */
+  importBattery: async (
+    fileOrFormData: File | FormData,
+    vendorId?: string | number,
+    assignedId?: string | number
+  ): Promise<AdminApiResponse> => {
+    let body: FormData;
+    if (fileOrFormData instanceof FormData) {
+      body = fileOrFormData;
+    } else {
+      body = new FormData();
+      body.append('state_battery_no', fileOrFormData);
+      body.append('import_file', fileOrFormData);
+      body.append('file', fileOrFormData);
+      if (vendorId !== undefined && vendorId !== '') body.append('vendor_id', String(vendorId));
+      if (assignedId !== undefined && assignedId !== '') body.append('assigned_id', String(assignedId));
+    }
 
-    const stored = getStored<SslPaymentRegisterItem[]>(STORAGE_KEY_PAYMENTS, defaultPayments);
-    return stored;
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_BATTERY_IMPORT, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Batteries imported successfully.' : 'Failed to import batteries'),
+      data: res.data,
+      errors: res.errors,
+    };
   },
 
-  /* 15. Disburse Payment / Record Settlement */
-  async disbursePayment(
-    paymentId: number | string,
-    utrNo: string,
-    disbursedAmount?: string | number,
+  /**
+   * 14. State IMEI Import (Excel)
+   * Multipart Form-Data: state_imei_no (file), vendor_id, assigned_id
+   */
+  importImei: async (
+    fileOrFormData: File | FormData,
+    vendorId?: string | number,
+    assignedId?: string | number
+  ): Promise<AdminApiResponse> => {
+    let body: FormData;
+    if (fileOrFormData instanceof FormData) {
+      body = fileOrFormData;
+    } else {
+      body = new FormData();
+      body.append('state_imei_no', fileOrFormData);
+      body.append('import_file', fileOrFormData);
+      body.append('file', fileOrFormData);
+      if (vendorId !== undefined && vendorId !== '') body.append('vendor_id', String(vendorId));
+      if (assignedId !== undefined && assignedId !== '') body.append('assigned_id', String(assignedId));
+    }
+
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_IMEI_IMPORT, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'IMEI records imported successfully.' : 'Failed to import IMEI'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  /**
+   * 15. State Panel Import (Excel)
+   * Multipart Form-Data: state_panel_no (file), vendor_id, assigned_id
+   */
+  importPanel: async (
+    fileOrFormData: File | FormData,
+    vendorId?: string | number,
+    assignedId?: string | number
+  ): Promise<AdminApiResponse> => {
+    let body: FormData;
+    if (fileOrFormData instanceof FormData) {
+      body = fileOrFormData;
+    } else {
+      body = new FormData();
+      body.append('state_panel_no', fileOrFormData);
+      body.append('import_file', fileOrFormData);
+      body.append('file', fileOrFormData);
+      if (vendorId !== undefined && vendorId !== '') body.append('vendor_id', String(vendorId));
+      if (assignedId !== undefined && assignedId !== '') body.append('assigned_id', String(assignedId));
+    }
+
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_PANEL_IMPORT, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Panels imported successfully.' : 'Failed to import panels'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  /**
+   * 16. State SIM Import (Excel)
+   * Multipart Form-Data: state_sim_no (file), vendor_id, assigned_id
+   */
+  importSim: async (
+    fileOrFormData: File | FormData,
+    vendorId?: string | number,
+    assignedId?: string | number
+  ): Promise<AdminApiResponse> => {
+    let body: FormData;
+    if (fileOrFormData instanceof FormData) {
+      body = fileOrFormData;
+    } else {
+      body = new FormData();
+      body.append('state_sim_no', fileOrFormData);
+      body.append('import_file', fileOrFormData);
+      body.append('file', fileOrFormData);
+      if (vendorId !== undefined && vendorId !== '') body.append('vendor_id', String(vendorId));
+      if (assignedId !== undefined && assignedId !== '') body.append('assigned_id', String(assignedId));
+    }
+
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_SIM_IMPORT, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'SIM cards imported successfully.' : 'Failed to import SIM cards'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  /**
+   * 17. View Claim Desk
+   * GET /jammu/ssl/installation/view-claim
+   * Columns: Sr. No., State, Vendor Name, Claim Raised Date, Site Count, Claim Invoice, Claim Amount, Claim Update Date, Action
+   */
+  getViewClaim: async (): Promise<SslClaimDeskItem[]> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_VIEW_CLAIM, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload = res.data || res.raw?.data || {};
+    const rawClaims = Array.isArray(payload.claims)
+      ? payload.claims
+      : Array.isArray(payload)
+      ? payload
+      : [];
+
+    return rawClaims.map((c: any) => ({
+      id: c.id,
+      state: c.state || 'jammu',
+      claim_id: c.claim_id || `JK-CLM-${c.id}`,
+      vendor_id: c.vendor_id ?? c.vendor,
+      vendor_name: c.vendor_name || (typeof c.vendor === 'object' ? c.vendor?.name : `Vendor ${c.vendor_id ?? c.vendor ?? c.id}`),
+      volume: c.volume || 'Solar Street Light',
+      phase: c.phase,
+      district: c.district,
+      claim_site_count: Number(c.site_count ?? c.claim_site_count ?? c.total_sites ?? 1),
+      site_count: Number(c.site_count ?? c.claim_site_count ?? c.total_sites ?? 1),
+      claim_amount: c.claim_amount ?? c.amount ?? 0,
+      claim_raised_date: c.claim_raised_date || c.created_at || c.date || '',
+      created_at: c.created_at || c.claim_raised_date,
+      claim_invoice: c.claim_invoice || c.invoice_file || c.invoice,
+      invoice_file: c.invoice_file || c.claim_invoice || c.invoice,
+      ca_certificate: c.ca_certificate || c.certificate,
+      claim_status: Number(c.claim_status ?? c.status ?? 1),
+      status: Number(c.status ?? c.claim_status ?? 1),
+      payment_status: Number(c.payment_status ?? 0),
+      payment_date: c.payment_date,
+      payment_amount: c.payment_amount,
+      remarks: c.remarks || c.remark,
+      audit_remarks: c.audit_remarks || c.remarks,
+      claim_update_date: c.claim_update_date || c.updated_at || '',
+      updated_at: c.updated_at || c.claim_update_date,
+    }));
+  },
+
+  getClaimRequests: async () => jammuAdminSslService.getViewClaim(),
+
+  /**
+   * 18. Update Claim Status (Audit Claim)
+   * POST /jammu/ssl/installation/update-claim-status
+   * Body: id, status (2=Approve, 3=Reject), remarks
+   */
+  updateClaimStatus: async (payload: {
+    id: number | string;
+    status: number | string;
+    remarks?: string;
+  }): Promise<AdminApiResponse> => {
+    const fd = new FormData();
+    fd.append('id', String(payload.id));
+    fd.append('status', String(payload.status));
+    if (payload.remarks) {
+      fd.append('remarks', payload.remarks);
+      fd.append('remark', payload.remarks);
+    }
+
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_UPDATE_CLAIM_STATUS, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: fd,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Claim audit status updated.' : 'Failed to update claim'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  auditClaimRequest: async (id: number | string, status: number | string, remarks?: string) => {
+    return jammuAdminSslService.updateClaimStatus({ id, status, remarks });
+  },
+
+  /**
+   * 19. View Payment Desk
+   * GET /jammu/ssl/installation/view-payment?from_date=...&to_date=...&vendor=...
+   * Top stats: Payment Request, Payment Complete, Payment Pending
+   * Columns: Sr. No., State, Vendor Name, Site Count, Claim Invoice, Claim Amount, Claim Approved Date, Claim Approved by, Payment Date, Payment By, Pay Amount, Payment Remark, Action
+   */
+  getViewPayment: async (params?: {
+    from_date?: string;
+    to_date?: string;
+    vendor?: string | number;
+  }): Promise<ViewPaymentData> => {
+    const res = await apiRequest<any>(JAMMU_VENDOR_API.ADMIN_SSL_VIEW_PAYMENT(params), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    const payload = res.data || res.raw?.data || {};
+    const rawPayments = Array.isArray(payload.payments)
+      ? payload.payments
+      : Array.isArray(payload)
+      ? payload
+      : [];
+
+    const payments: SslPaymentRegisterItem[] = rawPayments.map((p: any) => ({
+      id: p.id,
+      state: p.state || 'jammu',
+      voucher_no: p.voucher_no || `JK-VCH-${p.id}`,
+      claim_id: p.claim_id ?? p.id,
+      vendor_id: p.vendor_id ?? p.vendor ?? p.inst_vendor,
+      vendor_name: p.vendor_name || (typeof p.vendor === 'object' ? p.vendor?.name : `Vendor ${p.vendor_id ?? p.vendor ?? p.id}`),
+      site_count: Number(p.site_count ?? p.claim_site_count ?? p.total_sites ?? 1),
+      claim_site_count: Number(p.claim_site_count ?? p.site_count ?? p.total_sites ?? 1),
+      claim_invoice: p.claim_invoice || p.invoice_file || p.invoice,
+      claim_amount: p.claim_amount ?? p.amount ?? 0,
+      claim_approved_date: p.claim_approved_date || p.approved_date || p.claim_update_date || '',
+      claim_approved_by: p.claim_approved_by || p.approved_by || 'Admin',
+      payment_date: p.payment_date || p.disbursed_date || '',
+      payment_by: p.payment_by || p.disbursed_by || 'Finance',
+      pay_amount: p.pay_amount ?? p.payment_amount ?? p.disbursed_amount ?? 0,
+      payment_amount: p.payment_amount ?? p.pay_amount ?? p.disbursed_amount ?? 0,
+      payment_remark: p.payment_remark || p.payment_remarks || p.remarks,
+      payment_remarks: p.payment_remarks || p.payment_remark || p.remarks,
+      bank_name: p.bank_name,
+      account_no: p.account_no,
+      ifsc_code: p.ifsc_code,
+      utr_no: p.utr_no,
+      disbursed_amount: p.disbursed_amount ?? p.pay_amount ?? p.payment_amount ?? p.amount ?? 0,
+      amount: p.amount ?? p.disbursed_amount ?? p.pay_amount ?? 0,
+      disbursed_date: p.disbursed_date || p.payment_date || p.date,
+      date: p.date || p.payment_date || p.disbursed_date,
+      payment_status: Number(p.status ?? p.payment_status ?? (p.pay_amount || p.payment_date ? 1 : 0)),
+      status: Number(p.status ?? p.payment_status ?? (p.pay_amount || p.payment_date ? 1 : 0)),
+      payment_mode: p.payment_mode || 'RTGS',
+      remarks: p.remarks || p.payment_remark || p.payment_remarks,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+    }));
+
+    const rawVendors = Array.isArray(payload.vendors)
+      ? payload.vendors
+      : Array.isArray(payload.vendor)
+      ? payload.vendor
+      : [];
+
+    return {
+      payment_request: Number(payload.payment_request ?? payload.totalsite ?? payments.length),
+      payment_complete: Number(payload.payment_complete ?? payments.filter((x) => x.status === 1).length),
+      payment_pending: Number(payload.payment_pending ?? payments.filter((x) => x.status !== 1).length),
+      vendors: rawVendors.map((v: any) => ({
+        id: v.id ?? v.vendor,
+        name: v.name || v.vendor_name || `Vendor #${v.id ?? v.vendor}`,
+        state: v.state || 'jammu',
+      })),
+      payments,
+    };
+  },
+
+  getPaymentSettlements: async (params?: any) => jammuAdminSslService.getViewPayment(params),
+
+  /**
+   * 20. View Payment Filter
+   */
+  getViewPaymentFilter: async (params: {
+    fromdate?: string;
+    todate?: string;
+    vendor?: string | number;
+  }): Promise<ViewPaymentData> => {
+    return jammuAdminSslService.getViewPayment({
+      from_date: params.fromdate,
+      to_date: params.todate,
+      vendor: params.vendor,
+    });
+  },
+
+  /**
+   * 21. Update Payment Status
+   * POST /jammu/ssl/installation/update-payment-status
+   * Body: update_id, payment_amount, payment_remarks (supports id, amount, date, remarks)
+   */
+  updatePaymentStatus: async (payload: {
+    id?: number | string;
+    update_id?: number | string;
+    amount?: number | string;
+    payment_amount?: number | string;
+    date?: string;
+    remarks?: string;
+    payment_remarks?: string;
+  }): Promise<AdminApiResponse> => {
+    const fd = new FormData();
+    const targetId = payload.update_id ?? payload.id;
+    if (targetId) {
+      fd.append('update_id', String(targetId));
+      fd.append('id', String(targetId));
+    }
+    const amt = payload.payment_amount ?? payload.amount;
+    if (amt !== undefined) {
+      fd.append('payment_amount', String(amt));
+      fd.append('amount', String(amt));
+    }
+    if (payload.date) {
+      fd.append('date', payload.date);
+      fd.append('payment_date', payload.date);
+    }
+    const rem = payload.payment_remarks ?? payload.remarks;
+    if (rem) {
+      fd.append('payment_remarks', rem);
+      fd.append('remarks', rem);
+    }
+
+    const res = await apiRequest(JAMMU_VENDOR_API.ADMIN_SSL_UPDATE_PAYMENT_STATUS, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: fd,
+    });
+
+    return {
+      success: res.success,
+      status: res.success,
+      message: res.message || (res.success ? 'Payment successfully recorded.' : 'Failed to record payment'),
+      data: res.data,
+      errors: res.errors,
+    };
+  },
+
+  recordPaymentSettlement: async (
+    claimId: number | string,
+    arg2?:
+      | {
+          utr_no?: string;
+          bank_name?: string;
+          account_no?: string;
+          ifsc_code?: string;
+          disbursed_amount?: number | string;
+          payment_mode?: string;
+          remarks?: string;
+        }
+      | string,
+    payment_mode?: string,
+    date?: string,
     remarks?: string
-  ): Promise<AdminApiResponse> {
-    const list = await this.getPaymentSettlements();
-    const updated = list.map((p) => {
-      if (String(p.id) === String(paymentId)) {
-        return {
-          ...p,
-          utr_no: utrNo,
-          disbursed_amount: disbursedAmount || p.disbursed_amount,
-          disbursed_date: new Date().toISOString().split('T')[0],
-          payment_status: 1, // Settled
-          remarks: remarks || p.remarks,
-        };
-      }
-      return p;
-    });
+  ) => {
+    let payDate = date || new Date().toISOString().slice(0, 10);
+    let rem = remarks || '';
+    let amount: number | string = 0;
 
-    setStored(STORAGE_KEY_PAYMENTS, updated);
-    return {
-      status: true,
-      message: `Payment Disbursement Recorded! UTR Ref #${utrNo}`,
-    };
+    if (typeof arg2 === 'object' && arg2 !== null) {
+      amount = arg2.disbursed_amount ?? 0;
+      rem = arg2.remarks || (arg2.utr_no ? `UTR: ${arg2.utr_no}` : '');
+    } else if (typeof arg2 === 'string') {
+      rem = remarks ? `${remarks} (UTR: ${arg2})` : `UTR: ${arg2}`;
+    }
+
+    return jammuAdminSslService.updatePaymentStatus({
+      update_id: claimId,
+      id: claimId,
+      payment_amount: amount,
+      amount,
+      date: payDate,
+      payment_remarks: rem,
+      remarks: rem,
+    });
+  },
+
+  /**
+   * Vendor Map Lookup
+   */
+  getVendorMap: async (): Promise<Record<string, string>> => {
+    try {
+      const { vendors } = await jammuAdminSslService.getAssignFormData();
+      const map: Record<string, string> = {};
+      vendors.forEach((v) => {
+        map[String(v.id)] = v.name;
+      });
+      return map;
+    } catch {
+      return {};
+    }
   },
 };
 
-export default jammuSslAdminService;
+export const jammuSslAdminService = jammuAdminSslService;
+export default jammuAdminSslService;

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { biharComplaintService, getMediaUrl, type SrtSiteDetailsResponse } from '../../bihar-services';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // CSS: Unified Single-Card Layout with Floating Labels & Section Dividers (matching Kashmir golden reference design)
 const SINGLE_CARD_FORM_CSS = `
@@ -269,9 +274,9 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     clearError(key);
   };
 
-  const fetchLocation = () => {
+  const fetchLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      setErrors((prev) => ({ ...prev, latitude: 'Location services not supported by browser.' }));
+      if (!silent) setErrors((prev) => ({ ...prev, latitude: 'Location services not supported by browser.' }));
       return;
     }
     setFetchingLoc(true);
@@ -287,21 +292,29 @@ export function Bihar_Complaint_SRT_AddComplaint() {
         setFetchingLoc(false);
       },
       (err) => {
+        console.warn('Geo error:', err);
         setFetchingLoc(false);
-        setErrors((prev) => ({
-          ...prev,
-          latitude: err.code === 1 ? 'Location permission denied. Please allow location access.' : 'Unable to retrieve location.',
-        }));
+        if (!silent) {
+          setErrors((prev) => ({
+            ...prev,
+            latitude: err.code === 1 ? 'Location permission denied. Please allow location access.' : 'Unable to retrieve location.',
+          }));
+        }
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    fetchLocation(true);
+  }, [selectedSiteId]);
+
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const validate = (): boolean => {
+  const validate = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
     if (!formData.district) newErrors.district = 'District is required.';
     if (!formData.discom) newErrors.discom = 'Discom is required.';
@@ -323,7 +336,7 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -331,9 +344,11 @@ export function Bihar_Complaint_SRT_AddComplaint() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!validate()) {
-      setErrorMsg('Please resolve all validation errors before submitting.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setErrorMsg(missingMsg);
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -374,13 +389,25 @@ export function Bihar_Complaint_SRT_AddComplaint() {
           navigate('/v/complaint/bihar/srt-view-complaint');
         }, 1500);
       } else {
-        setErrorMsg(resp.message || 'Failed to submit complaint. Please check your data.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const extracted = extractBackendError(resp, 'Failed to submit complaint. Please check your data.');
+        setErrorMsg(extracted.message);
+        if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+          setTimeout(() => scrollToFirstError(), 50);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     } catch (err: any) {
       console.error('Submission error:', err);
-      setErrorMsg(err?.message || 'Server error while submitting complaint.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Server error while submitting complaint.');
+      setErrorMsg(extracted.message);
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -527,13 +554,13 @@ export function Bihar_Complaint_SRT_AddComplaint() {
                   ]}
                   {...f('phase')}
                 />
-                <FloatingInput id="srt-lat" label="Latitude" placeholder="25.5941" {...f('latitude')} />
-                <FloatingInput id="srt-lng" label="Longitude" placeholder="85.1376" {...f('longitude')} />
+                <FloatingInput id="srt-lat" label="Latitude" readOnly placeholder="Auto-detected GPS Latitude" {...f('latitude')} onChange={() => {}} />
+                <FloatingInput id="srt-lng" label="Longitude" readOnly placeholder="Auto-detected GPS Longitude" {...f('longitude')} onChange={() => {}} />
                 <div>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"
-                    onClick={fetchLocation}
+                    onClick={() => fetchLocation(false)}
                     disabled={fetchingLoc}
                     style={{ height: 46, width: '100%' }}
                   >

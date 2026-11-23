@@ -72,6 +72,7 @@ export function UPComplaintOffgridAssigned() {
         fileHint: 'Image or PDF',
         submit: (v, item) => {
           const fd = new FormData();
+          fd.append('id', String(item.id || item.complaint_id || ''));
           fd.append('complain_id', String(item.id || item.complaint_id || ''));
           fd.append('resolved_by', v.resolvedBy);
           if (v.email) fd.append('r_email', v.email);
@@ -82,9 +83,18 @@ export function UPComplaintOffgridAssigned() {
           fd.append('beneficiary_name', String(item.beneficiary_name || ''));
           const contactVal = String(item.mobile_no || item.contact_number || item.contact_no || '');
           fd.append('contact_no', contactVal);
+          fd.append('contact_number', contactVal);
           fd.append('mobile_no', contactVal);
           fd.append('r_file', v.file);
-          if (v.file1) fd.append('r_file1', v.file1);
+          fd.append('file', v.file);
+          fd.append('document', v.file);
+          const f2 = v.file1 || v.file;
+          if (f2) {
+            fd.append('r_file1', f2);
+            fd.append('r_file2', f2);
+            fd.append('file1', f2);
+            fd.append('file2', f2);
+          }
           return upComplaintService.closeOffgridComplaint(fd);
         },
       }}

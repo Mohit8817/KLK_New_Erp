@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { jammuSwpService, type JammuSwpDashboardData } from '../../jammu-services';
 import {
@@ -18,6 +18,7 @@ const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => 
 const LIGHT_BLUE = '#4992ff';
 const LIGHT_GREEN = '#86DDB2';
 const LIGHT_AMBER = '#F6D68A';
+const LIGHT_RED = '#ef6a6a';
 
 /* ───────── Types ───────── */
 interface SwpSummary {
@@ -58,7 +59,7 @@ const fmtMonth = (s: string) => {
   return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][mi - 1]} ${y}`;
 };
 
-const onActivate = (fn: () => void) => (e: React.KeyboardEvent) => {
+const onActivate = (fn: () => void) => (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     fn();
@@ -97,8 +98,12 @@ const toSummary = (o: any): SwpSummary => {
   };
 };
 
-/* ───────── Layout CSS (matching SRT Dashboard layout) ───────── */
+/* ───────── Layout CSS (Bihar pattern) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
   .solar-erp-page .ax-dash-grid { margin-top: 0; }
@@ -110,111 +115,90 @@ const PAGE_CSS = `
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
   .solar-erp-page .ax-card__header {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 12px;
   }
-  .solar-erp-page .ax-card__titles {
-    flex: 0 0 auto;
-    min-width: max-content;
-    max-width: 55%;
-  }
-  .solar-erp-page .ax-card__title {
-    max-width: none;
-    white-space: normal;
-    word-break: normal;
-    overflow-wrap: normal;
-    hyphens: none;
-  }
+  .solar-erp-page .ax-card__titles { flex: 1 1 220px; min-width: 220px; max-width: 100%; }
+  .solar-erp-page .ax-card__title,
   .solar-erp-page .ax-card__eyebrow,
   .solar-erp-page .ax-card__subtitle {
-    word-break: normal;
-    overflow-wrap: normal;
-    line-height: 1.45;
+    max-width: none; word-break: normal; overflow-wrap: normal; hyphens: none;
   }
+  .solar-erp-page .ax-card__subtitle { line-height: 1.45; }
+
   .solar-erp-page .ax-card__actions {
-    flex: 1 1 0;
-    min-width: 0;
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    flex: 0 1 auto; min-width: 0; margin-left: auto; display: flex; align-items: center;
+    justify-content: flex-end; flex-wrap: nowrap; gap: 8px;
   }
-  .solar-erp-page .ax-card__actions .ax-cluster {
-    flex-wrap: wrap !important;
-    min-width: 0;
-    width: 100%;
-    justify-content: flex-end;
-  }
+  .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: nowrap !important; min-width: 0; justify-content: flex-end; }
   .solar-erp-page .ax-card__actions .ax-search,
-  .solar-erp-page .ax-card__actions [class*="search"] {
-    flex: 1 1 120px;
-    min-width: 90px;
-    max-width: 260px;
-  }
+  .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 140px; min-width: 90px; max-width: 260px; }
   .solar-erp-page .ax-card__actions input { min-width: 0; width: 100%; }
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
-  .solar-erp-page .ax-card__actions [class*="export"] {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    gap: 4px;
+  .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+    flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px;
   }
-  .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn,
-  .solar-erp-page .ax-card__actions [class*="export"] .ax-btn {
-    padding-inline: 8px;
-    min-width: 0;
-  }
+  .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
 
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .solar-erp-page .ula-table--md { min-width: 900px; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; }
+  .solar-erp-page .ula-table--md { min-width: 960px; }
   .solar-erp-page .ax-welcome__lede { max-width: 780px; }
   .solar-erp-page .ula-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .ula-filter-item select { width: 170px; }
 
-  @media (min-width: 641px) {
-    .solar-erp-page .ax-card__actions .ax-export-toolbar { width: auto; }
+  .asw-interactive-kpi {
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   }
+  .asw-interactive-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ax-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
+  }
+  .solar-erp-page .kpi-seg {
+    cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background 120ms ease, color 120ms ease;
+  }
+  .solar-erp-page .kpi-seg:hover { background: rgba(var(--asw-primary-rgb), 0.12); color: var(--asw-primary); text-decoration: underline; }
+  .solar-erp-page .kpi-seg:focus-visible { outline: 2px solid var(--asw-primary); outline-offset: 1px; }
+  .solar-erp-page .click-cell { cursor: pointer; }
+  .solar-erp-page .click-cell:hover { text-decoration: underline; }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-col--8,
+    .solar-erp-page .ax-col--6,
     .solar-erp-page .ax-col--4 { grid-column: span 12; }
     .solar-erp-page .ax-col--3 { grid-column: span 6; }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar .ax-btn span:not([class*="icon"]),
-    .solar-erp-page .ax-card__actions [class*="export"] .ax-btn span:not([class*="icon"]) {
-      display: none;
-    }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
+    .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
 
   @media (max-width: 760px) {
     .solar-erp-page { width: 100%; max-width: 100%; overflow-x: hidden; box-sizing: border-box; }
-    .solar-erp-page .ax-welcome__stats {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
-    }
+    .solar-erp-page .ax-welcome__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .solar-erp-page .ula-filter-item { width: 100%; justify-content: space-between; }
     .solar-erp-page .ula-filter-item select { flex: 1; width: auto; max-width: 100%; }
     .solar-erp-page .ula-filter-scope { width: 100%; }
-    .solar-erp-page .ax-card__header { gap: 10px; }
+    .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
+    .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__title {
+      font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md);
+    }
+    .solar-erp-page .ax-card__actions { flex: 0 0 auto; width: 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
+    .solar-erp-page .ax-card__actions .ax-cluster { flex-wrap: wrap !important; width: 100%; justify-content: flex-start; gap: 8px; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 130px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
   }
 
-  @media (max-width: 480px) {
-    .solar-erp-page .ax-card__header { flex-wrap: wrap; }
-    .solar-erp-page .ax-card__titles { min-width: 0; max-width: 100%; flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions { flex: 1 1 100%; }
-    .solar-erp-page .ax-card__actions .ax-cluster { justify-content: flex-start; }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-welcome__stats { grid-template-columns: 1fr !important; }
     .solar-erp-page .ax-col--3 { grid-column: span 12; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 11px; height: 28px; padding: 0 6px !important; }
   }
 `;
 
@@ -225,77 +209,98 @@ const ICON_REFRESH = (
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
-const ARROW_UP = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 15l6 -6l6 6" /></svg>
-);
-const svg = (children: React.ReactNode) => (
+const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
+const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_COIN = svg(<><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M14.8 9a2 2 0 0 0 -1.8 -1h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1 -1.8 -1" /><path d="M12 7v10" /></>);
 const I_LIST = svg(<><path d="M9 6l11 0" /><path d="M9 12l11 0" /><path d="M9 18l11 0" /><path d="M5 6l0 .01" /><path d="M5 12l0 .01" /><path d="M5 18l0 .01" /></>);
 const I_EYE = svg(<><circle cx="12" cy="12" r="2" /><path d="M22 12c-2.667 4.667 -6 7 -10 7s-7.333 -2.333 -10 -7c2.667 -4.667 6 -7 10 -7s7.333 2.333 10 7" /></>);
-const I_FILE = svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>);
+const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
+const I_FILE = svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></>);
 
-/* ───────── KPI Card ───────── */
+/* ───────── KPI Card (Bihar design: clickable card + clickable number segments) ───────── */
 interface KpiProps {
-  icon: React.ReactNode;
+  icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
   label: string;
-  value: string;
+  value?: string;
   unit?: string;
   sub: string;
   badge?: string;
   spark?: number[];
   sparkType?: 'line' | 'bar' | 'area';
   onClick?: () => void;
+  pills?: { label: string; count: number | string; onClick?: () => void }[];
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)', apex: '--ax-accent' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)', apex: '--ax-viz-cyan' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)', apex: '--ax-viz-emerald' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)', apex: '--ax-viz-amber' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet) 14%, transparent)', fg: 'var(--ax-viz-violet)', apex: '--ax-viz-violet' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink) 14%, transparent)', fg: 'var(--ax-viz-pink)', apex: '--ax-viz-pink' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red) 14%, transparent)', fg: 'var(--ax-viz-red)', apex: '--ax-viz-red' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb', apex: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2', apex: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a', apex: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706', apex: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed', apex: '#7c3aed' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: '#db2777', apex: '#db2777' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626', apex: '#dc2626' },
 };
 
-function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick }: KpiProps) {
+function KpiCard({ icon, tone, label, value, unit, sub, badge, spark, sparkType = 'line', onClick, pills }: KpiProps) {
   const t = TONE[tone];
   const hasSpark = Array.isArray(spark) && spark.length > 1;
   const allZeros = hasSpark && spark!.every((v) => v === 0);
-  const safeSpark = allZeros ? [0, 1, 0, 1, 0, 0, 1] : spark;
+  const safeSpark = allZeros ? [0, 0, 0, 0, 0] : spark;
 
   return (
     <div
-      className="ax-card ax-col--3"
-      style={{ cursor: onClick ? 'pointer' : 'default', transition: 'transform 0.15s ease' }}
+      className={`ax-card ax-col--3 ${onClick ? 'asw-interactive-kpi' : ''}`}
+      role={onClick ? 'button' : 'region'}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={label}
       onClick={onClick}
       onKeyDown={onClick ? onActivate(onClick) : undefined}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      style={{
+        borderRadius: 'var(--ax-radius-lg, 12px)',
+        background: 'var(--ax-bg-surface, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+      }}
     >
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md, 8px)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
             </span>
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
           </div>
           {badge && (
             <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
-              {ARROW_UP} {badge}
+              {badge}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-              {value} {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+              {pills && pills.length > 0
+                ? pills.map((seg, i) => (
+                    <span key={seg.label}>
+                      {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, margin: '0 4px' }}>/</span>}
+                      <span
+                        className={seg.onClick ? 'kpi-seg' : undefined}
+                        role={seg.onClick ? 'button' : undefined}
+                        tabIndex={seg.onClick ? 0 : undefined}
+                        title={seg.onClick ? `View ${seg.label} sites` : undefined}
+                        onClick={seg.onClick ? (e) => { e.stopPropagation(); seg.onClick!(); } : undefined}
+                        onKeyDown={seg.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); seg.onClick!(); } } : undefined}
+                      >
+                        {seg.count}
+                      </span>
+                    </span>
+                  ))
+                : value}{' '}
+              {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+            <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
           </div>
           {hasSpark && (
             <div style={{ width: 68, height: 26, overflow: 'hidden', flexShrink: 0 }}>
@@ -335,7 +340,7 @@ function Bar({ pct }: { pct: number }) {
 
 const labelStyle = { fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', fontWeight: 500 } as const;
 const selectStyle = { height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' } as const;
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'end', justifyContent: 'flex-end', width: '100%' } as const;
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
 const footerStyle = {
   borderTop: '1px solid var(--ax-border, #e2e8f0)',
   padding: 'var(--ax-space-3) var(--ax-space-4)',
@@ -449,6 +454,7 @@ export function SWPDashboard() {
 
   useEffect(() => {
     pD.setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qDistrict, selectedDistrict]);
 
   /* ───────── Derived ───────── */
@@ -459,8 +465,10 @@ export function SWPDashboard() {
   const monthTotal = monthly.reduce((a, m) => a + n(m.monthly_installations), 0);
   const todayLabel = fmtDate(new Date());
 
-  const goStatus = (st: string) => {
-    const distParam = filtersActive ? `&district=${encodeURIComponent(selectedDistrict)}` : '';
+  // Status drill-down navigation (same click system everywhere)
+  const goStatus = (st: string, dist?: string) => {
+    const d = dist || (filtersActive ? selectedDistrict : '');
+    const distParam = d ? `&district=${encodeURIComponent(d)}` : '';
     navigate(`/v/jammu/installation/swp/status-view?status=${encodeURIComponent(st)}${distParam}`);
   };
 
@@ -578,17 +586,21 @@ export function SWPDashboard() {
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) =>
     setter((prev) => (prev.includes(key) ? prev.filter((i) => i !== key) : [...prev, key]));
 
-  /* ───────── Chart data ───────── */
-  const statusSeries = [s.verify_approved, s.verify_pending, s.verify_reject, s.pending];
-  const statusLabels = ['Approved', 'Verify Pending', 'Rejected', 'Install Pending'];
+  /* ───────── Chart data (clickable) ───────── */
+  const donutItems = [
+    { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN, key: 'verify-approved' },
+    { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE, key: 'verify-pending' },
+    { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: LIGHT_RED, key: 'verify-reject' },
+    { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER, key: 'inst-pending' },
+  ];
 
   const milestones = [
-    { label: '1. Allocated Sites', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan)' },
-    { label: '2. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)' },
-    { label: '3. Verification Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)' },
-    { label: '4. HOC Document Submitted', v: s.doc_submitted, of: s.site_count, color: 'var(--ax-viz-amber)' },
-    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)' },
-    { label: '6. Payment Disbursed', v: s.pay_done, of: s.complete, color: 'var(--ax-viz-violet)' },
+    { label: '1. Allocated Sites', v: s.site_count, of: s.site_count, color: 'var(--ax-viz-cyan)', key: 'total' },
+    { label: '2. Installation Complete', v: s.complete, of: s.site_count, color: 'var(--ax-accent)', key: 'inst-complete' },
+    { label: '3. Verification Approved', v: s.verify_approved, of: s.site_count, color: 'var(--ax-viz-emerald)', key: 'verify-approved' },
+    { label: '4. HOC Document Submitted', v: s.doc_submitted, of: s.site_count, color: 'var(--ax-viz-amber)', key: 'doc-submitted' },
+    { label: '5. Claim Raised', v: s.claim_raised, of: s.claim_applicable, color: 'var(--ax-viz-pink)', key: 'claim-raised' },
+    { label: '6. Payment Disbursed', v: s.pay_done, of: s.complete, color: 'var(--ax-viz-violet)', key: 'pay-done' },
   ];
 
   return (
@@ -624,6 +636,9 @@ export function SWPDashboard() {
             >
               <span className={isRefreshing ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
             </button>
+            <Link to="/v/jammu/installation/swp/status-view?status=total" className="ax-btn ax-btn--secondary ax-btn--sm">
+              Status Register
+            </Link>
           </div>
         }
       />
@@ -652,23 +667,17 @@ export function SWPDashboard() {
           className="ax-card ax-card--flat ax-col--12"
           role="region"
           aria-label="Jammu SWP Dashboard Filters"
-          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border-subtle)', background: 'var(--ax-bg-surface)' }}
+          style={{ padding: '8px 16px', borderRadius: 'var(--ax-radius-lg, 12px)', border: '1px solid var(--ax-border-subtle, #f1f5f9)', background: 'var(--ax-bg-surface, #ffffff)' }}
         >
           <div className="ax-cluster" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--ax-space-3)', alignItems: 'center' }}>
             <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
               <span
                 className="ax-cluster"
                 style={{
-                  gap: '6px',
-                  color: 'var(--ax-text-strong)',
-                  fontSize: 'var(--ax-text-xs)',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  padding: '4px 10px',
-                  background: 'rgba(var(--ax-accent-rgb), 0.08)',
-                  borderRadius: 'var(--ax-radius-pill)',
-                  border: '1px solid rgba(var(--ax-accent-rgb), 0.18)',
+                  gap: '6px', color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-xs)', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.04em', padding: '4px 10px',
+                  background: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--ax-radius-pill, 9999px)',
+                  border: '1px solid rgba(37, 99, 235, 0.2)',
                 }}
               >
                 {ICON_FILTER} Filter Operations
@@ -710,7 +719,7 @@ export function SWPDashboard() {
           </div>
         </section>
 
-        {/* 3. Welcome Banner */}
+        {/* 3. Welcome Banner (clickable stats) */}
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Jammu SWP Installation Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
@@ -723,36 +732,37 @@ export function SWPDashboard() {
             </div>
 
             <dl className="ax-welcome__stats">
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('total')} onKeyDown={onActivate(() => goStatus('total'))} title="Click to view all sites">
                 <dt>Total Sites</dt>
                 <dd className="ax-num">{dash(s.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{dash(districtwise.length)} Districts ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('inst-complete')} onKeyDown={onActivate(() => goStatus('inst-complete'))} title="Click to view installed sites">
                 <dt>Installation Done</dt>
                 <dd className="ax-num">{dash(s.complete)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-accent)' }}>{instPct}% Done ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('doc-submitted')} onKeyDown={onActivate(() => goStatus('doc-submitted'))} title="Click to view HOC submitted sites">
                 <dt>HOC Submitted</dt>
                 <dd className="ax-num">{dash(s.doc_submitted)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{docPct}% Submitted</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-cyan)' }}>{docPct}% Submitted ↗</small>
               </div>
-              <div className="ax-welcome__stat">
+              <div className="ax-welcome__stat asw-interactive-kpi" role="button" tabIndex={0} onClick={() => goStatus('verify-approved')} onKeyDown={onActivate(() => goStatus('verify-approved'))} title="Click to view approved sites">
                 <dt>Approved</dt>
                 <dd className="ax-num">{dash(s.verify_approved)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald)' }}>{approvedPct}% Approved ↗</small>
               </div>
             </dl>
           </div>
         </section>
 
-        {/* 4. 8 KPI Cards (Matching exact design) */}
+        {/* 4. 8 KPI Cards — click card or any number */}
         <KpiCard
-          icon={I_BOLT}
+          icon={I_PIN}
           tone="accent"
           label="Total Sites"
-          value={loading && !data ? '…' : num(s.site_count)}
+          value={dash(s.site_count)}
+          unit="Sites"
           sub="Total allocated pump sites"
           badge={s.site_count ? `${instPct}% installed` : undefined}
           spark={spk((d) => n(d.site_count))}
@@ -763,40 +773,51 @@ export function SWPDashboard() {
           icon={I_DONE}
           tone="emerald"
           label="Installation Status"
-          value={loading && !data ? '…' : `${num(s.complete)} / ${num(s.pending)}`}
           sub="Installed / Pending"
-          badge={`${instPct}% Done`}
+          badge={`${instPct}%`}
           spark={spk((d) => n(d.complete))}
           onClick={() => goStatus('inst-complete')}
+          pills={[
+            { label: 'Installed', count: dash(s.complete), onClick: () => goStatus('inst-complete') },
+            { label: 'Pending', count: dash(s.pending), onClick: () => goStatus('inst-pending') },
+          ]}
         />
 
         <KpiCard
           icon={I_FILE}
           tone="cyan"
           label="HOC Document Status"
-          value={loading && !data ? '…' : `${num(s.doc_submitted)} / ${num(s.doc_pending)}`}
           sub="Submitted / Pending"
-          badge={s.doc_submitted > 0 ? `${docPct}% Submitted` : undefined}
+          badge={s.doc_submitted > 0 ? `${docPct}%` : undefined}
           spark={spk((d) => n(d.doc_submitted))}
           onClick={() => goStatus('doc-submitted')}
+          pills={[
+            { label: 'Submitted', count: dash(s.doc_submitted), onClick: () => goStatus('doc-submitted') },
+            { label: 'Pending', count: dash(s.doc_pending), onClick: () => goStatus('doc-pending') },
+          ]}
         />
 
         <KpiCard
-          icon={I_DONE}
+          icon={I_SHIELD}
           tone="amber"
           label="Verification Status"
-          value={loading && !data ? '…' : `${num(s.verify_approved)} / ${num(s.verify_pending)} / ${num(s.verify_reject)}`}
           sub="Approved / Pending / Rejected"
-          badge={s.verify_approved > 0 ? `${approvedPct}% Approved` : undefined}
+          badge={s.verify_approved > 0 ? `${approvedPct}%` : undefined}
           spark={spk((d) => n(d.verify_approved))}
           onClick={() => goStatus('verify-approved')}
+          pills={[
+            { label: 'Approved', count: dash(s.verify_approved), onClick: () => goStatus('verify-approved') },
+            { label: 'Verify Pending', count: dash(s.verify_pending), onClick: () => goStatus('verify-pending') },
+            { label: 'Rejected', count: dash(s.verify_reject), onClick: () => goStatus('verify-reject') },
+          ]}
         />
 
         <KpiCard
           icon={I_EYE}
           tone="violet"
           label="Verification Pending"
-          value={loading && !data ? '…' : num(s.verify_pending)}
+          value={dash(s.verify_pending)}
+          unit="Sites"
           sub="Awaiting verification"
           badge={s.verify_pending > 0 ? `${num(s.verify_pending)} Sites` : undefined}
           spark={spk((d) => n(d.verify_pending))}
@@ -807,20 +828,25 @@ export function SWPDashboard() {
           icon={I_LIST}
           tone="pink"
           label="Claim Status"
-          value={loading && !data ? '…' : `${num(s.claim_applicable)} / ${num(s.claim_raised)}`}
           sub="Applicable / Raised"
           badge={s.claim_raised > 0 ? `${num(s.claim_raised)} Raised` : undefined}
           spark={spk((d) => n(d.claim_raised))}
           onClick={() => goStatus('claim-raised')}
+          pills={[
+            { label: 'Applicable', count: dash(s.claim_applicable), onClick: () => goStatus('claim-applicable') },
+            { label: 'Raised', count: dash(s.claim_raised), onClick: () => goStatus('claim-raised') },
+          ]}
         />
 
         <KpiCard
           icon={I_COIN}
           tone="emerald"
           label="Payment Done Status"
-          value={loading && !data ? '…' : `${num(s.pay_done)} Sites`}
-          sub="Payment Fully Disbursed"
+          value={dash(s.pay_done)}
+          unit="Sites"
+          sub="Payment fully disbursed"
           badge={s.pay_done > 0 ? 'Disbursed' : undefined}
+          spark={spk((d) => n(d.pay_done))}
           onClick={() => goStatus('pay-done')}
         />
 
@@ -828,10 +854,14 @@ export function SWPDashboard() {
           icon={I_COIN}
           tone="amber"
           label="Payment Pending / Partial"
-          value={loading && !data ? '…' : `${num(s.pay_pending)} / ${num(s.pay_partially)}`}
           sub="Pending / Partially Disbursed"
           badge={s.pay_pending > 0 ? 'Pending' : undefined}
+          spark={spk((d) => n(d.pay_pending))}
           onClick={() => goStatus('pay-pending')}
+          pills={[
+            { label: 'Pending', count: dash(s.pay_pending), onClick: () => goStatus('pay-pending') },
+            { label: 'Partially', count: dash(s.pay_partially), onClick: () => goStatus('pay-partially') },
+          ]}
         />
 
         {/* 5. Monthly Trend (8) + Donut (4) */}
@@ -843,12 +873,7 @@ export function SWPDashboard() {
               <p className="ax-card__subtitle">{num(monthTotal)} installations across {monthly.length} month{monthly.length === 1 ? '' : 's'}</p>
             </div>
             <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
-                <span className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-                  <i style={{ width: 10, height: 10, borderRadius: 2, background: LIGHT_GREEN }} />
-                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Monthly Completed</small>
-                </span>
-              </div>
+              <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{monthly.length} Months Tracked</span>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0, minHeight: chartH }}>
@@ -882,7 +907,7 @@ export function SWPDashboard() {
         <section className="ax-card ax-col--4" role="region" aria-label="Installation status split">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Status Distribution</span>
+              <span className="ax-card__eyebrow">Execution Distribution</span>
               <h2 className="ax-card__title">Installation Status</h2>
               <p className="ax-card__subtitle">Total {dash(s.site_count)} sites</p>
             </div>
@@ -890,16 +915,24 @@ export function SWPDashboard() {
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
             <Suspense fallback={<div className="ax-skeleton" style={{ height: donutH }} />}>
               <ApexChart
-                key={`donut-${donutH}-${statusSeries.join('-')}`}
+                key={`donut-${donutH}-${donutItems.map((d) => d.v).join('-')}`}
                 type="donut"
                 height={donutH}
                 legend="none"
                 ariaLabel="Installation status split"
-                series={statusSeries}
+                series={donutItems.map((d) => d.v || 0)}
                 apex={{
-                  labels: statusLabels,
-                  colors: [LIGHT_GREEN, LIGHT_BLUE, '#ef6a6a', LIGHT_AMBER],
+                  labels: donutItems.map((d) => d.label),
+                  colors: donutItems.map((d) => d.color),
                   stroke: { width: 0 },
+                  chart: {
+                    events: {
+                      dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
+                        const key = donutItems[opts?.dataPointIndex]?.key;
+                        if (key) goStatus(key);
+                      },
+                    },
+                  },
                   plotOptions: {
                     pie: {
                       donut: {
@@ -917,19 +950,24 @@ export function SWPDashboard() {
               />
             </Suspense>
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
-              {[
-                { label: 'Approved', sub: `${approvedPct}% of total`, v: s.verify_approved, color: LIGHT_GREEN },
-                { label: 'Verify Pending', sub: 'Awaiting verification', v: s.verify_pending, color: LIGHT_BLUE },
-                { label: 'Rejected', sub: 'Correction needed', v: s.verify_reject, color: '#ef6a6a' },
-                { label: 'Install Pending', sub: 'In progress', v: s.pending, color: LIGHT_AMBER },
-              ].map((r) => (
-                <li key={r.label} className="ax-list__row" style={{ border: 0, paddingInline: 0 }}>
+              {donutItems.map((r) => (
+                <li
+                  key={r.label}
+                  className="ax-list__row"
+                  role="button"
+                  tabIndex={0}
+                  style={{ border: 0, paddingInline: 0, cursor: 'pointer' }}
+                  onClick={() => goStatus(r.key)}
+                  onKeyDown={onActivate(() => goStatus(r.key))}
+                >
                   <span className="ax-list__leading"><i style={{ width: 9, height: 9, borderRadius: 3, background: r.color, display: 'inline-block' }} /></span>
                   <span className="ax-list__content">
                     <span className="ax-list__title" style={{ fontWeight: 'var(--ax-weight-medium)' }}>{r.label}</span>
                     <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{r.sub}</span>
                   </span>
-                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>{num(r.v)}</span>
+                  <span className="ax-list__trailing ax-num" style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>
+                    {num(r.v)} ({pctOf(r.v, s.site_count)}%)
+                  </span>
                 </li>
               ))}
             </ul>
@@ -942,7 +980,7 @@ export function SWPDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
               <h2 className="ax-card__title">District-wise SWP Installation Statistics</h2>
-              <p className="ax-card__subtitle">Installations by progress across Jammu &amp; Kashmir districts · click bar to filter</p>
+              <p className="ax-card__subtitle">Installations by progress across Jammu &amp; Kashmir districts · click a bar to open the district</p>
             </div>
             <div className="ax-card__actions">
               <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">{dash(districtwise.length)} Districts</span>
@@ -971,7 +1009,7 @@ export function SWPDashboard() {
                       events: {
                         dataPointSelection: (_event: unknown, _chart: unknown, opts: any) => {
                           const dist = chartDistricts[opts?.dataPointIndex]?.district;
-                          if (dist) setSelectedDistrict(dist);
+                          if (dist) goStatus('inst-complete', dist);
                         },
                       },
                     },
@@ -996,7 +1034,16 @@ export function SWPDashboard() {
             {milestones.map((m) => {
               const p = pctOf(m.v, m.of);
               return (
-                <div key={m.label}>
+                <div
+                  key={m.label}
+                  role="button"
+                  tabIndex={0}
+                  className="asw-interactive-kpi"
+                  onClick={() => goStatus(m.key)}
+                  onKeyDown={onActivate(() => goStatus(m.key))}
+                  style={{ padding: '6px 8px', borderRadius: 'var(--ax-radius-sm, 6px)' }}
+                  title={`Drill down to ${m.label}`}
+                >
                   <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
                     <span style={{ fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)', fontWeight: 500 }}>{m.label}</span>
                     <b className="ax-num" style={{ color: m.color, fontSize: 'var(--ax-text-xs)' }}>{num(m.v)} / {num(m.of)} ({p}%)</b>
@@ -1042,26 +1089,28 @@ export function SWPDashboard() {
                   <th className="ax-table__th ax-table__th--num" scope="col">Claim (Appl / Raised)</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Payments (Done / Pend)</th>
                   <th className="ax-table__th" scope="col">Progress</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
+                  <tr><td className="ax-table__td" colSpan={9} style={emptyCellStyle}><span className="ax-spinner" /> Loading district records…</td></tr>
                 ) : pD.paginatedData.length === 0 ? (
-                  <tr><td className="ax-table__td" colSpan={8} style={emptyCellStyle}>No districts match the filters.</td></tr>
+                  <tr><td className="ax-table__td" colSpan={9} style={emptyCellStyle}>No districts match the filters.</td></tr>
                 ) : (
                   pD.paginatedData.map((d) => {
                     const total = n(d.site_count);
                     const rowPct = pctOf(n(d.complete), total);
                     const isSelected = selectedDistrict.toLowerCase() === d.district.toLowerCase();
+                    const go = (key: string) => (e: React.MouseEvent) => { e.stopPropagation(); goStatus(key, d.district); };
                     return (
                       <tr
                         key={d.district}
                         className="ax-table__row"
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSelectedDistrict(d.district)}
-                        onKeyDown={onActivate(() => setSelectedDistrict(d.district))}
+                        onClick={() => goStatus('total', d.district)}
+                        onKeyDown={onActivate(() => goStatus('total', d.district))}
                         style={{ cursor: 'pointer', background: isSelected ? 'rgba(var(--ax-accent-rgb), 0.05)' : undefined }}
                       >
                         <td className="ax-table__td">
@@ -1072,39 +1121,52 @@ export function SWPDashboard() {
                             )}
                           </div>
                         </td>
-                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>{num(total)}</td>
+                        <td className="ax-table__td ax-table__td--num ax-num click-cell" style={{ fontWeight: 600 }} onClick={go('total')} title={`View all sites in ${d.district}`}>{num(total)}</td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.complete)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('inst-complete')} title={`View installed sites in ${d.district}`}>{num(d.complete)}</span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--neutral click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('inst-pending')} title={`View pending sites in ${d.district}`}>{num(d.pending)}</span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.doc_submitted)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--info click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('doc-submitted')} title={`View HOC submitted in ${d.district}`}>{num(d.doc_submitted)}</span>
                             <span style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>/</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 600, padding: '2px 7px' }}>{num(d.doc_pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ fontWeight: 600, padding: '2px 7px' }} onClick={go('doc-pending')} title={`View HOC pending in ${d.district}`}>{num(d.doc_pending)}</span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                            <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '2px 6px', fontSize: '11px' }} title="Approved">
+                            <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-approved')} title="Approved">
                               <span className="ax-badge__dot" />{num(d.verify_approved)}
                             </span>
-                            <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '2px 6px', fontSize: '11px' }} title="Pending Verify">{num(d.verify_pending)}</span>
-                            <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '2px 6px', fontSize: '11px' }} title="Rejected">{num(d.verify_reject)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-pending')} title="Pending Verify">{num(d.verify_pending)}</span>
+                            <span className="ax-badge ax-badge--soft ax-badge--danger click-cell" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={go('verify-reject')} title="Rejected">{num(d.verify_reject)}</span>
                           </div>
                         </td>
                         <td className="ax-table__td ax-table__td--num">
-                          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{num(d.claim_applicable)}</span>
+                          <span className="click-cell" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }} onClick={go('claim-applicable')} title="View claim applicable">{num(d.claim_applicable)}</span>
                           <span style={{ color: 'var(--ax-text-muted)' }}> / </span>
-                          <span style={{ color: 'var(--ax-text-muted)' }}>{num(d.claim_raised)}</span>
+                          <span className="click-cell" style={{ color: 'var(--ax-text-muted)' }} onClick={go('claim-raised')} title="View claim raised">{num(d.claim_raised)}</span>
                         </td>
                         <td className="ax-table__td ax-table__td--num ax-num">
-                          {num(d.pay_done)} / {num(d.pay_pending)}
+                          <span className="click-cell" onClick={go('pay-done')} title="View payment done">{num(d.pay_done)}</span>
+                          {' / '}
+                          <span className="click-cell" onClick={go('pay-pending')} title="View payment pending">{num(d.pay_pending)}</span>
                         </td>
                         <td className="ax-table__td"><Bar pct={rowPct} /></td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--secondary ax-btn--xs"
+                            style={{ height: 26, padding: '0 8px', fontSize: '11px' }}
+                            onClick={go('total')}
+                            title={`View status breakdown in ${d.district}`}
+                          >
+                            Status ↗
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
@@ -1112,39 +1174,42 @@ export function SWPDashboard() {
                 {tableDistricts.length > 0 && (
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle)', fontWeight: 'var(--ax-weight-bold)' }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total ({filteredDistrictRows.length} Districts)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num">{num(districtTotals.site_count)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num click-cell" onClick={() => goStatus('total')}>{num(districtTotals.site_count)}</td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 700 }}>{num(districtTotals.complete)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--success click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('inst-complete')}>{num(districtTotals.complete)}</span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--neutral" style={{ fontWeight: 700 }}>{num(districtTotals.pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--neutral click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('inst-pending')}>{num(districtTotals.pending)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 700 }}>{num(districtTotals.doc_submitted)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--info click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('doc-submitted')}>{num(districtTotals.doc_submitted)}</span>
                         <span>/</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700 }}>{num(districtTotals.doc_pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('doc-pending')}>{num(districtTotals.doc_pending)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
                       <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: '4px' }}>
-                        <span className="ax-badge ax-badge--soft ax-badge--success">{num(districtTotals.verify_approved)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--warning">{num(districtTotals.verify_pending)}</span>
-                        <span className="ax-badge ax-badge--soft ax-badge--danger">{num(districtTotals.verify_reject)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--success click-cell" onClick={() => goStatus('verify-approved')}>{num(districtTotals.verify_approved)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--warning click-cell" onClick={() => goStatus('verify-pending')}>{num(districtTotals.verify_pending)}</span>
+                        <span className="ax-badge ax-badge--soft ax-badge--danger click-cell" onClick={() => goStatus('verify-reject')}>{num(districtTotals.verify_reject)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-table__td--num">
-                      <span style={{ fontWeight: 700 }}>{num(districtTotals.claim_applicable)}</span>
+                      <span className="click-cell" style={{ fontWeight: 700 }} onClick={() => goStatus('claim-applicable')}>{num(districtTotals.claim_applicable)}</span>
                       <span> / </span>
-                      <span>{num(districtTotals.claim_raised)}</span>
+                      <span className="click-cell" onClick={() => goStatus('claim-raised')}>{num(districtTotals.claim_raised)}</span>
                     </td>
                     <td className="ax-table__td ax-table__td--num ax-num">
-                      {num(districtTotals.pay_done)} / {num(districtTotals.pay_pending)}
+                      <span className="click-cell" onClick={() => goStatus('pay-done')}>{num(districtTotals.pay_done)}</span>
+                      {' / '}
+                      <span className="click-cell" onClick={() => goStatus('pay-pending')}>{num(districtTotals.pay_pending)}</span>
                     </td>
                     <td className="ax-table__td">
                       <Bar pct={Math.round(pctOf(districtTotals.complete, districtTotals.site_count))} />
                     </td>
+                    <td />
                   </tr>
                 )}
               </tbody>

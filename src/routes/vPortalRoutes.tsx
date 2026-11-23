@@ -64,6 +64,7 @@ const UPInstKCReq = lazy(() => import('../components/V-Portal/up/Installation/Ku
 const UPInstKCInstall = lazy(() => import('../components/V-Portal/up/Installation/KusumC/InstallSite'));
 const UPInstKCView = lazy(() => import('../components/V-Portal/up/Installation/KusumC/ViewInstallation'));
 const UPInstKCPay = lazy(() => import('../components/V-Portal/up/Installation/KusumC/ViewPayment'));
+const UPInstKCStatusView = lazy(() => import('../components/V-Portal/up/Installation/KusumC/StatusView'));
 
 // AMC
 const UPAMCRescoViewAssign = lazy(() => import('../components/V-Portal/up/AMC/Resco/ViewAssignSite'));
@@ -177,6 +178,7 @@ const BiharSurveyULAView = lazy(() => import('../components/V-Portal/bihar/Surve
 
 // Installation
 const BiharInstSSLDb = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/Dashboard'));
+const BiharInstSSLStatusView = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/StatusView'));
 const BiharInstSSLAssign = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/AssignedLights'));
 const BiharInstSSLInstall = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/InstallLight'));
 const BiharInstSSLDetail = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/InstallationDetail'));
@@ -185,6 +187,7 @@ const BiharInstSSLSupplyInspect = lazy(() => import('../components/V-Portal/biha
 const BiharInstSSLInstallInspect = lazy(() => import('../components/V-Portal/bihar/Installation/SSL/InstallationInspection'));
 
 const BiharInstSRTDb = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/Dashboard'));
+const BiharInstSRTStatusView = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/StatusView'));
 const BiharInstSRTRequest = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/RequestAccept'));
 const BiharInstSRTDetails = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/InstallationDetails'));
 const BiharInstSRTView = lazy(() => import('../components/V-Portal/bihar/Installation/SRT/ViewInstallation'));
@@ -418,16 +421,35 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'up/installation/ssl/installation-detail': UPInstSSLDetail,
   'up/installation/ssl/claim-request': UPInstSSLClaim,
   'v/up/kusum-c-installation-dashboard': UPInstKCDb,
+  'v/up/kusum-c-installation-view-dashboard/:status': UPInstKCStatusView,
+  'v/up/kusum-c-installation-view-dashboard': UPInstKCStatusView,
+  'v/up/kusum-c-installation-status-view': UPInstKCStatusView,
+  'v/up/kusum-c-installation-status-view/:status': UPInstKCStatusView,
+  'v/up/kusum-c-installation-dashboard-status': UPInstKCStatusView,
+  'v/up/installation/kusum-c/dashboard': UPInstKCDb,
+  'v/up/installation/kusum-c/status-view': UPInstKCStatusView,
+  'v/up/installation/kusum-c/status-view/:status': UPInstKCStatusView,
+  'v/up/installation/kusum-c/view-dashboard/:status': UPInstKCStatusView,
+  'v/up/installation/kusum-c/view-dashboard': UPInstKCStatusView,
   'v/up/view-kusum-c-assign-installation-sites': UPInstKCReq,
   'v/up/install-kusum-c-site': UPInstKCInstall,
   'v/up/view-kusum-c-install-site': UPInstKCView,
   'v/up/kusum-c-installation-claim': UPInstKCPay,
   'up/kusum-c-installation-dashboard': UPInstKCDb,
+  'up/kusum-c-installation-view-dashboard/:status': UPInstKCStatusView,
+  'up/kusum-c-installation-view-dashboard': UPInstKCStatusView,
+  'up/kusum-c-installation-status-view': UPInstKCStatusView,
+  'up/kusum-c-installation-status-view/:status': UPInstKCStatusView,
+  'up/kusum-c-installation-dashboard-status': UPInstKCStatusView,
   'up/view-kusum-c-assign-installation-sites': UPInstKCReq,
   'up/install-kusum-c-site': UPInstKCInstall,
   'up/view-kusum-c-install-site': UPInstKCView,
   'up/kusum-c-installation-claim': UPInstKCPay,
   'up/installation/kusum-c/dashboard': UPInstKCDb,
+  'up/installation/kusum-c/status-view': UPInstKCStatusView,
+  'up/installation/kusum-c/status-view/:status': UPInstKCStatusView,
+  'up/installation/kusum-c/view-dashboard/:status': UPInstKCStatusView,
+  'up/installation/kusum-c/view-dashboard': UPInstKCStatusView,
   'up/installation/kusum-c/installation-request': UPInstKCReq,
   'up/installation/kusum-c/install-site': UPInstKCInstall,
   'up/installation/kusum-c/view-installation': UPInstKCView,
@@ -735,6 +757,10 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   // Bihar: Installation
   // ─────────────────────────────────────────────────────────────────────────
   'v/bihar/installation/ssl/dashboard': BiharInstSSLDb,
+  'v/bihar/installation/ssl/status-view': BiharInstSSLStatusView,
+  'v/bihar/installation/ssl/status': BiharInstSSLStatusView,
+  'v/bihar/ssl/status-view': BiharInstSSLStatusView,
+  'v/bihar/ssl-installation-status-view': BiharInstSSLStatusView,
   'v/bihar/installation/ssl/assign-lights': BiharInstSSLAssign,
   'v/bihar/installation/ssl/install-lights': BiharInstSSLInstall,
   'v/bihar/installation/ssl/installation-detail': BiharInstSSLDetail,
@@ -742,6 +768,9 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'v/bihar/installation/ssl/supply-inspection': BiharInstSSLSupplyInspect,
   'v/bihar/installation/ssl/installation-inspection': BiharInstSSLInstallInspect,
   'bihar/installation/ssl/dashboard': BiharInstSSLDb,
+  'bihar/installation/ssl/status-view': BiharInstSSLStatusView,
+  'bihar/installation/ssl/status': BiharInstSSLStatusView,
+  'bihar/ssl/status-view': BiharInstSSLStatusView,
   'bihar/installation/ssl/assign-lights': BiharInstSSLAssign,
   'bihar/installation/ssl/install-lights': BiharInstSSLInstall,
   'bihar/installation/ssl/installation-detail': BiharInstSSLDetail,
@@ -749,11 +778,18 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'bihar/installation/ssl/supply-inspection': BiharInstSSLSupplyInspect,
   'bihar/installation/ssl/installation-inspection': BiharInstSSLInstallInspect,
   'v/bihar/installation/srt/dashboard': BiharInstSRTDb,
+  'v/bihar/installation/srt/status-view': BiharInstSRTStatusView,
+  'v/bihar/installation/srt/status': BiharInstSRTStatusView,
+  'v/bihar/srt/status-view': BiharInstSRTStatusView,
+  'v/bihar/srt-installation-status-view': BiharInstSRTStatusView,
   'v/bihar/installation/srt/request': BiharInstSRTRequest,
   'v/bihar/installation/srt/installation-detail': BiharInstSRTDetails,
   'v/bihar/installation/srt/view-installation': BiharInstSRTView,
   'v/bihar/installation/srt/claim-request': BiharInstSRTClaim,
   'bihar/installation/srt/dashboard': BiharInstSRTDb,
+  'bihar/installation/srt/status-view': BiharInstSRTStatusView,
+  'bihar/installation/srt/status': BiharInstSRTStatusView,
+  'bihar/srt/status-view': BiharInstSRTStatusView,
   'bihar/installation/srt/request': BiharInstSRTRequest,
   'bihar/installation/srt/installation-detail': BiharInstSRTDetails,
   'bihar/installation/srt/view-installation': BiharInstSRTView,
@@ -783,6 +819,7 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'bihar/installation/ula/payment': BiharInstULAPay,
   'bihar/installation/ula/pending-installation': Bihar_Installation_ULA_PendingInstallation,
   'v/ssl/installation-dashboard': BiharInstSSLDb,
+  'v/ssl/status-view': BiharInstSSLStatusView,
   'v/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
   'v/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
   'v/ssl/view-ssl-complete-site': BiharInstSSLDetail,
@@ -790,6 +827,7 @@ export const vPortalRoutesMap: Record<string, PageComponent> = {
   'v/bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
   'v/bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
   'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'v/srt/status-view': BiharInstSRTStatusView,
   'v/srt/viewassignsite': BiharInstSRTRequest,
   'v/srt/installationsite': BiharInstSRTDetails,
   'v/srt/allassignsite': BiharInstSRTView,

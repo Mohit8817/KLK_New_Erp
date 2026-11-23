@@ -268,6 +268,11 @@ function RaiseClaimModal({
       setError('Please upload the claim invoice file (PDF/Image).');
       return;
     }
+    const trimmedRemarks = claimRemarks.trim();
+    if (!trimmedRemarks) {
+      setError('Please enter remarks.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -278,12 +283,13 @@ function RaiseClaimModal({
       fd.append('srt_id', String(site.id));
       fd.append('inst_claim_amount', claimAmount.trim());
       fd.append('claim_amount', claimAmount.trim());
-      if (claimRemarks) {
-        fd.append('inst_claim_remarks', claimRemarks.trim());
-        fd.append('claim_remarks', claimRemarks.trim());
-      }
+      fd.append('amount', claimAmount.trim());
+      fd.append('remarks', trimmedRemarks);
+      fd.append('claim_remarks', trimmedRemarks);
+      fd.append('inst_claim_remarks', trimmedRemarks);
       fd.append('inst_claim_invoice', claimInvoiceFile);
       fd.append('claim_invoice', claimInvoiceFile);
+      fd.append('invoice', claimInvoiceFile);
 
       const res = await goaSrtInstallationService.raiseClaim(fd);
       onSuccess(res?.message || 'Claim request submitted successfully!');
@@ -480,10 +486,10 @@ function RaiseClaimModal({
             )}
           </div>
 
-          {/* Remarks (Goa-specific, optional) */}
+          {/* Remarks (Required by API) */}
           <div className="ax-form-field">
             <label htmlFor="modal-claim-remarks" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
-              Remarks (Optional)
+              Remarks <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
             </label>
             <input
               id="modal-claim-remarks"
@@ -493,6 +499,7 @@ function RaiseClaimModal({
               placeholder="e.g. Work verified on site, invoice raised"
               value={claimRemarks}
               onChange={(e) => setClaimRemarks(e.target.value)}
+              required
               disabled={isSubmitting}
             />
           </div>

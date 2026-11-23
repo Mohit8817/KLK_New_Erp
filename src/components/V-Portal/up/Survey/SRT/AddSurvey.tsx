@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { upSurveyService } from '../../up-services';
@@ -138,11 +138,15 @@ const SECTIONS = [
 export function UP_Survey_SRT_AddSurvey() {
   const navigate = useNavigate();
 
-  // Cascading location lists
+  // Cascading location lists (fetched strictly from API)
   const [districts, setDistricts] = useState<string[]>([]);
   const [blocks, setBlocks] = useState<string[]>([]);
   const [panchayats, setPanchayats] = useState<string[]>([]);
   const [villages, setVillages] = useState<string[]>([]);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingBlocks, setLoadingBlocks] = useState(false);
+  const [loadingPanchayats, setLoadingPanchayats] = useState(false);
+  const [loadingVillages, setLoadingVillages] = useState(false);
 
   const [formData, setFormData] = useState({ ...INITIAL_FORM });
   const [files, setFiles] = useState<Record<FileKey, File | null>>({
@@ -196,43 +200,103 @@ export function UP_Survey_SRT_AddSurvey() {
 
   // Districts on mount
   useEffect(() => {
-    upSurveyService.getSrtDistricts().then((dists) => setDistricts(dists));
+    let active = true;
+    setLoadingDistricts(true);
+    upSurveyService
+      .getSrtDistricts()
+      .then((dists) => {
+        if (active) setDistricts(dists);
+      })
+      .catch(() => {
+        if (active) setDistricts([]);
+      })
+      .finally(() => {
+        if (active) setLoadingDistricts(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Cascading blocks
   useEffect(() => {
+    let active = true;
+    setFormData((prev) => ({ ...prev, block: '', panchayat: '', village: '' }));
     if (district) {
-      upSurveyService.getSrtBlocks(district).then((b) => setBlocks(b));
+      setLoadingBlocks(true);
+      upSurveyService
+        .getSrtBlocks(district)
+        .then((b) => {
+          if (active) setBlocks(b);
+        })
+        .catch(() => {
+          if (active) setBlocks([]);
+        })
+        .finally(() => {
+          if (active) setLoadingBlocks(false);
+        });
     } else {
       setBlocks([]);
     }
-    setFormData((prev) => ({ ...prev, block: '', panchayat: '', village: '' }));
+    return () => {
+      active = false;
+    };
   }, [district]);
 
   // Cascading panchayats
   useEffect(() => {
+    let active = true;
+    setFormData((prev) => ({ ...prev, panchayat: '', village: '' }));
     if (district && block) {
-      upSurveyService.getSrtPanchayats(district, block).then((p) => setPanchayats(p));
+      setLoadingPanchayats(true);
+      upSurveyService
+        .getSrtPanchayats(district, block)
+        .then((p) => {
+          if (active) setPanchayats(p);
+        })
+        .catch(() => {
+          if (active) setPanchayats([]);
+        })
+        .finally(() => {
+          if (active) setLoadingPanchayats(false);
+        });
     } else {
       setPanchayats([]);
     }
-    setFormData((prev) => ({ ...prev, panchayat: '', village: '' }));
+    return () => {
+      active = false;
+    };
   }, [district, block]);
 
   // Cascading villages
   useEffect(() => {
+    let active = true;
+    setFormData((prev) => ({ ...prev, village: '' }));
     if (district && block && panchayat) {
-      upSurveyService.getSrtVillages(district, block, panchayat).then((v) => setVillages(v));
+      setLoadingVillages(true);
+      upSurveyService
+        .getSrtVillages(district, block, panchayat)
+        .then((v) => {
+          if (active) setVillages(v);
+        })
+        .catch(() => {
+          if (active) setVillages([]);
+        })
+        .finally(() => {
+          if (active) setLoadingVillages(false);
+        });
     } else {
       setVillages([]);
     }
-    setFormData((prev) => ({ ...prev, village: '' }));
+    return () => {
+      active = false;
+    };
   }, [district, block, panchayat]);
 
   // GPS detection
-  const handleGetLocation = () => {
+  const handleGetLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      setErrorMsg('Location permission denied. Allow location access in your browser/site settings, then retry.');
+      if (!silent) setErrorMsg('Location permission denied. Allow location access in your browser/site settings, then retry.');
       return;
     }
     setLocating(true);
@@ -247,11 +311,15 @@ export function UP_Survey_SRT_AddSurvey() {
       },
       (err) => {
         setLocating(false);
-        setErrorMsg(`Location permission denied (${err.message}). Allow location access in your browser/site settings, then retry.`);
+        if (!silent) setErrorMsg(`Location permission denied (${err.message}). Allow location access in your browser/site settings, then retry.`);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  useEffect(() => {
+    handleGetLocation(true);
+  }, []);
 
   // Validation
   const validate = () => {
@@ -298,6 +366,7 @@ export function UP_Survey_SRT_AddSurvey() {
           navigate('/v/up/srt-surveys/view');
         }, 1200);
       } else {
+        if (res.errors) setValidationErrors(res.errors);
         setErrorMsg(res.message || 'Failed to submit survey.');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -385,17 +454,33 @@ export function UP_Survey_SRT_AddSurvey() {
             <div id="sec-1" className="up-section-block">
               <SectionHeader num="1" total={5} title="Location Details" desc="District, block, panchayat, village and GPS coordinates." />
               <div className="up-form-grid up-form-grid--3col">
-                <FloatingSelect id="up-district" label="District" required placeholder="Select District" options={opts(districts)} {...f('district')} />
-                <FloatingSelect id="up-block" label="Block" required placeholder="Select Block" options={opts(blocks)} disabled={!district} {...f('block')} />
-                <FloatingSelect id="up-panchayat" label="Panchayat" required placeholder="Select Panchayat" options={opts(panchayats)} disabled={!block} {...f('panchayat')} />
-                <FloatingSelect id="up-village" label="Village" required placeholder="Select Village" options={opts(villages)} disabled={!panchayat} {...f('village')} />
+                <FloatingSelect id="up-district" label="District" required placeholder={loadingDistricts ? 'Loading districts...' : 'Select District'} options={opts(districts)} disabled={loadingDistricts} {...f('district')} />
+                <FloatingSelect id="up-block" label="Block" required placeholder={loadingBlocks ? 'Loading blocks...' : 'Select Block'} options={opts(blocks)} disabled={!district || loadingBlocks} {...f('block')} />
+                <FloatingSelect id="up-panchayat" label="Panchayat" required placeholder={loadingPanchayats ? 'Loading panchayats...' : 'Select Panchayat'} options={opts(panchayats)} disabled={!block || loadingPanchayats} {...f('panchayat')} />
+                <FloatingSelect id="up-village" label="Village" required placeholder={loadingVillages ? 'Loading villages...' : 'Select Village'} options={opts(villages)} disabled={!panchayat || loadingVillages} {...f('village')} />
                 <FloatingInput id="up-ward" label="Ward No." placeholder="Enter ward number" {...f('ward_no')} />
                 <FloatingInput id="up-address" label="Address" required placeholder="Enter full address" {...f('address')} />
-                <FloatingInput id="up-lat" label="Latitude" placeholder="e.g. 28.6031650" {...f('latitude')} />
-                <FloatingInput id="up-lng" label="Longitude" placeholder="e.g. 77.3573570" {...f('longitude')} />
+                <FloatingInput
+                  id="up-lat"
+                  label="Latitude"
+                  placeholder="Auto-detected GPS Latitude"
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  {...f('latitude')}
+                  readOnly={true}
+                  onChange={() => {}}
+                />
+                <FloatingInput
+                  id="up-lng"
+                  label="Longitude"
+                  placeholder="Auto-detected GPS Longitude"
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  {...f('longitude')}
+                  readOnly={true}
+                  onChange={() => {}}
+                />
                 <div>
-                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={handleGetLocation} disabled={locating}>
-                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Get GPS'}</span>
+                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={() => handleGetLocation(false)} disabled={locating}>
+                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Auto-detect GPS'}</span>
                   </button>
                 </div>
               </div>
@@ -562,6 +647,7 @@ interface FloatingInputProps {
   type?: string;
   required?: boolean;
   readOnly?: boolean;
+  style?: CSSProperties;
   maxLength?: number;
   placeholder?: string;
   value: string;
@@ -569,7 +655,7 @@ interface FloatingInputProps {
   error?: string;
 }
 
-function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, style, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   return (
     <div>
       <div className="ax-float">
@@ -580,6 +666,7 @@ function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength
           placeholder={placeholder}
           value={value}
           readOnly={readOnly}
+          style={style}
           maxLength={maxLength}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}

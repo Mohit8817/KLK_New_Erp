@@ -75,7 +75,7 @@ const formsSelect = lazy(() => import('../pages/forms/Select'));
 const formsValidation = lazy(() => import('../pages/forms/Validation'));
 const formsWizard = lazy(() => import('../pages/forms/Wizard'));
 const iconsBrands = lazy(() => import('../pages/icons/Brands'));
-const iconsIconGallery = lazy(() => import('../pages/icons/IconGallery'));
+const iconsIconGallery = lazy(() => import('../pages/icons/IconGallery').then((m) => ({ default: m.IconGallery })));
 const iconsLine = lazy(() => import('../pages/icons/Line'));
 const iconsSolid = lazy(() => import('../pages/icons/Solid'));
 const iconsTabler = lazy(() => import('../pages/icons/Tabler'));

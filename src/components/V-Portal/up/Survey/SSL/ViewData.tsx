@@ -486,7 +486,7 @@ function DetailModal({
           setLoading(false);
         });
     }
-  }, [open, item, onClose]);
+  }, [open, item]);
 
   if (!open || !item) return null;
 
@@ -530,7 +530,7 @@ function DetailModal({
             >
               <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Site Information</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, fontSize: 12.5 }}>
-                <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{(site.state || 'UP').toUpperCase()}</strong></div>
+                <div><span style={{ color: 'var(--ax-text-muted)' }}>State: </span><strong>{site.state ? site.state.toUpperCase() : DASH}</strong></div>
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>District: </span><strong>{txt(site.district)}</strong></div>
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>Village / Block: </span><strong>{txt(site.village || site.block)}</strong></div>
                 <div><span style={{ color: 'var(--ax-text-muted)' }}>Beneficiary: </span><strong>{txt(site.beneficiary_name)}</strong></div>
@@ -556,8 +556,8 @@ function DetailModal({
                   {uploads.map((u: any, i: number) => (
                     <div key={i} style={{ borderBottom: i < uploads.length - 1 ? '1px solid var(--ax-border, #e2e8f0)' : 'none', paddingBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 8 }}>
-                        <span><span style={{ color: 'var(--ax-text-muted)' }}>Mode: </span><strong>{u.mode || 'Online'}</strong></span>
-                        <span><span style={{ color: 'var(--ax-text-muted)' }}>Coordinates: </span><strong>{u.latitude ? `${u.latitude}, ${u.lognitude}` : DASH}</strong></span>
+                        <span><span style={{ color: 'var(--ax-text-muted)' }}>Mode: </span><strong>{txt(u.mode)}</strong></span>
+                        <span><span style={{ color: 'var(--ax-text-muted)' }}>Coordinates: </span><strong>{u.latitude ? `${u.latitude}, ${u.longitude || u.lognitude || DASH}` : DASH}</strong></span>
                       </div>
                       {u.remarks && (
                         <div style={{ fontSize: 12, color: 'var(--ax-text)', marginBottom: 8 }}>

@@ -5,6 +5,8 @@ import { PageHead } from '../shell/PageHead';
 import { Pagination, usePagination, TableExportToolbar, TableEmptyState, type ExportColumn } from '../../common';
 import { SearchInput } from '../../common/search/SearchInput';
 import { useAuth } from '../../context/AuthContext';
+import { useVPortalPermissions } from '../../services/vPortalPermissionsService';
+import { normState } from '../../services/stateAccess';
 
 /* ───────── Dashboard UI blocks (ULA design) ───────── */
 const ApexChart = lazy(() => import('../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
@@ -473,11 +475,28 @@ const INITIAL_WORK_ORDERS: WorkOrder[] = [
   { id: 'WO-8812', site: 'Resco Commercial Rooftop', state: 'Uttar Pradesh', district: 'AGRA', module: 'Survey (Resco)', technician: 'Mahesh Pandey', status: 'Commissioned', date: '12-10-2026', to: '/up/survey/resco/view-resco' },
 ];
 
-const STATE_SUMMARIES: StateOverview[] = [
+const ALL_STATE_SUMMARIES: StateOverview[] = [
   { state: 'Uttar Pradesh', totalSites: 1120, activeInstallations: 580, surveysDone: 340, amcUnits: 240, complaints: 28 },
+  { state: 'Bihar', totalSites: 940, activeInstallations: 480, surveysDone: 310, amcUnits: 210, complaints: 16 },
   { state: 'Punjab', totalSites: 860, activeInstallations: 430, surveysDone: 210, amcUnits: 160, complaints: 8 },
   { state: 'Jammu & Kashmir', totalSites: 980, activeInstallations: 520, surveysDone: 310, amcUnits: 190, complaints: 14 },
   { state: 'Assam', totalSites: 745, activeInstallations: 320, surveysDone: 242, amcUnits: 103, complaints: 6 },
+  { state: 'Karnataka', totalSites: 680, activeInstallations: 290, surveysDone: 180, amcUnits: 95, complaints: 7 },
+  { state: 'Goa', totalSites: 420, activeInstallations: 190, surveysDone: 130, amcUnits: 80, complaints: 4 },
+  { state: 'Arunachal Pradesh', totalSites: 510, activeInstallations: 240, surveysDone: 150, amcUnits: 70, complaints: 5 },
+  { state: 'Kashmir', totalSites: 590, activeInstallations: 270, surveysDone: 190, amcUnits: 110, complaints: 9 },
+];
+
+const STATE_OPTIONS: { code: string; name: string; label: string }[] = [
+  { code: 'up', name: 'Uttar Pradesh', label: 'Uttar Pradesh (UP)' },
+  { code: 'bihar', name: 'Bihar', label: 'Bihar' },
+  { code: 'jammu', name: 'Jammu & Kashmir', label: 'Jammu & Kashmir (J&K)' },
+  { code: 'kashmir', name: 'Kashmir', label: 'Kashmir' },
+  { code: 'assam', name: 'Assam', label: 'Assam' },
+  { code: 'karnataka', name: 'Karnataka', label: 'Karnataka' },
+  { code: 'punjab', name: 'Punjab', label: 'Punjab' },
+  { code: 'arunachal', name: 'Arunachal Pradesh', label: 'Arunachal Pradesh' },
+  { code: 'goa', name: 'Goa', label: 'Goa' },
 ];
 
 const STATUS_BADGE: Record<WorkOrder['status'], string> = {
@@ -492,6 +511,7 @@ export function VPortalDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isMobile = useIsMobile(640);
+  const { permissions, refresh: refreshPermissions, isStatePermitted } = useVPortalPermissions();
 
   const [selectedState, setSelectedState] = useState('All');
   const [selectedModule, setSelectedModule] = useState('All');
@@ -503,13 +523,28 @@ export function VPortalDashboard() {
   const donutH = isMobile ? 210 : 230;
 
   const vendorDisplayName = user?.name || user?.vendor_id || 'Vendor Partner';
-  const refreshData = () => setUpdatedAt(new Date());
+  const refreshData = () => {
+    setUpdatedAt(new Date());
+    refreshPermissions();
+  };
+
+  // Only states where at least one operation is 1 in the permissions API
+  const visibleStateOptions = useMemo(() => {
+    return STATE_OPTIONS.filter((s) => isStatePermitted(s.code));
+  }, [permissions, isStatePermitted]);
+
+  const visibleStateSummaries = useMemo(() => {
+    return ALL_STATE_SUMMARIES.filter((s) => isStatePermitted(normState(s.state)));
+  }, [permissions, isStatePermitted]);
 
   /* ──────── Filtered Work Orders ──────── */
   const deferredQuery = useDeferredValue(query);
   const filteredOrders = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
     return INITIAL_WORK_ORDERS.filter((item) => {
+      // Must be permitted state
+      if (!isStatePermitted(normState(item.state))) return false;
+
       const matchState = selectedState === 'All' || item.state === selectedState;
       const matchModule = selectedModule === 'All' || item.module.toLowerCase().includes(selectedModule.toLowerCase());
       const matchQuery =
@@ -521,7 +556,7 @@ export function VPortalDashboard() {
         item.status.toLowerCase().includes(q);
       return matchState && matchModule && matchQuery;
     });
-  }, [selectedState, selectedModule, deferredQuery]);
+  }, [selectedState, selectedModule, deferredQuery, isStatePermitted]);
 
   const { paginatedData: pagedOrders, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filteredOrders, initialPageSize: 10 });
@@ -566,7 +601,7 @@ export function VPortalDashboard() {
         actions={
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
-              <span className="ax-badge__dot" /> 3 States Active
+              <span className="ax-badge__dot" /> {visibleStateOptions.length} States Active
             </span>
             <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon" aria-label="Refresh dashboard" onClick={refreshData}>
               {ICON_REFRESH}
@@ -600,10 +635,10 @@ export function VPortalDashboard() {
               <div className="ax-cluster ula-filter-item" style={{ alignItems: 'center' }}>
                 <label htmlFor="vp-state-select" style={labelStyle}>State:</label>
                 <select id="vp-state-select" className="ax-input ax-input--sm" style={selectStyle} value={selectedState} onChange={(e) => setSelectedState(e.target.value)}>
-                  <option value="All">All States (3)</option>
-                  <option value="Uttar Pradesh">Uttar Pradesh (UP)</option>
-                  <option value="Jammu & Kashmir">Jammu &amp; Kashmir (J&amp;K)</option>
-                  <option value="Assam">Assam</option>
+                  <option value="All">All States ({visibleStateOptions.length})</option>
+                  {visibleStateOptions.map((opt) => (
+                    <option key={opt.code} value={opt.name}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -640,12 +675,12 @@ export function VPortalDashboard() {
           title="Welcome to Vendor Portal Dashboard"
           lede={
             <>
-              Vendor overview for <b>{vendorDisplayName}</b>: <b>{num(totalSites)} sites</b> across <b>3 states</b> and <b>24 districts</b>.
+              Vendor overview for <b>{vendorDisplayName}</b>: <b>{num(totalSites)} sites</b> across <b>{visibleStateOptions.length} states</b> and <b>24 districts</b>.
               <b> {num(activeInstall)} (50%)</b> active installations with <b>{num(verifiedSurveys)}</b> field surveys completed.
             </>
           }
           stats={[
-            { label: 'Total States', value: '3', sub: '24 Districts', color: 'var(--ax-viz-emerald)' },
+            { label: 'Total States', value: String(visibleStateOptions.length), sub: 'Active Permissions', color: 'var(--ax-viz-emerald)' },
             { label: 'Total Sites', value: num(totalSites), sub: 'Authorized Work Orders', color: 'var(--ax-accent)' },
             { label: 'Active Installs', value: num(activeInstall), sub: 'In Field Progress', color: 'var(--ax-viz-cyan)' },
             { label: 'Open Issues', value: num(openComplaints), sub: 'Claims & Complaints', color: 'var(--ax-viz-red)' },
@@ -654,7 +689,7 @@ export function VPortalDashboard() {
 
        
 
-        <KpiCard icon={I_PIN} tone="accent" label="Total States" value="3" sub="UP, J&K, Assam"
+        <KpiCard icon={I_PIN} tone="accent" label="Total States" value={String(visibleStateOptions.length)} sub={visibleStateOptions.map((s) => s.code.toUpperCase()).join(', ')}
           spark={[1, 2, 2, 3, 3, 3]} onClick={() => setSelectedState('All')} />
         <KpiCard icon={I_USERS} tone="cyan" label="Total Vendor Sites" value={num(totalSites)} unit="Sites" sub="Authorized projects"
           spark={[240, 480, 890, 1420, 2100, 2845]} onClick={() => setSelectedModule('All')} />
@@ -677,7 +712,7 @@ export function VPortalDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Distribution Analytics</span>
               <h2 className="ax-card__title">State-Wise Work Order Distribution</h2>
-              <p className="ax-card__subtitle">{num(STATE_SUMMARIES.reduce((a, s) => a + s.totalSites, 0))} sites across {STATE_SUMMARIES.length} states</p>
+              <p className="ax-card__subtitle">{num(visibleStateSummaries.reduce((a, s) => a + s.totalSites, 0))} sites across {visibleStateSummaries.length} states</p>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0, minHeight: chartH }}>
@@ -688,12 +723,12 @@ export function VPortalDashboard() {
                 height={chartH}
                 legend="none"
                 ariaLabel="Total sites per state"
-                series={[{ name: 'Total Sites', data: STATE_SUMMARIES.map((s) => s.totalSites) }]}
+                series={[{ name: 'Total Sites', data: visibleStateSummaries.map((s) => s.totalSites) }]}
                 apex={{
-                  colors: [LIGHT_BLUE, LIGHT_GREEN, LIGHT_AMBER, '#ef6a6a'],
+                  colors: [LIGHT_BLUE, LIGHT_GREEN, LIGHT_AMBER, '#ef6a6a', '#a78bfa', '#38bdf8', '#fb923c', '#4ade80', '#f43f5e'],
                   plotOptions: { bar: { borderRadius: 6, columnWidth: '45%', distributed: true } },
                   dataLabels: { enabled: false },
-                  xaxis: { categories: STATE_SUMMARIES.map((s) => s.state), labels: { style: { fontSize: '11px' } } },
+                  xaxis: { categories: visibleStateSummaries.map((s) => s.state), labels: { style: { fontSize: '11px' } } },
                   yaxis: { min: 0, forceNiceScale: true, labels: { style: { fontSize: '11px' } } },
                   legend: { show: false },
                 }}
@@ -727,7 +762,7 @@ export function VPortalDashboard() {
           </div>
         </div>
 
-        {STATE_SUMMARIES.map((st) => {
+        {visibleStateSummaries.map((st) => {
           const pct = Math.round((st.activeInstallations / st.totalSites) * 100);
           return (
             <section key={st.state} className="ax-card ax-col--3" role="region" aria-label={`${st.state} operations`}>
@@ -765,9 +800,15 @@ export function VPortalDashboard() {
                   style={{ width: '100%', justifyContent: 'center' }}
                   onClick={() => {
                     setSelectedState(st.state);
-                    if (st.state === 'Uttar Pradesh') navigate('/up/survey/ssl/view-data');
-                    else if (st.state === 'Punjab') navigate('/v/punjab/ssl/installation/dashboard');
-                    else if (st.state === 'Jammu & Kashmir') navigate('/jammu/installation/srt-70mw/dashboard');
+                    const n = normState(st.state);
+                    if (n === 'up') navigate('/v/up/view-upssl');
+                    else if (n === 'bihar') navigate('/v/ssl/installation-dashboard');
+                    else if (n === 'punjab') navigate('/v/punjab/ssl/installation/dashboard');
+                    else if (n === 'jammu') navigate('/jammu/installation/srt-70mw/dashboard');
+                    else if (n === 'kashmir') navigate('/v/kashmir/srt/70mw/installation/dashboard');
+                    else if (n === 'karnataka') navigate('/v/karnataka/installation/swp/dashboard');
+                    else if (n === 'goa') navigate('/v/goa/vendor-srt-installation-dashboard');
+                    else if (n === 'arunachal') navigate('/v/arunachal/shl/installation/dashboard');
                     else navigate('/assam/swp/dashboard');
                   }}
                 >

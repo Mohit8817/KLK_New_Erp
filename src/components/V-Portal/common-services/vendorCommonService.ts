@@ -4,6 +4,7 @@ import {
   resolveCommonMediaUrl,
   getCommonMediaCandidates,
 } from '../V_Portal_APIS/VendorCommon_API';
+import { extractBackendError } from './vPortalFormUtils';
 
 /**
  * Universal token getter for Vendor session
@@ -240,12 +241,13 @@ class VendorCommonService {
       return text as unknown as T;
     }
 
-    if (!res.ok) {
-      if (json?.errors && typeof json.errors === 'object') {
-        const errorList = Object.values(json.errors).flat().join(', ');
-        throw new Error(errorList || json.message || `Request failed with HTTP ${res.status}`);
-      }
-      throw new Error(json?.message || json?.error || `Request failed with HTTP ${res.status}`);
+    if (!res.ok || json?.status === false || json?.success === false) {
+      const extracted = extractBackendError(json, `Request failed with HTTP ${res.status}`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json?.errors || extracted.fieldErrors;
+      throw err;
     }
 
     return json;

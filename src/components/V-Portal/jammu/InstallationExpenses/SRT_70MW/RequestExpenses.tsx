@@ -438,11 +438,7 @@ export function RequestExpenses() {
                 State: <b>Jammu & Kashmir</b> · Project: <b>SRT 70MW</b> · Type: <b>Installation</b>
               </p>
             </div>
-            {selectedSite && (
-              <span className="ax-badge ax-badge--soft ax-badge--info" style={{ fontWeight: 600 }}>
-                {selectedSite.site_name} {selectedSite.site_code ? `[${selectedSite.site_code}]` : ''}
-              </span>
-            )}
+        
           </div>
 
           {/* Quick Nav Pills */}
@@ -469,15 +465,7 @@ export function RequestExpenses() {
                   Choose from vendor's allocated sites under Jammu SRT 70MW for this expense requisition
                 </span>
               </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={fetchSites}
-                disabled={loadingSites}
-                title="Refresh site list"
-              >
-                {loadingSites ? 'Refreshing...' : '🔄 Refresh Sites'}
-              </button>
+       
             </div>
 
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
@@ -659,7 +647,7 @@ export function RequestExpenses() {
             <div className="ax-modern-field" style={{ marginBottom: 18 }}>
               <label className="ax-modern-label">
                 <span>Tax Invoice / Payment Voucher File</span>
-                <span className="ax-modern-req">* (JPG, JPEG, PNG, PDF up to 5 MB)</span>
+                <span className="ax-modern">* (JPG, JPEG, PNG, PDF up to 5 MB)</span>
               </label>
 
               <input

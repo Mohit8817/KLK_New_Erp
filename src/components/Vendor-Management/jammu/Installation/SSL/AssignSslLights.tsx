@@ -430,6 +430,7 @@ export function AssignSslLights() {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [selectedBlock, setSelectedBlock] = useState<string>('');
   const [selectedPanchayats, setSelectedPanchayats] = useState<string[]>([]);
+  const [siteCount, setSiteCount] = useState<string>('');
   const [deadlineDate, setDeadlineDate] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | undefined>(undefined);
@@ -501,6 +502,9 @@ export function AssignSslLights() {
                 ? assignObj.deadline_date.split(' ')[0]
                 : ''
             );
+            if (assignObj.sitecount || assignObj.total_light || assignObj.count) {
+              setSiteCount(String(assignObj.sitecount || assignObj.total_light || assignObj.count));
+            }
             setRemarks(assignObj.remark || assignObj.remarks || '');
             if ((assignObj as any).file) {
               setExistingFileUrl(resolveJammuSslMediaUrl((assignObj as any).file));
@@ -520,7 +524,7 @@ export function AssignSslLights() {
             const existingNames = new Set(pArr.map((p) => p.panchayat));
             parsedPanchayats.forEach((name) => {
               if (!existingNames.has(name)) {
-                pArr.push({ panchayat: name, count: 15 });
+                pArr.push({ panchayat: name, count: 0 });
               }
             });
 
@@ -598,7 +602,7 @@ export function AssignSslLights() {
       setBlocksLoading(true);
       setErrorMsg('');
       try {
-        const bList = await jammuSslAdminService.fetchBlocks(selectedVolume || 'Vol-1', selectedDistrict);
+        const bList = await jammuSslAdminService.fetchBlocks(selectedDistrict);
         if (!active) return;
         setBlocks(bList || []);
         setSelectedBlock('');
@@ -632,7 +636,7 @@ export function AssignSslLights() {
       setPanchayatsLoading(true);
       setErrorMsg('');
       try {
-        const pList = await jammuSslAdminService.fetchPanchayats(selectedVolume || 'Vol-1', selectedDistrict, selectedBlock);
+        const pList = await jammuSslAdminService.fetchPanchayats(selectedDistrict, selectedBlock);
         if (!active) return;
         setPanchayats(pList || []);
         setSelectedPanchayats([]);
@@ -678,6 +682,12 @@ export function AssignSslLights() {
       .reduce((sum, p) => sum + (Number(p.count) || 15), 0);
   }, [panchayats, selectedPanchayats]);
 
+  useEffect(() => {
+    if (!isEditMode && selectedLightsTally > 0) {
+      setSiteCount(String(selectedLightsTally));
+    }
+  }, [selectedLightsTally, isEditMode]);
+
   // Submit Handler
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -690,25 +700,30 @@ export function AssignSslLights() {
     }
 
     if (!selectedVendor) return setErrorMsg('Vendor Name is required.');
-    if (!selectedVolume) return setErrorMsg('Volume / Scheme is required.');
     if (!selectedDistrict) return setErrorMsg('District is required.');
     if (!selectedBlock) return setErrorMsg('Block is required.');
-    if (selectedPanchayats.length === 0) return setErrorMsg('Please select at least one panchayat.');
+    if (selectedPanchayats.length === 0) return setErrorMsg('Please select at least one panchayat / village.');
     if (!deadlineDate) return setErrorMsg('Deadline Date is required.');
+    if (!isEditMode && !file) return setErrorMsg("Assigned Unique ID's File is required.");
+    if (file && file.size > 5 * 1024 * 1024) return setErrorMsg('File size must not exceed 5 MB.');
 
     setSubmitting(true);
     try {
       const formData = new FormData();
       formData.append('vendor', selectedVendor);
       formData.append('state', 'jammu');
-      formData.append('volume', selectedVolume);
+      if (selectedVolume) formData.append('volume', selectedVolume);
       formData.append('district', selectedDistrict);
       formData.append('block', selectedBlock);
       selectedPanchayats.forEach((panchayatName) => {
         formData.append('panchayat[]', panchayatName);
       });
       formData.append('ldate', deadlineDate);
+      const finalCount = siteCount || String(selectedLightsTally);
+      formData.append('sitecount', finalCount);
+      formData.append('total_light', finalCount);
       if (file) {
+        formData.append('uid_file', file);
         formData.append('file', file);
       }
       if (remarks.trim()) {
@@ -748,7 +763,7 @@ export function AssignSslLights() {
             ? 'This assignment has been accepted by the vendor (Status 2: Accepted) and is locked for editing.'
             : isEditMode
             ? 'Update completion deadline date, remarks, and work order document. Territory allocation is locked to this assignment.'
-            : 'Allocate solar street light installation batches and work zones to vendors across Jammu & Kashmir.'
+            : 'Allocate solar street light installation batches and work zones to vendors across Jammu.'
         }
         breadcrumbs={[
           { label: 'Home', href: '/' },
@@ -1009,7 +1024,7 @@ export function AssignSslLights() {
                   )}
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  {isEditMode ? 'Allocated partner vendor and project volume in Jammu & Kashmir' : 'Select authorized partner EPC agency and solar street light volume'}
+                  {isEditMode ? 'Allocated partner vendor and project volume in Jammu' : 'Select authorized partner EPC agency and solar street light volume'}
                 </span>
               </div>
             </div>
@@ -1043,7 +1058,7 @@ export function AssignSslLights() {
                   type="text"
                   id="state_input"
                   className="ax-float__input"
-                  value="Jammu & Kashmir"
+                  value="Jammu"
                   readOnly
                   disabled
                 />
@@ -1108,7 +1123,7 @@ export function AssignSslLights() {
                   )}
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  {isEditMode ? 'Allocated district and block in Jammu & Kashmir' : 'Select district and operational block for solar street light installations'}
+                  {isEditMode ? 'Allocated district and block in Jammu' : 'Select district and operational block for solar street light installations'}
                 </span>
               </div>
             </div>
@@ -1275,7 +1290,7 @@ export function AssignSslLights() {
                   textAlign: 'center',
                 }}
               >
-                -- Select District & Block to Load Jammu & Kashmir Panchayats --
+                -- Select District & Block to Load Jammu Panchayats --
               </div>
             ) : panchayatsLoading ? (
               <div style={{ padding: '28px', textAlign: 'center', color: '#2559bf', fontSize: 13 }}>
@@ -1421,6 +1436,20 @@ export function AssignSslLights() {
                 />
               </div>
 
+              {/* Site Count * */}
+              <div>
+                <FloatingInput
+                  label="Site Count"
+                  name="sitecount"
+                  type="number"
+                  value={siteCount}
+                  onChange={(e) => setSiteCount(e.target.value)}
+                  disabled={isAcceptedLocked || submitting}
+                  required
+                  placeholder="Total lights count"
+                />
+              </div>
+
               {/* Remarks */}
               <div>
                 <FloatingInput
@@ -1437,7 +1466,7 @@ export function AssignSslLights() {
             {/* Existing File Link */}
             {existingFileUrl && (
               <div style={{ marginBottom: 14, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: 'var(--ax-text-muted, #64748b)' }}>Currently Attached PO Document:</span>
+                <span style={{ color: 'var(--ax-text-muted, #64748b)' }}>Currently Attached Unique ID File:</span>
                 <a
                   href={existingFileUrl}
                   target="_blank"
@@ -1453,7 +1482,8 @@ export function AssignSslLights() {
             <div style={{ maxWidth: 540 }}>
               <UploadDropzone
                 id="assign_file"
-                label="Work Order / PO Document"
+                label="Assigned Unique ID's File"
+                required={!isEditMode && !existingFileUrl}
                 accept=".pdf,.jpg,.jpeg,.png"
                 disabled={isAcceptedLocked || submitting}
                 file={file}

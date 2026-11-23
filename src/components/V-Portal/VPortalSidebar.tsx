@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessState } from '../../services/stateAccess';
+import { useVPortalPermissions } from '../../services/vPortalPermissionsService';
 import './v-portal-sidebar.css';
 
 interface VPortalItem {
@@ -891,6 +892,7 @@ export function VPortalSidebar({
 }) {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { isStatePermitted, isSubgroupPermitted } = useVPortalPermissions();
 
   const isDashboardActive =
     currentPath === '/v-dashboard' ||
@@ -917,13 +919,15 @@ export function VPortalSidebar({
 
       {/* ── State Navigation Sections ── */}
       {V_PORTAL_NAVIGATION.map((sec) => {
-        if (sec.state && !canAccessState(sec.state)) {
+        // Enforce permissions: if state has no permitted operations (all 0s), do not show
+        if (sec.state && (!isStatePermitted(sec.state) || !canAccessState(sec.state))) {
           return null;
         }
 
         const filteredCategories = sec.categories
           .map((cat) => {
             const filteredSubgroups = cat.subgroups
+              .filter((sub) => isSubgroupPermitted(sub.id))
               .map((sub) => {
                 const matchingItems = sub.items.filter(
                   (item) =>

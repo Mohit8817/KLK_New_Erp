@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // CSS: Unified Single-Card Layout with Floating Labels & Section Dividers (same as UP Resco Install Site)
 export const SINGLE_CARD_FORM_CSS = `
@@ -51,6 +56,11 @@ export const SINGLE_CARD_FORM_CSS = `
 .up-form-col-span-full { grid-column: 1 / -1; }
 .up-form-col-span-2 { grid-column: span 2; }
 .up-gps-cell { height: 46px; }
+
+.up-complaint-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4); align-items: flex-start; }
+@media (max-width: 768px) { .up-complaint-row { grid-template-columns: 1fr; } }
+.up-complaint-col { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.up-complaint-textarea:focus { border-color: var(--ax-accent, #2563eb) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 20%, transparent) !important; }
 
 .up-form-sticky-bar { position: sticky; bottom: var(--ax-space-4); z-index: 30; margin-top: var(--ax-space-6); padding: var(--ax-space-3) var(--ax-space-5); background: var(--ax-surface-solid); border: 1px solid var(--ax-border); border-radius: var(--ax-radius-xl); box-shadow: var(--ax-shadow-lg); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--ax-space-3); backdrop-filter: blur(12px); }
 
@@ -159,9 +169,9 @@ export interface UpAmcPendingFormProps {
   viewLink: string;
   viewLabel: string;
   mode?: 'resco' | 'ssl' | 'ssl18w' | 'schedule';
-  onFetchYears: () => Promise<number[]>;
+  onFetchYears?: () => Promise<number[]>;
   onFetchMonths?: (year: number) => Promise<(number | string)[]>;
-  onFetchSites: (year: number, month?: number | string) => Promise<{ id: number | string; label: string; [key: string]: any }[]>;
+  onFetchSites: (year?: number, month?: number | string) => Promise<{ id: number | string; label: string; [key: string]: any }[]>;
   onFetchSiteDetails: (id: number | string, year?: number, month?: number | string) => Promise<any>;
   onSubmit: (formData: FormData) => Promise<{ status: boolean; message?: string; errors?: Record<string, string[]> }>;
   defaultAmcType?: string;
@@ -183,7 +193,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     onFetchSites,
     onFetchSiteDetails,
     onSubmit,
-    defaultAmcType = 'Monthly',
+    defaultAmcType = '',
   } = props;
 
   const navigate = useNavigate();
@@ -261,10 +271,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Auto-detect GPS coordinates on mount
+  // Auto-detect GPS coordinates on mount and site change
   useEffect(() => {
     handleDetectGps(true);
-  }, []);
+  }, [selectedSiteId]);
 
   const handleDetectGps = (silent = false) => {
     if (!navigator.geolocation) {
@@ -290,22 +300,34 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     );
   };
 
-  // Load Years on mount
+  // Load Years on mount (only when module has a years API)
   useEffect(() => {
+    if (!onFetchYears) {
+      setYears([]);
+      setSelectedYear('');
+      return;
+    }
     let active = true;
     setLoadingYears(true);
     onFetchYears()
       .then((resYears) => {
         if (!active) return;
-        setYears(resYears);
-        if (resYears.length > 0) {
+        const safeYears = Array.isArray(resYears) ? resYears.map(Number).filter((y) => !Number.isNaN(y) && y > 0) : [];
+        setYears(safeYears);
+        if (safeYears.length > 0) {
           const currentY = new Date().getFullYear();
-          const match = resYears.find((y) => y === currentY) || resYears[0];
+          const match = safeYears.find((y) => y === currentY) || safeYears[0];
           setSelectedYear(match);
+        } else {
+          setSelectedYear('');
         }
       })
       .catch((err) => {
         console.error('Error fetching years:', err);
+        if (active) {
+          setYears([]);
+          setSelectedYear('');
+        }
       })
       .finally(() => {
         if (active) setLoadingYears(false);
@@ -317,19 +339,33 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
   // Load Months (site filter) if callback provided
   useEffect(() => {
-    if (!onFetchMonths || !selectedYear) return;
+    if (!onFetchMonths || !selectedYear) {
+      setMonths([]);
+      setFilterMonth('');
+      return;
+    }
     let active = true;
     onFetchMonths(Number(selectedYear))
       .then((mList) => {
         if (active) {
-          setMonths(mList || []);
-          if (mList && mList.length > 0 && !filterMonth) {
-            setFilterMonth(String(mList[0]));
-            setSelectedMonth(String(mList[0]));
+          const safe = Array.isArray(mList) ? mList : [];
+          setMonths(safe);
+          if (safe.length > 0) {
+            setFilterMonth(String(safe[0]));
+            setSelectedMonth(String(safe[0]));
+          } else {
+            setFilterMonth('');
+            setSelectedMonth('');
           }
         }
       })
-      .catch((e) => console.error('Error fetching months:', e));
+      .catch((e) => {
+        console.error('Error fetching months:', e);
+        if (active) {
+          setMonths([]);
+          setFilterMonth('');
+        }
+      });
     return () => {
       active = false;
     };
@@ -339,7 +375,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
   // NOTE: selectedMonth yahan dependency nahi hai, warna site select hote hi month set hota
   // aur site list reload hoke selection clear ho jata tha.
   useEffect(() => {
-    if (!selectedYear) return;
+    if (onFetchYears && !selectedYear) {
+      setSites([]);
+      return;
+    }
     let active = true;
     setSites([]);
     if (!preSelectedId) {
@@ -348,7 +387,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     }
 
     setLoadingSites(true);
-    onFetchSites(Number(selectedYear), filterMonth || undefined)
+    onFetchSites(selectedYear ? Number(selectedYear) : undefined, filterMonth || undefined)
       .then((res: any) => {
         if (!active) return;
         let sList: any[] = [];
@@ -451,7 +490,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
 
     const bName = d.beneficiary_name || d.beneficiary || d.farmer_name || d.f_farmer_name || d.applicant_name || d.site_name || d.name || d.contact_person || '';
     const bContact = d.contact || d.mobile || d.f_mobile || d.beneficiary_contact || d.f_contact || d.contact_number || d.contact_no || d.contractor_number || d.contact_person_number || '';
-    const st = d.state || 'UP';
+    const st = d.state || '';
     const dist = d.district || d.f_district || d.installation_dsitrict || '';
     const vill = d.village || d.f_village || d.installation_village || d.block || d.location || '';
     const gdr = d.gender || d.f_gender || d.farmer_gender || '';
@@ -578,33 +617,11 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     if (sitePendingMonths.length > 0) {
       return sitePendingMonths.map((p) => toPeriodOption(p, selectedYear || undefined));
     }
-
-    if (amcType === 'Quarterly') {
-      return [
-        { value: '1', label: 'Q1 (January – March)' },
-        { value: '2', label: 'Q2 (April – June)' },
-        { value: '3', label: 'Q3 (July – September)' },
-        { value: '4', label: 'Q4 (October – December)' },
-      ];
+    if (months.length > 0) {
+      return months.map((m) => toPeriodOption(m, selectedYear || undefined));
     }
-
-    if (amcType === 'Half-Yearly') {
-      return [
-        { value: '1', label: 'H1 (First Half: April – September)' },
-        { value: '2', label: 'H2 (Second Half: October – March)' },
-      ];
-    }
-
-    if (amcType === 'Yearly') {
-      const currentY = selectedYear ? Number(selectedYear) : new Date().getFullYear();
-      return [
-        { value: String(currentY), label: `Annual / Full Year ${currentY}` },
-        { value: String(currentY - 1), label: `Annual / Full Year ${currentY - 1}` },
-      ];
-    }
-
-    return MONTH_OPTIONS;
-  }, [amcType, sitePendingMonths, selectedYear]);
+    return [];
+  }, [sitePendingMonths, months, selectedYear]);
 
   const handleReset = () => {
     setSelectedSiteId('');
@@ -628,7 +645,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
     setToast(null);
   };
 
-  const validate = () => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!selectedSiteId) errs.site = 'Please select a site';
     if (!amcType) errs.amcType = 'AMC Type is required';
@@ -647,18 +664,17 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       errs.complaint = 'Please enter complaint description if uploading complaint image';
     }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setToast(null);
-    if (!validate()) {
-      setToast({ type: 'error', message: 'Please fill in all mandatory fields.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => {
-        document.querySelector('.is-invalid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setToast({ type: 'error', message: missingMsg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -746,7 +762,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
       }
 
       // Append 11 Information fields
-      fd.append('state', siteInfo.state || 'UP');
+      fd.append('state', siteInfo.state || '');
       fd.append('district', siteInfo.district || '');
       fd.append('village', siteInfo.village || '');
       fd.append('gender', siteInfo.gender || '');
@@ -800,25 +816,24 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
           navigate(viewLink);
         }, 1500);
       } else {
-        const errorMsg =
-          (res.errors ? Object.values(res.errors).flat().join(' ') : null) ||
-          res.message ||
-          'Submission failed. Please check the fields.';
-        setToast({ type: 'error', message: errorMsg });
-        if (res.errors) {
-          const serverErrors: Record<string, string> = {};
-          for (const [key, msgs] of Object.entries(res.errors)) {
-            if (Array.isArray(msgs) && msgs.length > 0) {
-              serverErrors[key] = msgs[0];
-            }
-          }
-          setErrors((prev) => ({ ...prev, ...serverErrors }));
+        const extracted = extractBackendError(res, 'Submission failed. Please check the fields.');
+        setToast({ type: 'error', message: extracted.message });
+        if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+          setTimeout(() => scrollToFirstError(), 50);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: any) {
-      setToast({ type: 'error', message: err?.message || 'Error occurred during submission.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Error occurred during submission.');
+      setToast({ type: 'error', message: extracted.message });
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } finally {
       setLoading(false);
     }
@@ -901,13 +916,14 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 desc="Choose the assigned site ready for periodic maintenance report."
               />
               <div className="up-form-grid up-form-grid--3col">
-                {years.length > 0 && (
+                {onFetchYears && (
                   <FloatingSelect
                     id="up-amc-year"
                     label="AMC Year"
+                    placeholder={loadingYears ? 'Loading years...' : years.length === 0 ? '-- No Pending AMC Years --' : '-- Select Year --'}
                     value={selectedYear ? String(selectedYear) : ''}
                     options={years.map((y) => ({ value: String(y), label: String(y) }))}
-                    disabled={loadingYears}
+                    disabled={loadingYears || years.length === 0}
                     onChange={(v) => {
                       const nextY = v ? Number(v) : '';
                       setSelectedYear(nextY);
@@ -940,16 +956,18 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   />
                 )}
 
-                <div className={years.length > 0 || months.length > 0 ? (years.length > 0 && months.length > 0 ? '' : 'up-form-col-span-2') : 'up-form-col-span-full'}>
+                <div className={onFetchYears || months.length > 0 ? (onFetchYears && months.length > 0 ? '' : 'up-form-col-span-2') : 'up-form-col-span-full'}>
                   <FloatingSelect
                     id="up-amc-site-name"
                     label="Select Site"
                     required
                     placeholder={
-                      !selectedYear && years.length > 0
+                      onFetchYears && !selectedYear
                         ? '-- Select Year First --'
                         : loadingSites
                         ? 'Loading sites...'
+                        : sites.length === 0
+                        ? '-- No Pending Sites --'
                         : '-- Select Site --'
                     }
                     value={selectedSiteId}
@@ -957,7 +975,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                       value: String(s.id),
                       label: s.label || s.site_name || s.farmer_name || s.beneficiary_name || `Site #${s.id}`,
                     }))}
-                    disabled={loadingSites || (years.length > 0 && !selectedYear)}
+                    disabled={loadingSites || (Boolean(onFetchYears) && !selectedYear)}
                     onChange={(v) => {
                       setSelectedSiteId(v);
                       if (errors.site) clearError('site');
@@ -992,7 +1010,7 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 </div>
               ) : (
                 <div className="up-form-grid up-form-grid--3col">
-                  <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || 'UP'} />
+                  <FloatingInput id="up-info-state" label="State" readOnly value={siteInfo.state || ''} />
                   <FloatingInput id="up-info-district" label="District" readOnly value={siteInfo.district || ''} />
                   <FloatingInput id="up-info-village" label="Village" readOnly value={siteInfo.village || ''} />
                   <FloatingInput id="up-info-beneficiary" label="Beneficiary Name" readOnly value={siteInfo.beneficiaryName || ''} />
@@ -1036,10 +1054,10 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   id="up-amc-month"
                   label={monthOrPeriodLabel}
                   required
-                  placeholder={monthOrPeriodPlaceholder}
+                  placeholder={periodOptions.length === 0 && selectedSiteId && !loadingSiteDetails ? '-- No Pending Period Available --' : monthOrPeriodPlaceholder}
                   value={selectedMonth}
                   options={periodOptions}
-                  disabled={!selectedSiteId || loadingSiteDetails}
+                  disabled={!selectedSiteId || loadingSiteDetails || periodOptions.length === 0}
                   onChange={(v) => {
                     setSelectedMonth(v);
                     if (errors.month) clearError('month');
@@ -1107,24 +1125,22 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                   id="up-amc-lat"
                   label="Latitude"
                   required
-                  placeholder={gpsStatus === 'unable' && !latitude ? 'Unable to fetch' : 'Enter Latitude'}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Latitude"
                   value={latitude}
-                  onChange={(v) => {
-                    setLatitude(v);
-                    if (errors.latitude) clearError('latitude');
-                  }}
+                  onChange={() => {}}
                   error={errors.latitude}
                 />
                 <FloatingInput
                   id="up-amc-lng"
                   label="Longitude"
                   required
-                  placeholder={gpsStatus === 'unable' && !longitude ? 'Unable to fetch' : 'Enter Longitude'}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Longitude"
                   value={longitude}
-                  onChange={(v) => {
-                    setLongitude(v);
-                    if (errors.longitude) clearError('longitude');
-                  }}
+                  onChange={() => {}}
                   error={errors.longitude}
                 />
                 <div>
@@ -1224,23 +1240,56 @@ export function UpAmcPendingForm(props: UpAmcPendingFormProps) {
                 title="Raised Complaint (Optional)"
                 desc="Log breakdown notice or site defect if observed during AMC visit."
               />
-              <div className="up-form-grid up-form-grid--3col">
-                <div className="up-form-col-span-2">
-                  <FloatingTextarea
+              <div className="up-complaint-row">
+                <div className="up-complaint-col">
+                  <label
+                    htmlFor="up-complaint-text"
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: errors.complaint ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      minHeight: 18,
+                      margin: 0,
+                    }}
+                  >
+                    <span>Complaint Description</span>
+                    {Boolean(complaintImage) && <Asterisk />}
+                  </label>
+                  <textarea
                     id="up-complaint-text"
-                    label="Complaint Description"
-                    required={Boolean(complaintImage)}
-                    placeholder="Enter Complaint Description..."
-                    rows={4}
+                    className={`up-complaint-textarea ${errors.complaint ? 'is-invalid' : ''}`}
+                    placeholder="Describe any breakdown notice or site defect observed during AMC visit..."
                     value={complaintText}
-                    onChange={(v) => {
-                      setComplaintText(v);
+                    onChange={(e) => {
+                      setComplaintText(e.target.value);
                       if (errors.complaint) clearError('complaint');
                     }}
-                    error={errors.complaint}
+                    style={{
+                      width: '100%',
+                      height: 114,
+                      minHeight: 114,
+                      maxHeight: 114,
+                      resize: 'none',
+                      padding: '12px 14px',
+                      fontSize: 'var(--ax-text-sm, 13.5px)',
+                      lineHeight: 1.5,
+                      borderRadius: 8,
+                      border: errors.complaint
+                        ? '1px solid var(--ax-danger-500, #ef4444)'
+                        : '1px solid var(--ax-border, #cbd5e1)',
+                      backgroundColor: 'var(--ax-surface-solid, #ffffff)',
+                      color: 'var(--ax-text, #0f172a)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                    }}
                   />
+                  <FieldFeedback error={errors.complaint} />
                 </div>
-                <div>
+                <div className="up-complaint-col">
                   <FloatingFileInput
                     id="up-complaint-image"
                     label="Complaint Photo"
@@ -1332,6 +1381,7 @@ interface FloatingInputProps {
   required?: boolean;
   readOnly?: boolean;
   disabled?: boolean;
+  style?: CSSProperties;
   maxLength?: number;
   placeholder?: string;
   value: string;
@@ -1339,7 +1389,7 @@ interface FloatingInputProps {
   error?: string;
 }
 
-function FloatingInput({ id, label, type = 'text', required, readOnly, disabled, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, disabled, style, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   const isDateOrTime = type === 'date' || type === 'time';
   return (
     <div>
@@ -1352,6 +1402,7 @@ function FloatingInput({ id, label, type = 'text', required, readOnly, disabled,
           value={value}
           readOnly={readOnly}
           disabled={disabled}
+          style={style}
           maxLength={maxLength}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}
@@ -1458,6 +1509,23 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  const previewUrl = useMemo(() => {
+    if (file && file.type && file.type.startsWith('image/')) {
+      try {
+        return URL.createObjectURL(file);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [file]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange(null);
@@ -1491,6 +1559,9 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
           display: 'flex',
           alignItems: 'center',
           gap: 4,
+          minHeight: 18,
+          margin: 0,
+          lineHeight: '18px',
         }}
       >
         <span>{label}</span>
@@ -1537,14 +1608,18 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
             ? '1.5px dashed #2563eb'
             : error
             ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : file
+            ? '1.5px solid #10b981'
             : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
           borderRadius: 8,
           background: isDragging
             ? '#eff6ff'
             : error
             ? '#fef2f2'
+            : file
+            ? '#f0fdf4'
             : isHovered ? '#fbfcfd' : '#ffffff',
-          padding: file || existingName ? '12px 16px' : '22px 16px',
+          padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1552,22 +1627,34 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
           textAlign: 'center',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          minHeight: 110,
+          height: 114,
+          minHeight: 114,
+          maxHeight: 114,
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
         {file ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, padding: '0 4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </div>
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt={file.name}
+                  style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', border: '1px solid #a7f3d0', flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+              )}
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file.name}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#059669', marginTop: 2, fontWeight: 500 }}>
                   {(file.size / 1024).toFixed(0)} KB · Ready to upload
                 </div>
               </div>
@@ -1577,10 +1664,10 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
             </button>
           </div>
         ) : existingName ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10, padding: '0 4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, textAlign: 'left' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -1600,8 +1687,8 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
           </div>
         ) : (
           <>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#eff6ff', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
                 <path d="M12 12v9" />
                 <path d="m8 16 4-4 4 4" />
@@ -1610,7 +1697,7 @@ function FloatingFileInput({ id, label, required, accept, capture, file, existin
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
               Click to upload or drag & drop
             </div>
-            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 3 }}>
+            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
               {accept?.includes('pdf') ? 'PDF, DOC or Image up to 5MB' : 'JPG, PNG or WEBP up to 5MB'}
             </div>
           </>

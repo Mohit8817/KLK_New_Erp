@@ -330,6 +330,272 @@ function ThumbnailGroup({
   );
 }
 
+/* ───────── File Upload Dropzone (matching uploaded design) ───────── */
+interface FileUploadDropzoneProps {
+  id: string;
+  label?: string;
+  required?: boolean;
+  accept?: string;
+  hint?: string;
+  file: File | null;
+  existingUrl?: string | null;
+  onSelect: (file: File) => void;
+  onRemove: () => void;
+  error?: string;
+}
+
+function FileUploadDropzone({
+  id,
+  label,
+  required,
+  accept = 'image/*',
+  hint = 'PDF, JPG or PNG — single file',
+  file,
+  existingUrl,
+  onSelect,
+  onRemove,
+  error,
+}: FileUploadDropzoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file && (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(file.name))) {
+      const url = URL.createObjectURL(file);
+      setLocalPreview(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setLocalPreview(null);
+  }, [file]);
+
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove();
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const chosen = e.dataTransfer.files?.[0];
+    if (chosen) onSelect(chosen);
+  };
+
+  const hasNewFile = Boolean(file);
+  const hasExisting = Boolean(!hasNewFile && existingUrl);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+      {label && (
+        <label
+          htmlFor={id}
+          style={{
+            fontSize: '12.5px',
+            fontWeight: 600,
+            color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <span>{label}</span>
+          {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}
+        </label>
+      )}
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onSelect(f);
+        }}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered
+            ? '1.5px dashed #94a3b8'
+            : hasExisting
+            ? '1.5px solid #cbd5e1'
+            : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered
+            ? '#fbfcfd'
+            : hasExisting
+            ? '#f8fafc'
+            : '#ffffff',
+          padding: hasNewFile || hasExisting ? '10px 12px' : '18px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 105,
+        }}
+      >
+        {hasNewFile ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'left' }}>
+              {localPreview ? (
+                <img
+                  src={localPreview}
+                  alt={file!.name}
+                  style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--ax-border, #cbd5e1)', flexShrink: 0 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    background: '#ecfdf5',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file!.name}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+                  {`${(file!.size / 1024).toFixed(0)} KB · Ready to upload`}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0, padding: '2px 6px', fontSize: 11 }}
+              title="Remove file"
+            >
+              Remove
+            </button>
+          </div>
+        ) : hasExisting ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'left' }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 6,
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: '1px solid var(--ax-border, #cbd5e1)',
+                  flexShrink: 0,
+                }}
+              >
+                DOC
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {label || 'Attached Document'}
+                </div>
+                <div style={{ fontSize: 11, color: '#059669', marginTop: 1, fontWeight: 500 }}>
+                  ✓ Existing Document Attached
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>
+                  Click or drop to replace
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={handleClear}
+              style={{ color: '#ef4444', flexShrink: 0, fontSize: 11, padding: '2px 6px' }}
+              title="Clear attached document"
+            >
+              Clear
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#eff6ff',
+                color: '#3b82f6',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                <path d="M12 12v9" />
+                <path d="m8 16 4-4 4 4" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Click to upload or drag & drop
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+              {hint}
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /* ── Action Dropdown (menu is rendered in <body> so the table never clips it) ──
    Only 3 actions: Edit Structure, Pending Installation, Document.
    When site or structure/installation is Approved, editing is locked/hidden. */
@@ -1434,21 +1700,18 @@ export function Bihar_Installation_ULA_ViewInstallation() {
 
               <p className="ula-m-note">The field labels marked with * are required fields.</p>
 
-              <div className="ax-field">
-                <label className="ax-label" htmlFor="ula-doc-file">Document <Req /></label>
-                <input
-                  id="ula-doc-file"
-                  ref={docInputRef}
-                  type="file"
-                  accept=".pdf,image/jpeg,image/png,image/jpg"
-                  className="ax-input"
-                  required
-                  onChange={(e) => handlePickDoc(e.target.files?.[0] || null)}
-                />
-                <span className="ax-help">
-                  {docFile ? `${docFile.name} (${formatSize(docFile.size)})` : 'PDF, JPG or PNG, max 5 MB'}
-                </span>
-              </div>
+              <FileUploadDropzone
+                id="ula-doc-file"
+                label="Document"
+                required
+                accept=".pdf,image/jpeg,image/png,image/jpg"
+                hint="PDF, JPG or PNG — single file (max 5 MB)"
+                file={docFile}
+                existingUrl={text(docModalSite, 'inst_doc') ? mediaUrl(text(docModalSite, 'inst_doc')) : undefined}
+                onSelect={(f) => handlePickDoc(f)}
+                onRemove={() => handlePickDoc(null)}
+                error={docError || undefined}
+              />
 
               <div className="ax-field">
                 <label className="ax-label" htmlFor="ula-doc-date">Date <Req /></label>

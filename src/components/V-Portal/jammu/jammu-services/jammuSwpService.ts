@@ -45,30 +45,70 @@ export function resolveJammuSwpMediaUrl(path?: string | null): string {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export interface JammuSwpVendorMeta {
-  company_id?: number;
-  loginId?: number;
+  company_id?: number | string;
+  loginId?: number | string;
   loginName?: string;
   state?: string;
-  parent_id?: number;
+  parent_id?: number | string;
+  vendor?: {
+    id?: number | string;
+    name?: string;
+    vendor_name?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+export interface JammuSwpApplicant {
+  id?: number | string;
+  f_farmer_name?: string;
+  farmer_name?: string;
+  name?: string;
+  applicant_name?: string;
+  f_father_name?: string;
+  father_name?: string;
+  father?: string;
+  f_father_or_husband_name?: string;
+  inst_deadline?: string;
+  deadline_date?: string;
+  deadline?: string;
+  block?: string | null;
+  village?: string | null;
+  state?: string | null;
+  district?: string | null;
+  [key: string]: any;
 }
 
 export interface JammuSwpAssignItem {
   id: number;
-  state?: string;
-  district?: string;
-  project?: string;
+  company_id?: string | number;
   purpose?: string;
   vendor?: string | number;
+  vendor_name?: string;
+  vendors?: { id?: number; name?: string };
+  state?: string;
+  district?: string;
+  block?: string | null;
+  village?: string | null;
+  project?: string;
+  volume?: string;
   site_id: (string | number)[];
-  site_details?: { id: number; f_farmer_name: string }[];
+  site_count?: number | string;
+  count?: number | string;
+  site_details?: JammuSwpApplicant[];
+  Names?: JammuSwpApplicant[];
+  names?: JammuSwpApplicant[];
   status: number; // 1 = assigned, 2 = accepted
+  assign_date?: string;
   created_at?: string;
   updated_at?: string;
-  remarks?: string;
-  remark?: string;
-  file?: string;
+  deadline_date?: string;
   deadline?: string;
   inst_deadline?: string;
+  remarks?: string | null;
+  remark?: string | null;
+  file?: string | null;
+  [key: string]: any;
 }
 
 export interface JammuSwpSiteNameItem {
@@ -265,15 +305,26 @@ export const jammuSwpService = {
     });
 
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
+    if (!res.ok && !json.status && !json.success) {
       throw new Error(json.message || 'Failed to fetch assigned installations.');
     }
 
-    const d = json.data || {};
-    const rawAssigns: any[] = d.assigns || d.data?.assigns || [];
-    const vendorMeta: JammuSwpVendorMeta = d.data || {};
+    let rawAssigns: any[] = [];
+    if (json.data && Array.isArray(json.data.assigns)) rawAssigns = json.data.assigns;
+    else if (Array.isArray(json.data)) rawAssigns = json.data;
+    else if (Array.isArray(json.assigns)) rawAssigns = json.assigns;
+    else if (json.data?.data && Array.isArray(json.data.data.assigns)) rawAssigns = json.data.data.assigns;
+    else if (Array.isArray(json.data?.data)) rawAssigns = json.data.data;
+    else if (Array.isArray(json)) rawAssigns = json;
 
-    const cleanAssigns: JammuSwpAssignItem[] = rawAssigns.map((item: any) => {
+    const vendorMeta: any =
+      json.data?.data ||
+      (!Array.isArray(json.data) ? json.data : null) ||
+      json.vendor ||
+      {};
+
+    const cleanAssigns: JammuSwpAssignItem[] = rawAssigns.map((item: any, idx: number) => {
+      // 1. Parse site_id
       let siteList = item.site_id;
       if (typeof siteList === 'string') {
         try {
@@ -282,13 +333,48 @@ export const jammuSwpService = {
           siteList = siteList.split(',').map((s: string) => s.trim());
         }
       }
-      if (!Array.isArray(siteList)) siteList = [siteList];
+      if (!Array.isArray(siteList)) {
+        siteList = siteList != null && siteList !== '' ? [siteList] : [];
+      }
+
+      // 2. Parse Names / site_details
+      let namesList: any[] = item.Names || item.names || item.site_details || item.sites || [];
+      if (typeof namesList === 'string') {
+        try {
+          namesList = JSON.parse(namesList);
+        } catch {
+          namesList = [];
+        }
+      }
+      if (!Array.isArray(namesList)) namesList = [];
+
+      // 3. Extract dates & count
+      const deadline =
+        item.deadline_date ||
+        item.inst_deadline ||
+        item.deadline ||
+        namesList[0]?.inst_deadline ||
+        namesList[0]?.deadline_date ||
+        '';
+
+      const assignDate = item.assign_date || item.created_at || '';
+      const count = Number(
+        item.site_count || item.sitecount || item.count || namesList.length || siteList.length || 1
+      );
 
       return {
         ...item,
-        id: Number(item.id),
+        id: Number(item.id || idx + 1),
         site_id: siteList,
-        status: Number(item.status),
+        site_count: count,
+        count,
+        assign_date: assignDate,
+        deadline_date: deadline,
+        deadline: deadline,
+        inst_deadline: deadline,
+        Names: namesList,
+        site_details: namesList,
+        status: Number(item.status ?? 0),
       };
     });
 
@@ -625,18 +711,28 @@ export const jammuSwpService = {
    * GET jammu/swp/installation-view-assigned-site-details?assign_id={assign_id}
    */
   getAssignedSiteDetails: async (assignId: number | string): Promise<JammuSwpAssignItem> => {
-    const url = JAMMU_API.INSTALLATION.SWP.VIEW_ASSIGNED_SITE_DETAILS(assignId);
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: getAuthHeaders(false),
-    });
+    let json: any = null;
+    try {
+      const url = JAMMU_API.INSTALLATION.SWP.VIEW_ASSIGNED_SITE_DETAILS(assignId);
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(false),
+      });
 
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(json.message || 'Failed to fetch assignment details.');
+      json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // try fallback with id parameter
+        const altUrl = `${JAMMU_API.INSTALLATION.SWP.ASSIGNED_SITES}?id=${encodeURIComponent(assignId)}`;
+        const altRes = await fetch(altUrl, { method: 'GET', headers: getAuthHeaders(false) });
+        if (altRes.ok) {
+          json = await altRes.json().catch(() => ({}));
+        }
+      }
+    } catch (err) {
+      console.warn('[Jammu SWP] getAssignedSiteDetails fetch warning:', err);
     }
 
-    const d = json.data || {};
+    const d = Array.isArray(json?.data) ? json.data[0] || {} : (json?.data || json || {});
     let siteList = d.site_id;
     if (typeof siteList === 'string') {
       try {
@@ -645,13 +741,43 @@ export const jammuSwpService = {
         siteList = siteList.split(',').map((s: string) => s.trim());
       }
     }
+    if (!Array.isArray(siteList)) siteList = siteList != null && siteList !== '' ? [siteList] : [];
+
+    let namesList: any[] = d.Names || d.names || d.site_details || d.sites || [];
+    if (typeof namesList === 'string') {
+      try {
+        namesList = JSON.parse(namesList);
+      } catch {
+        namesList = [];
+      }
+    }
+    if (!Array.isArray(namesList)) namesList = [];
+
+    const deadline =
+      d.deadline_date ||
+      d.inst_deadline ||
+      d.deadline ||
+      namesList[0]?.inst_deadline ||
+      namesList[0]?.deadline_date ||
+      '';
+    const assignDate = d.assign_date || d.created_at || '';
+    const count = Number(
+      d.site_count || d.sitecount || d.count || namesList.length || siteList.length || 1
+    );
 
     return {
       ...d,
-      id: Number(d.id),
-      site_id: Array.isArray(siteList) ? siteList : [siteList],
-      status: Number(d.status),
-      site_details: Array.isArray(d.site_details) ? d.site_details : [],
+      id: Number(d.id || assignId),
+      site_id: siteList,
+      site_count: count,
+      count,
+      assign_date: assignDate,
+      deadline_date: deadline,
+      deadline: deadline,
+      inst_deadline: deadline,
+      Names: namesList,
+      site_details: namesList,
+      status: Number(d.status ?? 0),
     };
   },
 

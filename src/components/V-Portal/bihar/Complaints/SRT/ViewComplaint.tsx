@@ -212,8 +212,6 @@ const COLS: Col[] = [
   { key: 'Plant SC', th: 'Plant SC', get: (r) => txt(r.plant_sc), exp: (r) => r.plant_sc ?? '' },
   { key: 'WO No', th: 'WO No', get: (r) => txt(r.wo_no), exp: (r) => r.wo_no ?? '' },
   { key: 'Phase', th: 'Phase', get: (r) => txt(r.phase), exp: (r) => r.phase ?? '' },
-  { key: 'Latitude', th: 'Latitude', get: (r) => txt(r.latitude), exp: (r) => r.latitude ?? '' },
-  { key: 'Longitude', th: 'Longitude', get: (r) => txt(r.longitude), exp: (r) => r.longitude ?? '' },
   {
     key: 'Complaint Description', th: 'Defect Observation',
     get: (r) => (

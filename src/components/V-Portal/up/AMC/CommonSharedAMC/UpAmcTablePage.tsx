@@ -62,22 +62,57 @@ export const AmcStatusBadge = ({ row }: { row: unknown }) => {
   return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
 };
 
-export const docUrlOf = (row: unknown): string => {
+export const allMediaOf = (row: unknown): { label: string; url: string }[] => {
   const r = asRec(row);
-  let raw = r.image1 || r.image || r.file || r.jmr_report || r.digital_signature;
-  if (!raw && r.before_cleaning_photo) {
-    try {
-      const arr = typeof r.before_cleaning_photo === 'string' ? JSON.parse(r.before_cleaning_photo) : r.before_cleaning_photo;
-      if (Array.isArray(arr) && arr.length > 0) raw = arr[0];
-    } catch {}
-  }
-  if (!raw && r.after_cleaning_photo) {
-    try {
-      const arr = typeof r.after_cleaning_photo === 'string' ? JSON.parse(r.after_cleaning_photo) : r.after_cleaning_photo;
-      if (Array.isArray(arr) && arr.length > 0) raw = arr[0];
-    } catch {}
-  }
-  return raw ? resolveUpMediaUrl(raw) : '';
+  const items: { label: string; url: string }[] = [];
+  const seen = new Set<string>();
+
+  const pushPath = (label: string, raw: unknown) => {
+    if (!raw || typeof raw !== 'string') return;
+    const url = resolveUpMediaUrl(raw);
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    items.push({ label, url });
+  };
+
+  const pushArrayOrString = (label: string, raw: unknown) => {
+    if (!raw) return;
+    if (Array.isArray(raw)) {
+      raw.forEach((p, idx) => pushPath(raw.length > 1 ? `${label} ${idx + 1}` : label, p));
+      return;
+    }
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p, idx) => pushPath(parsed.length > 1 ? `${label} ${idx + 1}` : label, p));
+            return;
+          }
+        } catch {}
+      }
+      pushPath(label, trimmed);
+    }
+  };
+
+  pushPath('Image 1', r.image1);
+  pushPath('Image 2', r.image2);
+  pushPath('Image 3', r.image3);
+  pushPath('Image 4', r.image4);
+  pushPath('Photo', r.image);
+  pushPath('Document', r.file);
+  pushPath('JMR Report', r.jmr_report);
+  pushPath('Digital Signature', r.digital_signature);
+  pushArrayOrString('Before Cleaning', r.before_cleaning_photo);
+  pushArrayOrString('After Cleaning', r.after_cleaning_photo);
+
+  return items;
+};
+
+export const docUrlOf = (row: unknown): string => {
+  const first = allMediaOf(row)[0];
+  return first ? first.url : '';
 };
 
 /* ───────── Column helpers ───────── */
@@ -265,7 +300,7 @@ export function DocThumb({
   url,
   alt,
   onPreview,
-  size = 34,
+  size = 36,
 }: {
   url?: string | null;
   alt: string;
@@ -284,20 +319,23 @@ export function DocThumb({
     <img
       src={url}
       alt={alt}
+      className="ula-doc-thumb"
       style={{
         width: size,
         height: size,
-        borderRadius: 0,
+        borderRadius: 6,
         objectFit: 'cover',
         cursor: 'zoom-in',
-        border: '1px solid var(--ax-border, #e2e8f0)',
+        border: '1px solid var(--ax-border, #cbd5e1)',
         background: 'var(--ax-surface-subtle, #f8fafc)',
         display: 'block',
         flexShrink: 0,
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
       }}
       onError={() => setFailed(true)}
       onClick={() => onPreview(url, alt)}
-      title="Click to preview"
+      title="Click to preview image"
     />
   );
 }
@@ -432,6 +470,16 @@ function RowActionDropdown({
 /* ───────── CSS ───────── */
 const OVERLAY_CSS = `
   .ax-modal img { border-radius: 0 !important; }
+  .ula-doc-thumb {
+    border-radius: 6px !important;
+    cursor: zoom-in !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+  }
+  .ula-doc-thumb:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16) !important;
+    border-color: var(--ax-primary-default, #2563eb) !important;
+  }
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;
     height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
@@ -484,8 +532,8 @@ const PAGE_CSS = `
     width: 100%; display: flex; justify-content: flex-start; align-items: center; margin: 0; overflow-x: auto;
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
-  .solar-erp-page img,
-  .solar-erp-page .ax-card img {
+  .solar-erp-page img:not(.ula-doc-thumb),
+  .solar-erp-page .ax-card img:not(.ula-doc-thumb) {
     border-radius: 0 !important;
   }
   .solar-erp-page .ax-card__header {
@@ -967,12 +1015,25 @@ export function UpAmcTablePage<T extends object>(props: UpAmcViewProps<T>) {
                 </div>
               ) : null}
 
-              {docUrlOf(detailRow) && (
-                <div>
-                  <div className="ula-m-field__label" style={{ marginBottom: 6 }}>Attached Document / Photo</div>
-                  <DocThumb url={docUrlOf(detailRow)} alt="Media" onPreview={openPreview} size={96} />
-                </div>
-              )}
+              {(() => {
+                const mediaItems = allMediaOf(detailRow);
+                if (mediaItems.length === 0) return null;
+                return (
+                  <div>
+                    <div className="ula-m-field__label" style={{ marginBottom: 6 }}>
+                      {mediaItems.length > 1 ? 'Attached Photos / Documents' : 'Attached Document / Photo'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      {mediaItems.map((m) => (
+                        <div key={`${m.label}-${m.url}`} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <DocThumb url={m.url} alt={m.label} onPreview={openPreview} size={96} />
+                          <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>{m.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="ax-modal__footer">

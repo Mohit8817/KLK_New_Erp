@@ -1,5 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { ASSAM_SWP_API } from '../../V_Portal_APIS/Assam_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 /* ── Backend & Media Base URLs ── */
 export const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
@@ -506,15 +507,14 @@ class AssamSwpService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false || json.success === false) {
-      let msg = json.message;
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        msg = Object.entries(json.errors)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-      }
-      throw new Error(msg || `Failed to submit installation (${res.status})`);
+      const extracted = extractBackendError(json, `Failed to submit installation (${res.status})`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json.errors || extracted.fieldErrors;
+      throw err;
     }
     return json;
   }
@@ -660,15 +660,14 @@ class AssamSwpService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false || json.success === false) {
-      let msg = json.message;
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        msg = Object.entries(json.errors)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-      }
-      throw new Error(msg || `Failed to update installation (${res.status})`);
+      const extracted = extractBackendError(json, `Failed to update installation (${res.status})`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json.errors || extracted.fieldErrors;
+      throw err;
     }
     return json;
   }
@@ -705,15 +704,14 @@ class AssamSwpService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false || json.success === false) {
-      let msg = json.message;
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        msg = Object.entries(json.errors)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-      }
-      throw new Error(msg || `Failed to submit installation document (${res.status})`);
+      const extracted = extractBackendError(json, `Failed to submit installation document (${res.status})`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json.errors || extracted.fieldErrors;
+      throw err;
     }
     return json;
   }
@@ -742,8 +740,9 @@ class AssamSwpService {
       sites = Array.isArray(rawData.sites) ? rawData.sites : [];
     }
 
-    if (Array.isArray(json.sites) && sites.length === 0) {
-      sites = json.sites;
+    const rawJsonSites = (json as any)?.sites;
+    if (Array.isArray(rawJsonSites) && sites.length === 0) {
+      sites = rawJsonSites;
     }
 
     return { data: claims, sites };
@@ -856,15 +855,14 @@ class AssamSwpService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false || json.success === false) {
-      let msg = json.message;
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        msg = Object.entries(json.errors)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-      }
-      throw new Error(msg || `Failed to raise payment claim (${res.status})`);
+      const extracted = extractBackendError(json, `Failed to raise payment claim (${res.status})`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json.errors || extracted.fieldErrors;
+      throw err;
     }
     return json;
   }
@@ -889,15 +887,14 @@ class AssamSwpService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json: ApiResponse = await res.json();
+    const json: ApiResponse = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false || json.success === false) {
-      let msg = json.message;
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        msg = Object.entries(json.errors)
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-      }
-      throw new Error(msg || `Failed to update claim (${res.status})`);
+      const extracted = extractBackendError(json, `Failed to update claim (${res.status})`);
+      const err = new Error(extracted.message);
+      (err as any).status = res.status;
+      (err as any).data = json;
+      (err as any).errors = json.errors || extracted.fieldErrors;
+      throw err;
     }
     return json;
   }

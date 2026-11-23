@@ -5,6 +5,11 @@ import {
   biharSrt200mwService,
   type BiharSrtSiteItem,
 } from '../../bihar-services';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // CSS: Unified Single-Card Layout with Floating Labels & Section Dividers (same as Jammu design)
 const SINGLE_CARD_FORM_CSS = `
@@ -268,9 +273,9 @@ export function Bihar_Survey_SRT200MW_AddData() {
     if (validationErrors[key]) clearError(key);
   };
 
-  const handleGetLocation = () => {
+  const handleGetLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -282,10 +287,16 @@ export function Bihar_Survey_SRT200MW_AddData() {
         }));
       },
       (err) => {
-        alert(`Location retrieval failed: ${err.message}`);
+        console.warn('Geolocation error:', err);
+        if (!silent) alert(`Location retrieval failed: ${err.message}`);
       }
     );
   };
+
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    handleGetLocation(true);
+  }, [selectedSiteId]);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -297,27 +308,25 @@ export function Bihar_Survey_SRT200MW_AddData() {
     setErrorMsg(null);
     setValidationErrors({});
 
+    const missing: Record<string, string> = {};
     if (!selectedSiteId) {
-      setErrorMsg('Please select a site first.');
-      setValidationErrors({ id: ['Please select a site.'] });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+      missing.selectedSiteId = 'Please select a site.';
     }
 
     // Required images (create mode only)
     if (!isEditMode) {
+      if (!files.building_image) missing.building_image = 'Building Image is required.';
+      if (!files.roof_image) missing.roof_image = 'Roof Image is required.';
+      if (!files.control_room_image) missing.control_room_image = 'Control Room Image is required.';
+    }
+
+    if (Object.keys(missing).length > 0) {
       const fileErrs: Record<string, string[]> = {};
-      (['building_image', 'roof_image', 'control_room_image'] as FileKey[]).forEach((k) => {
-        if (!files[k]) fileErrs[k] = ['This image is required.'];
-      });
-      if (Object.keys(fileErrs).length) {
-        setErrorMsg('Please upload all required images.');
-        setValidationErrors(fileErrs);
-        setTimeout(() => {
-          document.querySelector('.is-invalid')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 50);
-        return;
-      }
+      Object.entries(missing).forEach(([k, v]) => { fileErrs[k] = [v]; });
+      setValidationErrors(fileErrs);
+      setErrorMsg(formatMissingRequiredMsg(missing));
+      scrollToFirstError();
+      return;
     }
 
     const payload = new FormData();
@@ -346,15 +355,17 @@ export function Bihar_Survey_SRT200MW_AddData() {
           navigate('/v/bihar/view-srt200mw-survey');
         }, 1500);
       } else {
-        setErrorMsg(resp.message || 'Submission failed. Please check the inputs.');
+        const extracted = extractBackendError(resp, 'Submission failed. Please check the inputs.');
+        setErrorMsg(extracted.message);
         if (resp.errors && typeof resp.errors === 'object') {
           setValidationErrors(resp.errors);
         }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollToFirstError();
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Network error occurred.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Network error occurred.');
+      setErrorMsg(extracted.message);
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -506,10 +517,10 @@ export function Bihar_Survey_SRT200MW_AddData() {
                 desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
               />
               <div className="bihar-form-grid bihar-form-grid--3col">
-                <FloatingInput id="bh-lat" label="Latitude" required placeholder="e.g. 25.6093" {...f('latitude')} />
-                <FloatingInput id="bh-lng" label="Longitude" required placeholder="e.g. 85.1376" {...f('longitude')} />
+                <FloatingInput id="bh-lat" label="Latitude" required readOnly placeholder="Auto-detected GPS Latitude" {...f('latitude')} onChange={() => {}} />
+                <FloatingInput id="bh-lng" label="Longitude" required readOnly placeholder="Auto-detected GPS Longitude" {...f('longitude')} onChange={() => {}} />
                 <div>
-                  <button type="button" className="ax-btn ax-btn--secondary bihar-gps-cell" style={{ width: '100%' }} onClick={handleGetLocation}>
+                  <button type="button" className="ax-btn ax-btn--secondary bihar-gps-cell" style={{ width: '100%' }} onClick={() => handleGetLocation(false)}>
                     <span className="ax-btn__label">📍 Get GPS</span>
                   </button>
                 </div>

@@ -1,18 +1,10 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { resolveUpMediaUrl } from '../../up-services';
 import {
-  Pagination,
-  usePagination,
   SearchInput,
-  TableExportToolbar,
   TableEmptyState,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
-  type ExportColumn,
 } from '../../../../../common';
 
 export const DASH = '—';
@@ -105,16 +97,20 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await onFetchClaimData();
-      if (res.status && res.data) {
-        setPayments(res.data.payments || []);
-        setSites(res.data.sites || []);
+      const res: any = await onFetchClaimData();
+      if (res?.status) {
+        const rawPayments = res.data?.payments ?? res.payments ?? [];
+        const rawSites = res.data?.sites ?? res.data?.lights ?? res.sites ?? res.lights ?? [];
+        setPayments(Array.isArray(rawPayments) ? rawPayments : []);
+        setSites(Array.isArray(rawSites) ? rawSites : []);
       } else {
         setPayments([]);
         setSites([]);
-        if (res.message) setToast({ type: 'error', message: res.message });
+        if (res?.message) setToast({ type: 'error', message: res.message });
       }
     } catch (err: any) {
+      setPayments([]);
+      setSites([]);
       setToast({ type: 'error', message: err?.message || 'Failed to load claims data.' });
     } finally {
       setLoading(false);
@@ -172,11 +168,36 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
     }
   };
 
-  const handleOpenRaiseModal = () => {
-    if (selectedSiteIds.length === 0) {
-      setToast({ type: 'error', message: 'Please select at least 1 verified site to claim.' });
-      return;
+  const selectedSitesList = useMemo(() => {
+    return sites.filter((s) => selectedSiteIds.includes(s.id));
+  }, [sites, selectedSiteIds]);
+
+  const selectedSiteValue = useMemo(() => {
+    if (selectedSiteIds.length === 0) return '';
+    if (sites.length > 1 && selectedSiteIds.length === sites.length) return 'all';
+    if (selectedSiteIds.length === 1) return String(selectedSiteIds[0]);
+    return String(selectedSiteIds[0]);
+  }, [selectedSiteIds, sites.length]);
+
+  const handleSiteSelectChange = (val: string) => {
+    if (!val) {
+      setSelectedSiteIds([]);
+    } else if (val === 'all') {
+      setSelectedSiteIds(sites.map((s) => s.id));
+    } else {
+      setSelectedSiteIds([Number(val)]);
     }
+  };
+
+  const handleOpenAddPaymentModal = () => {
+    setClaimAmount('');
+    setClaimRemarks('');
+    setClaimFile(null);
+    setShowRaiseModal(true);
+  };
+
+  const handleRowClaim = (siteId: number) => {
+    setSelectedSiteIds([siteId]);
     setClaimAmount('');
     setClaimRemarks('');
     setClaimFile(null);
@@ -185,8 +206,12 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
 
   const handleClaimSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (selectedSiteIds.length === 0) {
+      setToast({ type: 'error', message: 'Please select at least 1 site to claim payment.' });
+      return;
+    }
     if (!claimAmount || Number(claimAmount) <= 0) {
-      setToast({ type: 'error', message: 'Please enter a valid claim amount.' });
+      setToast({ type: 'error', message: 'Please enter a valid amount.' });
       return;
     }
     if (!claimFile) {
@@ -202,18 +227,34 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
     try {
       const fd = new FormData();
       fd.append('amount', claimAmount);
+      fd.append('claim_amount', claimAmount);
       fd.append('remarks', claimRemarks.trim());
+      fd.append('remark', claimRemarks.trim());
       fd.append('file', claimFile);
-      selectedSiteIds.forEach((sid) => fd.append('site_id[]', String(sid)));
+      fd.append('invoice', claimFile);
+      fd.append('claim_invoice', claimFile);
+
+      if (selectedSiteIds.length === 1) {
+        fd.append('site_id', String(selectedSiteIds[0]));
+        fd.append('resco_id', String(selectedSiteIds[0]));
+        fd.append('id', String(selectedSiteIds[0]));
+      }
+      selectedSiteIds.forEach((sid) => {
+        fd.append('site_id[]', String(sid));
+        fd.append('resco_id[]', String(sid));
+      });
+      if (selectedSiteIds.length > 0) {
+        fd.append('site_ids', selectedSiteIds.join(','));
+      }
 
       const res = await onStoreClaim(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Payment claim raised successfully!' });
+        setToast({ type: 'success', message: res.message || 'Payment claim submitted successfully!' });
         setShowRaiseModal(false);
         setSelectedSiteIds([]);
         loadData();
       } else {
-        setToast({ type: 'error', message: res.message || 'Failed to raise payment claim.' });
+        setToast({ type: 'error', message: res.message || 'Failed to submit payment claim.' });
       }
     } catch (err: any) {
       setToast({ type: 'error', message: err?.message || 'Error occurred.' });
@@ -221,8 +262,6 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
       setSubmittingClaim(false);
     }
   };
-
-  const stamp = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="solar-erp-page">
@@ -239,11 +278,10 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={handleOpenRaiseModal}
-              disabled={selectedSiteIds.length === 0}
+              onClick={handleOpenAddPaymentModal}
             >
               {ICON_PLUS}
-              <span className="ax-btn__label">Raise Claim ({selectedSiteIds.length})</span>
+              <span className="ax-btn__label">Add Payment</span>
             </button>
           </div>
         }
@@ -317,19 +355,20 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
                     <th className="ax-table__th">Period</th>
                     <th className="ax-table__th">AMC Date</th>
                     <th className="ax-table__th">Verification Status</th>
+                    <th className="ax-table__th" style={{ textAlign: 'center', width: 110 }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading && (
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: 24 }}>
+                      <td colSpan={9} style={{ textAlign: 'center', padding: 24 }}>
                         <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading eligible sites…
                       </td>
                     </tr>
                   )}
                   {!loading && filteredSites.length === 0 && (
                     <tr>
-                      <td colSpan={8} style={{ padding: 0 }}>
+                      <td colSpan={9} style={{ padding: 0 }}>
                         <TableEmptyState
                           title="No eligible sites found"
                           message="No verified sites are currently pending payment claim."
@@ -357,6 +396,16 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
                         <td className="ax-table__td">{site.amc_date || site.date || DASH}</td>
                         <td className="ax-table__td">
                           <span className="ax-badge ax-badge--soft ax-badge--success">Verified</span>
+                        </td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--primary ax-btn--xs"
+                            onClick={() => handleRowClaim(site.id)}
+                            style={{ fontWeight: 600, padding: '4px 10px' }}
+                          >
+                            + Claim
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -416,8 +465,8 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
                           )}
                         </td>
                         <td className="ax-table__td">
-                          <span className="ax-badge ax-badge--soft ax-badge--info">
-                            {p.claim_status === 1 ? 'Approved' : 'Submitted'}
+                          <span className={`ax-badge ax-badge--soft ${Number(p.claim_status) === 1 ? 'ax-badge--success' : Number(p.claim_status) === 2 ? 'ax-badge--danger' : 'ax-badge--info'}`}>
+                            {Number(p.claim_status) === 1 ? 'Approved' : Number(p.claim_status) === 2 ? 'Rejected' : 'Submitted'}
                           </span>
                         </td>
                       </tr>
@@ -429,76 +478,206 @@ export function UpAmcPaymentPage(props: UpAmcPaymentPageProps) {
         </section>
       </div>
 
-      {/* ── Raise Claim Modal ── */}
-      <Modal open={showRaiseModal} onClose={() => setShowRaiseModal(false)} labelledBy="raise-claim-modal-title">
+      {/* ── Add Payment Modal ── */}
+      <Modal open={showRaiseModal} onClose={() => setShowRaiseModal(false)} labelledBy="add-payment-modal-title">
         <form onSubmit={handleClaimSubmit}>
-          <div className="ax-modal__header">
-            <h2 className="ax-modal__title" id="raise-claim-modal-title">
-              Raise Payment Claim ({projectName})
-            </h2>
+          <div
+            className="ax-modal__header"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            }}
+          >
+            <div>
+              <h2 className="ax-modal__title" id="add-payment-modal-title" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                Add Payment
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', margin: '2px 0 0 0' }}>
+                Select site, upload invoice and submit payment claim ({projectName})
+              </p>
+            </div>
             <button
               type="button"
               className="ax-modal__close"
               onClick={() => setShowRaiseModal(false)}
               aria-label="Close"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 4,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--ax-text-muted, #64748b)',
+              }}
             >
               {X_ICON}
             </button>
           </div>
 
-          <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="ax-modal__body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Field 1: Select Site */}
             <div>
-              <label className="ula-m-field__label">Selected Sites Count</label>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>
-                {selectedSiteIds.length} site(s) selected: [{selectedSiteIds.join(', ')}]
+              <label
+                htmlFor="amc-claim-site-select"
+                style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', display: 'block', marginBottom: 6 }}
+              >
+                Select Site <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <select
+                id="amc-claim-site-select"
+                className="ax-input ax-select"
+                value={selectedSiteValue}
+                onChange={(e) => handleSiteSelectChange(e.target.value)}
+                required
+                style={{ width: '100%', height: 42, borderRadius: 6, fontSize: 13 }}
+              >
+                <option value="">-- Select --</option>
+                {sites.length > 1 && (
+                  <option value="all">★ All Verified Sites ({sites.length} sites)</option>
+                )}
+                {sites.map((s) => {
+                  const sName = s.site_name || s.beneficiary_name || `Site #${s.id}`;
+                  const sDist = s.district ? ` (${s.district})` : '';
+                  const sPeriod = s.month_year || (s.report_month && s.report_year ? ` · ${s.report_month}-${s.report_year}` : '');
+                  return (
+                    <option key={s.id} value={String(s.id)}>
+                      {sName}{sDist}{sPeriod} [ID: {s.id}]
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Selected site info pill / badge */}
+              {selectedSitesList.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    background: 'var(--ax-surface-subtle, #f8fafc)',
+                    border: '1px solid var(--ax-border, #e2e8f0)',
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: 'var(--ax-primary-default, #2563eb)' }}>
+                    {selectedSitesList.length === 1
+                      ? `Selected: ${selectedSitesList[0].site_name || selectedSitesList[0].beneficiary_name || `Site #${selectedSitesList[0].id}`}`
+                      : `${selectedSitesList.length} sites selected for claim`}
+                  </span>
+                  {selectedSitesList.length === 1 && selectedSitesList[0].district && (
+                    <span style={{ color: 'var(--ax-text-muted, #64748b)' }}>
+                      District: {selectedSitesList[0].district}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Field 2: Invoice */}
+            <div>
+              <label
+                htmlFor="amc-claim-invoice-file"
+                style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', display: 'block', marginBottom: 6 }}
+              >
+                Invoice <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                id="amc-claim-invoice-file"
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                className="ax-input"
+                onChange={(e) => setClaimFile(e.target.files?.[0] || null)}
+                required
+                style={{ width: '100%', height: 42, padding: '8px 12px', borderRadius: 6, fontSize: 13 }}
+              />
+              <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)', marginTop: 4 }}>
+                {claimFile ? (
+                  <span style={{ color: '#059669', fontWeight: 600 }}>
+                    Selected: {claimFile.name} ({(claimFile.size / 1024).toFixed(0)} KB)
+                  </span>
+                ) : (
+                  'No file chosen'
+                )}
               </div>
             </div>
 
+            {/* Field 3: Amount */}
             <div>
-              <label className="ula-m-field__label">Claim Amount (₹) *</label>
+              <label
+                htmlFor="amc-claim-amount"
+                style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', display: 'block', marginBottom: 6 }}
+              >
+                Amount <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
+                id="amc-claim-amount"
                 type="number"
                 step="0.01"
                 min="1"
                 className="ax-input"
-                placeholder="e.g. 15000"
+                placeholder="Enter Amount"
                 value={claimAmount}
                 onChange={(e) => setClaimAmount(e.target.value)}
                 required
+                style={{ width: '100%', height: 42, borderRadius: 6, fontSize: 13 }}
               />
             </div>
 
+            {/* Field 4: Remarks */}
             <div>
-              <label className="ula-m-field__label">Upload Invoice Document (PDF/Image) *</label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                className="ax-input"
-                onChange={(e) => setClaimFile(e.target.files?.[0] || null)}
-                required
-              />
-              {claimFile && <div style={{ fontSize: 12, marginTop: 4 }}>{claimFile.name}</div>}
-            </div>
-
-            <div>
-              <label className="ula-m-field__label">Remarks *</label>
+              <label
+                htmlFor="amc-claim-remarks"
+                style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', display: 'block', marginBottom: 6 }}
+              >
+                Remarks <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <textarea
+                id="amc-claim-remarks"
                 className="ax-input"
                 rows={3}
-                placeholder="Enter claim invoice details or description…"
+                placeholder="Enter Remarks"
                 value={claimRemarks}
                 onChange={(e) => setClaimRemarks(e.target.value)}
                 required
+                style={{ width: '100%', borderRadius: 6, fontSize: 13, padding: '10px 12px' }}
               />
             </div>
           </div>
 
-          <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 8 }}>
-            <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setShowRaiseModal(false)}>
+          <div
+            className="ax-modal__footer"
+            style={{
+              padding: '14px 20px',
+              borderTop: '1px solid var(--ax-border, #e2e8f0)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost"
+              onClick={() => setShowRaiseModal(false)}
+            >
               Cancel
             </button>
-            <button type="submit" className="ax-btn ax-btn--primary" disabled={submittingClaim}>
-              {submittingClaim ? 'Submitting…' : 'Submit Claim'}
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={submittingClaim || selectedSiteIds.length === 0}
+            >
+              {submittingClaim ? 'Submitting…' : 'Add Payment'}
             </button>
           </div>
         </form>

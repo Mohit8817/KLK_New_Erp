@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  getMediaUrl,
   upComplaintService,
   type UpOngridDetails,
 } from '../../up-services';
@@ -14,6 +15,10 @@ import {
   SmsRadioGroup,
   opts,
   getTodayFormatted,
+  formatDateForInput,
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
   type SectionItem,
 } from '../CommonSharedComplaints';
 
@@ -25,8 +30,14 @@ const SECTIONS: SectionItem[] = [
 
 export function UPComplaintOngridAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   // Form State
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [complaintDate, setComplaintDate] = useState(getTodayFormatted());
   const [district, setDistrict] = useState('');
   const [beneficiaryId, setBeneficiaryId] = useState('');
@@ -99,6 +110,72 @@ export function UPComplaintOngridAdd() {
     };
   }, []);
 
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const bName = String(rec.beneficiary_name || '').trim();
+      const bOgid = String(rec.ogid || rec.og_id || rec.beneficiary_id || bName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'no').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.document || rec.file || rec.file1) || '');
+      setComplaintDate(formatDateForInput(rec.complaint_date || rec.created_date || rec.created_at) || getTodayFormatted());
+      setDistrict(dist);
+      setBeneficiaryId(bOgid);
+      setOgid(bOgid);
+      setBeneficiaryName(bName);
+      setContactNo(String(rec.contact_no || rec.contact_number || ''));
+      setWorkOrderNo(String(rec.wo_no || rec.work_order_no || ''));
+      setWorkOrderDate(formatDateForInput(rec.wo_date || rec.work_order_date));
+      setPlantCapacity(String(rec.plant_capacity || rec.capacity || ''));
+      setFirmName(String(rec.firm_name || rec.firm || ''));
+      setContractorName(String(rec.contractor_name || ''));
+      setContractorNo(String(rec.contractor_number || rec.contractor_no || rec.contractor_mo_no || ''));
+      setComplaintText(String(rec.complaint || ''));
+      setSendSms(rawSms === 'yes' || rawSms === '1' || rawSms === 'true' ? 'yes' : 'no');
+
+      if (dist) {
+        try {
+          const list = await upComplaintService.getOngridBeneficiaryNames(dist);
+          if (!active) return;
+          const matched = list.find((b) => String(b.id) === bOgid || b.name === bName);
+          if (matched) {
+            setBeneficiaries(list);
+            setBeneficiaryId(String(matched.id));
+            setBeneficiaryName(matched.name);
+          } else if (bOgid || bName) {
+            setBeneficiaries([{ id: bOgid || bName, name: bName || bOgid }, ...list]);
+          } else {
+            setBeneficiaries(list);
+          }
+        } catch {
+          if (active && (bOgid || bName)) {
+            setBeneficiaries([{ id: bOgid || bName, name: bName || bOgid }]);
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getOngridEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
+
   // When District changes, load Beneficiary names
   const handleDistrictChange = async (newDist: string) => {
     setDistrict(newDist);
@@ -137,7 +214,7 @@ export function UPComplaintOngridAdd() {
 
     setLoadingDetails(true);
     try {
-      const details = await upComplaintService.getOngridDetails(bId);
+      const details = await upComplaintService.getOngridDetails(bId, chosen?.name);
       if (details) {
         populateDetails(details);
         if (details.ogid || details.id) {
@@ -155,9 +232,11 @@ export function UPComplaintOngridAdd() {
     if (details.contact_no || details.contact_number) {
       setContactNo(String(details.contact_no || details.contact_number));
     }
-    if (details.work_order_no) setWorkOrderNo(String(details.work_order_no));
-    if (details.work_order_date) {
-      setWorkOrderDate(String(details.work_order_date).split('T')[0]);
+    const woNo = details.work_order_no || details.wo_no;
+    if (woNo) setWorkOrderNo(String(woNo));
+    const woDate = details.work_order_date || details.wo_date;
+    if (woDate) {
+      setWorkOrderDate(String(woDate).split('T')[0].split(' ')[0]);
     }
     if (details.plant_capacity) setPlantCapacity(String(details.plant_capacity));
     if (details.firm_name) setFirmName(String(details.firm_name));
@@ -192,27 +271,27 @@ export function UPComplaintOngridAdd() {
     setFileKey((k) => k + 1);
   };
 
-  const validate = () => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!complaintDate) errs.complaint_date = 'Complaint Date is required.';
     if (!district) errs.district = 'District is required.';
     if (!beneficiaryId && !beneficiaryName && !ogid) errs.beneficiary_name = 'Beneficiary Name is required.';
     if (!contactNo.trim()) errs.contact_no = 'Contact Number is required.';
-    if (!selectedFile) errs.document = 'Document / Photo is required.';
+    if (!isEdit && !selectedFile) errs.document = 'Document / Photo is required.';
     if (!complaintText.trim()) errs.complaint = 'Complaint description is required.';
     setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setToast(null);
 
-    if (!validate()) {
-      setToast({ type: 'error', message: 'Please correct the highlighted errors before submitting.' });
-      setTimeout(() => {
-        document.querySelector('.has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setToast({ type: 'error', message: missingMsg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -220,7 +299,12 @@ export function UPComplaintOngridAdd() {
     const fd = new FormData();
     const resolvedOgid = ogid || beneficiaryId || '';
     fd.append('ogid', resolvedOgid);
-    fd.append('id', resolvedOgid);
+    if (isEdit && editId) {
+      fd.append('id', String(editId));
+      if (complaintCode) fd.append('complaint_id', complaintCode);
+    } else {
+      fd.append('id', resolvedOgid);
+    }
     if (beneficiaryId) fd.append('beneficiary_id', beneficiaryId);
     fd.append('complaint_date', complaintDate);
     fd.append('district', district);
@@ -228,7 +312,9 @@ export function UPComplaintOngridAdd() {
     fd.append('contact_no', contactNo);
     fd.append('contact_number', contactNo);
     fd.append('work_order_no', workOrderNo);
+    fd.append('wo_no', workOrderNo);
     fd.append('work_order_date', workOrderDate);
+    fd.append('wo_date', workOrderDate);
     fd.append('plant_capacity', plantCapacity);
     fd.append('firm_name', firmName);
     fd.append('contractor_name', contractorName);
@@ -247,34 +333,39 @@ export function UPComplaintOngridAdd() {
     }
 
     try {
-      const res = await upComplaintService.saveOngridComplaint(fd);
+      const res = isEdit
+        ? await upComplaintService.updateOngridComplaint(fd)
+        : await upComplaintService.saveOngridComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'On Grid Complaint registered successfully!' });
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'On Grid Complaint updated successfully!' : 'On Grid Complaint registered successfully!'),
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        handleReset();
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/ongrid-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        if (res.errors) {
-          const mapped: Record<string, string> = {};
-          Object.entries(res.errors).forEach(([k, v]) => {
-            mapped[k] = Array.isArray(v) ? v[0] : String(v);
-          });
-          if (mapped.ogid && !mapped.beneficiary_name) {
-            mapped.beneficiary_name = mapped.ogid;
-          }
-          if (mapped.sms && !mapped.send_sms) {
-            mapped.send_sms = mapped.sms;
-          }
-          setFieldErrors(mapped);
+        const extracted = extractBackendError(res, isEdit ? 'Update failed. Please check form data.' : 'Submission failed. Please check form data.');
+        const mapped = { ...extracted.fieldErrors };
+        if (mapped.ogid && !mapped.beneficiary_name) {
+          mapped.beneficiary_name = mapped.ogid;
         }
-        setToast({ type: 'error', message: res.message || 'Submission failed. Please check form data.' });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (mapped.sms && !mapped.send_sms) {
+          mapped.send_sms = mapped.sms;
+        }
+        setFieldErrors((prev) => ({ ...prev, ...mapped }));
+        setToast({ type: 'error', message: extracted.message });
+        setTimeout(() => scrollToFirstError(), 50);
       }
     } catch (errAny: any) {
-      setToast({ type: 'error', message: errAny?.message || 'Network error occurred during submission.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(errAny, 'Network error occurred during submission.');
+      setToast({ type: 'error', message: extracted.message });
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -282,27 +373,28 @@ export function UPComplaintOngridAdd() {
 
   return (
     <ComplaintFormLayout
-      title="Welcome to, Add UP On Grid Complaint"
+      title={isEdit ? 'Edit UP On Grid Complaint' : 'Welcome to, Add UP On Grid Complaint'}
       subtitle={
         <span style={{ fontSize: 'var(--ax-text-sm, 13px)', color: 'var(--ax-text-muted, #64748b)' }}>
-          Register grid-connected rooftop solar plant breakdown & service tickets
+          {isEdit ? 'Update grid-connected rooftop solar plant breakdown & service ticket' : 'Register grid-connected rooftop solar plant breakdown & service tickets'}
         </span>
       }
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'Vendor UP On Grid Complaints', href: '/v/complaint/up/ongrid-view-complaint' },
-        { label: 'Add UP On Grid Complaint' },
+        { label: isEdit ? 'Edit UP On Grid Complaint' : 'Add UP On Grid Complaint' },
       ]}
       viewLink="/v/complaint/up/ongrid-view-complaint"
       viewLabel="View Complaints"
       eyebrow="On Grid Solar System"
-      formTitle="Add UP On Grid Complaint"
-      formSubtitle="Enter complaint details, select the plant beneficiary, and register the rooftop system repair ticket across 3 dedicated sections."
+      formTitle={isEdit ? `Edit UP On Grid Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP On Grid Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Enter complaint details, select the plant beneficiary, and register the rooftop system repair ticket across 3 dedicated sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={submitting}
-      submitLabel="Save Complaint"
+      submitLabel={isEdit ? 'Update Complaint' : 'Save Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* Section 1 */}
@@ -392,9 +484,10 @@ export function UPComplaintOngridAdd() {
             key={fileKey}
             id="ong-file"
             label="Upload File (Plant Photo / Defect Sheet)"
-            required
+            required={!isEdit}
             accept="image/*,.pdf,.doc,.docx"
             file={selectedFile}
+            existingUrl={existingFile}
             onChange={(f) => {
               setSelectedFile(f);
               clearErr('document');

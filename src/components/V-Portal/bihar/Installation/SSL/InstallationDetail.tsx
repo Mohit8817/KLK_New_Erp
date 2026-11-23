@@ -6,6 +6,7 @@ import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   biharSslInstallationService,
   getMediaUrl,
+  getBiharSslMediaCandidates,
   type InstalledLightsSummary,
   type InstalledLightItem,
 } from '../../bihar-services';
@@ -49,10 +50,10 @@ const VerifyBadge = ({ value }: { value: number }) =>
 const vStatusOf = (r: InstalledLightItem) => Number(r.inst_verify_status ?? r.verify_status ?? 0);
 const cStatusOf = (r: InstalledLightItem) => Number(r.inst_claim_status ?? r.claim_status ?? 0);
 const pStatusOf = (r: InstalledLightItem) => Number(r.inst_pay_status ?? r.payment_status ?? 0);
-const lightImageOf = (r: InstalledLightItem) => getMediaUrl(r.light_image || r.light_file) || '';
+const lightImageOf = (r: InstalledLightItem) => r.light_image || r.light_file || '';
 const uidOf = (r: InstalledLightItem) => r.unique_id || r.uid || `#${r.id}`;
 
-// Claim helpers (same logic as SRT page)
+// Claim helpers (exact Goa / Bihar SRT pattern)
 const isClaimRaised = (r: InstalledLightItem) => cStatusOf(r) !== 0;
 const isClaimDue = (r: InstalledLightItem) => vStatusOf(r) === 1 && !isClaimRaised(r);
 
@@ -103,7 +104,7 @@ function getLightDuration(r: InstalledLightItem): { days: number | null; label: 
   }
   if (days === null) {
     const inst = installDateOf(r);
-    const claimDate = a.inst_claim_date;
+    const claimDate = a.inst_claim_date || a.claim_date;
     if (inst) days = claimDate ? computeDurationDays(inst, claimDate) : computeDurationDays(inst);
   }
   return { days, label: formatDurationLabel(days) };
@@ -166,7 +167,7 @@ function Modal({
   );
 }
 
-/* ───────── Image preview modal ───────── */
+/* ───────── Image preview modal (Interactive Lightbox with Zoom) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
 function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
@@ -223,7 +224,7 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ───────── Raise Claim Modal (same pattern as SRT) ───────── */
+/* ───────── Raise Installation Claim Modal (Exact Goa SRT / Bihar SRT Pattern) ───────── */
 function RaiseClaimModal({
   light,
   onClose,
@@ -234,6 +235,7 @@ function RaiseClaimModal({
   onSuccess: (message: string) => void;
 }) {
   const [claimAmount, setClaimAmount] = useState('');
+  const [claimRemarks, setClaimRemarks] = useState('');
   const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,17 +254,33 @@ function RaiseClaimModal({
       return;
     }
 
+    const trimmedRemarks = claimRemarks.trim() || 'Installation claim submitted';
+
     try {
       setIsSubmitting(true);
       setError(null);
 
       const fd = new FormData();
+      // Send multiple alias identifiers to ensure backend compatibility
+      fd.append('site_ids', String(light.id));
       fd.append('ssl_id', String(light.id));
-      fd.append('claim_amount', claimAmount.trim());
-      fd.append('claim_invoice', claimInvoiceFile);
+      fd.append('site_id', String(light.id));
+      fd.append('light_id', String(light.id));
+      fd.append('id', String(light.id));
 
-      // NOTE: make sure this method exists in biharSslInstallationService
-      const res = await (biharSslInstallationService as any).raiseInstallClaim(fd);
+      fd.append('claim_amount', claimAmount.trim());
+      fd.append('inst_claim_amount', claimAmount.trim());
+      fd.append('amount', claimAmount.trim());
+
+      fd.append('claim_remarks', trimmedRemarks);
+      fd.append('inst_claim_remarks', trimmedRemarks);
+      fd.append('remarks', trimmedRemarks);
+
+      fd.append('claim_invoice', claimInvoiceFile);
+      fd.append('inst_claim_invoice', claimInvoiceFile);
+      fd.append('invoice', claimInvoiceFile);
+
+      const res = await biharSslInstallationService.raiseClaim(fd);
       onSuccess(res?.message || 'Claim request submitted successfully!');
     } catch (err: any) {
       console.error('[SSL RaiseClaimModal] submit error:', err);
@@ -353,7 +371,7 @@ function RaiseClaimModal({
                 <strong style={{ fontFamily: 'var(--ax-font-mono, monospace)', ...strongStyle }}>{uidOf(light)}</strong>
               </div>
               <div>
-                <span style={labelStyle}>Beneficiary:</span>
+                <span style={labelStyle}>Beneficiary Name:</span>
                 <strong style={strongStyle}>{light.beneficiary_name || DASH}</strong>
               </div>
               <div>
@@ -361,7 +379,7 @@ function RaiseClaimModal({
                 <span>{light.district || DASH}, {light.state || 'Bihar'}</span>
               </div>
               <div>
-                <span style={labelStyle}>Contact:</span>
+                <span style={labelStyle}>Contact No:</span>
                 <span>{light.contact_no || DASH}</span>
               </div>
               <div>
@@ -376,7 +394,7 @@ function RaiseClaimModal({
                 </span>
               </div>
               {(l.pole_no || l.ward_no) && (
-                <div className="ula-m-full" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ gridColumn: '1 / -1' }}>
                   <span style={labelStyle}>Ward / Pole:</span>
                   <span>{l.ward_no || DASH} / {l.pole_no || DASH}</span>
                 </div>
@@ -415,6 +433,7 @@ function RaiseClaimModal({
                 onChange={(e) => setClaimAmount(e.target.value)}
                 required
                 autoFocus
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -433,6 +452,7 @@ function RaiseClaimModal({
               style={{ width: '100%', padding: '8px' }}
               onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
               required
+              disabled={isSubmitting}
             />
             <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
               Allowed formats: PDF, JPG, PNG (Max 10MB)
@@ -446,6 +466,24 @@ function RaiseClaimModal({
                 <span>{claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)</span>
               </div>
             )}
+          </div>
+
+          {/* Claim Remarks */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-remarks" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Remarks <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <input
+              id="modal-claim-remarks"
+              type="text"
+              className="ax-input"
+              style={{ width: '100%' }}
+              placeholder="e.g. Work verified on site, invoice raised"
+              value={claimRemarks}
+              onChange={(e) => setClaimRemarks(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
           </div>
         </div>
 
@@ -487,16 +525,35 @@ function RaiseClaimModal({
   );
 }
 
-/* ───────── Image thumbnail (NO BORDER RADIUS) ───────── */
-function LightThumbnail({ url, alt, onPreview }: { url: string; alt: string; onPreview: (url: string, title: string) => void }) {
+/* ───────── Installation Thumbnail (multi-candidate fallback, NO BORDER RADIUS) ───────── */
+function InstallationThumbnail({
+  src,
+  alt,
+  onPreview,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview: (url: string, title: string) => void;
+}) {
+  const [candidateIdx, setCandidateIdx] = useState(0);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => setFailed(false), [url]);
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [src]);
 
-  if (!url || failed) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  const candidates = useMemo(() => getBiharSslMediaCandidates(src), [src]);
+
+  if (!src || candidates.length === 0 || failed) {
+    return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  }
+
+  const currentUrl = candidates[candidateIdx] || '';
+
   return (
     <img
-      src={url}
+      src={currentUrl}
       alt={alt}
       style={{
         width: 34,
@@ -509,8 +566,14 @@ function LightThumbnail({ url, alt, onPreview }: { url: string; alt: string; onP
         display: 'block',
         flexShrink: 0,
       }}
-      onError={() => setFailed(true)}
-      onClick={() => onPreview(url, alt)}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((i) => i + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(currentUrl, alt)}
       title="Click to preview"
     />
   );
@@ -531,22 +594,17 @@ const OVERLAY_CSS = `
   .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
   .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
 
-  .ula-m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ax-space-4, 16px); }
-  .ula-m-full { grid-column: 1 / -1; }
-  .ula-m-note { margin: 0; font-size: var(--ax-text-sm, 13px); color: var(--ax-text-muted, #64748b); }
-
   .ula-action-btn {
     display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
     font-size: 12px; font-weight: 500; border-radius: 0; cursor: pointer;
   }
 
   @media (max-width: 560px) {
-    .ula-m-grid { grid-template-columns: 1fr; }
     .ula-m-stage { height: 56vh; }
   }
 `;
 
-/* ───────── Responsive page CSS (same as SRT view) ───────── */
+/* ───────── Responsive page CSS (Exact Goa SRT pattern) ───────── */
 const PAGE_CSS = `
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -622,7 +680,8 @@ const PAGE_CSS = `
     -webkit-overflow-scrolling: touch;
   }
 
-  .solar-erp-page .ssl-kpi-grid {
+  /* 11 KPI cards responsive grid (Exact Goa SRT layout) */
+  .solar-erp-page .srt-kpi-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
@@ -630,13 +689,13 @@ const PAGE_CSS = `
     margin-top: 4px;
   }
   @media (max-width: 1400px) {
-    .solar-erp-page .ssl-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
   @media (max-width: 820px) {
-    .solar-erp-page .ssl-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 480px) {
-    .solar-erp-page .ssl-kpi-grid { grid-template-columns: 1fr; }
+    .solar-erp-page .srt-kpi-grid { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 1100px) {
@@ -738,7 +797,7 @@ const TABS: { key: TabKey; label: string; hash: string }[] = [
   { key: 'Payment', label: 'Payment Lights', hash: '#Payment' },
 ];
 
-/* ───────── KPI Card Component ───────── */
+/* ───────── KPI Card Component (Exact Goa SRT Style) ───────── */
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'danger';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
@@ -882,7 +941,6 @@ const geoCell = (r: InstalledLightItem, which: 'lat' | 'lng') => {
 const commonCols: Col[] = [
   { header: 'UID', text: (r) => uidOf(r), strong: true },
   { header: 'State', text: (r) => r.state || 'Bihar' },
-  { header: 'Phase', text: (r) => String(r.phase ?? '') },
   { header: 'District', text: (r) => r.district || '', strong: true },
   { header: 'Block', text: (r) => r.block || '' },
   { header: 'Panchayat', text: (r) => r.panchayat || r.panchyat || '' },
@@ -890,8 +948,6 @@ const commonCols: Col[] = [
   { header: 'Pole No.', text: (r) => String(r.pole_no ?? '') },
   { header: 'Beneficiary Name', text: (r) => r.beneficiary_name || '', strong: true },
   { header: 'Beneficiary Contact', text: (r) => r.contact_no || '', mono: true },
-  { header: 'Latitude', text: (r) => String(r.latitude ?? ''), render: (r) => geoCell(r, 'lat') },
-  { header: 'Longitude', text: (r) => String(r.longitude ?? ''), render: (r) => geoCell(r, 'lng') },
 ];
 
 const installDateCol: Col = {
@@ -947,11 +1003,13 @@ const durationCol: Col = {
 const tailCols: Col[] = [
   { header: 'Battery No.', text: (r) => r.battery_no || r.battery_serial_no || '', mono: true },
   { header: 'Panel No.', text: (r) => r.panel_no || r.module_no || '', mono: true },
+  { header: 'Latitude', text: (r) => String(r.latitude ?? ''), render: (r) => geoCell(r, 'lat') },
+  { header: 'Longitude', text: (r) => String(r.longitude ?? ''), render: (r) => geoCell(r, 'lng') },
   {
     header: 'Light Image',
     text: (r) => lightImageOf(r),
     render: (r, { preview }) => (
-      <LightThumbnail url={lightImageOf(r)} alt={`${uidOf(r)} - Light Photo`} onPreview={preview} />
+      <InstallationThumbnail src={lightImageOf(r)} alt={`${uidOf(r)} - Light Photo`} onPreview={preview} />
     ),
   },
   { header: 'Remark', text: (r) => r.remark || r.inst_remark || '', wrap: true },
@@ -967,6 +1025,7 @@ const claimStatusCol: Col = {
   header: 'Claim Status',
   text: (r) => (isClaimRaised(r) ? 'Claim Raised' : 'Not Raised'),
   render: (r, { raiseClaim }) => {
+    const a = r as Record<string, any>;
     if (isClaimRaised(r)) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
@@ -978,6 +1037,16 @@ const claimStatusCol: Col = {
               <span>Claim Raised</span>
             </span>
           </Badge>
+          {(a.claim_amount || a.inst_claim_amount) && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+              ₹{Number(a.claim_amount || a.inst_claim_amount).toLocaleString('en-IN')}
+            </span>
+          )}
+          {(a.claim_date || a.inst_claim_date) && (
+            <span style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>
+              {String(a.claim_date || a.inst_claim_date).slice(0, 10)}
+            </span>
+          )}
         </div>
       );
     }
@@ -1054,6 +1123,14 @@ type ClaimFilter = 'all' | 'due' | 'raised' | 'pending';
 export function Bihar_Installation_SSL_InstallationDetail() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const h = location.hash.toLowerCase();
+    if (h === '#pending' || h === '#penidng') {
+      navigate('/v/bihar/installation/ssl/status-view?status=not-installed-light#pending', { replace: true });
+    }
+  }, [location.hash, navigate]);
+
   const tab: TabKey = location.hash.toLowerCase() === '#payment' ? 'Payment' : 'Completed';
   const setTab = (k: TabKey) => {
     const t = TABS.find((x) => x.key === k)!;
@@ -1127,32 +1204,26 @@ export function Bihar_Installation_SSL_InstallationDetail() {
 
   const currentList = isCompleted ? completeLights : paymentLights;
 
-  // ── KPI Summary Calculations ──
-  const totalLightsCount = summary?.total !== undefined ? summary.total : (completeLights.length ? 648 : 0);
-  const installedLightsCount = summary?.complete !== undefined ? summary.complete : completeLights.length;
+  // ── KPI Summary Calculations (Exact 11 metric values) ──
+  const totalAssignedLightsCount = summary?.total !== undefined ? summary.total : (completeLights.length ? 648 : 0);
+  const completeLightsCount = summary?.complete !== undefined ? summary.complete : completeLights.length;
   const pendingLightsCount =
-    summary?.pending !== undefined ? summary.pending : Math.max(0, Number(totalLightsCount) - Number(installedLightsCount));
+    summary?.pending !== undefined ? summary.pending : Math.max(0, Number(totalAssignedLightsCount) - Number(completeLightsCount));
 
-  const verifyApprovedCount =
+  const approvedCount =
     summary?.verify_approved !== undefined ? summary.verify_approved : completeLights.filter((r) => vStatusOf(r) === 1).length;
   const verifyPendingCount =
     summary?.verify_pending !== undefined ? summary.verify_pending : completeLights.filter((r) => vStatusOf(r) === 0).length;
-  const verifyRejectCount =
+  const rejectCount =
     summary?.verify_reject !== undefined ? summary.verify_reject : completeLights.filter((r) => vStatusOf(r) === 2).length;
 
   // Approved but claim not raised yet (ready to claim)
   const readyToClaimCount = completeLights.filter((r) => isClaimDue(r)).length;
   const claimApplicableCount = summary?.claim_applicable !== undefined ? summary.claim_applicable : readyToClaimCount;
-  const claimSubmittedCount =
+  const claimRaisedCount =
     summary?.claim_raised !== undefined ? summary.claim_raised : completeLights.filter((r) => isClaimRaised(r)).length;
-  const claimNotApplicableCount =
-    summary?.claim_not_applicable !== undefined
-      ? summary.claim_not_applicable
-      : Math.max(0, completeLights.length - Number(claimApplicableCount) - Number(claimSubmittedCount));
 
-  const claimVerifyApprovedCount = summary?.claim_verify_approved !== undefined ? summary.claim_verify_approved : 0;
-  const claimVerifyPendingCount = summary?.claim_verify_pending !== undefined ? summary.claim_verify_pending : 0;
-  const claimVerifyRejectCount = summary?.claim_verify_reject !== undefined ? summary.claim_verify_reject : 0;
+  const claimApprovedCount = summary?.claim_verify_approved !== undefined ? summary.claim_verify_approved : 0;
 
   const paymentCompleteCount =
     summary?.payment_complete !== undefined
@@ -1161,7 +1232,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
   const paymentPendingCount =
     summary?.payment_pending !== undefined
       ? summary.payment_pending
-      : Math.max(0, (Number(installedLightsCount) || completeLights.length) - Number(paymentCompleteCount));
+      : Math.max(0, (Number(completeLightsCount) || completeLights.length) - Number(paymentCompleteCount));
 
   const districts = useMemo(() => {
     const set = new Set<string>();
@@ -1303,14 +1374,15 @@ export function Bihar_Installation_SSL_InstallationDetail() {
     w.focus();
   };
 
-  const TOTAL_COLUMNS = 1 + cols.length + (isCompleted ? 1 : 0);
+  const headers = isCompleted ? [...cols.map(c => c.header), 'Action'] : cols.map(c => c.header);
+  const TOTAL_COLUMNS = 1 + headers.length;
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head ── */}
+      {/* ── Page Head (Exact Goa SRT layout) ── */}
       <PageHead
         title="Installation Details"
         subtitle="View installed lights, claims and payment status for Bihar Solar Street Light sites"
@@ -1323,7 +1395,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         ]}
         actions={
           <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading} title="Refresh data">
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
             </button>
@@ -1341,70 +1413,93 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         </div>
       )}
 
-      {/* ── 6 KPI Stat Cards ── */}
-      <div className="ssl-kpi-grid">
+      {/* ── 11 KPI Stat Cards (Exact Goa SRT Grid Layout) ── */}
+      <div className="srt-kpi-grid">
         <KpiCard
           tone="accent"
-          label="Total Light"
-          value={
-            loading ? '…' : (
-              <span>
-                <span style={{ color: '#2563eb' }}>{num(totalLightsCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#16a34a' }}>{num(installedLightsCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#d97706' }}>{num(pendingLightsCount)}</span>
-              </span>
-            )
-          }
-          sub="Total / Installed / Pending"
+          label="Total Assigned Lights"
+          value={loading ? '…' : num(totalAssignedLightsCount)}
+          sub="Total assigned street lights"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="9" y1="18" x2="15" y2="18" />
-              <line x1="10" y1="22" x2="14" y2="22" />
-              <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M8 9h8M8 13h8M8 17h5" />
             </svg>
           }
         />
 
         <KpiCard
-          tone="cyan"
-          label="Verification"
-          value={
-            loading ? '…' : (
-              <span>
-                <span style={{ color: '#16a34a' }}>{num(verifyApprovedCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#d97706' }}>{num(verifyPendingCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#dc2626' }}>{num(verifyRejectCount)}</span>
-              </span>
-            )
-          }
-          sub="Approved / Pending / Rejected"
+          tone="emerald"
+          label="Complete Lights"
+          value={loading ? '…' : num(completeLightsCount)}
+          sub="Lights installed"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="m9 12 2 2 4-4" />
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           }
         />
 
         <KpiCard
           tone="amber"
-          label="Claim Status"
-          value={
-            loading ? '…' : (
-              <span>
-                <span style={{ color: '#0891b2' }}>{num(claimApplicableCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#7c3aed' }}>{num(claimSubmittedCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: 'var(--ax-text-muted)' }}>{num(claimNotApplicableCount)}</span>
-              </span>
-            )
+          label="Pending Lights"
+          value={loading ? '…' : num(pendingLightsCount)}
+          sub="Installation pending"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
           }
-          sub="Applicable / Submitted / Not Applicable"
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Approve Lights"
+          value={loading ? '…' : num(approvedCount)}
+          sub="Verified & approved"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="danger"
+          label="Reject Lights"
+          value={loading ? '…' : num(rejectCount)}
+          sub="Inspection rejected"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Verify Pending"
+          value={loading ? '…' : num(verifyPendingCount)}
+          sub="Awaiting verification"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Claim Applicable"
+          value={loading ? '…' : num(claimApplicableCount)}
+          sub="Eligible for claim"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1417,63 +1512,60 @@ export function Bihar_Installation_SSL_InstallationDetail() {
 
         <KpiCard
           tone="violet"
-          label="Claim Verify Status"
-          value={
-            loading ? '…' : (
-              <span>
-                <span style={{ color: '#16a34a' }}>{num(claimVerifyApprovedCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#d97706' }}>{num(claimVerifyPendingCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#dc2626' }}>{num(claimVerifyRejectCount)}</span>
-              </span>
-            )
-          }
-          sub="Approved / Pending / Rejected"
+          label="Claim Raised"
+          value={loading ? '…' : num(claimRaisedCount)}
+          sub="Invoices lodged"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="9 12 11 14 15 10" />
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
           }
         />
 
         <KpiCard
           tone="emerald"
-          label="Payment Status"
-          value={
-            loading ? '…' : (
-              <span>
-                <span style={{ color: '#16a34a' }}>{num(paymentCompleteCount)}</span>
-                <span style={{ color: 'var(--ax-text-muted)', fontWeight: 400, margin: '0 4px' }}>/</span>
-                <span style={{ color: '#d97706' }}>{num(paymentPendingCount)}</span>
-              </span>
-            )
-          }
-          sub="Complete / Pending"
+          label="Claim Approved"
+          value={loading ? '…' : num(claimApprovedCount)}
+          sub="Claims approved"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <line x1="2" y1="10" x2="22" y2="10" />
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
             </svg>
           }
         />
 
         <KpiCard
-          tone="accent"
-          label="Claim Applicable"
-          value={loading ? '…' : num(claimApplicableCount)}
-          sub="Eligible for claim"
+          tone="emerald"
+          label="Payment Complete"
+          value={loading ? '…' : num(paymentCompleteCount)}
+          sub="Payment disbursed"
           icon={
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Payment Pending"
+          value={loading ? '…' : num(paymentPendingCount)}
+          sub="Payment pending"
+          icon={
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="6" x2="12" y2="12" />
+              <line x1="12" y1="12" x2="14" y2="14" />
             </svg>
           }
         />
       </div>
 
-      {/* ── Tabs ABOVE Table ── */}
+      {/* ── Tabs ABOVE Table (Exact Goa SRT layout) ── */}
       <div style={{ marginBottom: 'var(--ax-space-3, 12px)' }}>
         <div className="ax-cluster" role="tablist" aria-label="Installed lights tabs" style={{ gap: 'var(--ax-space-2)' }}>
           {TABS.map((t) => {
@@ -1497,7 +1589,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         </div>
       </div>
 
-      {/* ── Main Table Card ── */}
+      {/* ── Main Table Card (Exact Goa SRT layout) ── */}
       <section className="ax-card ax-col--12" id="ssl-tabpanel" role="tabpanel" aria-labelledby={`ssl-tab-${tab}`}>
         <div className="ax-card__header">
           <div className="ax-card__titles">
@@ -1506,7 +1598,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
               <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{currentList.length}</span> lights
               {isCompleted && (
                 <>
-                  {' '}· Completed <b className="ax-num">{num(installedLightsCount)}</b> / {num(totalLightsCount)} · Approved <b className="ax-num">{num(verifyApprovedCount)}</b> · Pending Verify <b className="ax-num">{num(verifyPendingCount)}</b> · Claims Raised <b className="ax-num">{num(claimSubmittedCount)}</b> / {num(claimApplicableCount)} · Rejected <b className="ax-num">{num(verifyRejectCount)}</b>
+                  {' '}· Completed <b className="ax-num">{num(completeLightsCount)}</b> / {num(totalAssignedLightsCount)} · Approved <b className="ax-num">{num(approvedCount)}</b> · Pending Verify <b className="ax-num">{num(verifyPendingCount)}</b> · Claims Raised <b className="ax-num">{num(claimRaisedCount)}</b> / {num(claimApplicableCount)} · Rejected <b className="ax-num">{num(rejectCount)}</b>
                 </>
               )}
               {!isCompleted && (
@@ -1623,7 +1715,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
         <div className="ax-table-wrap">
           <table
             className="ax-table ax-table--hover"
-            style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2900 : 2200 }}
+            style={{ whiteSpace: 'nowrap', minWidth: isCompleted ? 2800 : 2200 }}
           >
             <caption className="ax-visually-hidden">{isCompleted ? 'Lights Completed' : 'Payment Lights'}</caption>
             <thead className="ax-table__head">
@@ -1721,7 +1813,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
                               title="Edit Installation Details"
                             >
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                               <span>Edit</span>
@@ -1745,7 +1837,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
               pageSize={pageSize}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              pageSizeOptions={[25, 50, 100, 200]}
+              pageSizeOptions={[25, 50, 100, 200, 300]}
             />
           </div>
         </div>
@@ -1754,7 +1846,7 @@ export function Bihar_Installation_SSL_InstallationDetail() {
       {/* ── Photo Preview Modal ── */}
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
-      {/* ── Raise Claim Modal ── */}
+      {/* ── Raise Claim Modal (Exact Goa SRT / Bihar SRT Pattern) ── */}
       {claimModalLight && (
         <RaiseClaimModal
           light={claimModalLight}

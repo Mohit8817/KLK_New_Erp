@@ -11,8 +11,23 @@ import { upSsl18wAmcApi } from '../../up-services';
 export function UP_AMC_SSL18W_CompletedAMC() {
   const fetchCompleted = async () => {
     const res = await upSsl18wAmcApi.getViewLight();
-    if (!res.status || !Array.isArray(res.data)) return [];
-    return res.data;
+    if (!res || res.status === false) return [];
+    const rawList: any[] = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.report)
+      ? res.data.report
+      : Array.isArray(res.data?.reports)
+      ? res.data.reports
+      : Array.isArray(res.data?.lights)
+      ? res.data.lights
+      : Array.isArray(res.data?.light)
+      ? res.data.light
+      : Array.isArray(res.report)
+      ? res.report
+      : Array.isArray(res.lights)
+      ? res.lights
+      : [];
+    return rawList;
   };
 
   const columns = [

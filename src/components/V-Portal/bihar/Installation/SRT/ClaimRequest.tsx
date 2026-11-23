@@ -71,14 +71,16 @@ function getSrtClaimImageCandidates(path?: string | null): string[] {
 
 const mediaUrl = (path?: string | null): string => {
   if (!path) return '';
-  if (/^(https?:|data:|blob:)/i.test(path)) return path;
-  const candidates = getSrtClaimImageCandidates(path);
-  return candidates[0] || `${BACKEND_BASE}/${path.replace(/^\/+/, '')}`;
+  const clean = String(path).replace(/\\/g, '/').trim();
+  if (/^(https?:|data:|blob:)/i.test(clean)) return clean;
+  const candidates = getSrtClaimImageCandidates(clean);
+  return candidates[0] || `${BACKEND_BASE}/${clean.replace(/^\/+/, '')}`;
 };
 
 const num = (x: unknown) => {
-  const n = Number(x ?? 0);
-  return isNaN(n) ? String(x ?? '0') : n.toLocaleString('en-IN');
+  if (x === null || x === undefined || x === '' || x === 'NA' || x === 'null') return '';
+  const n = Number(x);
+  return isNaN(n) ? String(x) : n.toLocaleString('en-IN');
 };
 
 const DASH = '—';
@@ -225,7 +227,7 @@ function KpiCard({
 
 /* ── Status Badge Helper ── */
 function ClaimStatusBadge({ status }: { status: unknown }) {
-  const val = String(status || '').toLowerCase();
+  const val = String(status ?? '').trim().toLowerCase();
   if (val === '1' || val === 'approved' || val === 'paid' || val === 'disbursed') {
     return <span className="ax-badge ax-badge--soft ax-badge--success">Paid / Approved</span>;
   }
@@ -234,6 +236,17 @@ function ClaimStatusBadge({ status }: { status: unknown }) {
   }
   if (val === 'partially' || val === 'partial') {
     return <span className="ax-badge ax-badge--soft ax-badge--info">Partial</span>;
+  }
+  return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
+}
+
+function PaymentStatusBadge({ status }: { status: unknown }) {
+  const val = String(status ?? '').trim().toLowerCase();
+  if (val === '1' || val === 'paid' || val === 'approved' || val === 'disbursed') {
+    return <span className="ax-badge ax-badge--soft ax-badge--success">Paid</span>;
+  }
+  if (val === '2' || val === 'rejected') {
+    return <span className="ax-badge ax-badge--soft ax-badge--danger">Rejected</span>;
   }
   return <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>;
 }
@@ -582,22 +595,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     loadData();
   }, [loadData]);
 
-  /* Open New Claim Modal */
-  const openNewClaimModal = async () => {
-    setNewClaimModal(true);
-    setClaimSiteId('');
-    setClaimAmount('');
-    setClaimInvoiceFile(null);
-    try {
-      setLoadingPendingSites(true);
-      const sites = await biharSrtInstallationService.fetchSiteNames();
-      setPendingSites(Array.isArray(sites) ? sites : []);
-    } catch (e) {
-      console.error('Failed to load pending claim sites:', e);
-    } finally {
-      setLoadingPendingSites(false);
-    }
-  };
+ 
 
   /* Submit New Claim */
   const handleClaimSubmit = async (e: FormEvent) => {
@@ -649,9 +647,30 @@ export function Bihar_Installation_SRT_ClaimRequest() {
 
   /* KPI Calculations */
   const totalClaims = claims.length;
-  const pay1Count = useMemo(() => claims.filter((c) => String(c.payment1_status).toLowerCase() === '1' || String(c.payment1_status).toLowerCase() === 'paid').length, [claims]);
-  const pay2Count = useMemo(() => claims.filter((c) => String(c.payment2_status).toLowerCase() === '1' || String(c.payment2_status).toLowerCase() === 'paid').length, [claims]);
-  const pay3Count = useMemo(() => claims.filter((c) => String(c.payment3_status).toLowerCase() === '1' || String(c.payment3_status).toLowerCase() === 'paid').length, [claims]);
+  const pay1Count = useMemo(
+    () =>
+      claims.filter((c) => {
+        const s = String(c.inst_pay1_status ?? c.payment1_status ?? '').trim().toLowerCase();
+        return s === '1' || s === 'paid' || s === 'approved';
+      }).length,
+    [claims]
+  );
+  const pay2Count = useMemo(
+    () =>
+      claims.filter((c) => {
+        const s = String(c.inst_pay2_status ?? c.payment2_status ?? '').trim().toLowerCase();
+        return s === '1' || s === 'paid' || s === 'approved';
+      }).length,
+    [claims]
+  );
+  const pay3Count = useMemo(
+    () =>
+      claims.filter((c) => {
+        const s = String(c.inst_pay3_status ?? c.payment3_status ?? '').trim().toLowerCase();
+        return s === '1' || s === 'paid' || s === 'approved';
+      }).length,
+    [claims]
+  );
 
   /* Districts for filter */
   const districts = useMemo(() => {
@@ -670,10 +689,10 @@ export function Bihar_Installation_SRT_ClaimRequest() {
     }
     if (statusFilter !== 'all') {
       list = list.filter((c) => {
-        const st = String(c.inst_claim_status ?? c.claim_status ?? '').toLowerCase();
+        const st = String(c.inst_claim_status ?? c.claim_status ?? '').toLowerCase().trim();
         if (statusFilter === 'approved') return st === '1' || st === 'approved' || st === 'paid';
         if (statusFilter === 'rejected') return st === '2' || st === 'rejected';
-        if (statusFilter === 'pending') return st === '0' || st === 'pending';
+        if (statusFilter === 'pending') return st === '0' || st === 'pending' || st === '';
         return true;
       });
     }
@@ -685,7 +704,9 @@ export function Bihar_Installation_SRT_ClaimRequest() {
           String(c.site_name || '').toLowerCase().includes(q) ||
           String(c.district || '').toLowerCase().includes(q) ||
           String(c.state || '').toLowerCase().includes(q) ||
-          String(c.claim_update_by || '').toLowerCase().includes(q)
+          String(c.inst_claim_update_by || c.claim_update_by || '').toLowerCase().includes(q) ||
+          String(c.ca_no || '').toLowerCase().includes(q) ||
+          String(c.contact_person || '').toLowerCase().includes(q)
         );
       });
     }
@@ -708,30 +729,93 @@ export function Bihar_Installation_SRT_ClaimRequest() {
   /* Export Columns */
   const exportCols: ExportColumn<SrtInstallClaimItem>[] = useMemo(
     () => [
-      { header: 'Sr. No.', accessor: (_, idx) => idx + 1 },
+      { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
       { header: 'State', accessor: (r) => r.state || 'Bihar' },
-      { header: 'District', accessor: (r) => r.district || '—' },
-      { header: 'Site Name', accessor: (r) => r.site_name || '—' },
-      { header: 'Claim Raised Date', accessor: (r) => r.inst_claim_date || r.claim_raised_date || '—' },
-      { header: 'Claim Invoice', accessor: (r) => r.inst_claim_invoice || r.claim_invoice || '—' },
-      { header: 'Claim Amount', accessor: (r) => num(r.inst_claim_amount || r.claim_amount) },
-      { header: 'Claim Update Date', accessor: (r) => r.claim_update_date || '—' },
-      { header: 'Claim Update by', accessor: (r) => r.claim_update_by || '—' },
-      { header: 'Claim Status', accessor: (r) => r.inst_claim_status ?? r.claim_status ?? 'Pending' },
-      { header: 'Payment 1st 70% Date', accessor: (r) => r.payment1_date || '—' },
-      { header: 'Payment 1st 70% Amount', accessor: (r) => num(r.payment1_amount) },
-      { header: 'Payment 1st 70% Status', accessor: (r) => r.payment1_status || '—' },
-      { header: 'Installation Inspection', accessor: (r) => r.inst_inspection || '—' },
-      { header: 'Document Submit', accessor: (r) => r.doc_submit || '—' },
-      { header: 'Payment 2nd 15% Date', accessor: (r) => r.payment2_date || '—' },
-      { header: 'Payment 2nd 15% Amount', accessor: (r) => num(r.payment2_amount) },
-      { header: 'Payment 2nd 15% Status', accessor: (r) => r.payment2_status || '—' },
-      { header: 'Raised 3rd Payment 15%', accessor: (r) => r.payment3_raised || '—' },
-      { header: 'Genration Image', accessor: (r) => r.generation_image || '—' },
-      { header: 'RMS Loger Image', accessor: (r) => r.rms_loger_image || '—' },
-      { header: 'Payment 3rd 15% Date', accessor: (r) => r.payment3_date || '—' },
-      { header: 'Payment 3rd 15% Amount', accessor: (r) => num(r.payment3_amount) },
-      { header: 'Payment 3rd 15% Status', accessor: (r) => r.payment3_status || '—' },
+      { header: 'District', accessor: (r) => r.district || DASH },
+      { header: 'Site Name', accessor: (r) => r.site_name || DASH },
+      { header: 'Claim Raised Date', accessor: (r) => r.inst_claim_date || r.claim_raised_date || r.claim_date || DASH },
+      { header: 'Claim Invoice', accessor: (r) => r.inst_claim_invoice || r.claim_invoice || DASH },
+      {
+        header: 'Claim Amount',
+        accessor: (r) => {
+          const amt = r.inst_claim_amount ?? r.claim_amount;
+          return amt ? `₹${num(amt)}` : DASH;
+        },
+      },
+      { header: 'Claim Update Date', accessor: (r) => r.inst_claim_update_date || r.claim_update_date || DASH },
+      { header: 'Claim Update by', accessor: (r) => r.inst_claim_update_by || r.claim_update_by || DASH },
+      {
+        header: 'Claim Status',
+        accessor: (r) => {
+          const st = String(r.inst_claim_status ?? r.claim_status ?? '').trim().toLowerCase();
+          return st === '1' || st === 'paid' || st === 'approved' ? 'Paid / Approved' : st === '2' || st === 'rejected' ? 'Rejected' : 'Pending';
+        },
+      },
+      { header: 'Payment 1st 70% Date', accessor: (r) => r.inst_pay1_date || r.payment1_date || DASH },
+      {
+        header: 'Payment 1st 70% Amount',
+        accessor: (r) => {
+          const amt = r.inst_pay1 ?? r.inst_pay1_amount ?? r.payment1_amount;
+          return amt ? `₹${num(amt)}` : DASH;
+        },
+      },
+      {
+        header: 'Payment 1st 70% Status',
+        accessor: (r) => {
+          const st = String(r.inst_pay1_status ?? r.payment1_status ?? '').trim().toLowerCase();
+          return st === '1' || st === 'paid' || st === 'approved' ? 'Paid' : st === '2' || st === 'rejected' ? 'Rejected' : 'Pending';
+        },
+      },
+      {
+        header: 'Installation Inspection',
+        accessor: (r) => {
+          const st = String(r.inst_inspection ?? '').trim().toLowerCase();
+          return st === '1' || st === 'complete' || st === 'yes' ? 'Complete' : 'Pending';
+        },
+      },
+      {
+        header: 'Document Submit',
+        accessor: (r) => {
+          const st = String(r.inst_doc_submit ?? r.doc_submit ?? '').trim().toLowerCase();
+          return st === '1' || st === 'submitted' || st === 'complete' || st === 'yes' ? 'Submitted' : 'Pending';
+        },
+      },
+      { header: 'Payment 2nd 15% Date', accessor: (r) => r.inst_pay2_date || r.payment2_date || DASH },
+      {
+        header: 'Payment 2nd 15% Amount',
+        accessor: (r) => {
+          const amt = r.inst_pay2 ?? r.inst_pay2_amount ?? r.payment2_amount;
+          return amt ? `₹${num(amt)}` : DASH;
+        },
+      },
+      {
+        header: 'Payment 2nd 15% Status',
+        accessor: (r) => {
+          const st = String(r.inst_pay2_status ?? r.payment2_status ?? '').trim().toLowerCase();
+          return st === '1' || st === 'paid' || st === 'approved' ? 'Paid' : st === '2' || st === 'rejected' ? 'Rejected' : 'Pending';
+        },
+      },
+      {
+        header: 'Raised 3rd Payment 15%',
+        accessor: (r) => (Number(r.inst_pay3_raised_status ?? r.payment3_raised) === 1 ? 'Raised' : 'Pending'),
+      },
+      { header: 'Genration Image', accessor: (r) => r.inst_gen_image || r.generation_image || DASH },
+      { header: 'RMS Loger Image', accessor: (r) => r.inst_rms_loger_image || r.rms_loger_image || DASH },
+      { header: 'Payment 3rd 15% Date', accessor: (r) => r.inst_pay3_date || r.payment3_date || DASH },
+      {
+        header: 'Payment 3rd 15% Amount',
+        accessor: (r) => {
+          const amt = r.inst_pay3 ?? r.inst_pay3_amount ?? r.payment3_amount;
+          return amt ? `₹${num(amt)}` : DASH;
+        },
+      },
+      {
+        header: 'Payment 3rd 15% Status',
+        accessor: (r) => {
+          const st = String(r.inst_pay3_status ?? r.payment3_status ?? '').trim().toLowerCase();
+          return st === '1' || st === 'paid' || st === 'approved' ? 'Paid' : st === '2' || st === 'rejected' ? 'Rejected' : 'Pending';
+        },
+      },
     ],
     []
   );
@@ -756,7 +840,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
               <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
               <span className="ax-btn__label">Refresh</span>
             </button>
-     
+          
           </div>
         }
       />
@@ -956,6 +1040,24 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                   paginatedClaims.map((row, idx) => {
                     const srNo = (currentPage - 1) * pageSize + idx + 1;
                     const invoicePath = row.inst_claim_invoice || row.claim_invoice;
+                    const claimAmt = row.inst_claim_amount ?? row.claim_amount;
+                    const pay1Amt = row.inst_pay1 ?? row.inst_pay1_amount ?? row.payment1_amount;
+                    const pay2Amt = row.inst_pay2 ?? row.inst_pay2_amount ?? row.payment2_amount;
+                    const pay3Amt = row.inst_pay3 ?? row.inst_pay3_amount ?? row.payment3_amount;
+                    const is3rdRaised = Number(row.inst_pay3_raised_status ?? row.payment3_raised) === 1;
+                    const genImg = row.inst_gen_image || row.generation_image;
+                    const rmsImg = row.inst_rms_loger_image || row.rms_loger_image;
+
+                    const isInspectionComplete =
+                      String(row.inst_inspection ?? '').trim().toLowerCase() === '1' ||
+                      String(row.inst_inspection ?? '').trim().toLowerCase() === 'complete' ||
+                      String(row.inst_inspection ?? '').trim().toLowerCase() === 'yes';
+
+                    const isDocSubmitted =
+                      String(row.inst_doc_submit ?? row.doc_submit ?? '').trim().toLowerCase() === '1' ||
+                      String(row.inst_doc_submit ?? row.doc_submit ?? '').trim().toLowerCase() === 'submitted' ||
+                      String(row.inst_doc_submit ?? row.doc_submit ?? '').trim().toLowerCase() === 'complete' ||
+                      String(row.inst_doc_submit ?? row.doc_submit ?? '').trim().toLowerCase() === 'yes';
 
                     return (
                       <tr key={row.id} className="ax-table__row">
@@ -966,7 +1068,7 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                           {row.site_name || DASH}
                         </td>
                         <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
-                          {row.inst_claim_date || row.claim_raised_date || DASH}
+                          {row.inst_claim_date || row.claim_raised_date || row.claim_date || DASH}
                         </td>
 
                         {/* Claim Invoice Link */}
@@ -987,33 +1089,39 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)', fontFamily: 'var(--ax-font-mono)' }}>
-                          ₹{num(row.inst_claim_amount || row.claim_amount)}
+                          {claimAmt ? `₹${num(claimAmt)}` : DASH}
                         </td>
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.claim_update_date || DASH}</td>
-                        <td className="ax-table__td">{row.claim_update_by || DASH}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
+                          {row.inst_claim_update_date || row.claim_update_date || DASH}
+                        </td>
+                        <td className="ax-table__td">
+                          {row.inst_claim_update_by || row.claim_update_by || DASH}
+                        </td>
                         <td className="ax-table__td">
                           <ClaimStatusBadge status={row.inst_claim_status ?? row.claim_status} />
                         </td>
 
                         {/* 1st 70% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment1_date || DASH}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
+                          {row.inst_pay1_date || row.payment1_date || DASH}
+                        </td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
-                          {row.payment1_amount ? `₹${num(row.payment1_amount)}` : DASH}
+                          {pay1Amt ? `₹${num(pay1Amt)}` : DASH}
                         </td>
                         <td className="ax-table__td">
-                          <ClaimStatusBadge status={row.payment1_status} />
+                          <PaymentStatusBadge status={row.inst_pay1_status ?? row.payment1_status} />
                         </td>
 
                         {/* Inspection & Document */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {String(row.inst_inspection || '').toLowerCase() === '1' || String(row.inst_inspection || '').toLowerCase() === 'complete' ? (
+                          {isInspectionComplete ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success">Complete</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
                           )}
                         </td>
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {String(row.doc_submit || '').toLowerCase() === '1' || String(row.doc_submit || '').toLowerCase() === 'complete' ? (
+                          {isDocSubmitted ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success">Submitted</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--warning">Pending</span>
@@ -1021,17 +1129,19 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         </td>
 
                         {/* 2nd 15% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment2_date || DASH}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
+                          {row.inst_pay2_date || row.payment2_date || DASH}
+                        </td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
-                          {row.payment2_amount ? `₹${num(row.payment2_amount)}` : DASH}
+                          {pay2Amt ? `₹${num(pay2Amt)}` : DASH}
                         </td>
                         <td className="ax-table__td">
-                          <ClaimStatusBadge status={row.payment2_status} />
+                          <PaymentStatusBadge status={row.inst_pay2_status ?? row.payment2_status} />
                         </td>
 
                         {/* Raised 3rd Payment 15% */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          {row.payment3_raised === 1 || row.payment3_raised === '1' ? (
+                          {is3rdRaised ? (
                             <span className="ax-badge ax-badge--soft ax-badge--info">Raised</span>
                           ) : (
                             <button
@@ -1051,28 +1161,30 @@ export function Bihar_Installation_SRT_ClaimRequest() {
                         {/* Generation Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
-                            path={row.generation_image}
+                            path={genImg}
                             alt="Generation"
-                            onClick={() => setPreviewImage({ url: mediaUrl(row.generation_image), title: `${row.site_name} - Generation Evidence` })}
+                            onClick={() => genImg && setPreviewImage({ url: mediaUrl(genImg), title: `${row.site_name} - Generation Evidence` })}
                           />
                         </td>
 
                         {/* RMS Logger Image */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <RobustClaimImage
-                            path={row.rms_loger_image}
+                            path={rmsImg}
                             alt="RMS Logger"
-                            onClick={() => setPreviewImage({ url: mediaUrl(row.rms_loger_image), title: `${row.site_name} - RMS Logger Photo` })}
+                            onClick={() => rmsImg && setPreviewImage({ url: mediaUrl(rmsImg), title: `${row.site_name} - RMS Logger Photo` })}
                           />
                         </td>
 
                         {/* 3rd 15% Payment */}
-                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>{row.payment3_date || DASH}</td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 11 }}>
+                          {row.inst_pay3_date || row.payment3_date || DASH}
+                        </td>
                         <td className="ax-table__td" style={{ fontWeight: 600, fontFamily: 'var(--ax-font-mono)' }}>
-                          {row.payment3_amount ? `₹${num(row.payment3_amount)}` : DASH}
+                          {pay3Amt ? `₹${num(pay3Amt)}` : DASH}
                         </td>
                         <td className="ax-table__td">
-                          <ClaimStatusBadge status={row.payment3_status} />
+                          <PaymentStatusBadge status={row.inst_pay3_status ?? row.payment3_status} />
                         </td>
                       </tr>
                     );

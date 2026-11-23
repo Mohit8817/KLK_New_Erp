@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -71,48 +71,42 @@ export interface StatusMeta {
   sub: string;
 }
 
-/* ───────── 32 Backend Statuses Specified in Prompt ───────── */
+/* ───────── 32 Backend Statuses ───────── */
 export const ULA_STATUS_CATALOG: StatusMeta[] = [
-  // Total
   { key: 'total', label: 'Total Sites', category: 'all', tone: 'accent', sub: 'All assigned ULA installation sites' },
 
-  // Structure
   { key: 'structure-complete', label: 'Structure Complete', category: 'structure', tone: 'emerald', sub: 'Civil foundation & structure erected' },
   { key: 'structure-pending', label: 'Structure Pending', category: 'structure', tone: 'amber', sub: 'Structure erection work pending' },
   { key: 'structure-verify-approved', label: 'Structure Approved', category: 'structure', tone: 'emerald', sub: 'Foundation & structure audit approved' },
   { key: 'structure-verify-pending', label: 'Structure Verify Pending', category: 'structure', tone: 'amber', sub: 'Awaiting structure verification' },
   { key: 'structure-verify-reject', label: 'Structure Rejected', category: 'structure', tone: 'red', sub: 'Structure verification rejected / rework' },
 
-  // Installation
   { key: 'complete', label: 'Installation Complete', category: 'installation', tone: 'emerald', sub: 'Pump, panel & controller installed' },
   { key: 'pending', label: 'Installation Pending', category: 'installation', tone: 'amber', sub: 'Solar pump installation pending' },
   { key: 'verify-approved', label: 'Installation Approved', category: 'installation', tone: 'emerald', sub: 'Physical site verification approved' },
   { key: 'verify-pending', label: 'Installation Verify Pending', category: 'installation', tone: 'amber', sub: 'Inspection verification in queue' },
   { key: 'verify-reject', label: 'Installation Rejected', category: 'installation', tone: 'red', sub: 'Physical verification rejected' },
 
-  // Documents
   { key: 'doc-complete', label: 'Doc Submitted', category: 'document', tone: 'violet', sub: 'Handover & commissioning doc submitted' },
   { key: 'doc-pending', label: 'Doc Pending', category: 'document', tone: 'amber', sub: 'Documentation submission pending' },
   { key: 'doc-verify-approved', label: 'Doc Approved', category: 'document', tone: 'emerald', sub: 'Installation documents verified & approved' },
   { key: 'doc-verify-pending', label: 'Doc Verify Pending', category: 'document', tone: 'amber', sub: 'Document approval pending' },
   { key: 'doc-verify-reject', label: 'Doc Rejected', category: 'document', tone: 'red', sub: 'Document rejected / re-upload required' },
 
-  // 50% Claim & Payment
   { key: 'claim50-applicable', label: 'Claim 50% Applicable', category: 'claim50', tone: 'cyan', sub: 'Sites eligible for 50% subsidy claim' },
   { key: 'claim50-raised', label: 'Claim 50% Raised', category: 'claim50', tone: 'accent', sub: '50% claim invoice submitted' },
   { key: 'claim50-verify-pending', label: 'Claim 50% Verify Pending', category: 'claim50', tone: 'amber', sub: '50% claim awaiting verification' },
-  { key: 'claim50-papprove', label: 'Claim 50% Approved', category: 'claim50', tone: 'emerald', sub: '50% claim verified & passed' },
-  { key: 'claim50-reject', label: 'Claim 50% Rejected', category: 'claim50', tone: 'red', sub: '50% claim rejected by authority' },
+  { key: 'claim50-verify-papprove', label: 'Claim 50% Approved', category: 'claim50', tone: 'emerald', sub: '50% claim verified & passed' },
+  { key: 'claim50-verify-reject', label: 'Claim 50% Rejected', category: 'claim50', tone: 'red', sub: '50% claim rejected by authority' },
   { key: 'inst-pay50-paid', label: 'Pay 50% Paid', category: 'claim50', tone: 'emerald', sub: '50% vendor payment disbursed' },
   { key: 'inst-pay50-partially', label: 'Pay 50% Partially Paid', category: 'claim50', tone: 'amber', sub: '50% payment partial release' },
   { key: 'inst-pay50-pending', label: 'Pay 50% Pending', category: 'claim50', tone: 'red', sub: '50% disbursement pending' },
 
-  // 30% Claim & Payment
   { key: 'claim-applicable', label: 'Claim 30% Applicable', category: 'claim30', tone: 'cyan', sub: 'Sites eligible for 30% subsidy claim' },
   { key: 'claim-raised', label: 'Claim 30% Raised', category: 'claim30', tone: 'accent', sub: '30% claim invoice submitted' },
   { key: 'claim-verify-pending', label: 'Claim 30% Verify Pending', category: 'claim30', tone: 'amber', sub: '30% claim awaiting verification' },
-  { key: 'claim-papprove', label: 'Claim 30% Approved', category: 'claim30', tone: 'emerald', sub: '30% claim verified & passed' },
-  { key: 'claim-reject', label: 'Claim 30% Rejected', category: 'claim30', tone: 'red', sub: '30% claim rejected by authority' },
+  { key: 'claim-verify-papprove', label: 'Claim 30% Approved', category: 'claim30', tone: 'emerald', sub: '30% claim verified & passed' },
+  { key: 'claim-verify-reject', label: 'Claim 30% Rejected', category: 'claim30', tone: 'red', sub: '30% claim rejected by authority' },
   { key: 'inst-pay-paid', label: 'Pay 30% Paid', category: 'claim30', tone: 'emerald', sub: '30% vendor payment disbursed' },
   { key: 'inst-pay-partially', label: 'Pay 30% Partially Paid', category: 'claim30', tone: 'amber', sub: '30% payment partial release' },
   { key: 'inst-pay-pending', label: 'Pay 30% Pending', category: 'claim30', tone: 'red', sub: '30% disbursement pending' },
@@ -127,8 +121,18 @@ const CATEGORY_TABS: { key: StatusCategory; label: string }[] = [
   { key: 'claim30', label: '30% Claim & Pay' },
 ];
 
+const CATEGORY_GROUP_LABEL: Record<StatusCategory, string> = {
+  all: 'Overview',
+  structure: 'Structure Stage',
+  installation: 'Installation Stage',
+  document: 'Documentation Stage',
+  claim50: '50% Subsidy Claim & Payment',
+  claim30: '30% Subsidy Claim & Payment',
+};
+
 /* ───────── UI Helpers ───────── */
 const DASH = '—';
+const num = (x: number) => (x || 0).toLocaleString('en-IN');
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 const beneficiaryOf = (r: UlaStatusRecord) => r.beneficiary_name || r.consumer_name || r.site_name || `Site #${r.id}`;
 
@@ -161,7 +165,7 @@ const verifyTone = (s: 'approved' | 'rejected' | 'pending'): 'success' | 'danger
   return 'warning';
 };
 
-const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+const fmtTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
 /* ───────── Icons ───────── */
 const ICON_REFRESH = (
@@ -171,32 +175,102 @@ const ICON_REFRESH = (
   </svg>
 );
 
-const svgIcon = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: '100%', height: '100%' }}>{children}</svg>
+const svg = (children: ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
+const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
+const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
+const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
+const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 
-const TONE: Record<string, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb, 37, 99, 235), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #0891b2) 14%, transparent)', fg: 'var(--ax-viz-cyan, #0891b2)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: 'var(--ax-viz-emerald, #10b981)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: 'var(--ax-viz-amber, #f59e0b)' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #7c3aed) 14%, transparent)', fg: 'var(--ax-viz-violet, #7c3aed)' },
-  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: 'var(--ax-viz-pink, #ec4899)' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: 'var(--ax-viz-red, #ef4444)' },
+/* ───────── KPI card (same as Karnataka / ULA dashboard) ───────── */
+interface KpiSegment {
+  label: string;
+  count: number | string;
+  onClick: () => void;
+}
+interface KpiProps {
+  icon: ReactNode;
+  tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
+  label: string;
+  value?: string;
+  unit?: string;
+  sub: string;
+  badge?: string;
+  onClick?: () => void;
+  segments?: KpiSegment[];
+}
+const TONE: Record<KpiProps['tone'], { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+  pink: { bg: 'color-mix(in oklab, var(--ax-viz-pink, #ec4899) 14%, transparent)', fg: '#db2777' },
+  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626' },
 };
 
-function KpiCard({ icon, tone, label, value, sub }: { icon: ReactNode; tone: string; label: string; value: ReactNode; sub: string }) {
-  const t = TONE[tone] || TONE.accent;
+const onActivate = (fn: () => void) => (e: ReactKeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fn();
+  }
+};
+
+function KpiCard({ icon, tone, label, value, unit, sub, badge, onClick, segments }: KpiProps) {
+  const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>{label}</span>
+    <div
+      className={`ax-card ax-col--3 ${onClick ? 'asw-interactive-kpi' : ''}`}
+      role={onClick ? 'button' : 'region'}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={label}
+      onClick={onClick}
+      onKeyDown={onClick ? onActivate(onClick) : undefined}
+      style={{
+        borderRadius: 'var(--ax-radius-lg, 12px)',
+        background: 'var(--ax-bg-surface, #ffffff)',
+        border: '1px solid var(--ax-border, #e2e8f0)',
+      }}
+    >
+      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span style={{ width: 28, height: 28, borderRadius: 'var(--ax-radius-md, 8px)', background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ width: 16, height: 16, display: 'inline-flex' }}>{icon}</span>
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+          </div>
+          {badge && (
+            <span className="ax-kpi__delta ax-kpi__delta--up" style={{ fontSize: '11px', padding: '1px 6px', flexShrink: 0 }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--ax-font-display)', fontSize: '1.35rem', fontWeight: 700, lineHeight: 1.1, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
+            {segments && segments.length > 0
+              ? segments.map((seg, i) => (
+                  <span key={seg.label}>
+                    {i > 0 && <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500, margin: '0 4px' }}>/</span>}
+                    <span
+                      className="kpi-seg"
+                      role="button"
+                      tabIndex={0}
+                      title={`View ${seg.label} sites`}
+                      onClick={(e) => { e.stopPropagation(); seg.onClick(); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); seg.onClick(); } }}
+                    >
+                      {seg.count}
+                    </span>
+                  </span>
+                ))
+              : value}{' '}
+            {unit && <small style={{ fontSize: '11px', fontWeight: 500, color: 'var(--ax-text-muted)' }}>{unit}</small>}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: '2px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
+        </div>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
     </div>
   );
 }
@@ -281,8 +355,15 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
   );
 }
 
-/* ───────── Stylesheet ───────── */
+/* ───────── Stylesheet (Karnataka SWP design language) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
+  .solar-erp-page .ax-page-head { margin-block-end: 10px; }
+  .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
+  .solar-erp-page .ax-dash-grid { margin-top: 0; }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -309,81 +390,53 @@ const PAGE_CSS = `
   .solar-erp-page .ax-card__actions .ax-export-toolbar,
   .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; gap: 4px; }
   .solar-erp-page .ax-export-toolbar__button { padding-inline: 8px !important; min-width: 0; }
-  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+  .solar-erp-page .ax-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; }
+  .solar-erp-page .ax-table { min-width: 850px; }
 
-  /* ── Status Pills & Category Tabs ── */
+  /* Interactive KPI & clickable numbers */
+  .asw-interactive-kpi {
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  }
+  .asw-interactive-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ax-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    border-color: rgba(var(--asw-primary-rgb), 0.35) !important;
+  }
+  .solar-erp-page .kpi-seg {
+    cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background 120ms ease, color 120ms ease;
+  }
+  .solar-erp-page .kpi-seg:hover { background: rgba(var(--asw-primary-rgb), 0.12); color: var(--asw-primary); text-decoration: underline; }
+  .solar-erp-page .kpi-seg:focus-visible { outline: 2px solid var(--asw-primary); outline-offset: 1px; }
+
+  /* Category tabs & status pills */
   .ula-cat-tabs {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: thin;
-    border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    margin-bottom: 12px;
+    display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin;
+    border-bottom: 1px solid var(--ax-border, #e2e8f0); margin-bottom: 12px;
   }
   .ula-cat-tab-btn {
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    border: none;
-    background: transparent;
-    color: var(--ax-text-muted, #64748b);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.15s ease;
-    white-space: nowrap;
+    padding: 6px 14px; font-size: 13px; font-weight: 600; border: none; background: transparent;
+    color: var(--ax-text-muted, #64748b); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s ease; white-space: nowrap;
   }
-  .ula-cat-tab-btn:hover {
-    color: var(--ax-accent, #2563eb);
-  }
-  .ula-cat-tab-btn.active {
-    color: var(--ax-accent, #2563eb);
-    border-bottom-color: var(--ax-accent, #2563eb);
-    font-weight: 700;
-  }
+  .ula-cat-tab-btn:hover { color: var(--asw-primary, #2563eb); }
+  .ula-cat-tab-btn.active { color: var(--asw-primary, #2563eb); border-bottom-color: var(--asw-primary, #2563eb); font-weight: 700; }
 
-  .ula-status-pills {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 4px 0 10px 0;
-    scrollbar-width: thin;
-  }
+  .ula-status-pills { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px 0; scrollbar-width: thin; }
   .ula-pill-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    background: var(--ax-surface, #ffffff);
-    border: 1px solid var(--ax-border, #cbd5e1);
-    color: var(--ax-text, #334155);
-    cursor: pointer;
-    transition: all 0.15s ease;
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9999px;
+    font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--ax-bg-surface, #ffffff);
+    border: 1px solid var(--ax-border, #cbd5e1); color: var(--ax-text, #334155); cursor: pointer; transition: all 0.15s ease;
   }
-  .ula-pill-btn:hover {
-    border-color: var(--ax-accent, #2563eb);
-    color: var(--ax-accent, #2563eb);
-    background: rgba(37, 99, 235, 0.04);
-  }
+  .ula-pill-btn:hover { border-color: var(--asw-primary, #2563eb); color: var(--asw-primary, #2563eb); background: rgba(37, 99, 235, 0.04); }
   .ula-pill-btn.active {
-    background: var(--ax-accent, #2563eb);
-    border-color: var(--ax-accent, #2563eb);
-    color: #ffffff;
+    background: var(--asw-primary, #2563eb); border-color: var(--asw-primary, #2563eb); color: #ffffff;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
   }
 
-  /* ── Modal Styling ── */
-  .ax-modal {
-    position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
-    padding: 16px;
-  }
-  .ax-modal__backdrop {
-    position: absolute; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);
-  }
+  /* Modal */
+  .ax-modal { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .ax-modal__backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); }
   .ax-modal__dialog {
     position: relative; z-index: 1; background: var(--ax-bg-surface, #ffffff); border-radius: 14px;
     box-shadow: 0 20px 40px -15px rgba(0,0,0,0.3); border: 1px solid var(--ax-border, #e2e8f0);
@@ -405,27 +458,53 @@ const PAGE_CSS = `
   }
 
   @media (max-width: 1100px) {
+    .solar-erp-page .ax-col--3 { grid-column: span 6; }
     .solar-erp-page .ax-export-toolbar__button { font-size: 0; gap: 0; padding: 0 8px !important; justify-content: center; }
     .solar-erp-page .ax-export-toolbar__button svg { width: 16px; height: 16px; flex-shrink: 0; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
+    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 200px; }
   }
   @media (max-width: 760px) {
+    .solar-erp-page { width: 100%; max-width: 100%; overflow-x: hidden; box-sizing: border-box; }
     .solar-erp-page .ax-card__header { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; }
     .solar-erp-page .ax-card__titles { flex: 0 0 auto; min-width: 0; width: 100%; max-width: 100%; }
-    .solar-erp-page .ax-card__actions { width: 100%; justify-content: stretch; margin-left: 0; }
-    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; }
+    .solar-erp-page .ax-card__title { font-family: var(--ax-font-display); font-size: var(--ax-text-md); line-height: var(--ax-leading-md); }
+    .solar-erp-page .ax-card__actions { width: 100%; justify-content: flex-start; margin-left: 0; flex-wrap: wrap; }
+    .solar-erp-page .ax-card__actions .ax-cluster { width: 100%; flex-wrap: wrap !important; justify-content: flex-start; gap: 8px; }
     .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; max-width: 100%; }
+    .solar-erp-page .ax-card__actions [class*="search"] { flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+    .solar-erp-page .ax-export-toolbar__button { font-size: 12px; gap: 4px; height: 30px; padding: 0 8px !important; }
+  }
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-col--3 { grid-column: span 12; }
   }
 `;
 
+function resolveUlaInitialStatus(rawStatus: string | null, rawHash: string): string {
+  const hash = (rawHash || '').replace('#', '').toLowerCase().trim();
+  if (rawStatus && rawStatus !== 'total') {
+    if (rawStatus === 'claim50-papprove') return 'claim50-verify-papprove';
+    if (rawStatus === 'claim50-reject') return 'claim50-verify-reject';
+    if (rawStatus === 'claim-papprove') return 'claim-verify-papprove';
+    if (rawStatus === 'claim-reject') return 'claim-verify-reject';
+    return rawStatus;
+  }
+  if (rawStatus === 'total') return 'total';
+  if (hash === 'pending' || hash === 'penidng') return 'pending';
+  if (hash === 'completed' || hash === 'complete') return 'complete';
+  if (hash === 'structure-pending') return 'structure-pending';
+  if (hash === 'structure-complete') return 'structure-complete';
+  return 'total';
+}
+
 export function Bihar_Installation_ULA_StatusView() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialStatus = searchParams.get('status') || 'total';
+  const queryStatus = searchParams.get('status');
   const initialDistrict = searchParams.get('district') || 'all';
+  const initialStatus = resolveUlaInitialStatus(queryStatus, window.location.hash);
 
   const [currentStatus, setCurrentStatus] = useState<string>(initialStatus);
   const [selectedDistrict, setSelectedDistrict] = useState<string>(initialDistrict);
@@ -436,17 +515,14 @@ export function Bihar_Installation_ULA_StatusView() {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
 
-  // Search & Pagination
   const [search, setSearch] = useState<string>('');
   const [verifyFilter, setVerifyFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(15);
 
-  // Selected site for details modal & photo preview
   const [selectedRecord, setSelectedRecord] = useState<UlaStatusRecord | null>(null);
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  // Find meta for current status
   const currentMeta = useMemo(() => {
     return (
       ULA_STATUS_CATALOG.find((s) => s.key === currentStatus) || {
@@ -459,22 +535,32 @@ export function Bihar_Installation_ULA_StatusView() {
     );
   }, [currentStatus]);
 
-  // Keep category in sync with status
+  // Whenever the status changes (KPI number click, pill, dropdown, URL), jump the tab to its category
   useEffect(() => {
-    if (currentMeta?.category && activeCategory !== currentMeta.category && activeCategory === 'all') {
-      setActiveCategory(currentMeta.category);
-    }
-  }, [currentMeta, activeCategory]);
+    setActiveCategory(currentMeta.category);
+  }, [currentMeta.category]);
 
-  // Sync state from URL query params
+  // Sync state from URL query params and hash
   useEffect(() => {
     const s = searchParams.get('status');
     const d = searchParams.get('district');
-    if (s && s !== currentStatus) setCurrentStatus(s);
-    if (d && d !== selectedDistrict) setSelectedDistrict(d);
+    const resolved = resolveUlaInitialStatus(s, window.location.hash);
+    if (resolved && resolved !== currentStatus) setCurrentStatus(resolved);
+    const nextDistrict = d || 'all';
+    if (nextDistrict !== selectedDistrict) setSelectedDistrict(nextDistrict);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // Load Status Data from API
+  useEffect(() => {
+    const onHashChange = () => {
+      const resolved = resolveUlaInitialStatus(searchParams.get('status'), window.location.hash);
+      if (resolved && resolved !== currentStatus) setCurrentStatus(resolved);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, [currentStatus, searchParams]);
+
+  // Load status data from API
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
@@ -500,30 +586,27 @@ export function Bihar_Installation_ULA_StatusView() {
     loadData();
   }, [loadData]);
 
-  // Status selection handler
-  const handleSelectStatus = (statusKey: string) => {
+  // Status selection (used by KPI numbers, pills, dropdown)
+  const handleSelectStatus = useCallback((statusKey: string) => {
     setCurrentStatus(statusKey);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('status', statusKey);
-    if (selectedDistrict && selectedDistrict !== 'all') {
-      nextParams.set('district', selectedDistrict);
-    } else {
-      nextParams.delete('district');
-    }
+    if (selectedDistrict && selectedDistrict !== 'all') nextParams.set('district', selectedDistrict);
+    else nextParams.delete('district');
     setSearchParams(nextParams);
-    setCurrentPage(1);
-  };
 
-  // District selection handler
+    if (statusKey === 'pending' || statusKey === 'structure-pending') window.location.hash = 'pending';
+    else if (statusKey === 'complete' || statusKey === 'structure-complete') window.location.hash = 'completed';
+
+    setCurrentPage(1);
+  }, [searchParams, selectedDistrict, setSearchParams]);
+
   const handleSelectDistrict = (district: string) => {
     setSelectedDistrict(district);
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set('status', currentStatus);
-    if (district && district !== 'all') {
-      nextParams.set('district', district);
-    } else {
-      nextParams.delete('district');
-    }
+    if (district && district !== 'all') nextParams.set('district', district);
+    else nextParams.delete('district');
     setSearchParams(nextParams);
     setCurrentPage(1);
   };
@@ -539,7 +622,6 @@ export function Bihar_Installation_ULA_StatusView() {
     return { total, installed, structApp, vApp, vRej, vPend };
   }, [items]);
 
-  // District options
   const districtOptions = useMemo(() => {
     const set = new Set<string>();
     items.forEach((r) => r.district && set.add(String(r.district).trim()));
@@ -547,33 +629,22 @@ export function Bihar_Installation_ULA_StatusView() {
     return Array.from(set).sort();
   }, [items]);
 
-  // Filtered statuses for active category tab
   const categoryStatuses = useMemo(() => {
     if (activeCategory === 'all') return ULA_STATUS_CATALOG;
     return ULA_STATUS_CATALOG.filter((s) => s.category === activeCategory);
   }, [activeCategory]);
 
-  // Client-side search and verify filter
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((r) => {
       if (verifyFilter !== 'all' && verifyState(r) !== verifyFilter) return false;
       if (!q) return true;
       return [
-        beneficiaryOf(r),
-        r.father_name,
-        r.district,
-        r.block,
-        r.village,
-        r.ca_no,
-        r.contact_no,
-        r.aadhar_no,
-        r.vendor_name,
+        beneficiaryOf(r), r.father_name, r.district, r.block, r.village, r.ca_no, r.contact_no, r.aadhar_no, r.vendor_name,
       ].some((v) => String(v ?? '').toLowerCase().includes(q));
     });
   }, [items, search, verifyFilter]);
 
-  // Paginated list
   const paged = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
@@ -586,7 +657,6 @@ export function Bihar_Installation_ULA_StatusView() {
     setCurrentPage(1);
   };
 
-  // Export Columns definition
   const exportCols: ExportColumn<UlaStatusRecord>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') },
@@ -616,30 +686,33 @@ export function Bihar_Installation_ULA_StatusView() {
   const handleExcel = () => exportDataToExcel(`Bihar_ULA_${currentStatus}`, filtered, exportCols);
   const handlePdf = () => printTableData(pageTitle, filtered, exportCols);
 
+  const pendingInstall = Math.max(0, summary.total - summary.installed);
+  const pendingStructure = Math.max(0, summary.total - summary.structApp);
+
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
 
-      {/* Page Header */}
       <PageHead
-        title="ULA Installation Dashboard"
-        subtitle={`Bihar State Operations · ULA installation tracking — last updated ${fmtTime(updatedAt)}`}
+        title="ULA Status Register"
+        subtitle={
+          <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
+            Bihar ULA site status drill-down · Last updated {fmtTime(updatedAt)}
+          </span>
+        }
         breadcrumbs={[
-          { label: 'ERP Dashboard', href: '/' },
-          { label: 'Vendor Portal', href: '/v' },
-          { label: 'Bihar Operations', href: '/v/bihar' },
-          { label: 'ULA Installation', href: '/v/bihar/installation/ula/dashboard' },
+          { label: 'Home', href: '/v-dashboard' },
+          { label: 'Bihar', href: '/v/bihar' },
+          { label: 'Installation' },
+          { label: 'ULA', href: '/v/bihar/installation/ula/dashboard' },
           { label: 'Status View' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--secondary ax-btn--sm"
-              onClick={loadData}
-              disabled={loading}
-              title="Refresh status data"
-            >
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
+              <span className="ax-badge__dot" /> State: Bihar
+            </span>
+            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading} title="Refresh status data">
               {ICON_REFRESH}
               <span className="ax-btn__label">Refresh</span>
             </button>
@@ -650,351 +723,289 @@ export function Bihar_Installation_ULA_StatusView() {
         }
       />
 
-      {errorMsg && !loading && (
-        <div className="ax-alert ax-alert--danger" role="alert" style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">{errorMsg}</div>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => setErrorMsg('')}>✕</button>
-        </div>
-      )}
+      <div className="ax-dash-grid mt-0 pt-0">
+        {errorMsg && !loading && (
+          <div className="ax-col--12" role="alert" style={{ padding: '10px 14px', background: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 12%, transparent)', color: 'var(--ax-viz-red, #dc2626)', borderRadius: 'var(--ax-radius-md, 8px)', fontSize: 'var(--ax-text-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span><b>Error loading status records:</b> {errorMsg}</span>
+            <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => setErrorMsg('')}>✕</button>
+          </div>
+        )}
 
-      {/* KPI Row */}
-      <div className="ax-dash-grid" style={{ marginBottom: 16 }}>
+        {/* KPI row — click a number to load that status */}
         {loading ? (
           <KpiSkeleton count={4} />
         ) : (
           <>
             <KpiCard
+              icon={I_PIN}
               tone={currentMeta.tone}
               label={currentMeta.label}
-              value={summary.total.toLocaleString('en-IN')}
+              value={num(summary.total)}
+              unit="Sites"
               sub={currentMeta.sub}
-              icon={svgIcon(
-                <>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                  <path d="M9 15l2 2 4-4" />
-                </>
-              )}
             />
             <KpiCard
+              icon={I_DONE}
               tone="emerald"
-              label="Installation Done"
-              value={summary.installed.toLocaleString('en-IN')}
-              sub={`${Math.max(0, summary.total - summary.installed)} pending site execution`}
-              icon={svgIcon(
-                <>
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <path d="M22 4L12 14.01l-3-3" />
-                </>
-              )}
+              label="Installation Status"
+              sub="Installed / Pending"
+              badge={`${summary.total ? Math.round((summary.installed / summary.total) * 1000) / 10 : 0}%`}
+              onClick={() => handleSelectStatus('complete')}
+              segments={[
+                { label: 'Installed', count: num(summary.installed), onClick: () => handleSelectStatus('complete') },
+                { label: 'Pending', count: num(pendingInstall), onClick: () => handleSelectStatus('pending') },
+              ]}
             />
             <KpiCard
+              icon={I_BOLT}
               tone="cyan"
-              label="Structure Approved"
-              value={summary.structApp.toLocaleString('en-IN')}
-              sub="Civil foundation passed"
-              icon={svgIcon(
-                <>
-                  <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-                  <path d="M9 12l2 2 4-4" />
-                </>
-              )}
+              label="Structure Status"
+              sub="Done / Pending"
+              onClick={() => handleSelectStatus('structure-complete')}
+              segments={[
+                { label: 'Structure Done', count: num(summary.structApp), onClick: () => handleSelectStatus('structure-complete') },
+                { label: 'Structure Pending', count: num(pendingStructure), onClick: () => handleSelectStatus('structure-pending') },
+              ]}
             />
             <KpiCard
-              tone="amber"
-              label="Physical Verify Passed"
-              value={summary.vApp.toLocaleString('en-IN')}
-              sub={`${summary.vPend} pending · ${summary.vRej} rejected`}
-              icon={svgIcon(
-                <>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </>
-              )}
+              icon={I_SHIELD}
+              tone="violet"
+              label="Verification Status"
+              sub="Approved / Pending / Rejected"
+              onClick={() => handleSelectStatus('verify-approved')}
+              segments={[
+                { label: 'Approved', count: num(summary.vApp), onClick: () => handleSelectStatus('verify-approved') },
+                { label: 'Verify Pending', count: num(summary.vPend), onClick: () => handleSelectStatus('verify-pending') },
+                { label: 'Rejected', count: num(summary.vRej), onClick: () => handleSelectStatus('verify-reject') },
+              ]}
             />
           </>
         )}
-      </div>
 
-      {/* Main Table Card */}
-      <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA status records table">
-        <div className="ax-card__header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
-          {/* Top row: Titles & Global Controls */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Status Drilldown Registry</span>
-              <h2 className="ax-card__title">{pageTitle}</h2>
-              <p className="ax-card__subtitle">
-                Showing <b className="ax-num">{filtered.length}</b> of <b className="ax-num">{items.length}</b> sites
-                {selectedDistrict !== 'all' ? ` in ${selectedDistrict}` : ' across Bihar'} · Status: <span className="ax-badge ax-badge--soft ax-badge--accent">{currentStatus}</span>
-              </p>
-            </div>
+        {/* Main Table Card */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Bihar ULA status records table">
+          <div className="ax-card__header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div className="ax-card__titles">
+                <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>Status Drilldown Registry</span>
+                <h2 className="ax-card__title">{pageTitle}</h2>
+                <p className="ax-card__subtitle">
+                  Showing <b className="ax-num">{num(filtered.length)}</b> of <b className="ax-num">{num(items.length)}</b> sites
+                  {selectedDistrict !== 'all' ? ` in ${selectedDistrict}` : ' across Bihar'} · Status: <span className="ax-badge ax-badge--soft ax-badge--accent">{currentStatus}</span>
+                </p>
+              </div>
 
-            <div className="ax-card__actions">
-              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
-                {/* District Selector */}
-                <select
-                  className="ax-input ax-input--sm"
-                  aria-label="Filter by district"
-                  value={selectedDistrict}
-                  onChange={(e) => handleSelectDistrict(e.target.value)}
-                  style={{ width: 145, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                >
-                  <option value="all">All Districts</option>
-                  {districtOptions.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+              <div className="ax-card__actions">
+                <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                  <select
+                    className="ax-input ax-input--sm"
+                    aria-label="Filter by district"
+                    value={selectedDistrict}
+                    onChange={(e) => handleSelectDistrict(e.target.value)}
+                    style={{ width: 145, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    <option value="all">All Districts</option>
+                    {districtOptions.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
 
-                {/* Status Selector Dropdown */}
-                <select
-                  className="ax-input ax-input--sm"
-                  aria-label="Select Status"
-                  value={currentStatus}
-                  onChange={(e) => handleSelectStatus(e.target.value)}
-                  style={{ width: 190, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                >
-                  <optgroup label="Overview">
-                    <option value="total">Total Sites</option>
-                  </optgroup>
-                  <optgroup label="Structure Stage">
-                    <option value="structure-complete">Structure Complete</option>
-                    <option value="structure-pending">Structure Pending</option>
-                    <option value="structure-verify-approved">Structure Verify Approved</option>
-                    <option value="structure-verify-pending">Structure Verify Pending</option>
-                    <option value="structure-verify-reject">Structure Verify Reject</option>
-                  </optgroup>
-                  <optgroup label="Installation Stage">
-                    <option value="complete">Installation Complete</option>
-                    <option value="pending">Installation Pending</option>
-                    <option value="verify-approved">Installation Verify Approved</option>
-                    <option value="verify-pending">Installation Verify Pending</option>
-                    <option value="verify-reject">Installation Verify Reject</option>
-                  </optgroup>
-                  <optgroup label="Documentation Stage">
-                    <option value="doc-complete">Doc Complete</option>
-                    <option value="doc-pending">Doc Pending</option>
-                    <option value="doc-verify-approved">Doc Verify Approved</option>
-                    <option value="doc-verify-pending">Doc Verify Pending</option>
-                    <option value="doc-verify-reject">Doc Verify Reject</option>
-                  </optgroup>
-                  <optgroup label="50% Subsidy Claim & Payment">
-                    <option value="claim50-applicable">Claim 50% Applicable</option>
-                    <option value="claim50-raised">Claim 50% Raised</option>
-                    <option value="claim50-verify-pending">Claim 50% Verify Pending</option>
-                    <option value="claim50-papprove">Claim 50% Approved</option>
-                    <option value="claim50-reject">Claim 50% Reject</option>
-                    <option value="inst-pay50-paid">Pay 50% Paid</option>
-                    <option value="inst-pay50-partially">Pay 50% Partially Paid</option>
-                    <option value="inst-pay50-pending">Pay 50% Pending</option>
-                  </optgroup>
-                  <optgroup label="30% Subsidy Claim & Payment">
-                    <option value="claim-applicable">Claim 30% Applicable</option>
-                    <option value="claim-raised">Claim 30% Raised</option>
-                    <option value="claim-verify-pending">Claim 30% Verify Pending</option>
-                    <option value="claim-papprove">Claim 30% Approved</option>
-                    <option value="claim-reject">Claim 30% Reject</option>
-                    <option value="inst-pay-paid">Pay 30% Paid</option>
-                    <option value="inst-pay-partially">Pay 30% Partially Paid</option>
-                    <option value="inst-pay-pending">Pay 30% Pending</option>
-                  </optgroup>
-                </select>
+                  <select
+                    className="ax-input ax-input--sm"
+                    aria-label="Select Status"
+                    value={currentStatus}
+                    onChange={(e) => handleSelectStatus(e.target.value)}
+                    style={{ width: 190, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    {(Object.keys(CATEGORY_GROUP_LABEL) as StatusCategory[]).map((cat) => (
+                      <optgroup key={cat} label={CATEGORY_GROUP_LABEL[cat]}>
+                        {ULA_STATUS_CATALOG.filter((s) => s.category === cat).map((s) => (
+                          <option key={s.key} value={s.key}>{s.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
 
-                {/* Filter by verify state */}
-                <select
-                  className="ax-input ax-input--sm"
-                  aria-label="Filter by verification state"
-                  value={verifyFilter}
-                  onChange={(e) => {
-                    setVerifyFilter(e.target.value as any);
-                    setCurrentPage(1);
-                  }}
-                  style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
-                >
-                  <option value="all">All Verification</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                  <select
+                    className="ax-input ax-input--sm"
+                    aria-label="Filter by verification state"
+                    value={verifyFilter}
+                    onChange={(e) => { setVerifyFilter(e.target.value as any); setCurrentPage(1); }}
+                    style={{ width: 130, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                  >
+                    <option value="all">All Verification</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
 
-                {hasFilters && (
-                  <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={clearFilters} style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}>
-                    Reset
-                  </button>
-                )}
+                  {hasFilters && (
+                    <button type="button" className="ax-btn ax-btn--ghost ax-btn--sm" onClick={clearFilters} style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}>
+                      Reset
+                    </button>
+                  )}
 
-                {/* Search Input */}
-                <SearchInput
-                  value={search}
-                  onChange={(val) => {
-                    setSearch(val);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Search beneficiary, CA no, contact…"
-                  size="sm"
-                  ariaLabel="Search ULA installation sites"
-                />
+                  <SearchInput
+                    value={search}
+                    onChange={(val) => { setSearch(val); setCurrentPage(1); }}
+                    placeholder="Search beneficiary, CA no, contact…"
+                    size="sm"
+                    ariaLabel="Search ULA installation sites"
+                  />
 
-                <TableExportToolbar onCopy={handleCopy} onExportCSV={handleCsv} onExportExcel={handleExcel} onExportPDF={handlePdf} />
+                  <TableExportToolbar onCopy={handleCopy} onExportCSV={handleCsv} onExportExcel={handleExcel} onExportPDF={handlePdf} />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Category Tabs */}
-          <div className="ula-cat-tabs">
-            {CATEGORY_TABS.map((cat) => (
-              <button
-                key={cat.key}
-                type="button"
-                className={`ula-cat-tab-btn ${activeCategory === cat.key ? 'active' : ''}`}
-                onClick={() => setActiveCategory(cat.key)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Status Pills Ribbon for Active Category */}
-          <div className="ula-status-pills">
-            {categoryStatuses.map((opt) => {
-              const isActive = opt.key === currentStatus;
-              return (
+            <div className="ula-cat-tabs">
+              {CATEGORY_TABS.map((cat) => (
                 <button
-                  key={opt.key}
+                  key={cat.key}
                   type="button"
-                  className={`ula-pill-btn ${isActive ? 'active' : ''}`}
-                  onClick={() => handleSelectStatus(opt.key)}
-                  title={opt.sub}
+                  className={`ula-cat-tab-btn ${activeCategory === cat.key ? 'active' : ''}`}
+                  onClick={() => setActiveCategory(cat.key)}
                 >
-                  <span className={`ax-badge__dot ${isActive ? 'ax-badge__dot--white' : ''}`} />
-                  <span>{opt.label}</span>
+                  {cat.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            <div className="ula-status-pills">
+              {categoryStatuses.map((opt) => {
+                const isActive = opt.key === currentStatus;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    className={`ula-pill-btn ${isActive ? 'active' : ''}`}
+                    onClick={() => handleSelectStatus(opt.key)}
+                    title={opt.sub}
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Data Table */}
-        <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
-            <caption className="ax-visually-hidden">Bihar ULA Status Records</caption>
-            <thead className="ax-table__head">
-              <tr>
-                <th className="ax-table__th" scope="col">Sr. No.</th>
-                <th className="ax-table__th" scope="col">Beneficiary / Consumer Name</th>
-                <th className="ax-table__th" scope="col">District</th>
-                <th className="ax-table__th" scope="col">Block / Village</th>
-                <th className="ax-table__th" scope="col">CA Number</th>
-                <th className="ax-table__th" scope="col">Sanction Load</th>
-                <th className="ax-table__th" scope="col">Structure Status</th>
-                <th className="ax-table__th" scope="col">Installation Status</th>
-                <th className="ax-table__th" scope="col">Verify Status</th>
-                <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody aria-busy={loading}>
-              {loading && (
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap' }}>
+              <caption className="ax-visually-hidden">Bihar ULA Status Records</caption>
+              <thead className="ax-table__head">
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                    <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
-                    Loading Bihar ULA status records from server…
-                  </td>
+                  <th className="ax-table__th" scope="col">Sr. No.</th>
+                  <th className="ax-table__th" scope="col">Beneficiary / Consumer Name</th>
+                  <th className="ax-table__th" scope="col">District</th>
+                  <th className="ax-table__th" scope="col">Block / Village</th>
+                  <th className="ax-table__th" scope="col">CA Number</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Sanction Load</th>
+                  <th className="ax-table__th" scope="col">Structure Status</th>
+                  <th className="ax-table__th" scope="col">Installation Status</th>
+                  <th className="ax-table__th" scope="col">Verify Status</th>
+                  <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
-              )}
+              </thead>
+              <tbody aria-busy={loading}>
+                {loading && (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
+                      <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
+                      Loading Bihar ULA status records from server…
+                    </td>
+                  </tr>
+                )}
 
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={10} style={{ padding: 0 }}>
-                    <TableEmptyState
-                      title="No records found"
-                      message={
-                        hasFilters
-                          ? 'No sites match your filters. Try clearing search term or filters.'
-                          : errorMsg || `No installations found under status "${currentStatus}".`
-                      }
-                      onClear={hasFilters ? clearFilters : undefined}
-                      clearLabel="Clear filters"
-                    />
-                  </td>
-                </tr>
-              )}
+                {!loading && filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={10} style={{ padding: 0 }}>
+                      <TableEmptyState
+                        title="No records found"
+                        message={
+                          hasFilters
+                            ? 'No sites match your filters. Try clearing search term or filters.'
+                            : errorMsg || `No installations found under status "${currentStatus}".`
+                        }
+                        onClear={hasFilters ? clearFilters : undefined}
+                        clearLabel="Clear filters"
+                      />
+                    </td>
+                  </tr>
+                )}
 
-              {!loading &&
-                paged.map((row, idx) => {
-                  const srNo = (currentPage - 1) * pageSize + idx + 1;
-                  const installed = isInstalled(row);
-                  const structOk = isStructureApproved(row);
-                  const vs = verifyState(row);
+                {!loading &&
+                  paged.map((row, idx) => {
+                    const srNo = (currentPage - 1) * pageSize + idx + 1;
+                    const installed = isInstalled(row);
+                    const structOk = isStructureApproved(row);
+                    const vs = verifyState(row);
 
-                  return (
-                    <tr key={row.id ?? idx} className="ax-table__row">
-                      <td className="ax-table__td ax-num">{srNo}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                        {beneficiaryOf(row)}
-                        {row.contact_no && (
-                          <span style={{ display: 'block', fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 400 }}>
-                            📞 {row.contact_no}
+                    return (
+                      <tr key={row.id ?? idx} className="ax-table__row">
+                        <td className="ax-table__td ax-num">{srNo}</td>
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {beneficiaryOf(row)}
+                          {row.contact_no && (
+                            <span style={{ display: 'block', fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 400 }}>
+                              {row.contact_no}
+                            </span>
+                          )}
+                        </td>
+                        <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row.district)}</td>
+                        <td className="ax-table__td">
+                          {txt(row.block)} {row.village ? `· ${row.village}` : ''}
+                        </td>
+                        <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--asw-primary)' }}>
+                          {row.ca_no || DASH}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num">
+                          {row.sanction_load ? `${row.sanction_load} HP` : DASH}
+                        </td>
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${structOk ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                            <span className="ax-badge__dot" />
+                            {structOk ? 'Approved' : 'Pending'}
                           </span>
-                        )}
-                      </td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{txt(row.district)}</td>
-                      <td className="ax-table__td">
-                        {txt(row.block)} {row.village ? `· ${row.village}` : ''}
-                      </td>
-                      <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--ax-accent)' }}>
-                        {row.ca_no || DASH}
-                      </td>
-                      <td className="ax-table__td ax-table__td--num ax-num">
-                        {row.sanction_load ? `${row.sanction_load} HP` : DASH}
-                      </td>
-                      <td className="ax-table__td">
-                        <span className={`ax-badge ax-badge--soft ax-badge--pill ${structOk ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                          <span className="ax-badge__dot" />
-                          {structOk ? 'Approved' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="ax-table__td">
-                        <span className={`ax-badge ax-badge--soft ax-badge--pill ${installed ? 'ax-badge--success' : 'ax-badge--warning'}`}>
-                          <span className="ax-badge__dot" />
-                          {installed ? 'Installed' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="ax-table__td">
-                        <span className={`ax-badge ax-badge--soft ax-badge--pill ax-badge--${verifyTone(vs)}`}>
-                          <span className="ax-badge__dot" />
-                          {verifyLabel(vs)}
-                        </span>
-                      </td>
-                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="ax-btn ax-btn--secondary ax-btn--xs"
-                          onClick={() => setSelectedRecord(row)}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        <div className="ax-card__footer">
-          <div className="ula-pagination-left">
-            <Pagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={filtered.length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              pageSizeOptions={[10, 15, 25, 50, 100]}
-            />
+                        </td>
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ${installed ? 'ax-badge--success' : 'ax-badge--warning'}`}>
+                            <span className="ax-badge__dot" />
+                            {installed ? 'Installed' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="ax-table__td">
+                          <span className={`ax-badge ax-badge--soft ax-badge--pill ax-badge--${verifyTone(vs)}`}>
+                            <span className="ax-badge__dot" />
+                            {verifyLabel(vs)}
+                          </span>
+                        </td>
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button type="button" className="ax-btn ax-btn--secondary ax-btn--xs" onClick={() => setSelectedRecord(row)}>
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+
+          <div className="ax-card__footer" style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', padding: 'var(--ax-space-3) var(--ax-space-4)' }}>
+            <div className="ula-pagination-left">
+              <Pagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={filtered.length}
+                onPageChange={setCurrentPage}
+                setPage={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                pageSizeOptions={[10, 15, 25, 50, 100]}
+              />
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* Detail Modal for Site Audit & Photos */}
       {selectedRecord && (
@@ -1010,14 +1021,7 @@ export function Bihar_Installation_ULA_StatusView() {
                   {selectedRecord.district || 'Bihar'} · {selectedRecord.block || 'Block'} {selectedRecord.village ? `· ${selectedRecord.village}` : ''} · CA: {selectedRecord.ca_no || 'N/A'}
                 </span>
               </div>
-              <button
-                type="button"
-                className="ax-modal__close"
-                onClick={() => setSelectedRecord(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+              <button type="button" className="ax-modal__close" onClick={() => setSelectedRecord(null)} aria-label="Close">✕</button>
             </div>
             <div className="ax-modal__body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
@@ -1063,7 +1067,6 @@ export function Bihar_Installation_ULA_StatusView() {
                 </div>
               </div>
 
-              {/* Photo Evidence Section */}
               <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', color: 'var(--ax-text-muted)' }}>
                 Field Photo Evidence
               </h4>
@@ -1076,9 +1079,7 @@ export function Bihar_Installation_ULA_StatusView() {
                       alt="Structure Photo"
                       style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }}
                       onClick={() => setPreviewImage({ url: resolveBiharMediaUrl(selectedRecord.structure_image), title: `${beneficiaryOf(selectedRecord)} - Structure Photo` })}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                     />
                     <button
                       type="button"
@@ -1103,9 +1104,7 @@ export function Bihar_Installation_ULA_StatusView() {
                       alt="Installation Complete Photo"
                       style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }}
                       onClick={() => setPreviewImage({ url: resolveBiharMediaUrl(selectedRecord.complete_photo || selectedRecord.installation_image), title: `${beneficiaryOf(selectedRecord)} - Installation Complete Photo` })}
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                     />
                     <button
                       type="button"
@@ -1124,11 +1123,7 @@ export function Bihar_Installation_ULA_StatusView() {
               </div>
             </div>
             <div className="ax-modal__footer">
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={() => setSelectedRecord(null)}
-              >
+              <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={() => setSelectedRecord(null)}>
                 Close
               </button>
             </div>
@@ -1136,13 +1131,8 @@ export function Bihar_Installation_ULA_StatusView() {
         </div>
       )}
 
-      {/* Lightbox / Zoom Preview Modal */}
       {previewImage && (
-        <ImagePreviewModal
-          url={previewImage.url}
-          title={previewImage.title}
-          onClose={() => setPreviewImage(null)}
-        />
+        <ImagePreviewModal url={previewImage.url} title={previewImage.title} onClose={() => setPreviewImage(null)} />
       )}
     </div>
   );

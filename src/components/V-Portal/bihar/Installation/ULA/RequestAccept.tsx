@@ -761,7 +761,11 @@ export function Bihar_Installation_ULA_RequestAccept() {
       const count = list.length;
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{first}</span>
+          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+            {typeof first === 'object' && first !== null
+              ? ((first as any).site_name || (first as any).name || (first as any).beneficiary_name || 'Site')
+              : String(first || DASH)}
+          </span>
           {count > 1 && (
             <button
               type="button"

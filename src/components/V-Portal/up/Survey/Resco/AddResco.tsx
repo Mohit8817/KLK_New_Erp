@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
   upSurveyService,
   getUpSurveyMediaUrl,
   type UpRescoPendingSite,
-  type UpRescoSiteDetail,
+  type UpRescoSurveySiteDetail,
   type UpRescoSurveyRecord,
 } from '../../up-services';
 
@@ -160,7 +160,7 @@ export function UP_Survey_Resco_AddResco() {
   const [sites, setSites] = useState<UpRescoPendingSite[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-  const [siteDetail, setSiteDetail] = useState<UpRescoSiteDetail | null>(null);
+  const [siteDetail, setSiteDetail] = useState<UpRescoSurveySiteDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [editRecord, setEditRecord] = useState<UpRescoSurveyRecord | null>(null);
 
@@ -224,7 +224,10 @@ export function UP_Survey_Resco_AddResco() {
     upSurveyService
       .getRescoPendingSites()
       .then((res) => setSites(res))
-      .catch((err) => console.error('Error loading pending Resco sites:', err))
+      .catch((err) => {
+        console.error('Error loading pending Resco sites:', err);
+        setErrorMsg('Failed to load pending sites from server.');
+      })
       .finally(() => setLoadingSites(false));
   }, [isEdit]);
 
@@ -304,19 +307,21 @@ export function UP_Survey_Resco_AddResco() {
       const detail = await upSurveyService.getRescoSiteDetail(siteId);
       setSiteDetail(detail);
       if (detail?.address) {
-        setFormData((prev) => ({ ...prev, site_address: prev.site_address || detail.address }));
+        const addr = String(detail.address);
+        setFormData((prev) => ({ ...prev, site_address: prev.site_address || addr }));
       }
     } catch (err) {
       console.error('Error fetching site detail:', err);
+      setErrorMsg('Failed to load site details from server.');
     } finally {
       setLoadingDetail(false);
     }
   };
 
   // GPS detection
-  const handleGetLocation = () => {
+  const handleGetLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setLocating(true);
@@ -330,12 +335,16 @@ export function UP_Survey_Resco_AddResco() {
         setLocating(false);
       },
       (err) => {
-        alert(`Location error: ${err.message}. Please enter coordinates manually.`);
+        if (!silent) alert(`Location error: ${err.message}. Please try again.`);
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  useEffect(() => {
+    handleGetLocation(true);
+  }, [selectedSiteId]);
 
   // Validation
   const validate = () => {
@@ -431,8 +440,6 @@ export function UP_Survey_Resco_AddResco() {
   if (isEdit && editRecord) {
     siteSelectOptions.unshift({ value: String(editRecord.id), label: `${editRecord.site_name || 'Site'} (#${editId})` });
   }
-
-  const yesNo = opts(['Yes', 'No']);
 
   return (
     <div className="up-single-card-form">
@@ -540,7 +547,7 @@ export function UP_Survey_Resco_AddResco() {
               />
               <div className="up-form-grid up-form-grid--3col">
                 <FloatingInput id="up-uid" label="Unique ID" readOnly value={currentGeneral?.uid || ''} />
-                <FloatingInput id="up-state" label="State" readOnly value={(currentGeneral?.state || 'UP').toUpperCase()} />
+                <FloatingInput id="up-state" label="State" readOnly value={currentGeneral?.state ? currentGeneral.state.toUpperCase() : ''} />
                 <FloatingInput id="up-district" label="District" readOnly value={currentGeneral?.district || ''} />
                 <FloatingInput id="up-division" label="Division" readOnly value={currentGeneral?.division || ''} />
                 <FloatingInput id="up-subdivision" label="Sub Division" readOnly value={currentGeneral?.sub_division || ''} />
@@ -562,11 +569,29 @@ export function UP_Survey_Resco_AddResco() {
                 desc={<>The field labels marked with <span style={{ color: 'var(--ax-danger-500)' }}>*</span> are input fields.</>}
               />
               <div className="up-form-grid up-form-grid--3col">
-                <FloatingInput id="up-lat" label="Latitude" required placeholder="e.g. 26.8467" {...f('latitude')} />
-                <FloatingInput id="up-lng" label="Longitude" required placeholder="e.g. 80.9462" {...f('longitude')} />
+                <FloatingInput
+                  id="up-lat"
+                  label="Latitude"
+                  required
+                  placeholder="Auto-detected GPS Latitude"
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  {...f('latitude')}
+                  readOnly={true}
+                  onChange={() => {}}
+                />
+                <FloatingInput
+                  id="up-lng"
+                  label="Longitude"
+                  required
+                  placeholder="Auto-detected GPS Longitude"
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  {...f('longitude')}
+                  readOnly={true}
+                  onChange={() => {}}
+                />
                 <div>
-                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={handleGetLocation} disabled={locating}>
-                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Get GPS'}</span>
+                  <button type="button" className="ax-btn ax-btn--secondary up-gps-cell" style={{ width: '100%' }} onClick={() => handleGetLocation(false)} disabled={locating}>
+                    <span className="ax-btn__label">{locating ? 'Detecting GPS...' : '📍 Auto-detect GPS'}</span>
                   </button>
                 </div>
 
@@ -723,6 +748,7 @@ interface FloatingInputProps {
   type?: string;
   required?: boolean;
   readOnly?: boolean;
+  style?: CSSProperties;
   maxLength?: number;
   placeholder?: string;
   value: string;
@@ -730,7 +756,7 @@ interface FloatingInputProps {
   error?: string;
 }
 
-function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, style, maxLength, placeholder = ' ', value, onChange, error }: FloatingInputProps) {
   return (
     <div>
       <div className="ax-float">
@@ -741,6 +767,7 @@ function FloatingInput({ id, label, type = 'text', required, readOnly, maxLength
           placeholder={placeholder}
           value={value}
           readOnly={readOnly}
+          style={style}
           maxLength={maxLength}
           onChange={(e) => onChange?.(e.target.value)}
           aria-invalid={Boolean(error)}

@@ -1,5 +1,7 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { UP_SURVEY_API } from '../../V_Portal_APIS/UP_Survey_API';
+import { extractStringList } from './upComplaintService';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 /* ── Base URLs for Media Resolution ── */
 const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
@@ -105,34 +107,32 @@ async function apiRequest<T = any>(
       }
     }
 
-    if (!res.ok) {
+    if (!res.ok || json?.status === false || json?.success === false || json?.errors) {
+      const extracted = extractBackendError(json, `Request failed with HTTP ${res.status}`);
       return {
         status: false,
-        message: json?.message || json?.error || `Request failed with HTTP ${res.status}`,
-        errors: json?.errors,
+        message: extracted.message,
+        errors: json?.errors || extracted.rawErrors,
         ...json,
       };
     }
 
-    // Backend controller sometimes returns HTTP 200 with { status: false, message: ... }
+    // Bare JSON array responses must not be spread into an object
+    if (Array.isArray(json)) {
+      return { status: true, data: json as unknown as T };
+    }
+
     if (json && typeof json === 'object') {
-      if (json.status === false) {
-        return {
-          status: false,
-          message: json.message || json.error || 'Operation failed',
-          errors: json.errors,
-          ...json,
-        };
-      }
       return { status: true, ...json };
     }
 
     return { status: true, data: json };
   } catch (err: any) {
     console.error(`UP Survey API Error [${method} ${url}]:`, err);
+    const extracted = extractBackendError(err, err?.message || 'Network request failed. Please check connection.');
     return {
       status: false,
-      message: err?.message || 'Network request failed. Please check connection.',
+      message: extracted.message,
     };
   }
 }
@@ -544,8 +544,9 @@ export const upSurveyService = {
       method: 'POST',
       body: { id: siteId },
     });
-    if (res.status && res.data) {
-      return res.data as UpRescoBosProductData;
+    if (res.status) {
+      if (res.data && typeof res.data === 'object') return res.data as UpRescoBosProductData;
+      if (res.products || res.resco) return res as unknown as UpRescoBosProductData;
     }
     return null;
   },
@@ -632,14 +633,19 @@ export const upSurveyService = {
   // 1. Fetch site IDs and UIDs for dropdown
   async getSslSites(): Promise<UpSslSiteDropdownItem[]> {
     const res = await apiRequest(UP_SURVEY_API.SSL.FETCH_SITES);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data.map((item: any) => ({
-          id: Number(item.id),
-          uid: String(item.uid || item.id),
-          site_name: item.site_name || item.uid,
-        }));
-      }
+    if (res.status) {
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.sites)
+        ? res.sites
+        : Array.isArray(res.data?.sites)
+        ? res.data.sites
+        : [];
+      return list.map((item: any) => ({
+        id: Number(item.id),
+        uid: String(item.uid || item.id),
+        site_name: item.site_name || item.uid,
+      }));
     }
     return [];
   },
@@ -691,8 +697,8 @@ export const upSurveyService = {
       complete_ssl: [],
     };
 
-    if (res.status && res.data) {
-      const d = res.data;
+    if (res.status) {
+      const d = (res.data && typeof res.data === 'object' ? res.data : res) as any;
       const incomplete = Array.isArray(d.incomplete_ssl) ? d.incomplete_ssl : [];
       const complete = Array.isArray(d.complete_ssl) ? d.complete_ssl : [];
       return {
@@ -709,8 +715,9 @@ export const upSurveyService = {
   // 5. Details of a completed site
   async getSslViewDetails(siteId: number | string): Promise<UpSslCompletedDetailsResponse | null> {
     const res = await apiRequest(UP_SURVEY_API.SSL.VIEW_DETAILS(siteId));
-    if (res.status && res.data) {
-      return res.data as UpSslCompletedDetailsResponse;
+    if (res.status) {
+      if (res.data && typeof res.data === 'object') return res.data as UpSslCompletedDetailsResponse;
+      if (res.ssl) return res as unknown as UpSslCompletedDetailsResponse;
     }
     return null;
   },
@@ -727,37 +734,29 @@ export const upSurveyService = {
 
   async getSrtDistricts(): Promise<string[]> {
     const res = await apiRequest(UP_SURVEY_API.SRT.DISTRICTS);
-    if (res.status && Array.isArray(res.data)) {
-      return res.data;
-    }
-    return [
-      'Agra', 'Aligarh', 'Ayodhya', 'Bareilly', 'Gorakhpur', 'Jhansi', 'Kanpur',
-      'Lucknow', 'Meerut', 'Moradabad', 'Prayagraj', 'Varanasi',
-    ];
+    if (!res.status) return [];
+    return extractStringList(res, ['districts', 'district']);
   },
 
   async getSrtBlocks(district: string): Promise<string[]> {
+    if (!district) return [];
     const res = await apiRequest(UP_SURVEY_API.SRT.BLOCKS(district));
-    if (res.status && Array.isArray(res.data)) {
-      return res.data;
-    }
-    return ['Block 1', 'Block 2', 'Block 3', 'Belghat', 'Doraha', 'Civil Lines'];
+    if (!res.status) return [];
+    return extractStringList(res, ['blocks', 'block']);
   },
 
   async getSrtPanchayats(district: string, block: string): Promise<string[]> {
+    if (!district || !block) return [];
     const res = await apiRequest(UP_SURVEY_API.SRT.PANCHAYATS(district, block));
-    if (res.status && Array.isArray(res.data)) {
-      return res.data;
-    }
-    return ['Avraroop', 'Panchayat A', 'Panchayat B', 'Panchayat C'];
+    if (!res.status) return [];
+    return extractStringList(res, ['panchayats', 'panchyats', 'panchayat', 'panchyat']);
   },
 
   async getSrtVillages(district: string, block: string, panchayat: string): Promise<string[]> {
+    if (!district || !block || !panchayat) return [];
     const res = await apiRequest(UP_SURVEY_API.SRT.VILLAGES(district, block, panchayat));
-    if (res.status && Array.isArray(res.data)) {
-      return res.data;
-    }
-    return ['Village 1', 'Village 2', 'Village 3'];
+    if (!res.status) return [];
+    return extractStringList(res, ['villages', 'village']);
   },
 
   async storeSrtSurvey(
@@ -780,6 +779,9 @@ export const upSurveyService = {
     if (res.status) {
       if (Array.isArray(res.data)) return res.data;
       if (Array.isArray(res.surveys)) return res.surveys;
+      if (Array.isArray(res.data?.surveys)) return res.data.surveys;
+      if (Array.isArray(res.data?.data)) return res.data.data;
+      if (Array.isArray(res.srt)) return res.srt;
     }
     return [];
   },

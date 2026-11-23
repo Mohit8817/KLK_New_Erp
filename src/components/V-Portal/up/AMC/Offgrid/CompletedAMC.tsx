@@ -11,8 +11,21 @@ import { upOffgridAmcApi } from '../../up-services';
 export function UP_AMC_Offgrid_CompletedAMC() {
   const fetchCompleted = async () => {
     const res = await upOffgridAmcApi.completedDetails();
-    if (!res.status || !Array.isArray(res.data)) return [];
-    return res.data;
+    if (!res || res.status === false) return [];
+    const rawList: any[] = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.report)
+      ? res.data.report
+      : Array.isArray(res.data?.reports)
+      ? res.data.reports
+      : Array.isArray(res.data?.sites)
+      ? res.data.sites
+      : Array.isArray(res.report)
+      ? res.report
+      : Array.isArray(res.reports)
+      ? res.reports
+      : [];
+    return rawList;
   };
 
   const columns = [

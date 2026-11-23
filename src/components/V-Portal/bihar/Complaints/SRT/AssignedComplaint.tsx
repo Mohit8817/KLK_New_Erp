@@ -6,7 +6,6 @@ import {
   biharComplaintService,
   getBiharComplaintMediaUrl,
   getBiharComplaintMediaCandidates,
-  getMediaUrl,
   type BiharComplaintItem,
   type AssignedComplaintsResponse,
 } from '../../bihar-services';
@@ -98,11 +97,22 @@ const normalizeAssigned = (raw: any): AssignedComplaintsResponse => {
   return { ...p, open: list(p.open), approved: list(p.approved), data: list(p.data) } as AssignedComplaintsResponse;
 };
 
-/** Build attachment list from numbered keys (file, file2..file10 / r_file, r_file2..r_file9, r_file510) */
+/** Build attachment list from numbered keys (file, file2..file10 / r_file, r_file2..r_file10, r_file510) */
 const COMPLAINT_FILE_KEYS = ['file', 'file2', 'file3', 'file4', 'file5', 'file6', 'file7', 'file8', 'file9', 'file10'];
-const RESOLVE_FILE_KEYS = ['r_file', 'r_file2', 'r_file3', 'r_file4', 'r_file5', 'r_file6', 'r_file7', 'r_file8', 'r_file9', 'r_file510'];
+const RESOLVE_FILE_KEYS = ['r_file', 'r_file2', 'r_file3', 'r_file4', 'r_file5', 'r_file6', 'r_file7', 'r_file8', 'r_file9', 'r_file10', 'r_file510'];
+const isValidMediaPath = (v: unknown): v is string => {
+  if (typeof v !== 'string') return false;
+  const s = v.trim();
+  return s.length > 0 && !/^(null|undefined|na|n\/a)$/i.test(s);
+};
+const isImagePath = (v?: string | null) =>
+  Boolean(v && /\.(jpg|jpeg|png|webp|gif|bmp|avif|jfif)(\?.*)?$/i.test(v.trim()));
 const pickFiles = (item: any, keys: string[], label: string) =>
   keys.map((k, i) => ({ label: `${label} ${i + 1}`, file: item?.[k] as string | null | undefined }));
+const pickValidFiles = (item: any, keys: string[], label: string): { label: string; file: string }[] =>
+  keys
+    .map((k, i) => ({ label: `${label} ${i + 1}`, file: item?.[k] }))
+    .filter((x): x is { label: string; file: string } => isValidMediaPath(x.file));
 
 /** "50" -> "50 kW", "ram" -> "ram" */
 const kw = (v: unknown) => {
@@ -161,6 +171,9 @@ const PAGE_CSS = `
     overflow: hidden !important;
     background: rgba(15, 23, 42, 0.6) !important;
     backdrop-filter: blur(4px) !important;
+  }
+  .ax-modal:has(.ax-modal__dialog--preview) {
+    z-index: 10050 !important;
   }
   .ax-modal__backdrop {
     position: fixed !important;
@@ -582,35 +595,440 @@ function PhoneLink({ phone }: { phone?: string | null }) {
   );
 }
 
-function AttachmentItem({ item }: { item: { label: string; file?: string | null } }) {
-  const candidates = useMemo(() => getBiharComplaintMediaCandidates(item.file, 'srt'), [item.file]);
+interface PreviewMediaItem {
+  label: string;
+  file: string;
+}
+
+interface PreviewGalleryState {
+  items: PreviewMediaItem[];
+  index: number;
+  heading: string;
+}
+
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({
+  preview,
+  onClose,
+  onChangeIndex,
+}: {
+  preview: PreviewGalleryState | null;
+  onClose: () => void;
+  onChangeIndex: (idx: number) => void;
+}) {
+  const active = preview ? preview.items[preview.index] || preview.items[0] : null;
+  const candidates = useMemo(
+    () => (active ? getBiharComplaintMediaCandidates(active.file, 'srt') : []),
+    [active]
+  );
   const [candidateIdx, setCandidateIdx] = useState(0);
-  const currentUrl = candidates[candidateIdx] || getBiharComplaintMediaUrl(item.file, 'srt');
-  const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(item.file || '');
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setZoomIdx(0);
+    setStatus('loading');
+  }, [active?.file]);
+
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && preview.items.length > 1) {
+        onChangeIndex((preview.index + 1) % preview.items.length);
+      } else if (e.key === 'ArrowLeft' && preview.items.length > 1) {
+        onChangeIndex((preview.index - 1 + preview.items.length) % preview.items.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview, onChangeIndex]);
+
+  if (!preview || !active) return null;
+
+  const currentUrl = candidates[candidateIdx] || getBiharComplaintMediaUrl(active.file, 'srt');
+  const zoom = ZOOM_STEPS[zoomIdx];
+  const isImg = isImagePath(active.file);
 
   const handleImgError = () => {
-    if (candidateIdx < candidates.length - 1) {
+    if (candidateIdx + 1 < candidates.length) {
       setCandidateIdx((prev) => prev + 1);
+    } else {
+      setStatus('error');
     }
   };
+
+  return (
+    <Modal
+      open={Boolean(preview)}
+      onClose={onClose}
+      labelledBy="srt-img-preview-title"
+      modalStyle={{ zIndex: 10050 }}
+      dialogClass="ax-modal__dialog--lg ax-modal__dialog--white ax-modal__dialog--preview"
+    >
+      <div className="ax-modal__header">
+        <div>
+          <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)', fontWeight: 700, letterSpacing: '0.04em' }}>
+            {preview.heading}
+          </span>
+          <h2 className="ax-modal__title" id="srt-img-preview-title">
+            {active.label}
+            {preview.items.length > 1 && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b', marginLeft: 8 }}>
+                ({preview.index + 1} / {preview.items.length})
+              </span>
+            )}
+          </h2>
+        </div>
+        <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close preview">
+          {X}
+        </button>
+      </div>
+
+      <div className="ax-modal__body" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            flex: 1,
+            width: '100%',
+            minHeight: 360,
+            background: '#0f172a',
+            borderRadius: 10,
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          {isImg ? (
+            <>
+              {status === 'loading' && (
+                <div style={{ color: '#cbd5e1', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ax-spinner" style={{ width: 18, height: 18 }} />
+                  Loading image…
+                </div>
+              )}
+              {status === 'error' && (
+                <div style={{ color: '#f8fafc', textAlign: 'center', fontSize: 13, padding: 20 }}>
+                  Image could not be loaded directly. Try opening it in a new tab below.
+                </div>
+              )}
+              <img
+                key={currentUrl}
+                src={currentUrl}
+                alt={active.label}
+                onLoad={() => setStatus('ready')}
+                onError={handleImgError}
+                style={{
+                  display: status === 'ready' ? 'block' : 'none',
+                  margin: 'auto',
+                  borderRadius: 0,
+                  ...(zoom === 1
+                    ? { maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }
+                    : { width: `${zoom * 100}%`, maxWidth: 'none', maxHeight: 'none', height: 'auto' }),
+                }}
+              />
+            </>
+          ) : (
+            <div style={{ color: '#f8fafc', textAlign: 'center', padding: 24 }}>
+              <p style={{ marginBottom: 12, fontSize: 14 }}>Document preview is available in a new tab.</p>
+              <a href={currentUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--primary ax-btn--sm">
+                Open Document ↗
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="ax-modal__footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {preview.items.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => onChangeIndex((preview.index - 1 + preview.items.length) % preview.items.length)}
+              >
+                ← Prev
+              </button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => onChangeIndex((preview.index + 1) % preview.items.length)}
+              >
+                Next →
+              </button>
+            </>
+          )}
+          {isImg && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
+                disabled={zoomIdx === 0}
+                aria-label="Zoom out"
+              >
+                −
+              </button>
+              <span style={{ fontSize: 12, fontWeight: 700, minWidth: 44, textAlign: 'center', color: '#334155' }}>
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary ax-btn--sm"
+                onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))}
+                disabled={zoomIdx === ZOOM_STEPS.length - 1}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <a
+            href={currentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ax-btn ax-btn--ghost ax-btn--sm"
+            style={{ textDecoration: 'none' }}
+          >
+            Open in new tab ↗
+          </a>
+          <button type="button" className="ax-btn ax-btn--primary ax-btn--sm" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function MediaThumb({
+  item,
+  onClick,
+  size = 36,
+}: {
+  item: PreviewMediaItem;
+  onClick: () => void;
+  size?: number;
+}) {
+  const candidates = useMemo(() => getBiharComplaintMediaCandidates(item.file, 'srt'), [item.file]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [item.file]);
+
+  const currentUrl = candidates[candidateIdx] || getBiharComplaintMediaUrl(item.file, 'srt');
+  const isImg = isImagePath(item.file);
+
+  if (!isImg || failed) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={`${item.label} — click to view`}
+        style={{
+          width: size,
+          height: size,
+          padding: 0,
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: '#f1f5f9',
+          color: '#2563eb',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          flexShrink: 0,
+          borderRadius: 0,
+        }}
+      >
+        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      </button>
+    );
+  }
+
+  return (
+    <img
+      src={currentUrl}
+      alt={item.label}
+      loading="lazy"
+      title={`${item.label} — click to preview`}
+      onClick={onClick}
+      onError={() => {
+        if (candidateIdx + 1 < candidates.length) {
+          setCandidateIdx((prev) => prev + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      style={{
+        width: size,
+        height: size,
+        objectFit: 'cover',
+        borderRadius: 0,
+        border: '1px solid var(--ax-border, #cbd5e1)',
+        background: '#f8fafc',
+        cursor: 'zoom-in',
+        display: 'block',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function MediaCell({
+  files,
+  heading,
+  onPreview,
+}: {
+  files: PreviewMediaItem[];
+  heading: string;
+  onPreview: (items: PreviewMediaItem[], index: number, heading: string) => void;
+}) {
+  if (!files.length) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+
+  const shown = files.slice(0, 4);
+  const extra = files.length - shown.length;
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      {shown.map((f, i) => (
+        <MediaThumb
+          key={`${f.label}-${f.file}`}
+          item={f}
+          onClick={() => onPreview(files, i, heading)}
+        />
+      ))}
+      {extra > 0 && (
+        <button
+          type="button"
+          onClick={() => onPreview(files, shown.length, heading)}
+          title={`View ${extra} more`}
+          style={{
+            height: 36,
+            minWidth: 32,
+            padding: '0 6px',
+            border: '1px solid var(--ax-border, #cbd5e1)',
+            background: '#eff6ff',
+            color: '#2563eb',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderRadius: 0,
+          }}
+        >
+          +{extra}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AttachmentItem({
+  item,
+  onPreview,
+}: {
+  item: PreviewMediaItem;
+  onPreview?: () => void;
+}) {
+  const candidates = useMemo(() => getBiharComplaintMediaCandidates(item.file, 'srt'), [item.file]);
+  const [candidateIdx, setCandidateIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setCandidateIdx(0);
+    setFailed(false);
+  }, [item.file]);
+
+  const currentUrl = candidates[candidateIdx] || getBiharComplaintMediaUrl(item.file, 'srt');
+  const isImg = isImagePath(item.file);
+
+  const handleImgError = () => {
+    if (candidateIdx + 1 < candidates.length) {
+      setCandidateIdx((prev) => prev + 1);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  const cardStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '8px',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    textDecoration: 'none',
+    color: '#1e293b',
+    transition: 'all 0.15s ease',
+    cursor: 'pointer',
+    width: '100%',
+  };
+
+  const inner = (
+    <>
+      {isImg && !failed ? (
+        <div style={{ width: '100%', height: 84, overflow: 'hidden', background: '#e2e8f0', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img
+            src={currentUrl}
+            alt={item.label}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 0 }}
+            onError={handleImgError}
+          />
+        </div>
+      ) : (
+        <div style={{ width: '100%', height: 84, background: '#f1f5f9', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+      )}
+      <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+        {item.label}
+      </span>
+      <span style={{ fontSize: 10, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>
+        {isImg && onPreview ? 'Preview Image' : 'View File ↗'}
+      </span>
+    </>
+  );
+
+  if (isImg && onPreview) {
+    return (
+      <button
+        type="button"
+        onClick={onPreview}
+        style={cardStyle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#2563eb';
+          e.currentTarget.style.background = '#f0f7ff';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#e2e8f0';
+          e.currentTarget.style.background = '#f8fafc';
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
 
   return (
     <a
       href={currentUrl}
       target="_blank"
       rel="noopener noreferrer"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '8px',
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        color: '#1e293b',
-        transition: 'all 0.15s ease',
-      }}
+      style={cardStyle}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = '#2563eb';
         e.currentTarget.style.background = '#f0f7ff';
@@ -620,40 +1038,35 @@ function AttachmentItem({ item }: { item: { label: string; file?: string | null 
         e.currentTarget.style.background = '#f8fafc';
       }}
     >
-      {isImg ? (
-        <div style={{ width: '100%', height: 64, borderRadius: 4, overflow: 'hidden', background: '#e2e8f0', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img
-            src={currentUrl}
-            alt={item.label}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={handleImgError}
-          />
-        </div>
-      ) : (
-        <div style={{ width: '100%', height: 64, borderRadius: 4, background: '#f1f5f9', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        </div>
-      )}
-      <span style={{ fontSize: 11, fontWeight: 600, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-        {item.label}
-      </span>
-      <span style={{ fontSize: 10, color: '#2563eb', fontWeight: 600, marginTop: 2 }}>View File ↗</span>
+      {inner}
     </a>
   );
 }
 
-function AttachmentChips({ files }: { files: { label: string; file?: string | null }[] }) {
-  const valid = files.filter(f => Boolean(f.file && typeof f.file === 'string' && f.file.trim().length > 0));
+function AttachmentChips({
+  files,
+  heading = 'Attached Images',
+  onPreview,
+}: {
+  files: { label: string; file?: string | null }[];
+  heading?: string;
+  onPreview?: (items: PreviewMediaItem[], index: number, heading: string) => void;
+}) {
+  const valid = files.filter((f): f is PreviewMediaItem => isValidMediaPath(f.file));
   if (valid.length === 0) return null;
 
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
-        Attached Files & Documents ({valid.length})
+        Attached Files &amp; Documents ({valid.length})
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
         {valid.map((item, idx) => (
-          <AttachmentItem key={idx} item={item} />
+          <AttachmentItem
+            key={`${item.label}-${item.file}`}
+            item={item}
+            onPreview={onPreview ? () => onPreview(valid, idx, heading) : undefined}
+          />
         ))}
       </div>
     </div>
@@ -823,7 +1236,9 @@ const isItemRejected = (item: BiharComplaintItem | any): boolean => {
 const DASH = '—';
 const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
 
-interface Col { key: string; th: string; get: (r: Row) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
+type PreviewHandler = (items: PreviewMediaItem[], index: number, heading: string) => void;
+
+interface Col { key: string; th: string; get: (r: Row, onPreview: PreviewHandler) => ReactNode; exp: (r: Row) => string | number; style?: CSSProperties }
 
 const ellipsis = (maxWidth: number, v: unknown) => (
   <div title={v ? String(v) : undefined} style={{ maxWidth, overflow: 'hidden', textOverflow: 'ellipsis' }}>{txt(v)}</div>
@@ -853,17 +1268,26 @@ const COLS: Col[] = [
   { key: 'WO No', th: 'WO No', get: (r) => txt(r.wo_no), exp: (r) => r.wo_no ?? '' },
   { key: 'Phase', th: 'Phase', get: (r) => txt(r.phase), exp: (r) => r.phase ?? '' },
   {
-    key: 'Document', th: 'Document',
-    get: (r) => {
-      const doc = r.file || r.r_file || r.file2 || r.r_file2;
-      const url = doc ? getBiharComplaintMediaUrl(doc, 'srt') : '';
-      return url ? (
-        <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--ax-accent)', textDecoration: 'none', fontWeight: 600 }} title="View Document">
-          View {r.file ? 'Doc' : 'Proof'}
-        </a>
-      ) : DASH;
-    },
-    exp: (r) => (r.file ? getBiharComplaintMediaUrl(r.file, 'srt') : (r.r_file ? getBiharComplaintMediaUrl(r.r_file, 'srt') : '')),
+    key: 'Complaint Images', th: 'Complaint Images',
+    get: (r, onPreview) => (
+      <MediaCell
+        files={pickValidFiles(r, COMPLAINT_FILE_KEYS, 'Complaint Image')}
+        heading={`Complaint ${r.complaint_id || r.id} · Complaint Images`}
+        onPreview={onPreview}
+      />
+    ),
+    exp: (r) => pickValidFiles(r, COMPLAINT_FILE_KEYS, 'Complaint Image').map((f) => getBiharComplaintMediaUrl(f.file, 'srt')).join(', '),
+  },
+  {
+    key: 'Resolution Images', th: 'Resolution Images',
+    get: (r, onPreview) => (
+      <MediaCell
+        files={pickValidFiles(r, RESOLVE_FILE_KEYS, 'Resolution Proof')}
+        heading={`Complaint ${r.complaint_id || r.id} · Resolution Images`}
+        onPreview={onPreview}
+      />
+    ),
+    exp: (r) => pickValidFiles(r, RESOLVE_FILE_KEYS, 'Resolution Proof').map((f) => getBiharComplaintMediaUrl(f.file, 'srt')).join(', '),
   },
   {
     key: 'Resolved By', th: 'Resolved By',
@@ -904,8 +1328,12 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   const [hiddenCols] = useState<string[]>([]);
   const isVisible = (key: string) => !hiddenCols.includes(key);
 
-  // Detail Modal
+  // Detail Modal & Image Preview Modal
   const [selectedItem, setSelectedItem] = useState<BiharComplaintItem | null>(null);
+  const [previewGallery, setPreviewGallery] = useState<PreviewGalleryState | null>(null);
+  const openPreview = useCallback((items: PreviewMediaItem[], index: number, heading: string) => {
+    setPreviewGallery({ items, index, heading });
+  }, []);
 
   // ── Resolve / Close Complaint Modal State ──
   const [resolvingItem, setResolvingItem] = useState<BiharComplaintItem | null>(null);
@@ -1075,7 +1503,7 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
   /* ── Export ── */
   const exportCols: ExportColumn<Row>[] = useMemo(
     () => [
-      ...COLS.filter((c) => c.key !== 'Document').map((c) => ({ header: c.key, accessor: c.exp })),
+      ...COLS.filter((c) => c.key !== 'Complaint Images' && c.key !== 'Resolution Images').map((c) => ({ header: c.key, accessor: c.exp })),
       { header: 'Approval Status', accessor: (r: Row) => approvalLabel(r) },
       { header: 'Status', accessor: (r: Row) => (Number(r.close_status) === 1 ? 'Closed' : 'Open') },
     ],
@@ -1298,9 +1726,9 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                                   onClick={() => setSelectedItem(item)}
                                   style={{ fontWeight: 'var(--ax-weight-semibold)' as any, color: 'var(--ax-accent)' }}
                                 >
-                                  {c.get(item)}
+                                  {c.get(item, openPreview)}
                                 </button>
-                              ) : c.get(item)}
+                              ) : c.get(item, openPreview)}
                             </td>
                           ))}
                           {isVisible('Approval Status') && (
@@ -1510,11 +1938,15 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                     </div>
                   </div>
 
-                  <AttachmentChips files={pickFiles(selectedItem, COMPLAINT_FILE_KEYS, 'Complaint Document')} />
+                  <AttachmentChips
+                    files={pickFiles(selectedItem, COMPLAINT_FILE_KEYS, 'Complaint Document')}
+                    heading={`Complaint ${selectedItem.complaint_id} · Complaint Images`}
+                    onPreview={openPreview}
+                  />
                 </DetailSection>
 
                 {/* ── 5. Resolution & Verification Work Log ── */}
-                {(Number(selectedItem.close_status) === 1 || Number(selectedItem.status) === 1 || selectedItem.resolved_by || selectedItem.close_date || selectedItem.remarks || selectedItem.r_file) && (
+                {(Number(selectedItem.close_status) === 1 || Number(selectedItem.status) === 1 || selectedItem.resolved_by || selectedItem.close_date || selectedItem.remarks || RESOLVE_FILE_KEYS.some((k) => isValidMediaPath((selectedItem as any)[k]))) && (
                   <DetailSection
                     title="Resolution & Verification Work Log"
                     icon={<svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
@@ -1546,7 +1978,11 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
                       </div>
                     </div>
 
-                    <AttachmentChips files={pickFiles(selectedItem, RESOLVE_FILE_KEYS, 'Resolution Proof')} />
+                    <AttachmentChips
+                      files={pickFiles(selectedItem, RESOLVE_FILE_KEYS, 'Resolution Proof')}
+                      heading={`Complaint ${selectedItem.complaint_id} · Resolution Images`}
+                      onPreview={openPreview}
+                    />
                   </DetailSection>
                 )}
               </div>
@@ -1894,6 +2330,13 @@ export function Bihar_Complaint_SRT_AssignedComplaint() {
           </form>
         )}
       </Modal>
+
+      {/* ── Image Preview Modal ── */}
+      <ImagePreviewModal
+        preview={previewGallery}
+        onClose={() => setPreviewGallery(null)}
+        onChangeIndex={(index) => setPreviewGallery((prev) => (prev ? { ...prev, index } : null))}
+      />
 
       {/* ───── Toast region ───── */}
       {toasts.length > 0 && createPortal(

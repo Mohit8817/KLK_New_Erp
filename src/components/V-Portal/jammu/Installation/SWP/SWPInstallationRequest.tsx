@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
@@ -14,7 +15,9 @@ import {
 import {
   jammuSwpService,
   resolveJammuSwpMediaUrl,
+  getJammuSwpMediaCandidates,
   type JammuSwpAssignItem,
+  type JammuSwpApplicant,
 } from '../../jammu-services';
 
 /* ───────── Responsive page CSS (Matching Reference Design) ───────── */
@@ -109,85 +112,15 @@ const PAGE_CSS = `
     width: 100%;
   }
 
-  @media (max-width: 1100px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 0;
-      gap: 0;
-      padding: 0 8px !important;
-      justify-content: center;
-    }
-    .solar-erp-page .ax-export-toolbar__button svg {
-      width: 16px;
-      height: 16px;
-      flex-shrink: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] { max-width: 180px; }
-  }
-
-  @media (max-width: 760px) {
-    .solar-erp-page .ax-card__header {
-      flex-direction: column;
-      flex-wrap: nowrap;
-      align-items: stretch;
-      gap: 10px;
-    }
-    .solar-erp-page .ax-card__titles {
-      flex: 0 0 auto;
-      min-width: 0;
-      width: 100%;
-      max-width: 100%;
-    }
-    .solar-erp-page .ax-card__title {
-      font-family: var(--ax-font-display);
-      font-size: var(--ax-text-md);
-      line-height: var(--ax-leading-md);
-    }
-    .solar-erp-page .ax-card__actions {
-      flex: 0 0 auto;
-      width: 100%;
-      margin-left: 0;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-    .solar-erp-page .ax-card__actions .ax-cluster {
-      flex-wrap: wrap !important;
-      width: 100%;
-      justify-content: flex-start;
-      gap: 8px;
-    }
-    .solar-erp-page .ax-card__actions .ax-search,
-    .solar-erp-page .ax-card__actions [class*="search"] {
-      flex: 1 1 100%;
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .solar-erp-page .ax-card__actions .ax-export-toolbar,
-    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
-      flex: 1 1 100%;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      gap: 6px;
-    }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  /* Modal Details Styles */
+  /* Modal Styles */
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center;
-    padding: 20px;
+    padding: var(--ax-space-4, 16px);
   }
   .ax-modal__backdrop {
-    position: fixed; inset: 0; background: transparent;
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
   }
   .ax-modal__dialog {
     position: relative; z-index: 1; background: #ffffff;
@@ -196,29 +129,26 @@ const PAGE_CSS = `
     overflow: hidden; width: 100%;
   }
   .ax-modal__header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
     display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
   }
   .ax-modal__close {
     width: 32px; height: 32px; padding: 0; border-radius: 50%;
     border: none; background: transparent; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
   }
   .ax-modal__close:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--ax-surface-hover, #e2e8f0);
     color: var(--ax-text-strong, #0f172a);
   }
-  .ax-modal__body {
-    padding: 20px; overflow-y: auto; max-height: calc(85vh - 120px);
-  }
+  .ax-modal__body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px); }
   .ax-modal__footer {
-    padding: 14px 20px;
-    border-top: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
     display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
+    background: var(--ax-surface-subtle, #f8fafc);
   }
 `;
 
@@ -236,21 +166,17 @@ const centerCell = { textAlign: 'center', padding: 24 } as const;
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
-  <span className={`ax-badge ax-badge--soft ax-badge--${tone} ax-badge--pill`}>
-    <span className="ax-badge__dot" />
-    {children}
-  </span>
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`} style={{ fontWeight: 600 }}>{children}</span>
 );
 
-/* ── Top KPI Card Component ── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+/* ───────── Top Metric KPI Card Component ───────── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
   accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
 
 function KpiCard({
@@ -317,7 +243,8 @@ const formatDate = (d?: string | null): string => {
   } catch {}
 
   const datePart = trimmed.split(/[ T]/)[0];
-  return datePart || trimmed;
+  const [y, m, day] = datePart.split('-');
+  return y && m && day ? `${day}-${m}-${y}` : datePart || trimmed;
 };
 
 const X_ICON = (
@@ -326,6 +253,263 @@ const X_ICON = (
     <path d="M6 6l12 12" />
   </svg>
 );
+
+const isImage = (url?: string | null) =>
+  Boolean(url && /\.(jpe?g|png|webp|gif|svg)(\?.*)?$/i.test(String(url)));
+
+const getFileExt = (url?: string | null) => {
+  if (!url) return 'FILE';
+  const clean = url.split('?')[0];
+  const ext = clean.includes('.') ? clean.split('.').pop() : '';
+  return ext ? ext.toUpperCase() : 'FILE';
+};
+
+/* ── Lightbox Thumbnail & Preview Modal ── */
+function InstallationThumbnail({
+  src,
+  alt = 'Site Photo',
+  onPreview,
+  size = 36,
+}: {
+  src?: string | null;
+  alt?: string;
+  onPreview: (url: string, title: string) => void;
+  size?: number;
+}) {
+  const [candIdx, setCandIdx] = useState(0);
+  const candidates = useMemo(() => getJammuSwpMediaCandidates(src), [src]);
+  const currentUrl = candidates[candIdx] || resolveJammuSwpMediaUrl(src);
+
+  if (!src) return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        margin: '0 auto',
+      }}
+    >
+      <img
+        src={currentUrl}
+        alt={alt}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 6,
+          objectFit: 'cover',
+          cursor: 'zoom-in',
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f8fafc)',
+          display: 'block',
+          flexShrink: 0,
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08)';
+          e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.14)';
+          e.currentTarget.style.borderColor = 'var(--asw-primary, #2563eb)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          e.currentTarget.style.borderColor = 'var(--ax-border, #cbd5e1)';
+        }}
+        onError={() => setCandIdx((prev) => prev + 1)}
+        onClick={() => onPreview(currentUrl, alt)}
+        title="Click to preview photograph"
+      />
+    </div>
+  );
+}
+
+const ZOOM_STEPS = [1, 1.5, 2, 3];
+
+function ImagePreviewModal({
+  url,
+  title,
+  onClose,
+}: {
+  url: string;
+  title: string;
+  onClose: () => void;
+}) {
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const zoom = ZOOM_STEPS[zoomIdx];
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 100000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: 900,
+          width: '92%',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#ffffff',
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div
+          className="ax-modal__header"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            background: 'var(--ax-surface-subtle, #f8fafc)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{title}</h3>
+            <span className="ax-badge ax-badge--soft" style={{ fontSize: 11 }}>
+              {Math.round(zoom * 100)}%
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--xs"
+              onClick={() => setZoomIdx((i) => (i + 1) % ZOOM_STEPS.length)}
+              title="Toggle Zoom"
+              style={{ fontSize: 12 }}
+            >
+              🔍 Zoom
+            </button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--xs"
+              style={{ fontSize: 12 }}
+              title="Open full image in new tab"
+            >
+              ↗ Open
+            </a>
+            <button
+              type="button"
+              className="ax-modal__close"
+              onClick={onClose}
+              aria-label="Close image preview"
+              style={{
+                width: 28,
+                height: 28,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+              }}
+            >
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div
+          className="ax-modal__body"
+          style={{
+            padding: 20,
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f172a',
+            minHeight: 320,
+          }}
+        >
+          <img
+            src={url}
+            alt={title}
+            style={{
+              maxWidth: zoom === 1 ? '100%' : 'none',
+              maxHeight: zoom === 1 ? '70vh' : 'none',
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.2s ease',
+              borderRadius: 6,
+            }}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Helper to extract structured applicants from an assign batch ── */
+interface ParsedApplicant {
+  name: string;
+  fatherName: string;
+  deadline: string;
+  block: string;
+  village: string;
+  id: string | number;
+}
+
+function getApplicants(row: JammuSwpAssignItem): ParsedApplicant[] {
+  const list: any[] =
+    row.Names && row.Names.length > 0
+      ? row.Names
+      : row.site_details && row.site_details.length > 0
+      ? row.site_details
+      : row.names && row.names.length > 0
+      ? row.names
+      : [];
+
+  if (list.length > 0) {
+    return list.map((item: any, idx: number) => ({
+      name:
+        item.f_farmer_name ||
+        item.farmer_name ||
+        item.applicant_name ||
+        item.name ||
+        `Site #${item.id || idx + 1}`,
+      fatherName:
+        item.f_father_name ||
+        item.father_name ||
+        item.father ||
+        item.f_father_or_husband_name ||
+        '—',
+      deadline: formatDate(
+        item.inst_deadline ||
+        item.deadline_date ||
+        item.deadline ||
+        row.deadline_date ||
+        row.deadline
+      ),
+      block: item.block || item.f_block || row.block || '—',
+      village: item.village || item.f_village || row.village || '—',
+      id: item.id || idx + 1,
+    }));
+  }
+
+  // Fallback to site_id list
+  const siteIds = Array.isArray(row.site_id) ? row.site_id : [row.site_id].filter(Boolean);
+  if (siteIds.length > 0) {
+    return siteIds.map((sid, idx) => ({
+      name: `Site #${sid}`,
+      fatherName: '—',
+      deadline: formatDate(row.deadline_date || row.deadline || row.inst_deadline),
+      block: row.block || '—',
+      village: row.village || '—',
+      id: sid || idx + 1,
+    }));
+  }
+
+  return [];
+}
 
 export function SWPInstallationRequest() {
   const navigate = useNavigate();
@@ -353,6 +537,9 @@ export function SWPInstallationRequest() {
     };
 
     if (vendorMeta?.loginName) return vendorMeta.loginName;
+    if (vendorMeta?.vendor?.name) return vendorMeta.vendor.name;
+    if (vendorMeta?.vendor_name) return vendorMeta.vendor_name;
+    if (vendorMeta?.name) return vendorMeta.name;
 
     if (user) {
       const fromUser =
@@ -391,10 +578,16 @@ export function SWPInstallationRequest() {
   }, [user, rawResponse, vendorMeta]);
 
   const getVendorDisplay = useCallback(
-    (rowVendor?: string | number | null) => {
+    (rowVendor?: string | number | null, rowVendorName?: string | null) => {
+      if (rowVendorName && String(rowVendorName).trim()) return String(rowVendorName).trim();
       if (loginVendorName) return loginVendorName;
-      if (rowVendor) return `Vendor ${rowVendor}`;
-      return 'ABC Solar Pvt Ltd';
+      if (rowVendor) {
+        if (typeof rowVendor === 'string' && isNaN(Number(rowVendor))) {
+          return rowVendor;
+        }
+        return `Vendor #${rowVendor}`;
+      }
+      return 'App Testing';
     },
     [loginVendorName]
   );
@@ -403,9 +596,13 @@ export function SWPInstallationRequest() {
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
-  // Selected item for full details view modal (via Endpoint 14)
+  // Detail Modal State & search
   const [detailModalItem, setDetailModalItem] = useState<JammuSwpAssignItem | null>(null);
   const [loadingBatchDetail, setLoadingBatchDetail] = useState(false);
+  const [modalSearch, setModalSearch] = useState('');
+
+  // Image lightbox preview
+  const [previewImg, setPreviewImg] = useState<{ url: string; title: string } | null>(null);
 
   const detailDialogRef = useRef<HTMLDivElement>(null);
   useFocusTrap(detailDialogRef, !!detailModalItem);
@@ -459,13 +656,21 @@ export function SWPInstallationRequest() {
     if (q) {
       list = list.filter((r) => {
         const idMatch = String(r.id).includes(q);
-        const vendorDisplay = getVendorDisplay(r.vendor);
+        const vendorDisplay = getVendorDisplay(r.vendor, r.vendor_name);
         const vendorMatch = String(vendorDisplay).toLowerCase().includes(q) || String(r.vendor ?? '').toLowerCase().includes(q);
         const distMatch = r.district?.toLowerCase().includes(q);
         const stateMatch = r.state?.toLowerCase().includes(q);
         const sitesMatch = r.site_id?.some((s) => String(s).toLowerCase().includes(q));
         const remarksMatch = (r.remarks || r.remark || '').toLowerCase().includes(q);
-        return idMatch || vendorMatch || distMatch || stateMatch || sitesMatch || remarksMatch;
+        const applicants = getApplicants(r);
+        const applicantMatch = applicants.some(
+          (a) =>
+            a.name.toLowerCase().includes(q) ||
+            a.fatherName.toLowerCase().includes(q) ||
+            a.block.toLowerCase().includes(q) ||
+            a.village.toLowerCase().includes(q)
+        );
+        return idMatch || vendorMatch || distMatch || stateMatch || sitesMatch || remarksMatch || applicantMatch;
       });
     }
     return list;
@@ -490,7 +695,10 @@ export function SWPInstallationRequest() {
   const totalBatches = records.length;
   const acceptedBatches = records.filter((r) => Number(r.status) === 2).length;
   const pendingBatches = records.filter((r) => Number(r.status) !== 2).length;
-  const totalSites = records.reduce((sum, r) => sum + (Array.isArray(r.site_id) ? r.site_id.length : 1), 0);
+  const totalSites = records.reduce((sum, r) => {
+    const n = Number(r.site_count || r.count || (r.Names?.length) || (r.site_id?.length) || 1);
+    return sum + (isNaN(n) || n <= 0 ? 1 : n);
+  }, 0);
   const acceptRate = totalBatches > 0 ? Math.round((acceptedBatches / totalBatches) * 100) : 0;
 
   // Direct Accept handler (Endpoint 2: GET jammu/swp/accept-installation?id={id})
@@ -523,9 +731,10 @@ export function SWPInstallationRequest() {
     }
   };
 
-  // Open batch detail modal (Endpoint 14: GET jammu/swp/installation-view-assigned-site-details?assign_id={assign_id})
+  // Open batch detail modal
   const handleOpenDetailModal = async (row: JammuSwpAssignItem) => {
     setDetailModalItem(row);
+    setModalSearch('');
     setLoadingBatchDetail(true);
     try {
       const detail = await jammuSwpService.getAssignedSiteDetails(row.id);
@@ -533,6 +742,9 @@ export function SWPInstallationRequest() {
         setDetailModalItem((prev) => ({
           ...(prev || row),
           ...detail,
+          // Preserve Names if detail didn't return them
+          Names: detail.Names && detail.Names.length > 0 ? detail.Names : prev?.Names || row.Names,
+          site_details: detail.site_details && detail.site_details.length > 0 ? detail.site_details : prev?.site_details || row.site_details,
         }));
       }
     } catch (err) {
@@ -541,6 +753,23 @@ export function SWPInstallationRequest() {
       setLoadingBatchDetail(false);
     }
   };
+
+  // Filtered applicants for modal popup
+  const modalApplicants = useMemo(() => {
+    if (!detailModalItem) return [];
+    const all = getApplicants(detailModalItem);
+    const q = modalSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.fatherName.toLowerCase().includes(q) ||
+        a.block.toLowerCase().includes(q) ||
+        a.village.toLowerCase().includes(q) ||
+        a.deadline.toLowerCase().includes(q) ||
+        String(a.id).includes(q)
+    );
+  }, [detailModalItem, modalSearch]);
 
   return (
     <div className="solar-erp-page">
@@ -692,7 +921,7 @@ export function SWPInstallationRequest() {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search vendor, district…"
+                placeholder="Search vendor, district, farmer…"
                 size="sm"
                 ariaLabel="Search assigned SWP sites"
               />
@@ -703,12 +932,12 @@ export function SWPInstallationRequest() {
                     .map((r, i) =>
                       [
                         i + 1,
-                        getVendorDisplay(r.vendor),
-                        formatDate(r.created_at),
-                        r.state || 'Jammu & Kashmir',
+                        getVendorDisplay(r.vendor, r.vendor_name),
+                        formatDate(r.assign_date || r.created_at),
+                        (r.state || 'Jammu & Kashmir').toUpperCase(),
                         r.district || '—',
-                        (r.site_id || []).join('; '),
-                        r.site_id?.length || 1,
+                        getApplicants(r).map((a) => `${a.name} (${a.deadline})`).join('; ') || (r.site_id || []).join('; '),
+                        r.site_count || r.count || getApplicants(r).length || r.site_id?.length || 1,
                         r.file || '',
                         r.remarks || r.remark || '',
                         Number(r.status) === 2 ? 'Accepted' : 'Assigned',
@@ -723,7 +952,7 @@ export function SWPInstallationRequest() {
                     'Sr. No.,Vendor,Assign Date,State,District,Applicant Name - Deadline,Count,File,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${getVendorDisplay(r.vendor)}","${formatDate(r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${(r.site_id || []).join('; ')}","${r.site_id?.length || 1}","${r.file || ''}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${getVendorDisplay(r.vendor, r.vendor_name)}","${formatDate(r.assign_date || r.created_at)}","${(r.state || 'Jammu').toUpperCase()}","${r.district || ''}","${getApplicants(r).map((a) => `${a.name} (${a.deadline})`).join('; ') || (r.site_id || []).join('; ')}","${r.site_count || r.count || getApplicants(r).length || r.site_id?.length || 1}","${r.file || ''}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -738,7 +967,7 @@ export function SWPInstallationRequest() {
                     'Sr. No.,Vendor,Assign Date,State,District,Applicant Name - Deadline,Count,File,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${getVendorDisplay(r.vendor)}","${formatDate(r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${(r.site_id || []).join('; ')}","${r.site_id?.length || 1}","${r.file || ''}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${getVendorDisplay(r.vendor, r.vendor_name)}","${formatDate(r.assign_date || r.created_at)}","${(r.state || 'Jammu').toUpperCase()}","${r.district || ''}","${getApplicants(r).map((a) => `${a.name} (${a.deadline})`).join('; ') || (r.site_id || []).join('; ')}","${r.site_count || r.count || getApplicants(r).length || r.site_id?.length || 1}","${r.file || ''}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -754,7 +983,7 @@ export function SWPInstallationRequest() {
           </div>
         </div>
 
-        {/* ── Table matching requested columns:
+        {/* ── Main Table matching requested columns:
             Sr. No. | Vendor | Assign Date | State | District | Applicant Name - Deadline | Count | View | File | Remarks | Status | Action ── */}
         <div className="ax-table-wrap">
           <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap' }}>
@@ -796,26 +1025,34 @@ export function SWPInstallationRequest() {
               {!loading &&
                 paginatedData.map((row, idx) => {
                   const isAccepted = Number(row.status) === 2;
-                  const assignedDate = row.created_at ? formatDate(row.created_at) : '—';
-                  const deadline = row.deadline || row.inst_deadline ? formatDate(row.deadline || row.inst_deadline) : '—';
+                  const assignedDate = formatDate(row.assign_date || row.created_at);
                   const remarksText = row.remarks || row.remark || '—';
                   const rowId = Number(row.id);
-                  const siteList = Array.isArray(row.site_id) ? row.site_id : [row.site_id].filter(Boolean);
+                  const vendorName = getVendorDisplay(row.vendor, row.vendor_name);
+                  const applicants = getApplicants(row);
+                  const count = Number(row.site_count || row.count || applicants.length || row.site_id?.length || 1);
+                  const fileUrl = row.file ? resolveJammuSwpMediaUrl(row.file) : '';
+                  const fileExt = getFileExt(row.file);
+                  const isImg = isImage(row.file);
 
                   return (
                     <tr key={row.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                        {getVendorDisplay(row.vendor)}
+                        {vendorName}
                       </td>
                       <td className="ax-table__td" style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
                         {assignedDate}
                       </td>
-                      <td className="ax-table__td">{row.state || 'Jammu & Kashmir'}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                        {(row.state || 'Jammu & Kashmir').toUpperCase()}
+                      </td>
                       <td className="ax-table__td"><b>{row.district || '—'}</b></td>
+
+                      {/* Applicant Name - Deadline Column */}
                       <td className="ax-table__td" style={{ maxWidth: 360, whiteSpace: 'normal', fontSize: '12px' }}>
-                        {siteList.length === 0 && <span style={{ color: 'var(--ax-text-muted)' }}>—</span>}
-                        {siteList.slice(0, 2).map((s, sIdx) => (
+                        {applicants.length === 0 && <span style={{ color: 'var(--ax-text-muted)' }}>—</span>}
+                        {applicants.slice(0, 2).map((app, sIdx) => (
                           <div
                             key={sIdx}
                             style={{
@@ -827,15 +1064,15 @@ export function SWPInstallationRequest() {
                               margin: '2px 4px 2px 0',
                             }}
                           >
-                            <b>{String(s)}</b>
-                            {deadline !== '—' && (
+                            <b style={{ color: 'var(--ax-text-strong)' }}>{app.name}</b>
+                            {app.deadline && app.deadline !== '—' && (
                               <span style={{ color: 'var(--ax-text-muted)', fontSize: 11, marginLeft: 4 }}>
-                                ({deadline})
+                                ({app.deadline})
                               </span>
                             )}
                           </div>
                         ))}
-                        {siteList.length > 2 && (
+                        {applicants.length > 2 && (
                           <button
                             type="button"
                             onClick={() => handleOpenDetailModal(row)}
@@ -858,69 +1095,73 @@ export function SWPInstallationRequest() {
                             }}
                             title="Click to view Batch Assignment Details"
                           >
-                            +{siteList.length - 2} more · View more
+                            +{applicants.length - 2} more · View all &rarr;
                           </button>
                         )}
                       </td>
+
                       <td className="ax-table__td ax-num" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>
-                        {siteList.length || 1}
+                        {count}
                       </td>
-                      {/* View */}
+
+                      {/* View Button Column */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <button
                           type="button"
-                          className="ax-btn ax-btn--ghost ax-btn--xs"
+                          className="ax-btn ax-btn--secondary ax-btn--sm"
                           onClick={() => handleOpenDetailModal(row)}
                           title="View assigned sites list"
-                          style={{ padding: '3px 8px', fontSize: 11, color: '#2563eb' }}
+                          style={{ padding: '3px 10px', fontSize: 12 }}
                         >
                           View
                         </button>
                       </td>
-                      {/* File */}
+
+                      {/* File Column (Thumbnail if Image, link if Document) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        {row.file ? (
+                        {row.file && isImg ? (
+                          <InstallationThumbnail
+                            src={row.file}
+                            alt={`${vendorName} - File Photo`}
+                            onPreview={(url, title) => setPreviewImg({ url, title })}
+                            size={34}
+                          />
+                        ) : fileUrl ? (
                           <a
-                            href={resolveJammuSwpMediaUrl(row.file)}
+                            href={fileUrl}
                             target="_blank"
-                            rel="noreferrer"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            style={{ padding: '2px 6px', fontSize: 11, color: '#2563eb' }}
-                            title="View attachment file"
+                            rel="noopener noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                            style={{ color: 'var(--asw-primary, #2563eb)', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px' }}
+                            title="View / Download Assigned Site File"
                           >
-                            📄 File
+                            📎 {fileExt} ↗
                           </a>
                         ) : (
                           <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
                         )}
                       </td>
+
                       <td className="ax-table__td" style={{ maxWidth: 160, whiteSpace: 'normal', fontSize: '12px' }}>
                         {remarksText}
                       </td>
+
                       <td className="ax-table__td">
                         {isAccepted ? (
-                          <Badge tone="success">Accepted</Badge>
+                          <Badge tone="success">✓ Accepted</Badge>
                         ) : (
-                          <Badge tone="warning">Assigned</Badge>
+                          <Badge tone="warning">Pending Accept</Badge>
                         )}
                       </td>
+
+                      {/* Action Column */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--xs"
-                            onClick={() => handleOpenDetailModal(row)}
-                            title="View full batch details"
-                            style={{ padding: '3px 8px', fontSize: 11 }}
-                          >
-                            View
-                          </button>
-
                           {!isAccepted ? (
                             <button
                               type="button"
-                              className="ax-btn ax-btn--primary ax-btn--xs"
-                              style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600 }}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              style={{ padding: '4px 12px', fontSize: 12, fontWeight: 600 }}
                               disabled={acceptingId === rowId}
                               onClick={() => handleDirectAccept(rowId)}
                             >
@@ -934,7 +1175,7 @@ export function SWPInstallationRequest() {
                               )}
                             </button>
                           ) : (
-                            <Badge tone="success">Done</Badge>
+                            <Badge tone="success">✓ Done</Badge>
                           )}
                         </div>
                       </td>
@@ -960,19 +1201,17 @@ export function SWPInstallationRequest() {
         </div>
       </section>
 
-      {/* ── View Batch Detail Modal (API 14: jammu/swp/installation-view-assigned-site-details) ── */}
+      {/* ── View Batch Detail Modal ── */}
       {detailModalItem && (
         <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="swp-assigned-batch-detail-title">
           <div className="ax-modal__backdrop" onClick={() => setDetailModalItem(null)} />
-          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 650 }}>
+          <div ref={detailDialogRef} className="ax-modal__dialog" style={{ maxWidth: 960, width: '92%' }}>
             <div className="ax-modal__header">
-              <h2 className="ax-modal__title" id="swp-assigned-batch-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>SWP Batch Assignment Details</span>
-                {detailModalItem.id && (
-                  <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
-                    {detailModalItem.id}
-                  </span>
-                )}
+              <h2 className="ax-modal__title" id="swp-assigned-batch-detail-title" style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                <span>Assignment Details · #{detailModalItem.id}</span>
+                <span className="ax-badge ax-badge--soft ax-badge--accent" style={{ fontSize: 11, fontWeight: 600 }}>
+                  SWP Batch
+                </span>
               </h2>
               <button
                 type="button"
@@ -983,119 +1222,182 @@ export function SWPInstallationRequest() {
                 {X_ICON}
               </button>
             </div>
+
             <div className="ax-modal__body">
               {loadingBatchDetail ? (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#2563eb' }}>
                   <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading assignment site details...
                 </div>
               ) : (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', fontSize: 13, marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Top metadata info summary card */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 16,
+                      padding: '12px 18px',
+                      background: 'var(--ax-surface-subtle, #f8fafc)',
+                      borderRadius: 8,
+                      border: '1px solid var(--ax-border, #e2e8f0)',
+                      fontSize: 12.5,
+                    }}
+                  >
                     <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch ID</span>
-                      <b style={{ color: '#2563eb', fontFamily: 'monospace' }}>{detailModalItem.id}</b>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span>
+                      <b>{getVendorDisplay(detailModalItem.vendor, detailModalItem.vendor_name)}</b>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>
-                      <b>{getVendorDisplay(detailModalItem.vendor)}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State</span>
-                      <b>{detailModalItem.state || 'Jammu & Kashmir'}</b>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>District</span>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>District: </span>
                       <b>{detailModalItem.district || '—'}</b>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Site Count</span>
-                      <b style={{ color: '#16a34a' }}>{detailModalItem.site_id?.length || 1}</b>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>State: </span>
+                      <b>{(detailModalItem.state || 'Jammu & Kashmir').toUpperCase()}</b>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Assigned Date</span>
-                      <b>{formatDate(detailModalItem.created_at)}</b>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span>
+                      <b>{formatDate(detailModalItem.assign_date || detailModalItem.created_at)}</b>
                     </div>
                     <div>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Status</span>
-                      {Number(detailModalItem.status) === 2 ? (
-                        <Badge tone="success">Accepted</Badge>
-                      ) : (
-                        <Badge tone="warning">Assigned (Pending Accept)</Badge>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>Deadline: </span>
+                      <b>{formatDate(detailModalItem.deadline_date || detailModalItem.deadline || detailModalItem.inst_deadline)}</b>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
+                      <Badge tone={Number(detailModalItem.status) === 2 ? 'success' : 'warning'}>
+                        {Number(detailModalItem.status) === 2 ? '✓ Accepted' : 'Pending Accept'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--ax-text-muted)' }}>Total Sites: </span>
+                      <b style={{ color: 'var(--asw-primary, #2563eb)' }}>
+                        {detailModalItem.site_count || modalApplicants.length || 1}
+                      </b>
+                    </div>
+                  </div>
+
+                  {/* Search filter above popup table */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label
+                      htmlFor="modal_swp_search"
+                      style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-strong)', whiteSpace: 'nowrap' }}
+                    >
+                      Search:
+                    </label>
+                    <input
+                      id="modal_swp_search"
+                      type="text"
+                      className="ax-input ax-input--sm"
+                      style={{ width: 300, height: 32 }}
+                      placeholder="Search applicant, father name, block, village…"
+                      value={modalSearch}
+                      onChange={(e) => setModalSearch(e.target.value)}
+                    />
+                    {modalSearch && (
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost ax-btn--sm"
+                        onClick={() => setModalSearch('')}
+                        style={{ height: 30, padding: '0 8px', fontSize: '12px' }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Popup Table: Sr. No. | Assign Date | State | District | Block | Village | Applicant Name | Father Name | Deadline Date */}
+                  <div className="ax-table-wrap" style={{ maxHeight: '55vh', overflow: 'auto' }}>
+                    <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', width: '100%' }}>
+                      <thead className="ax-table__head">
+                        <tr>
+                          <th className="ax-table__th" style={{ textAlign: 'center', width: 50 }}>Sr. No.</th>
+                          <th className="ax-table__th">Assign Date</th>
+                          <th className="ax-table__th">State</th>
+                          <th className="ax-table__th">District</th>
+                          <th className="ax-table__th">Block</th>
+                          <th className="ax-table__th">Village</th>
+                          <th className="ax-table__th">Applicant Name</th>
+                          <th className="ax-table__th">Father Name</th>
+                          <th className="ax-table__th">Deadline Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="ax-table__body">
+                        {modalApplicants.map((app, idx) => (
+                          <tr key={idx} className="ax-table__row">
+                            <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                              {idx + 1}
+                            </td>
+                            <td className="ax-table__td" style={{ fontSize: 12.5 }}>
+                              {formatDate(detailModalItem.assign_date || detailModalItem.created_at)}
+                            </td>
+                            <td className="ax-table__td" style={{ fontWeight: 600 }}>
+                              {(detailModalItem.state || 'Jammu & Kashmir').toUpperCase()}
+                            </td>
+                            <td className="ax-table__td">
+                              <b>{detailModalItem.district || '—'}</b>
+                            </td>
+                            <td className="ax-table__td">{app.block || '—'}</td>
+                            <td className="ax-table__td">{app.village || '—'}</td>
+                            <td className="ax-table__td">
+                              <strong style={{ color: 'var(--ax-text-strong)' }}>{app.name}</strong>
+                            </td>
+                            <td className="ax-table__td">{app.fatherName || '—'}</td>
+                            <td className="ax-table__td" style={{ fontSize: 12.5 }}>
+                              {app.deadline || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                        {modalApplicants.length === 0 && (
+                          <tr>
+                            <td colSpan={9} style={{ textAlign: 'center', padding: 24, color: 'var(--ax-text-muted)' }}>
+                              No applicant records found matching your query.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Remarks & Attachment if present */}
+                  {(detailModalItem.remarks || detailModalItem.remark || detailModalItem.file) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 10 }}>
+                      {(detailModalItem.remarks || detailModalItem.remark) && (
+                        <div style={{ fontSize: 12.5 }}>
+                          <span style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>Remarks: </span>
+                          <span>{detailModalItem.remarks || detailModalItem.remark}</span>
+                        </div>
+                      )}
+                      {detailModalItem.file && (
+                        <div style={{ fontSize: 12.5 }}>
+                          <span style={{ color: 'var(--ax-text-muted)', fontWeight: 600 }}>File Attachment: </span>
+                          <a
+                            href={resolveJammuSwpMediaUrl(detailModalItem.file)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: '#2563eb', padding: '2px 8px' }}
+                          >
+                            📄 View File ↗
+                          </a>
+                        </div>
                       )}
                     </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Remarks</span>
-                      <p style={{ margin: '4px 0 0 0', fontSize: 13, background: 'var(--ax-surface-subtle, #f8fafc)', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--ax-border, #e2e8f0)' }}>
-                        {detailModalItem.remarks || detailModalItem.remark || 'No remarks provided.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Allocated sites in this batch */}
-                  <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
-                      Allocated Farmers / Sites in this Batch ({detailModalItem.site_details?.length || detailModalItem.site_id?.length || 0})
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {(detailModalItem.site_details && detailModalItem.site_details.length > 0
-                        ? detailModalItem.site_details
-                        : (detailModalItem.site_id || []).map((name, i) => ({ id: i + 1, f_farmer_name: String(name) }))
-                      ).map((s, sIdx) => (
-                        <div
-                          key={sIdx}
-                          style={{
-                            padding: '10px 14px',
-                            background: 'var(--ax-surface-subtle, #f8fafc)',
-                            border: '1px solid var(--ax-border, #e2e8f0)',
-                            borderRadius: 8,
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div>
-                            <b style={{ color: 'var(--ax-text-strong)', display: 'block' }}>{s.f_farmer_name}</b>
-                            <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
-                              Site ID: {s.id} {detailModalItem.district ? `• District: ${detailModalItem.district}` : ''}
-                            </span>
-                          </div>
-                          {detailModalItem.deadline && (
-                            <span className="ax-badge ax-badge--soft ax-badge--neutral">
-                              Deadline: {formatDate(detailModalItem.deadline)}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Document attachments if present */}
-                  {detailModalItem.file && (
-                    <div style={{ borderTop: '1px solid var(--ax-border, #e2e8f0)', paddingTop: 14, marginTop: 14 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ax-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
-                        Work Order / File Attachment
-                      </span>
-                      <a
-                        href={resolveJammuSwpMediaUrl(detailModalItem.file)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="ax-btn ax-btn--secondary ax-btn--xs"
-                      >
-                        📄 View Work Order File
-                      </a>
-                    </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
-            <div className="ax-modal__footer">
+            <div className="ax-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               {Number(detailModalItem.status) !== 2 ? (
                 <button
                   type="button"
                   className="ax-btn ax-btn--primary ax-btn--sm"
                   disabled={acceptingId === Number(detailModalItem.id)}
-                  onClick={() => handleDirectAccept(detailModalItem.id)}
+                  onClick={async () => {
+                    await handleDirectAccept(detailModalItem.id);
+                    setDetailModalItem(null);
+                  }}
                 >
                   {acceptingId === Number(detailModalItem.id) ? 'Accepting…' : 'Accept Assignment'}
                 </button>
@@ -1121,6 +1423,15 @@ export function SWPInstallationRequest() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Image Lightbox Preview Modal ── */}
+      {previewImg && (
+        <ImagePreviewModal
+          url={previewImg.url}
+          title={previewImg.title}
+          onClose={() => setPreviewImg(null)}
+        />
       )}
     </div>
   );

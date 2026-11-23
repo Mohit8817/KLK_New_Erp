@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -418,9 +419,32 @@ function KpiCard({
   );
 }
 
+const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+function extractFilePath(raw: any): string | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return undefined;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) return String(parsed[0]);
+      } catch {}
+    }
+    return trimmed;
+  }
+  if (Array.isArray(raw) && raw.length > 0) return String(raw[0]);
+  return undefined;
+}
+
 export function VerifySslLights() {
+  const [searchParams] = useSearchParams();
+  const initialStatusParam = searchParams.get('status') || '';
+  const initialDistrictParam = searchParams.get('district') || '';
+  const initialVendorParam = searchParams.get('vendor') || '';
+
   const [counts, setCounts] = useState<AssignSummaryCounts>({
     totalsite: 0,
     complete: 0,
@@ -439,14 +463,23 @@ export function VerifySslLights() {
   const [successMsg, setSuccessMsg] = useState<string>('');
 
   // Report Wise Bifurcation tabs: 'pending' vs 'approved_rejected'
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved_rejected'>(() => {
+    const st = initialStatusParam.toLowerCase();
+    if (st.includes('approve') || st.includes('reject') || st === 'verified' || st === 'approved_rejected') {
+      return 'approved_rejected';
+    }
+    return 'pending';
+  });
 
   // Search input
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    return initialDistrictParam || initialVendorParam || '';
+  });
 
   // Action Popup State
   const [selectedSiteForAction, setSelectedSiteForAction] = useState<LightVerificationItem | null>(null);
-  const [actionStatus, setActionStatus] = useState<string>('1'); // 1=Approved, 2=Rejected, 0=Pending
+  const [actionStatus, setActionStatus] = useState<string>(''); // 1=Approved, 2=Rejected
+  const [actionFile, setActionFile] = useState<File | null>(null);
   const [actionRemarks, setActionRemarks] = useState<string>('');
   const [submittingAction, setSubmittingAction] = useState<boolean>(false);
 
@@ -456,14 +489,7 @@ export function VerifySslLights() {
   // Lightbox Photo preview
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
-    '142': 'Surya Roshni Solar Infrastructure',
-    '212': 'Havells India Lighting Division',
-    '304': 'Signify Innovations Solar Systems',
-    '418': 'Microsun Solar Tech J&K',
-    '520': 'Tata Power Solar Systems J&K',
-    '630': 'Jakson Green Power & Lighting',
-  });
+  const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({});
 
   const getVendorName = useCallback(
     (item?: Partial<LightVerificationItem> | null): string => {
@@ -517,6 +543,9 @@ export function VerifySslLights() {
     if (actionStatus === '') {
       return setErrorMsg('Please select a valid status.');
     }
+    if (!actionFile && !selectedSiteForAction.verify_file && !selectedSiteForAction.inst_verify_file) {
+      return setErrorMsg('Please choose a verification file.');
+    }
 
     setSubmittingAction(true);
     setErrorMsg('');
@@ -526,6 +555,8 @@ export function VerifySslLights() {
       const res = await jammuSslAdminService.verifyInstallationStatus({
         id: selectedSiteForAction.id,
         status: statusNum,
+        file: actionFile,
+        remark: actionRemarks.trim() || undefined,
         inst_verify_remarks: actionRemarks.trim() || undefined,
       });
 
@@ -533,6 +564,8 @@ export function VerifySslLights() {
         ...selectedSiteForAction,
         inst_verify_status: statusNum,
         inst_verify_remarks: actionRemarks.trim(),
+        inst_verify_file: actionFile ? URL.createObjectURL(actionFile) : selectedSiteForAction.inst_verify_file,
+        verify_file: actionFile ? URL.createObjectURL(actionFile) : selectedSiteForAction.verify_file,
         inst_verify_date: new Date().toISOString().replace('T', ' ').slice(0, 19),
       };
 
@@ -631,7 +664,7 @@ export function VerifySslLights() {
   const exportCols: ExportColumn<LightVerificationItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r: LightVerificationItem, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'State', accessor: () => 'JAMMU & KASHMIR' },
+      { header: 'State', accessor: () => 'JAMMU' },
       { header: 'District', accessor: (r: LightVerificationItem) => r.district || '—' },
       { header: 'Block', accessor: (r: LightVerificationItem) => r.block || '—' },
       { header: 'Panchayat', accessor: (r: LightVerificationItem) => r.panchayat || '—' },
@@ -812,7 +845,7 @@ export function VerifySslLights() {
         </div>
       )}
 
-      {/* ── Top 5 KPI Metric Cards in .asw-cards-row ── */}
+      {/* ── Top 8 KPI Metric Cards matching Backend Counters ── */}
       <div className="asw-cards-row">
         <KpiCard
           icon={
@@ -823,32 +856,9 @@ export function VerifySslLights() {
             </svg>
           }
           tone="accent"
-          label="Total Sites"
-          value={totalSiteCount}
-          sub={`Assigned: ${totalSiteCount} | Unassigned: ${counts.pendingsite || 0}`}
-        />
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-            </svg>
-          }
-          tone="cyan"
-          label="Installed Sites"
-          value={installedCount}
-          sub={`Pending Inst: ${counts.pendingsite || 0}`}
-        />
-        <KpiCard
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-          tone="amber"
-          label="Verify Pending"
-          value={pendingCount}
-          sub="Awaiting admin QA review"
+          label="Total Assigned Lights"
+          value={num(counts.totalsite)}
+          sub="Total lights assigned"
         />
         <KpiCard
           icon={
@@ -858,9 +868,34 @@ export function VerifySslLights() {
             </svg>
           }
           tone="emerald"
-          label="Verified Approved"
-          value={approvedCount}
-          sub="QA verified & approved"
+          label="Complete Lights"
+          value={num(counts.complete)}
+          sub="Installation complete"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+          tone="amber"
+          label="Pending Lights"
+          value={num(counts.pendingsite)}
+          sub="Installation pending"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+            </svg>
+          }
+          tone="cyan"
+          label="Approve Lights"
+          value={num(counts.approvedsite)}
+          sub="Approved lights"
         />
         <KpiCard
           icon={
@@ -871,9 +906,45 @@ export function VerifySslLights() {
             </svg>
           }
           tone="violet"
-          label="Verified Rejected"
-          value={rejectedCount}
-          sub="Requires re-installation"
+          label="Reject Lights"
+          value={num(counts.rejectsite)}
+          sub="Rejected lights"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          }
+          tone="amber"
+          label="Verify Pending"
+          value={num(counts.verifypending)}
+          sub="Awaiting QA review"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          }
+          tone="cyan"
+          label="Claim Applicable"
+          value={num(counts.claimedapplicable)}
+          sub="Ready for claim audit"
+        />
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="6" y1="12" x2="18" y2="12" />
+            </svg>
+          }
+          tone="emerald"
+          label="Payment Done"
+          value={num(counts.paymentsitecount)}
+          sub="Disbursed sites"
         />
       </div>
 
@@ -885,7 +956,7 @@ export function VerifySslLights() {
           className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          Verify Pending
+          Lights Completed
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
             {verifyPending.length}
           </span>
@@ -895,7 +966,7 @@ export function VerifySslLights() {
           className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active' : ''}`}
           onClick={() => setActiveTab('approved_rejected')}
         >
-          Approved / Rejected Data
+          Approved / Rejected Lights
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
             {verifyComplete.length}
           </span>
@@ -946,34 +1017,37 @@ export function VerifySslLights() {
 
         {/* ── Responsive Horizontal Scroll Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1750 }}>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: 1850 }}>
             <thead className="ax-table__head">
               <tr>
                 <th className="ax-table__th">Sr. No.</th>
                 <th className="ax-table__th">State</th>
+                <th className="ax-table__th">Phase</th>
                 <th className="ax-table__th">District</th>
                 <th className="ax-table__th">Block</th>
-                <th className="ax-table__th">Panchayat / GPS</th>
-                <th className="ax-table__th">Beneficiary / Contact</th>
-                <th className="ax-table__th">Vendor Name</th>
-                <th className="ax-table__th">Scheme & Volume</th>
-                <th className="ax-table__th">Pole No.</th>
-                <th className="ax-table__th">Luminary / Lux</th>
-                <th className="ax-table__th">Battery Serial</th>
-                <th className="ax-table__th">Panel Serial</th>
-                <th className="ax-table__th">RMS IMEI / SIM</th>
-                <th className="ax-table__th">Pole With Light</th>
-                <th className="ax-table__th">Battery & Enclosure</th>
-                <th className="ax-table__th">Installed Date</th>
-                <th className="ax-table__th">Remarks</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
-                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                <th className="ax-table__th">Village</th>
+                <th className="ax-table__th">Beneficiary Name</th>
+                <th className="ax-table__th">Beneficiary Contact</th>
+                <th className="ax-table__th">Latitude</th>
+                <th className="ax-table__th">Longitude</th>
+                <th className="ax-table__th">IMEI No.</th>
+                <th className="ax-table__th">Sim No.</th>
+                <th className="ax-table__th">Battery No.</th>
+                <th className="ax-table__th">Panel No.</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Light Image</th>
+                <th className="ax-table__th">Remark</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify File</th>
+                <th className="ax-table__th">Verify Remarks</th>
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={19} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 20 : 19} style={centerCell}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading installation proof records...</span>
@@ -982,7 +1056,7 @@ export function VerifySslLights() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={19} style={centerCell}>
+                  <td colSpan={activeTab === 'pending' ? 20 : 19} style={centerCell}>
                     <TableEmptyState
                       title="No installation records found"
                       description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
@@ -993,7 +1067,6 @@ export function VerifySslLights() {
                 pagination.paged.map((row: LightVerificationItem, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const poleImg = row.light_file || row.light_image || row.photo;
-                  const batImg = (row as any).battery_image || (row as any).battery_file || poleImg;
                   const verifyStatus = Number(row.inst_verify_status);
                   const lat = row.inst_latitude || row.latitude || row.lat;
                   const lng = row.inst_longitude || row.longitude || row.long || row.lng;
@@ -1001,73 +1074,53 @@ export function VerifySslLights() {
                   return (
                     <tr key={row.id}>
                       <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
-                      <td className="ax-table__td">JAMMU & KASHMIR</td>
+                      <td className="ax-table__td">JAMMU</td>
+                      <td className="ax-table__td">
+                        <span style={{ fontWeight: 600, color: '#334155' }}>{row.phase || row.volume || 'Phase I'}</span>
+                      </td>
                       <td className="ax-table__td">{row.district || '—'}</td>
                       <td className="ax-table__td">
                         <div style={{ fontWeight: 600 }}>{row.block || '—'}</div>
                       </td>
                       <td className="ax-table__td">
-                        <div>{row.panchayat || row.village || '—'}</div>
-                        {row.address && (
-                          <div style={{ fontSize: 10, color: '#64748b' }}>
-                            {row.address}
-                          </div>
-                        )}
-                        {lat && lng && String(lat) !== '0.0' && String(lng) !== '0.0' && (
-                          <a
-                            href={`https://www.google.com/maps?q=${lat},${lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                              fontSize: 11,
-                              color: '#2559bf',
-                              textDecoration: 'none',
-                              marginTop: 2,
-                            }}
-                            title={`GPS: ${lat}, ${lng} (Click to open map)`}
-                          >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-                              <circle cx="12" cy="10" r="3" />
-                            </svg>
-                            <span>GPS Map</span>
-                          </a>
-                        )}
+                        <div>{row.village || row.panchayat || '—'}</div>
                       </td>
                       <td className="ax-table__td">
-                        <div style={{ minWidth: 140 }}>
-                          <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                            {row.beneficiary_name || row.contact_person || 'Gram Panchayat'}
-                          </div>
-                          {(row.contact_no || row.contact_number || row.phone) && (
-                            <div style={{ fontSize: 11, color: '#2559bf', fontFamily: 'monospace' }}>
-                              {row.contact_no || row.contact_number || row.phone}
-                            </div>
-                          )}
-                          {(row.uid || row.unique_id) && (
-                            <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace' }}>
-                              UID: {row.uid || row.unique_id}
-                            </div>
-                          )}
+                        <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {row.beneficiary_name || row.contact_person || '—'}
                         </div>
-                      </td>
-                      <td className="ax-table__td" style={{ fontWeight: 600 }}>
-                        {getVendorName(row)}
-                      </td>
-                      <td className="ax-table__td">
-                        <div style={{ fontSize: 12 }}>
-                          <div><span style={{ color: '#64748b' }}>Phase:</span> <strong>{row.phase || 'Phase I'}</strong></div>
-                          {row.volume && <div><span style={{ color: '#64748b' }}>Vol:</span> <strong>{row.volume}</strong></div>}
-                        </div>
-                      </td>
-                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e293b', fontSize: 12 }}>
-                        {row.pole_no || `JK-POLE-${row.id}`}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                        {row.luminary_no || row.light_no || '12W LED / 1200 lm'}
+                        {row.contact_no || row.contact_number || row.phone || '—'}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        {lat ? String(lat) : '—'}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        {lng ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <span>{String(lng)}</span>
+                            {lat && String(lat) !== '0.0' && String(lng) !== '0.0' && (
+                              <a
+                                href={`https://www.google.com/maps?q=${lat},${lng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#2559bf', textDecoration: 'none' }}
+                                title="Open GPS Map"
+                              >
+                                ↗
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.imei_no || '—'}
+                      </td>
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {row.sim_no || '—'}
                       </td>
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
                         {row.battery_serial_no || row.battery_no || '—'}
@@ -1075,15 +1128,9 @@ export function VerifySslLights() {
                       <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12 }}>
                         {row.panel_no || row.module_no || '—'}
                       </td>
-                      <td className="ax-table__td">
-                        <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          <div title="RMS IMEI">{row.imei_no || '—'}</div>
-                          {row.sim_no && <div style={{ fontSize: 10, color: '#64748b' }}>SIM: {row.sim_no}</div>}
-                        </div>
-                      </td>
 
-                      {/* Image 1: Pole With Light */}
-                      <td className="ax-table__td">
+                      {/* Light Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {poleImg ? (
                           <button
                             type="button"
@@ -1100,7 +1147,7 @@ export function VerifySslLights() {
                           >
                             <img
                               src={resolveJammuSslMediaUrl(poleImg)}
-                              alt="Pole Installation"
+                              alt="Light"
                               style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4 }}
                               onError={(e) => {
                                 (e.currentTarget as HTMLElement).style.display = 'none';
@@ -1112,122 +1159,152 @@ export function VerifySslLights() {
                         )}
                       </td>
 
-                      {/* Image 2: Battery & Enclosure */}
-                      <td className="ax-table__td">
-                        {batImg ? (
-                          <button
-                            type="button"
-                            onClick={() => setLightboxUrl(resolveJammuSslMediaUrl(batImg))}
-                            style={{
-                              border: '1px solid #cbd5e1',
-                              borderRadius: 6,
-                              padding: 2,
-                              background: '#fff',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                            }}
-                            title="Click to view full image"
-                          >
-                            <img
-                              src={resolveJammuSslMediaUrl(batImg)}
-                              alt="Battery Enclosure"
-                              style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4 }}
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          </button>
-                        ) : (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
-                        )}
+                      {/* Remark */}
+                      <td className="ax-table__td" style={{ maxWidth: 160, fontSize: 11 }}>
+                        {row.inst_remark || row.remark || '—'}
                       </td>
 
-                      <td className="ax-table__td" style={{ fontSize: 12 }}>
-                        {row.created_at || row.updated_at || '—'}
-                      </td>
-
-                      <td className="ax-table__td" style={{ maxWidth: 180, fontSize: 11, lineHeight: 1.3 }}>
-                        {(row.inst_remark || row.remark) && (
-                          <div>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>Vendor: </span>
-                            <span>{row.inst_remark || row.remark}</span>
-                          </div>
-                        )}
-                        {row.inst_verify_remarks && (
-                          <div style={{ marginTop: (row.inst_remark || row.remark) ? 3 : 0, color: '#b45309' }}>
-                            <span style={{ fontWeight: 600 }}>QA: </span>
-                            <span>{row.inst_verify_remarks}</span>
-                          </div>
-                        )}
-                        {!row.inst_remark && !row.remark && !row.inst_verify_remarks && (
-                          <span style={{ color: 'var(--ax-text-muted)' }}>—</span>
-                        )}
-                      </td>
-
+                      {/* Verify Status */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
                         {verifyStatus === 1 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--success" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Approved
+                            Verify Approved
                           </span>
                         ) : verifyStatus === 2 ? (
                           <span className="ax-badge ax-badge--soft ax-badge--danger" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Rejected
+                            Verify Rejected
                           </span>
                         ) : (
                           <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
-                            Pending
+                            Pending Review
                           </span>
                         )}
                       </td>
 
+                      {/* Verify File */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedSiteForDetails(row)}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#f1f5f9',
-                              color: '#1e293b',
-                              border: '1px solid #cbd5e1',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 3,
-                            }}
-                            title="View full site details"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="10" r="3" />
-                            </svg>
-                            Details
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSiteForAction(row);
-                              setActionStatus(String(row.inst_verify_status ?? '1'));
-                              setActionRemarks(row.inst_verify_remarks || '');
-                            }}
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              background: '#2559bf',
-                              color: '#ffffff',
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Verify
-                          </button>
-                        </div>
+                        {(() => {
+                          const rawFile =
+                            row.verify_file ||
+                            row.inst_verify_file ||
+                            (row as any).file ||
+                            (row as any).verify_doc ||
+                            (row as any).document;
+                          const cleanFile = extractFilePath(rawFile);
+                          if (!cleanFile) return <span style={{ color: 'var(--ax-text-muted)' }}>—</span>;
+                          const fileUrl = resolveJammuSslMediaUrl(cleanFile);
+                          const isImg = /\.(jpe?g|png|webp|gif|svg)$/i.test(cleanFile);
+
+                          return (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {isImg ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setLightboxUrl(fileUrl)}
+                                  style={{
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: 6,
+                                    padding: 2,
+                                    background: '#fff',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                  }}
+                                  title="Click to preview Verify File"
+                                >
+                                  <img
+                                    src={fileUrl}
+                                    alt="Verify File"
+                                    style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                </button>
+                              ) : (
+                                <a
+                                  href={fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: 6,
+                                    background: '#eff6ff',
+                                    color: '#2559bf',
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    border: '1px solid #bfd3f8',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}
+                                  title="Open / Download Verify File"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                  <span>View File</span>
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
+
+                      {/* Verify Remarks */}
+                      <td className="ax-table__td" style={{ fontSize: 12, color: '#334155' }}>
+                        {row.inst_verify_remarks || row.verify_remarks || '—'}
+                      </td>
+
+                      {/* Action: Only rendered when pending! */}
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSiteForDetails(row)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#1e293b',
+                                border: '1px solid #cbd5e1',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                              }}
+                              title="View full site details"
+                            >
+                              Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSiteForAction(row);
+                                setActionStatus(row.inst_verify_status ? String(row.inst_verify_status) : '');
+                                setActionFile(null);
+                                setActionRemarks(row.inst_verify_remarks || '');
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#2559bf',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Verify
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -1386,7 +1463,7 @@ export function VerifySslLights() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: 6, fontSize: 12 }}>
                   <span style={{ color: '#64748b' }}>State:</span>
-                  <span style={{ fontWeight: 600 }}>JAMMU & KASHMIR</span>
+                  <span style={{ fontWeight: 600 }}>JAMMU</span>
 
                   <span style={{ color: '#64748b' }}>District:</span>
                   <span>{selectedSiteForDetails.district || '—'}</span>
@@ -1547,15 +1624,15 @@ export function VerifySslLights() {
         onClose={() => {
           if (!submittingAction) setSelectedSiteForAction(null);
         }}
-        title="Verify Installation Status"
+        title="Verify Status"
         subtitle={
           selectedSiteForAction
             ? `Pole: ${selectedSiteForAction.pole_no || '#' + selectedSiteForAction.id} • District: ${selectedSiteForAction.district} • Vendor: ${getVendorName(selectedSiteForAction)}`
-            : ''
+            : undefined
         }
-        maxWidth={520}
+        maxWidth={480}
         footer={
-          <>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', width: '100%' }}>
             <button
               type="button"
               className="ax-button ax-button--secondary"
@@ -1570,44 +1647,77 @@ export function VerifySslLights() {
               className="ax-button ax-button--primary"
               onClick={handleActionSubmit}
               disabled={submittingAction}
-              style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              style={{ background: '#2559bf', borderColor: '#2559bf', padding: '6px 20px', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
               {submittingAction && <span className="ax-spinner" style={{ width: 12, height: 12 }} />}
-              Submit Status
+              Submit
             </button>
-          </>
+          </div>
         }
       >
-        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-              Verification Status <span style={{ color: '#ef4444' }}>*</span>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+              Status <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select
               value={actionStatus}
               onChange={(e) => setActionStatus(e.target.value)}
               required
-              className="ax-select"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              style={{
+                width: '100%',
+                height: 42,
+                padding: '0 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                color: actionStatus ? '#0f172a' : '#64748b',
+                background: '#fff',
+              }}
             >
               <option value="">-- Select Status --</option>
-              <option value="1">Approved</option>
-              <option value="2">Rejected</option>
-              <option value="0">Pending</option>
+              <option value="1">Verify Approve</option>
+              <option value="2">Verify Reject</option>
             </select>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--ax-text-strong)' }}>
-              Verification Remarks
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+              File <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+              onChange={(e) => setActionFile(e.target.files?.[0] || null)}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 12.5,
+                background: '#f8fafc',
+              }}
+              required={!selectedSiteForAction?.verify_file && !selectedSiteForAction?.inst_verify_file}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+              Remark
             </label>
             <textarea
               rows={3}
               value={actionRemarks}
               onChange={(e) => setActionRemarks(e.target.value)}
-              placeholder="Enter audit remarks or rejection reasons..."
-              className="ax-textarea"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              placeholder="Enter remark"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13,
+                resize: 'vertical',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+              }}
             />
           </div>
         </form>
@@ -1632,11 +1742,19 @@ export function VerifySslLights() {
       >
         {lightboxUrl && (
           <div style={{ textAlign: 'center', padding: 8 }}>
-            <img
-              src={lightboxUrl}
-              alt="Installation preview"
-              style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: 8 }}
-            />
+            {/\.pdf($|\?)/i.test(lightboxUrl) ? (
+              <iframe
+                src={lightboxUrl}
+                title="Installation Document Preview"
+                style={{ width: '100%', height: '65vh', border: 'none', borderRadius: 8, background: '#fff' }}
+              />
+            ) : (
+              <img
+                src={lightboxUrl}
+                alt="Installation preview"
+                style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: 8 }}
+              />
+            )}
           </div>
         )}
       </Modal>

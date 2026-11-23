@@ -6,6 +6,7 @@ import {
   useCallback,
   type FormEvent,
   type ChangeEvent,
+  type CSSProperties,
 } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -18,6 +19,11 @@ import {
 } from '../../up-services';
 import { SkeletonLine, SkeletonRect } from '../../../../../common/skeletons/SkeletonPrimitives';
 import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout matching Bihar SSL Install Light Reference
 const SINGLE_CARD_FORM_CSS = `
@@ -74,7 +80,7 @@ const SINGLE_CARD_FORM_CSS = `
 }
 
 /* Section Block */
-.ssl-section-block { padding-top: var(--ax-space-2, 8px); }
+.ssl-section-block { padding-top: var(--ax-space-2, 8px); scroll-margin-top: 80px; }
 .ssl-section-header {
   display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;
   gap: var(--ax-space-2, 8px);
@@ -202,7 +208,7 @@ const SINGLE_CARD_FORM_CSS = `
   overflow-wrap: anywhere;
 }
 
-/* Sticky action footer */
+/* Sticky action footer (outside the card, same as Kusum C) */
 .ssl-form-sticky-bar {
   position: sticky;
   bottom: var(--ax-space-4, 16px);
@@ -220,6 +226,8 @@ const SINGLE_CARD_FORM_CSS = `
   gap: var(--ax-space-3, 12px);
   backdrop-filter: blur(12px);
 }
+
+@keyframes ssl-spin { to { transform: rotate(360deg); } }
 `;
 
 const MAX_FILE = 5 * 1024 * 1024; // 5MB
@@ -316,64 +324,11 @@ const ORDER = [
   'light_file',
 ];
 
-// Fallback Mock Data for offline resilience
-const FALLBACK_LIGHTS: UpSsl18wLightDropdownItem[] = [
-  { id: 101, uid: 'UP-SSL-18W-001' },
-  { id: 102, uid: 'UP-SSL-18W-002' },
-  { id: 103, uid: 'UP-SSL-18W-003' },
-  { id: 104, uid: 'UP-SSL-18W-004' },
-  { id: 105, uid: 'UP-SSL-18W-005' },
-];
-
-const FALLBACK_DETAIL: Record<string, UpSsl18wLightDetail> = {
-  '101': {
-    id: 101,
-    uid: 'UP-SSL-18W-001',
-    state: 'Uttar Pradesh',
-    phase: 'Phase 1',
-    district: 'Lucknow',
-    block: 'Bakshi Ka Talab',
-    panchayat: 'Bhaisamau',
-    wo_no: 'WO/UP/SSL/2026/088',
-    wo_received: '12-01-2026',
-    ward_no: '04',
-    pole_no: 'P-124',
-    beneficiary_name: 'Ram Prakash Verma',
-    beneficiary_contact: '9876543210',
-    uuid_no: 'UUID-UP-88421',
-    battery_serial_no: 'BAT-18W-9921',
-    panel_no: 'PANEL-50W-7741',
-    light_no: 'LUM-18W-3312',
-    latitude: '26.9625',
-    longitude: '80.9288',
-  },
-  '102': {
-    id: 102,
-    uid: 'UP-SSL-18W-002',
-    state: 'Uttar Pradesh',
-    phase: 'Phase 1',
-    district: 'Varanasi',
-    block: 'Pindra',
-    panchayat: 'Anei',
-    wo_no: 'WO/UP/SSL/2026/092',
-    wo_received: '15-01-2026',
-    ward_no: '02',
-    pole_no: 'P-089',
-    beneficiary_name: 'Shyam Sundar Singh',
-    beneficiary_contact: '9812345678',
-    uuid_no: 'UUID-UP-88422',
-    battery_serial_no: 'BAT-18W-9922',
-    panel_no: 'PANEL-50W-7742',
-    light_no: 'LUM-18W-3313',
-    latitude: '25.3176',
-    longitude: '82.9739',
-  },
-};
-
 export function UP_Installation_SSL_InstallLight() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editIdParam = searchParams.get('id') || searchParams.get('ssl_id') || searchParams.get('unique_id');
+  const editUidParam = searchParams.get('uid');
   const isEditMode = searchParams.get('edit') === 'true' || Boolean(editIdParam);
 
   // Section Refs for Quick Navigation
@@ -401,7 +356,7 @@ export function UP_Installation_SSL_InstallLight() {
       (raw as any)?.vendor?.name ||
       (raw as any)?.user?.name ||
       '';
-    return candidate && candidate !== 'undefined' ? candidate : 'mohit';
+    return candidate && candidate !== 'undefined' ? String(candidate) : '';
   }, [user]);
 
   // Dropdown & Site Detail State
@@ -496,46 +451,6 @@ export function UP_Installation_SSL_InstallLight() {
     setGpsStatusMsg(null);
   }, []);
 
-  // Quick helper to prefill registered equipment serials
-  const handlePrefillMasterEquipment = useCallback(() => {
-    if (!siteDetail) return;
-    setForm((p) => ({
-      ...p,
-      uuidNo: siteDetail.uuid_no || p.uuidNo,
-      batteryNo: siteDetail.battery_serial_no || p.batteryNo,
-      panelNo: siteDetail.panel_no || p.panelNo,
-      lightNo: siteDetail.light_no || p.lightNo,
-    }));
-    setErrors((p) => {
-      const next = { ...p };
-      delete next.uuidNo;
-      delete next.batteryNo;
-      delete next.panelNo;
-      delete next.lightNo;
-      return next;
-    });
-  }, [siteDetail]);
-
-  // Quick helper to prefill beneficiary and location details
-  const handlePrefillMasterBeneficiary = useCallback(() => {
-    if (!siteDetail) return;
-    setForm((p) => ({
-      ...p,
-      wardNo: siteDetail.ward_no || p.wardNo,
-      poleNo: siteDetail.pole_no || p.pole_no,
-      beneficiaryName: siteDetail.beneficiary_name || p.beneficiaryName,
-      contactNo: siteDetail.beneficiary_contact || p.contactNo,
-    }));
-    setErrors((p) => {
-      const next = { ...p };
-      delete next.wardNo;
-      delete next.poleNo;
-      delete next.beneficiaryName;
-      delete next.contactNo;
-      return next;
-    });
-  }, [siteDetail]);
-
   // Fetch Dropdown List
   useEffect(() => {
     let active = true;
@@ -552,13 +467,14 @@ export function UP_Installation_SSL_InstallLight() {
           list = available;
         } else if (siteData?.ssl_sites && siteData.ssl_sites.length > 0) {
           list = siteData.ssl_sites.map((s) => ({ id: s.id, uid: s.uid }));
-        } else {
-          list = FALLBACK_LIGHTS;
         }
         setLightOptions(list);
       } catch (err) {
         console.error('[UP InstallLight] fetch dropdown error:', err);
-        if (active) setLightOptions(FALLBACK_LIGHTS);
+        if (active) {
+          setLightOptions([]);
+          setErrorMsg('Failed to load available SSL lights from server.');
+        }
       } finally {
         if (active) setDropdownLoading(false);
       }
@@ -585,17 +501,7 @@ export function UP_Installation_SSL_InstallLight() {
 
       setDetailLoading(true);
       try {
-        let detail: UpSsl18wLightDetail | null = null;
-        try {
-          detail = await upInstallationService.getSsl18wLightDetails(uid);
-        } catch {
-          detail = FALLBACK_DETAIL[uid] || null;
-        }
-
-        if (!detail && FALLBACK_DETAIL[uid]) {
-          detail = FALLBACK_DETAIL[uid];
-        }
-
+        const detail = await upInstallationService.getSsl18wLightDetails(uid);
         setSiteDetail(detail);
 
         if (detail?.light_file) {
@@ -630,7 +536,8 @@ export function UP_Installation_SSL_InstallLight() {
         }
       } catch (err) {
         console.error('[UP InstallLight] fetch detail error:', err);
-        setSiteDetail(FALLBACK_DETAIL[uid] || null);
+        setSiteDetail(null);
+        setErrorMsg('Failed to load light details from server.');
       } finally {
         setDetailLoading(false);
       }
@@ -646,22 +553,34 @@ export function UP_Installation_SSL_InstallLight() {
       setDetailLoading(true);
       setSelectedUniqueId(String(editIdParam));
       try {
-        const detail = await upInstallationService.getSsl18wLightDetails(editIdParam).catch(() => FALLBACK_DETAIL[String(editIdParam)]);
+        let detail: UpSsl18wLightDetail | null = null;
+        if (isEditMode) {
+          detail = await upInstallationService.getSsl18wInstalledLightForEdit(editIdParam).catch(() => null);
+        }
+        if (!detail) {
+          detail = await upInstallationService.getSsl18wLightDetails(editIdParam).catch(() => null);
+        }
+        if (!detail && editUidParam) {
+          detail = await upInstallationService.getSsl18wLightDetails(editUidParam).catch(() => null);
+        }
         if (!active) return;
         setSiteDetail(detail);
         if (detail) {
+          if (detail.id) {
+            setSelectedUniqueId(String(detail.id));
+          }
           setForm({
             wardNo: detail.ward_no || '',
             poleNo: detail.pole_no || '',
             beneficiaryName: detail.beneficiary_name || '',
-            contactNo: detail.beneficiary_contact || '',
+            contactNo: detail.beneficiary_contact || (detail as any).contact_no || '',
             uuidNo: detail.uuid_no || '',
-            batteryNo: detail.battery_serial_no || '',
-            panelNo: detail.panel_no || '',
+            batteryNo: detail.battery_serial_no || (detail as any).battery_no || '',
+            panelNo: detail.panel_no || (detail as any).module_no || '',
             lightNo: detail.light_no || '',
             latitude: detail.latitude ? String(detail.latitude) : '',
             longitude: detail.longitude ? String(detail.longitude) : '',
-            remarks: detail.inst_remarks || '',
+            remarks: detail.inst_remarks || (detail as any).remark || '',
           });
           if (detail.light_file) {
             setExistingImageUrl(detail.light_file);
@@ -676,7 +595,7 @@ export function UP_Installation_SSL_InstallLight() {
     return () => {
       active = false;
     };
-  }, [editIdParam]);
+  }, [editIdParam, isEditMode, editUidParam]);
 
   // GPS Auto-detect
   const handleDetectGps = () => {
@@ -707,6 +626,10 @@ export function UP_Installation_SSL_InstallLight() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    handleDetectGps();
+  }, [selectedLightId]);
 
   // File Upload Handlers
   const handleFileChange = (file: File) => {
@@ -794,23 +717,25 @@ export function UP_Installation_SSL_InstallLight() {
 
     const firstKey = ORDER.find((k) => newErrors[k]);
     if (firstKey) {
-      setErrorMsg(newErrors[firstKey]);
+      const missingMsg = formatMissingRequiredMsg(newErrors);
+      setErrorMsg(missingMsg);
       if (firstKey === 'unique_id') scrollTo(sec1);
       else if (firstKey === 'wardNo' || firstKey === 'poleNo' || firstKey === 'beneficiaryName' || firstKey === 'contactNo') scrollTo(sec2);
       else if (firstKey === 'uuidNo' || firstKey === 'batteryNo' || firstKey === 'panelNo' || firstKey === 'lightNo') scrollTo(sec3);
       else if (firstKey === 'latitude' || firstKey === 'longitude') scrollTo(sec4);
       else if (firstKey === 'light_file') scrollTo(sec5);
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
     setSubmitting(true);
     try {
+      const targetId = String(siteDetail?.id || editIdParam || selectedUniqueId);
       const fd = new FormData();
-      fd.append('ssl_id', selectedUniqueId);
-      if (siteDetail?.id) {
-        fd.append('id', String(siteDetail.id));
-      } else if (selectedUniqueId) {
-        fd.append('id', String(selectedUniqueId));
+      fd.append('ssl_id', targetId);
+      fd.append('id', targetId);
+      if (siteDetail?.uid || editUidParam) {
+        fd.append('uid', siteDetail?.uid || editUidParam || '');
       }
       fd.append('uuid_no', form.uuidNo.trim());
       fd.append('light_no', form.lightNo.trim());
@@ -868,15 +793,13 @@ export function UP_Installation_SSL_InstallLight() {
 
       // Check if backend responded with validation error or failed status
       if (!res || res.status === false || res.errors) {
-        const fieldErrors: Record<string, string> = {};
-        let primaryMsg = res?.message || 'Validation error occurred while submitting installation.';
+        const extracted = extractBackendError(res, 'Validation error occurred while submitting installation.');
+        const fieldErrors: Record<string, string> = { ...extracted.fieldErrors };
 
         if (res?.errors && typeof res.errors === 'object') {
           if (res.errors.light_no) {
             const raw = res.errors.light_no;
-            const msg = Array.isArray(raw) ? raw.join(', ') : String(raw);
-            fieldErrors.lightNo = msg;
-            primaryMsg = msg;
+            fieldErrors.lightNo = Array.isArray(raw) ? raw.join(', ') : String(raw);
           }
           if (res.errors.uuid_no) {
             const raw = res.errors.uuid_no;
@@ -902,8 +825,8 @@ export function UP_Installation_SSL_InstallLight() {
             const raw = res.errors.beneficiary_name;
             fieldErrors.beneficiaryName = Array.isArray(raw) ? raw.join(', ') : String(raw);
           }
-          if (res.errors.contact_no || res.errors.beneficiary_contact) {
-            const raw = res.errors.contact_no || res.errors.beneficiary_contact;
+          if (res.errors.contact_no || res.errors.beneficiary_contact || res.errors.mobile) {
+            const raw = res.errors.contact_no || res.errors.beneficiary_contact || res.errors.mobile;
             fieldErrors.contactNo = Array.isArray(raw) ? raw.join(', ') : String(raw);
           }
           if (res.errors.latitude) {
@@ -933,7 +856,7 @@ export function UP_Installation_SSL_InstallLight() {
           return nextTouched;
         });
 
-        setErrorMsg(primaryMsg);
+        setErrorMsg(extracted.message);
 
         // Scroll directly to the section containing error
         if (fieldErrors.lightNo || fieldErrors.uuidNo || fieldErrors.batteryNo || fieldErrors.panelNo) {
@@ -1020,16 +943,27 @@ export function UP_Installation_SSL_InstallLight() {
 
       {/* ── Alerts ── */}
       {successMsg && (
-        <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)' }} role="status">
-          <span className="ax-alert__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-              <path d="M5 12l5 5l10 -10" />
-            </svg>
-          </span>
-          <div className="ax-alert__content">
-            <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Success</div>
-            <div className="ax-alert__text" style={{ fontSize: '13px' }}>{successMsg}</div>
+        <div className="ax-alert ax-alert--success" style={{ marginBottom: 'var(--ax-space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }} role="status">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="ax-alert__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                <path d="M5 12l5 5l10 -10" />
+              </svg>
+            </span>
+            <div className="ax-alert__content">
+              <div className="ax-alert__title" style={{ fontSize: '14px', fontWeight: 600 }}>Success</div>
+              <div className="ax-alert__text" style={{ fontSize: '13px' }}>{successMsg}</div>
+            </div>
           </div>
+          {isAlreadyInstalled && (
+            <Link
+              to="/v/up/ssl-view-installed-18w-light"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              style={{ textDecoration: 'none' }}
+            >
+              ← Back to Installation Details
+            </Link>
+          )}
         </div>
       )}
 
@@ -1054,527 +988,557 @@ export function UP_Installation_SSL_InstallLight() {
         </div>
       )}
 
-      {/* ── Main Single-Card Form ── */}
-      <form onSubmit={handleSubmit} noValidate className="ax-card">
-        {/* ── Header with Eyebrow, Title and Section Navigation Pills ── */}
-        <div className="ax-card__header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <span className="ax-card__eyebrow" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-accent, #2563eb)', fontWeight: 700 }}>
-                Installation
-              </span>
-              <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '2px 0 0' }}>
-                {isAlreadyInstalled ? 'Edit / Update UP SSL 18w Light Installation' : 'UP SSL 18w Light Installation'}
-              </h2>
-              <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted, #64748b)', margin: '4px 0 0' }}>
-                All installation fields organized inside one main card across 5 dedicated sections.
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Nav Pills */}
-          <div className="ssl-section-pills" role="navigation" aria-label="Quick section navigation">
-            <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec1)}>
-              <span className="pill-num">1</span> Site Selection
-            </button>
-            <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec2)}>
-              <span className="pill-num">2</span> Beneficiary Info
-            </button>
-            <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec3)}>
-              <span className="pill-num">3</span> Equipment & Serials
-            </button>
-            <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec4)}>
-              <span className="pill-num">4</span> Geolocation & Remarks
-            </button>
-            <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec5)}>
-              <span className="pill-num">5</span> Site Photo
-            </button>
-          </div>
-        </div>
-
-        <div className="ax-card__body">
-          {/* ════════ Section 1: Site Selection ════════ */}
-          <div ref={sec1} className="ssl-section-block">
-            <div className="ssl-section-header">
-              <div className="ssl-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Select Installation Site</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  {isAlreadyInstalled
-                    ? 'Editing / updating installation verification data for this site'
-                    : 'Choose from assigned solar street light sites pending installation in Uttar Pradesh'}
-                </span>
-              </div>
-            </div>
-
-            {isAlreadyInstalled && !isEditMode && selectedUniqueId && (
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: '10px 14px',
-                  borderRadius: 6,
-                  background: 'var(--ax-info-50, #eff6ff)',
-                  border: '1px solid var(--ax-info-200, #bfdbfe)',
-                  color: 'var(--ax-info-700, #1d4ed8)',
-                  fontSize: '12.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, flexShrink: 0 }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>
-                  <strong>Existing Installation Record Found:</strong> This site is already marked as installed in UP SSL. Submitting this form will update its verified equipment and location details.
-                </span>
-              </div>
-            )}
-
-            <div className="ssl-form-grid" style={{ marginBottom: 16 }}>
-              {/* Unique ID select */}
+      {/* ── Main Form: Card + Sticky Footer (footer is OUTSIDE the card, same as Kusum C) ── */}
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="ax-card">
+          {/* ── Header with Eyebrow, Title and Section Navigation Pills ── */}
+          <div className="ax-card__header">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                {dropdownLoading ? (
-                  <SkeletonRect width="100%" height={46} borderRadius="8px" />
-                ) : isEditMode ? (
-                  <div className="ax-float">
-                    <input
-                      id="ssl_unique_id"
-                      type="text"
-                      className="ax-float__input"
-                      value={`Site ${selectedUniqueId}`}
-                      disabled
-                    />
-                    <label htmlFor="ssl_unique_id" className="ax-float__label floating">
-                      Installation Site
-                    </label>
-                  </div>
-                ) : (
-                  <FloatingSelect
-                    id="ssl_unique_id"
-                    label={detailLoading ? 'Unique ID (Fetching site details…)' : 'Unique ID'}
-                    required
-                    placeholder="-- Select Unique ID --"
-                    value={selectedUniqueId}
-                    options={lightOptions.map((o) => ({
-                      value: String(o.id),
-                      label: o.uid || `Site #${o.id}`,
-                    }))}
-                    onChange={(val) => handleSelectLight(val)}
-                    onBlur={() => handleBlur('unique_id')}
-                    error={touched.unique_id || submitted ? errors.unique_id : undefined}
-                  />
-                )}
-              </div>
-
-              {/* Vendor Name */}
-              <div>
-                <div className="ax-float">
-                  <input
-                    id="ssl_vendor_name"
-                    type="text"
-                    className="ax-float__input"
-                    value={selectedUniqueId ? loginVendorName || (siteDetail as any)?.vendor || 'mohit' : ''}
-                    placeholder=" "
-                    disabled
-                    style={{ fontWeight: 600, color: '#1e293b' }}
-                  />
-                  <label htmlFor="ssl_vendor_name" className="ax-float__label floating">
-                    Vendor Name (Auto-populated from login)
-                  </label>
-                </div>
+                <span className="ax-card__eyebrow" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--ax-accent, #2563eb)', fontWeight: 700 }}>
+                  Installation
+                </span>
+                <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '2px 0 0' }}>
+                  {isAlreadyInstalled ? 'Edit / Update UP SSL 18w Light Installation' : 'UP SSL 18w Light Installation'}
+                </h2>
+                <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: 'var(--ax-text-muted, #64748b)', margin: '4px 0 0' }}>
+                  All installation fields organized inside one main card across 5 dedicated sections.
+                </p>
               </div>
             </div>
 
-            {/* Site details specification cards */}
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#475569', marginBottom: 8 }}>
-                {selectedUniqueId
-                  ? 'Official UP SSL site records & prefilled specifications:'
-                  : 'Select a Unique ID above to fetch UP SSL site specifications.'}
-              </div>
-
-              {selectedUniqueId &&
-                (detailLoading ? (
-                  <div className="ssl-site-info-grid">
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <div key={i} className="ssl-site-info-card">
-                        <SkeletonLine width="45%" height="0.8em" style={{ marginBottom: 6 }} />
-                        <SkeletonRect width="100%" height={20} borderRadius="4px" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="ssl-site-info-grid">
-                    {siteInfoItems.map((item) => (
-                      <div key={item.label} className="ssl-site-info-card">
-                        <span className="ssl-site-info-card__label">{item.label}</span>
-                        <span className="ssl-site-info-card__value">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+            {/* Quick Nav Pills */}
+            <div className="ssl-section-pills" role="navigation" aria-label="Quick section navigation">
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec1)}>
+                <span className="pill-num">1</span> Site Selection
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec2)}>
+                <span className="pill-num">2</span> Beneficiary Info
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec3)}>
+                <span className="pill-num">3</span> Equipment & Serials
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec4)}>
+                <span className="pill-num">4</span> Geolocation & Remarks
+              </button>
+              <button type="button" className="ssl-section-pill-btn" onClick={() => scrollTo(sec5)}>
+                <span className="pill-num">5</span> Site Photo
+              </button>
             </div>
           </div>
 
-          <hr className="ssl-section-divider" />
-
-          {/* ════════ Section 2: Beneficiary & Location Details ════════ */}
-          <div ref={sec2} className="ssl-section-block">
-            <div className="ssl-section-header">
-              <div className="ssl-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Beneficiary & Location Information</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Confirm ward, pole number, beneficiary name, and direct contact number
-                </span>
-              </div>
-              {selectedUniqueId && siteDetail && (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={handlePrefillMasterBeneficiary}
-                  style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb' }}
-                  title="Prefill Beneficiary Info from Site Records"
-                >
-                  Autofill from Site Record
-                </button>
-              )}
-            </div>
-
-            <div className="ssl-form-grid ssl-form-grid--4col">
-              <FloatingInput
-                label="Ward Number"
-                name="wardNo"
-                value={form.wardNo}
-                onChange={(e) => setField('wardNo', e.target.value)}
-                onBlur={() => handleBlur('wardNo')}
-                placeholder="Enter Ward Number"
-                required
-                onCameraClick={() => setScannerTarget('wardNo')}
-                error={touched.wardNo || submitted ? errors.wardNo : undefined}
-              />
-
-              <FloatingInput
-                label="Pole Number"
-                name="poleNo"
-                value={form.poleNo}
-                onChange={(e) => setField('poleNo', e.target.value)}
-                onBlur={() => handleBlur('poleNo')}
-                placeholder="Enter Pole Number"
-                required
-                onCameraClick={() => setScannerTarget('poleNo')}
-                error={touched.poleNo || submitted ? errors.poleNo : undefined}
-              />
-
-              <FloatingInput
-                label="Beneficiary Name"
-                name="beneficiaryName"
-                value={form.beneficiaryName}
-                onChange={(e) => setField('beneficiaryName', e.target.value)}
-                onBlur={() => handleBlur('beneficiaryName')}
-                placeholder="Enter Beneficiary Name"
-                required
-                error={touched.beneficiaryName || submitted ? errors.beneficiaryName : undefined}
-              />
-
-              <FloatingInput
-                label="Contact Number"
-                name="contactNo"
-                type="tel"
-                maxLength={15}
-                value={form.contactNo}
-                onChange={(e) => setField('contactNo', e.target.value)}
-                onBlur={() => handleBlur('contactNo')}
-                placeholder="Enter Contact Number"
-                required
-                error={touched.contactNo || submitted ? errors.contactNo : undefined}
-              />
-            </div>
-          </div>
-
-          <hr className="ssl-section-divider" />
-
-          {/* ════════ Section 3: Equipment & Serial Numbers with Barcode Scanner ════════ */}
-          <div ref={sec3} className="ssl-section-block">
-            <div className="ssl-section-header">
-              <div className="ssl-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Equipment & Serial Numbers</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Scan barcode with camera or enter unique serial numbers for UUID, Battery, Solar Panel, and Light Luminary
-                </span>
-              </div>
-              {selectedUniqueId && siteDetail && (
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary ax-btn--sm"
-                  onClick={handlePrefillMasterEquipment}
-                  style={{ fontSize: '12px', fontWeight: 600, color: '#2563eb' }}
-                  title="Autofill equipment serials from registered master records"
-                >
-                  Autofill from Site Record
-                </button>
-              )}
-            </div>
-
-            <div className="ssl-form-grid ssl-form-grid--4col">
-              <FloatingInput
-                label="UUID No."
-                name="uuidNo"
-                value={form.uuidNo}
-                onChange={(e) => setField('uuidNo', e.target.value)}
-                onBlur={() => handleBlur('uuidNo')}
-                placeholder="Enter UUID Number"
-                required
-                onCameraClick={() => setScannerTarget('uuidNo')}
-                error={touched.uuidNo || submitted ? errors.uuidNo : undefined}
-              />
-
-              <FloatingInput
-                label="Battery Number"
-                name="batteryNo"
-                value={form.batteryNo}
-                onChange={(e) => setField('batteryNo', e.target.value)}
-                onBlur={() => handleBlur('batteryNo')}
-                placeholder="Enter Battery Serial Number"
-                required
-                onCameraClick={() => setScannerTarget('batteryNo')}
-                error={touched.batteryNo || submitted ? errors.batteryNo : undefined}
-              />
-
-              <FloatingInput
-                label="Panel Number"
-                name="panelNo"
-                value={form.panelNo}
-                onChange={(e) => setField('panelNo', e.target.value)}
-                onBlur={() => handleBlur('panelNo')}
-                placeholder="Enter Solar Panel / Module Number"
-                required
-                onCameraClick={() => setScannerTarget('panelNo')}
-                error={touched.panelNo || submitted ? errors.panelNo : undefined}
-              />
-
-              <FloatingInput
-                label="Light Number"
-                name="lightNo"
-                value={form.lightNo}
-                onChange={(e) => setField('lightNo', e.target.value)}
-                onBlur={() => handleBlur('lightNo')}
-                placeholder="Enter Light / Luminary Serial Number"
-                required
-                onCameraClick={() => setScannerTarget('lightNo')}
-                error={touched.lightNo || submitted ? errors.lightNo : undefined}
-              />
-            </div>
-
-            {/* Error assistance banner if lightNo has duplicate/taken error */}
-            {errors.lightNo && (
-              <div
-                style={{
-                  marginTop: 14,
-                  padding: '10px 14px',
-                  borderRadius: 6,
-                  background: 'var(--ax-danger-50, #fef2f2)',
-                  border: '1px solid var(--ax-danger-200, #fecaca)',
-                  color: 'var(--ax-danger-700, #b91c1c)',
-                  fontSize: '12.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, flexShrink: 0 }}>
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <span>
-                    <strong>Light Number Validation:</strong> {errors.lightNo}
+          <div className="ax-card__body">
+            {/* ════════ Section 1: Site Selection ════════ */}
+            <div ref={sec1} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>1. Select Installation Site</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                    {isAlreadyInstalled
+                      ? 'Editing / updating installation verification data for this site'
+                      : 'Choose from assigned solar street light sites pending installation in Uttar Pradesh'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--secondary ax-btn--sm"
-                    onClick={() => {
-                      setField('lightNo', '');
-                      setErrors((p) => {
-                        const next = { ...p };
-                        delete next.lightNo;
-                        return next;
-                      });
-                    }}
-                    style={{ flexShrink: 0, fontSize: 11.5 }}
-                  >
-                    Clear Number
-                  </button>
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--primary ax-btn--sm"
-                    onClick={() => setScannerTarget('lightNo')}
-                    style={{ flexShrink: 0, fontSize: 11.5 }}
-                  >
-                    Scan Barcode
-                  </button>
+              </div>
+
+              {isEditMode && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    background: 'var(--ax-warning-50, #fffbeb)',
+                    border: '1px solid var(--ax-warning-200, #fde68a)',
+                    color: 'var(--ax-warning-800, #92400e)',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, flexShrink: 0 }}>
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  <span>
+                    <strong>Editing Installation Details:</strong> You are modifying the installation record for <strong>{siteDetail?.uid || editUidParam || (selectedUniqueId ? `Site #${selectedUniqueId}` : 'Selected Light')}</strong>. Update the fields below and submit to save your changes.
+                  </span>
+                </div>
+              )}
+
+              {isAlreadyInstalled && !isEditMode && selectedUniqueId && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    background: 'var(--ax-info-50, #eff6ff)',
+                    border: '1px solid var(--ax-info-200, #bfdbfe)',
+                    color: 'var(--ax-info-700, #1d4ed8)',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>
+                    <strong>Existing Installation Record Found:</strong> This site is already marked as installed in UP SSL. Submitting this form will update its verified equipment and location details.
+                  </span>
+                </div>
+              )}
+
+              <div className="ssl-form-grid" style={{ marginBottom: 16 }}>
+                {/* Unique ID select */}
+                <div>
+                  {dropdownLoading || (isEditMode && detailLoading) ? (
+                    <SkeletonRect width="100%" height={46} borderRadius="8px" />
+                  ) : isEditMode ? (
+                    <div className="ax-float">
+                      <input
+                        id="ssl_unique_id"
+                        type="text"
+                        className="ax-float__input"
+                        value={siteDetail?.uid ? `${siteDetail.uid} (ID: ${selectedUniqueId || editIdParam})` : (editUidParam ? `${editUidParam} (ID: ${selectedUniqueId || editIdParam})` : `Site #${selectedUniqueId || editIdParam}`)}
+                        disabled
+                      />
+                      <label htmlFor="ssl_unique_id" className="ax-float__label floating">
+                        Installation Site
+                      </label>
+                    </div>
+                  ) : (
+                    <FloatingSelect
+                      id="ssl_unique_id"
+                      label={detailLoading ? 'Unique ID (Fetching site details…)' : 'Unique ID'}
+                      required
+                      placeholder="-- Select Unique ID --"
+                      value={selectedUniqueId}
+                      options={lightOptions.map((o) => ({
+                        value: String(o.id),
+                        label: o.uid || `Site #${o.id}`,
+                      }))}
+                      onChange={(val) => handleSelectLight(val)}
+                      onBlur={() => handleBlur('unique_id')}
+                      error={touched.unique_id || submitted ? errors.unique_id : undefined}
+                    />
+                  )}
+                </div>
+
+                {/* Vendor Name */}
+                <div>
+                  <div className="ax-float">
+                    <input
+                      id="ssl_vendor_name"
+                      type="text"
+                      className="ax-float__input"
+                      value={selectedUniqueId ? loginVendorName || (siteDetail as any)?.vendor || '' : ''}
+                      placeholder=" "
+                      disabled
+                      style={{ fontWeight: 600, color: '#1e293b' }}
+                    />
+                    <label htmlFor="ssl_vendor_name" className="ax-float__label floating">
+                      Vendor Name (Auto-populated from login)
+                    </label>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <hr className="ssl-section-divider" />
+              {/* Site details specification cards */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#475569', marginBottom: 8 }}>
+                  {selectedUniqueId
+                    ? 'Official UP SSL site records & prefilled specifications:'
+                    : 'Select a Unique ID above to fetch UP SSL site specifications.'}
+                </div>
 
-          {/* ════════ Section 4: Geolocation & Remarks ════════ */}
-          <div ref={sec4} className="ssl-section-block">
-            <div className="ssl-section-header">
-              <div className="ssl-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Geolocation & Site Remarks</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Confirm GPS coordinates and add installation verification remarks
-                </span>
-              </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={handleDetectGps}
-                disabled={gpsDetecting}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
-              >
-                {gpsDetecting ? (
-                  <>
-                    <span className="ax-spinner" style={{ width: 14, height: 14 }} />
-                    <span>Detecting GPS…</span>
-                  </>
-                ) : (
-                  <>
-                    <span>📍</span>
-                    <span>Auto-detect GPS</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="ssl-form-grid ssl-form-grid--3col" style={{ marginBottom: 12 }}>
-              <FloatingInput
-                label="Installation Latitude"
-                name="latitude"
-                value={form.latitude}
-                onChange={(e) => setField('latitude', e.target.value)}
-                onBlur={() => handleBlur('latitude')}
-                placeholder="e.g. 26.8467"
-                required
-                error={touched.latitude || submitted ? errors.latitude : undefined}
-              />
-
-              <FloatingInput
-                label="Installation Longitude"
-                name="longitude"
-                value={form.longitude}
-                onChange={(e) => setField('longitude', e.target.value)}
-                onBlur={() => handleBlur('longitude')}
-                placeholder="e.g. 80.9462"
-                required
-                error={touched.longitude || submitted ? errors.longitude : undefined}
-              />
-
-              <FloatingInput
-                label="Installation Remarks"
-                name="remarks"
-                value={form.remarks}
-                onChange={(e) => setField('remarks', e.target.value)}
-                onBlur={() => handleBlur('remarks')}
-                placeholder="Enter remarks..."
-              />
-            </div>
-
-            {gpsStatusMsg && (
-              <div style={{ fontSize: '12px', color: form.latitude && form.longitude ? '#16a34a' : '#64748b', fontWeight: 500 }}>
-                {form.latitude && form.longitude ? '✓ ' : ''}{gpsStatusMsg}
-              </div>
-            )}
-          </div>
-
-          <hr className="ssl-section-divider" />
-
-          {/* ════════ Section 5: Photo Uploads ════════ */}
-          <div ref={sec5} className="ssl-section-block">
-            <div className="ssl-section-header">
-              <div className="ssl-section-title-wrap">
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Installation Photo Evidence</h3>
-                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
-                  Upload clear field photograph of the installed solar street light (Max 5MB)
-                </span>
+                {selectedUniqueId &&
+                  (detailLoading ? (
+                    <div className="ssl-site-info-grid">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div key={i} className="ssl-site-info-card">
+                          <SkeletonLine width="45%" height="0.8em" style={{ marginBottom: 6 }} />
+                          <SkeletonRect width="100%" height={20} borderRadius="4px" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="ssl-site-info-grid">
+                      {siteInfoItems.map((item) => (
+                        <div key={item.label} className="ssl-site-info-card">
+                          <span className="ssl-site-info-card__label">{item.label}</span>
+                          <span className="ssl-site-info-card__value">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              <UploadDropzone
-                id="light_file"
-                label="Installed Light Photograph"
-                required={!isAlreadyInstalled || !existingImageUrl}
-                file={lightFile}
-                preview={resolvedPreview}
-                onSelect={handleFileChange}
-                onRemove={removeFile}
-                onPreviewClick={() => {
-                  if (resolvedPreview) setModalImage(resolvedPreview);
-                }}
-                error={touched.light_file || submitted ? errors.light_file : undefined}
-              />
-            </div>
-          </div>
+            <hr className="ssl-section-divider" />
 
-          {/* ════════ Sticky Submit Footer matching reference ════════ */}
-          <div className="ssl-form-sticky-bar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
-                Required: {completedRequired} / {totalRequired} ({progressPercent}%)
-              </span>
-              {submitted && errorCount > 0 && (
-                <span style={{ fontSize: '12px', color: 'var(--ax-danger-500, #ef4444)', fontWeight: 600 }}>
-                  ⚠️ Missing mandatory fields
-                </span>
+            {/* ════════ Section 2: Beneficiary & Location Details ════════ */}
+            <div ref={sec2} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>2. Beneficiary & Location Information</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                    Confirm ward, pole number, beneficiary name, and direct contact number
+                  </span>
+                </div>
+              </div>
+
+              <div className="ssl-form-grid ssl-form-grid--4col">
+                <FloatingInput
+                  label="Ward Number"
+                  name="wardNo"
+                  value={form.wardNo}
+                  onChange={(e) => setField('wardNo', e.target.value)}
+                  onBlur={() => handleBlur('wardNo')}
+                  placeholder="Enter Ward Number"
+                  required
+                  onCameraClick={() => setScannerTarget('wardNo')}
+                  error={touched.wardNo || submitted ? errors.wardNo : undefined}
+                />
+
+                <FloatingInput
+                  label="Pole Number"
+                  name="poleNo"
+                  value={form.poleNo}
+                  onChange={(e) => setField('poleNo', e.target.value)}
+                  onBlur={() => handleBlur('poleNo')}
+                  placeholder="Enter Pole Number"
+                  required
+                  onCameraClick={() => setScannerTarget('poleNo')}
+                  error={touched.poleNo || submitted ? errors.poleNo : undefined}
+                />
+
+                <FloatingInput
+                  label="Beneficiary Name"
+                  name="beneficiaryName"
+                  value={form.beneficiaryName}
+                  onChange={(e) => setField('beneficiaryName', e.target.value)}
+                  onBlur={() => handleBlur('beneficiaryName')}
+                  placeholder="Enter Beneficiary Name"
+                  required
+                  error={touched.beneficiaryName || submitted ? errors.beneficiaryName : undefined}
+                />
+
+                <FloatingInput
+                  label="Contact Number"
+                  name="contactNo"
+                  type="tel"
+                  maxLength={15}
+                  value={form.contactNo}
+                  onChange={(e) => setField('contactNo', e.target.value)}
+                  onBlur={() => handleBlur('contactNo')}
+                  placeholder="Enter Contact Number"
+                  required
+                  error={touched.contactNo || submitted ? errors.contactNo : undefined}
+                />
+              </div>
+            </div>
+
+            <hr className="ssl-section-divider" />
+
+            {/* ════════ Section 3: Equipment & Serial Numbers with Barcode Scanner ════════ */}
+            <div ref={sec3} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>3. Equipment & Serial Numbers</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                    Scan barcode with camera or enter unique serial numbers for UUID, Battery, Solar Panel, and Light Luminary
+                  </span>
+                </div>
+              </div>
+
+              <div className="ssl-form-grid ssl-form-grid--4col">
+                <FloatingInput
+                  label="UUID No."
+                  name="uuidNo"
+                  value={form.uuidNo}
+                  onChange={(e) => setField('uuidNo', e.target.value)}
+                  onBlur={() => handleBlur('uuidNo')}
+                  placeholder="Enter UUID Number"
+                  required
+                  onCameraClick={() => setScannerTarget('uuidNo')}
+                  error={touched.uuidNo || submitted ? errors.uuidNo : undefined}
+                />
+
+                <FloatingInput
+                  label="Battery Number"
+                  name="batteryNo"
+                  value={form.batteryNo}
+                  onChange={(e) => setField('batteryNo', e.target.value)}
+                  onBlur={() => handleBlur('batteryNo')}
+                  placeholder="Enter Battery Serial Number"
+                  required
+                  onCameraClick={() => setScannerTarget('batteryNo')}
+                  error={touched.batteryNo || submitted ? errors.batteryNo : undefined}
+                />
+
+                <FloatingInput
+                  label="Panel Number"
+                  name="panelNo"
+                  value={form.panelNo}
+                  onChange={(e) => setField('panelNo', e.target.value)}
+                  onBlur={() => handleBlur('panelNo')}
+                  placeholder="Enter Solar Panel / Module Number"
+                  required
+                  onCameraClick={() => setScannerTarget('panelNo')}
+                  error={touched.panelNo || submitted ? errors.panelNo : undefined}
+                />
+
+                <FloatingInput
+                  label="Light Number"
+                  name="lightNo"
+                  value={form.lightNo}
+                  onChange={(e) => setField('lightNo', e.target.value)}
+                  onBlur={() => handleBlur('lightNo')}
+                  placeholder="Enter Light / Luminary Serial Number"
+                  required
+                  onCameraClick={() => setScannerTarget('lightNo')}
+                  error={touched.lightNo || submitted ? errors.lightNo : undefined}
+                />
+              </div>
+
+              {/* Error assistance banner if lightNo has duplicate/taken error */}
+              {errors.lightNo && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    background: 'var(--ax-danger-50, #fef2f2)',
+                    border: '1px solid var(--ax-danger-200, #fecaca)',
+                    color: 'var(--ax-danger-700, #b91c1c)',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16, flexShrink: 0 }}>
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>
+                      <strong>Light Number Validation:</strong> {errors.lightNo}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--secondary ax-btn--sm"
+                      onClick={() => {
+                        setField('lightNo', '');
+                        setErrors((p) => {
+                          const next = { ...p };
+                          delete next.lightNo;
+                          return next;
+                        });
+                      }}
+                      style={{ flexShrink: 0, fontSize: 11.5 }}
+                    >
+                      Clear Number
+                    </button>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--primary ax-btn--sm"
+                      onClick={() => setScannerTarget('lightNo')}
+                      style={{ flexShrink: 0, fontSize: 11.5 }}
+                    >
+                      Scan Barcode
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary"
-                disabled={submitting}
-                onClick={() => {
-                  if (window.confirm('Reset the form? Any unsaved inputs will be lost.')) {
-                    setSelectedUniqueId('');
-                    setSiteDetail(null);
-                    resetForm();
-                  }
-                }}
-              >
-                Reset Form
-              </button>
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary"
-                disabled={submitting}
-                style={{ minWidth: 200 }}
-              >
-                {submitting ? (
-                  <>
-                    <span className="ax-spinner" style={{ width: 16, height: 16, marginRight: 8 }} />
-                    <span>{isAlreadyInstalled ? 'Updating…' : 'Submitting…'}</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
-                      <path d="M5 12l5 5l10 -10" />
-                    </svg>
-                    <span>{isAlreadyInstalled ? 'Update Installation Details' : 'Submit Installation Details'}</span>
-                  </>
-                )}
-              </button>
+            <hr className="ssl-section-divider" />
+
+            {/* ════════ Section 4: Geolocation & Remarks ════════ */}
+            <div ref={sec4} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Geolocation & Site Remarks</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                    Confirm GPS coordinates and add installation verification remarks
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--secondary ax-btn--sm"
+                  onClick={handleDetectGps}
+                  disabled={gpsDetecting}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+                >
+                  {gpsDetecting ? (
+                    <>
+                      <span className="ax-spinner" style={{ width: 14, height: 14 }} />
+                      <span>Detecting GPS…</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📍</span>
+                      <span>Auto-detect GPS</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="ssl-form-grid ssl-form-grid--3col" style={{ marginBottom: 12 }}>
+                <FloatingInput
+                  label="Installation Latitude"
+                  name="latitude"
+                  value={form.latitude}
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Latitude"
+                  required
+                  error={touched.latitude || submitted ? errors.latitude : undefined}
+                />
+
+                <FloatingInput
+                  label="Installation Longitude"
+                  name="longitude"
+                  value={form.longitude}
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Longitude"
+                  required
+                  error={touched.longitude || submitted ? errors.longitude : undefined}
+                />
+
+                <FloatingInput
+                  label="Installation Remarks"
+                  name="remarks"
+                  value={form.remarks}
+                  onChange={(e) => setField('remarks', e.target.value)}
+                  onBlur={() => handleBlur('remarks')}
+                  placeholder="Enter remarks..."
+                />
+              </div>
+
+              {gpsStatusMsg && (
+                <div style={{ fontSize: '12px', color: form.latitude && form.longitude ? '#16a34a' : '#64748b', fontWeight: 500 }}>
+                  {form.latitude && form.longitude ? '✓ ' : ''}{gpsStatusMsg}
+                </div>
+              )}
             </div>
+
+            <hr className="ssl-section-divider" />
+
+            {/* ════════ Section 5: Photo Uploads ════════ */}
+            <div ref={sec5} className="ssl-section-block">
+              <div className="ssl-section-header">
+                <div className="ssl-section-title-wrap">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>5. Installation Photo Evidence</h3>
+                  <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                    Upload clear field photograph of the installed solar street light (Max 5MB)
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                <UploadDropzone
+                  id="light_file"
+                  label="Installed Light Photograph"
+                  required={!isAlreadyInstalled || !existingImageUrl}
+                  file={lightFile}
+                  preview={resolvedPreview}
+                  onSelect={handleFileChange}
+                  onRemove={removeFile}
+                  onPreviewClick={() => {
+                    if (resolvedPreview) setModalImage(resolvedPreview);
+                  }}
+                  error={touched.light_file || submitted ? errors.light_file : undefined}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* ── end ax-card ── */}
+
+        {/* ════════ Sticky Action Footer (outside the card, same as Kusum C) ════════ */}
+        <div className="ssl-form-sticky-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span
+              className={`ax-badge ax-badge--soft ${isAlreadyInstalled ? 'ax-badge--warning' : 'ax-badge--primary'} ax-badge--pill`}
+            >
+              {isAlreadyInstalled
+                ? `Update Mode · Site #${selectedUniqueId || editIdParam || ''}`
+                : 'New Installation'}
+            </span>
+            <span className="ax-badge ax-badge--soft ax-badge--pill" style={{ fontWeight: 600 }}>
+              Required: {completedRequired} / {totalRequired} ({progressPercent}%)
+            </span>
+            {submitted && errorCount > 0 && (
+              <span style={{ fontSize: '12px', color: 'var(--ax-danger-500, #ef4444)', fontWeight: 600 }}>
+                ⚠️ Missing mandatory fields
+              </span>
+            )}
+          </div>
+
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3, 12px)' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => navigate('/v/up/ssl-view-installed-18w-light')}
+              disabled={submitting}
+            >
+              <span className="ax-btn__label">Cancel</span>
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="ax-btn ax-btn--primary"
+              style={{ minWidth: 200 }}
+            >
+              {submitting ? (
+                <>
+                  <svg
+                    className="ax-btn__icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    style={{ animation: 'ssl-spin 1s linear infinite' }}
+                  >
+                    <path d="M12 3a9 9 0 1 0 9 9" />
+                  </svg>
+                  <span className="ax-btn__label">
+                    {isAlreadyInstalled ? 'Updating Installation…' : 'Submitting Installation…'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="ax-btn__icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12l5 5l10 -10" />
+                  </svg>
+                  <span className="ax-btn__label">
+                    {isAlreadyInstalled ? 'Update Installation Data' : 'Submit Installation Data'}
+                  </span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </form>
@@ -1650,6 +1614,8 @@ interface FloatingInputProps {
   onBlur?: () => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   maxLength?: number;
   placeholder?: string;
@@ -1665,6 +1631,8 @@ function FloatingInput({
   onBlur,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   maxLength,
   placeholder,
@@ -1690,9 +1658,13 @@ function FloatingInput({
         }}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className={`ax-float__input ${error ? 'is-invalid' : ''}`}
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger-500, #ef4444)' }}>*</span>}

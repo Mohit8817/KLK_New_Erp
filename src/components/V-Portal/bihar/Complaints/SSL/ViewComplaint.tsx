@@ -432,7 +432,7 @@ function ComplaintDetailModal({
         <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Section 1: Complaint / Grievance Info */}
           <Section title="Complaint & Grievance Information">
-            <Field label="Complaint ID">#{item.complaint_id}</Field>
+            <Field label="Complaint ID">{item.complaint_id}</Field>
             <Field label="Complaint Date">{txt(item.complaint_date || item.start_date || (item as any).created_at)}</Field>
             <Field label="Complaint Issue">{txt(item.complaint_issue)}</Field>
             <Field label="Complaint Source">{txt(item.complaint_source || (item as any).source)}</Field>
@@ -541,7 +541,7 @@ function ComplaintDetailModal({
                         <img
                           src={url}
                           alt={doc.label}
-                          onClick={() => onImageClick(url, `${doc.label} - Complaint #${item.complaint_id}`)}
+                          onClick={() => onImageClick(url, `${doc.label} - Complaint ${item.complaint_id}`)}
                           title="Click to zoom photograph"
                           style={{
                             width: '100%',
@@ -749,7 +749,7 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
 
   /* ── Delete Complaint ── */
   const handleDelete = async (id: number) => {
-    if (!window.confirm(`Are you sure you want to permanently delete complaint #${id}?`)) return;
+    if (!window.confirm(`Are you sure you want to permanently delete complaint ${id}?`)) return;
     const res = await biharComplaintService.deleteSslComplaint(id);
     if (res.success) {
       setComplaints((prev) => prev.filter((c) => c.id !== id));
@@ -1023,7 +1023,7 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
 
                           {/* 2. Complaint ID */}
                           <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono, monospace)', fontWeight: 600, color: 'var(--ax-accent)' }}>
-                            #{item.complaint_id}
+                            {item.complaint_id}
                           </td>
 
                           {/* 3. Complaint Date */}
@@ -1129,7 +1129,7 @@ export function Bihar_Complaint_SSL_ViewComplaint() {
                               <button
                                 type="button"
                                 className="ax-btn ax-btn--ghost ax-btn--xs"
-                                onClick={() => setPreviewImage({ src: docUrl, title: `Complaint #${item.complaint_id} Document` })}
+                                onClick={() => setPreviewImage({ src: docUrl, title: `Complaint ${item.complaint_id} Document` })}
                                 title="Click to view photograph / document"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', color: 'var(--ax-accent)' }}
                               >

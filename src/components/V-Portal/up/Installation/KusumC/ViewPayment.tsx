@@ -1,48 +1,27 @@
-import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import { PageHead } from '../../../../shell/PageHead';
+import {
+  Pagination,
+  usePagination,
+  SearchInput,
+  TableExportToolbar,
+  TableEmptyState,
+  type ExportColumn,
+} from '../../../../../common';
+import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
   upInstallationService,
   resolveUpMediaUrl,
   type UpKusumCClaimPaymentItem,
 } from '../../up-services';
-import {
-  TableExportToolbar,
-  SearchInput,
-  Pagination,
-  TableEmptyState,
-  KpiSkeleton,
-  copyTableDataToClipboard,
-  exportDataToCSV,
-  exportDataToExcel,
-  printTableData,
-  type ExportColumn,
-} from '../../../../../common';
 
-/* ───────── Constants ───────── */
-const DASH = '—';
-const txt = (v: unknown) => (v === null || v === undefined || v === '' ? DASH : String(v));
-
-const X_ICON = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 16, height: 16 }}>
-    <path d="M18 6l-12 12" />
-    <path d="M6 6l12 12" />
-  </svg>
-);
-
-const svgIcon = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-);
-
-const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
-
-type TabFilter = 'claims' | 'claimable';
-type Row = UpKusumCClaimPaymentItem;
-
-/* ───────── Responsive page CSS (Exact Arunachal / Bihar Reference) ───────── */
+/* ───────── Responsive page CSS (Exact Assam SWP Claims & Payments pattern) ───────── */
 const PAGE_CSS = `
+  .solar-erp-page {
+    --asw-primary: #2563eb;
+    --asw-primary-rgb: 37, 99, 235;
+  }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
   .solar-erp-page .ula-pagination-left {
@@ -50,9 +29,21 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
-  .solar-erp-page img,
-  .solar-erp-page .ax-card img {
-    border-radius: 0 !important;
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  @media (max-width: 992px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 520px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
   }
 
   .solar-erp-page .ax-card__header {
@@ -111,6 +102,7 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
+  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
   .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -147,22 +139,52 @@ const PAGE_CSS = `
       max-width: 100%;
     }
     .solar-erp-page .ax-card__actions {
+      flex: 0 0 auto;
       width: 100%;
-      justify-content: stretch;
       margin-left: 0;
+      flex-wrap: wrap;
+      justify-content: flex-start;
     }
     .solar-erp-page .ax-card__actions .ax-cluster {
-      width: 100%;
       flex-wrap: wrap !important;
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
     }
     .solar-erp-page .ax-card__actions .ax-search,
     .solar-erp-page .ax-card__actions [class*="search"] {
       flex: 1 1 100%;
+      width: 100%;
       max-width: 100%;
+      min-width: 0;
+    }
+    .solar-erp-page .ax-card__actions .ax-export-toolbar,
+    .solar-erp-page .ax-card__actions [class*="export-toolbar"] {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      gap: 6px;
+    }
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 8px !important;
     }
   }
 
-  /* Modal & Lightbox Styles */
+  @media (max-width: 490px) {
+    .solar-erp-page .ax-export-toolbar__button {
+      font-size: 11px;
+      height: 28px;
+      padding: 0 6px !important;
+    }
+    .solar-erp-page .ax-export-toolbar { gap: 4px; }
+  }
+`;
+
+/* ───────── Overlay CSS (modals & modern fields matching Assam SWP reference) ───────── */
+const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(15, 23, 42, 0.65);
@@ -180,7 +202,7 @@ const PAGE_CSS = `
     overflow: hidden; width: 100%;
   }
   .ax-modal__header {
-    padding: 16px 20px;
+    padding: 18px 24px;
     border-bottom: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
     display: flex; align-items: center; justify-content: space-between;
@@ -190,121 +212,420 @@ const PAGE_CSS = `
     border: none; background: transparent; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
     color: var(--ax-text-muted, #64748b); font-size: 15px; font-weight: 700;
+    transition: all 0.15s ease;
+  }
+  .ax-modal__close:hover {
+    background: var(--ax-surface-hover, #e2e8f0);
+    color: var(--ax-text-strong, #0f172a);
   }
   .ax-modal__body {
-    padding: 0; overflow-y: auto; max-height: calc(85vh - 120px);
+    padding: 24px; overflow-y: auto; max-height: calc(85vh - 120px);
   }
-  .ax-modal__footer {
-    padding: 14px 20px;
-    border-top: 1px solid var(--ax-border, #e2e8f0);
-    background: var(--ax-surface-subtle, #f8fafc);
+
+  /* ── Modern Form Controls ── */
+  .ax-modern-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ax-modern-label {
     display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-weight: 600; color: var(--ax-text-strong, #1e293b);
+    letter-spacing: 0.02em; margin: 0;
   }
-  .ula-m-stage {
-    position: relative; display: flex; overflow: auto;
-    height: min(66vh, 600px); background: #0f172a;
+  .ax-modern-req {
+    color: #ef4444; font-weight: 700; margin-left: 3px;
   }
-  .ula-m-stage__msg {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-size: 13px; color: #94a3b8; text-align: center; padding: 16px;
+  .ax-modern-input-wrap {
+    display: flex; align-items: center;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px; background: var(--ax-surface-solid, #ffffff);
+    transition: all 0.2s ease; overflow: hidden;
+  }
+  .ax-modern-input-wrap:focus-within {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-addon {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 13px; height: 42px; background: var(--ax-surface-subtle, #f8fafc);
+    border-right: 1.5px solid var(--ax-border, #cbd5e1);
+    color: var(--ax-text-muted, #64748b); font-size: 14px; font-weight: 700; user-select: none;
+  }
+  .ax-modern-input {
+    width: 100%; height: 42px; padding: 0 14px;
+    border: none; outline: none; font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a); background: transparent;
+  }
+  .ax-modern-input::placeholder { color: var(--ax-text-muted, #94a3b8); }
+  .ax-modern-select {
+    width: 100%; height: 42px; padding: 0 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1);
+    border-radius: 9px; font-size: 13.5px;
+    color: var(--ax-text-strong, #0f172a); background: var(--ax-surface-solid, #ffffff);
+    outline: none; transition: all 0.2s ease;
+  }
+  .ax-modern-select:focus {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-textarea {
+    width: 100%; min-height: 80px; padding: 10px 14px;
+    border: 1.5px solid var(--ax-border, #cbd5e1); border-radius: 9px;
+    font-size: 13px; color: var(--ax-text-strong, #0f172a);
+    background: var(--ax-surface-solid, #ffffff); outline: none;
+    transition: all 0.2s ease; resize: vertical; line-height: 1.5;
+  }
+  .ax-modern-textarea:focus {
+    border-color: var(--ax-accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent, #2563eb) 18%, transparent);
+  }
+  .ax-modern-dropzone {
+    border: 1.5px dashed var(--ax-border, #cbd5e1);
+    border-radius: 10px; padding: 18px 16px;
+    background: var(--ax-surface-subtle, #f8fafc);
+    text-align: center; cursor: pointer; transition: all 0.2s ease;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  }
+  .ax-modern-dropzone:hover {
+    border-color: var(--ax-accent, #2563eb);
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 5%, var(--ax-surface-subtle, #f8fafc));
+  }
+  .ax-modern-dropzone__icon {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: color-mix(in srgb, var(--ax-accent, #2563eb) 10%, #ffffff);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ax-modern-file-chip {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 9px;
+  }
+  .ax-modern-file-chip__icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #dcfce7; display: flex; align-items: center; justify-content: center;
   }
 `;
 
-/* ───────── KPI card (Exact from Arunachal reference) ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber';
+const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
+const footerStyle = {
+  borderTop: '1px solid var(--ax-border, #e2e8f0)',
+  padding: 'var(--ax-space-3) var(--ax-space-4)',
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  width: '100%',
+  boxSizing: 'border-box',
+} as const;
+const centerCell = { textAlign: 'center', padding: 24 } as const;
+
+type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
+const Badge = ({ tone, children }: { tone: Tone; children: ReactNode }) => (
+  <span className={`ax-badge ax-badge--soft ax-badge--${tone}`}>{children}</span>
+);
+
+/* ───────── Modal Dialog Component ───────── */
+function Modal({
+  open,
+  onClose,
+  title,
+  subtitle,
+  children,
+  maxWidth = 620,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  maxWidth?: number;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="ax-modal__backdrop" />
+      <div
+        ref={dialogRef}
+        className="ax-modal__dialog"
+        style={{ maxWidth, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}>{title}</h4>
+            {subtitle && <p style={{ margin: '3px 0 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>{subtitle}</p>}
+          </div>
+          <button
+            type="button"
+            className="ax-modal__close"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="ax-modal__body">
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ── Top Metric KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(var(--ax-accent-rgb), 0.12)', fg: 'var(--ax-accent)' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan) 14%, transparent)', fg: 'var(--ax-viz-cyan)' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald) 14%, transparent)', fg: 'var(--ax-viz-emerald)' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber) 14%, transparent)', fg: 'var(--ax-viz-amber)' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
 };
 
 function KpiCard({
-  icon, tone, label, value, sub,
+  icon,
+  tone,
+  label,
+  value,
+  sub,
 }: {
-  icon: ReactNode; tone: KpiTone; label: string;
-  value: ReactNode; sub: string;
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
 }) {
   const t = TONE[tone];
   return (
-    <div className="ax-card ax-col--3" style={{ padding: '14px 18px', borderRadius: 12 }}>
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: t.bg, color: t.fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
           <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
           {label}
         </span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
     </div>
   );
 }
 
-/* ── Filter Tabs ── */
-const FILTER_TABS: { key: TabFilter; label: string }[] = [
-  { key: 'claims', label: 'Claims Raised' },
-  { key: 'claimable', label: 'Claim-Eligible Sites' },
-];
+const fmtMoney = (val?: string | number) => {
+  const n = Number(val || 0);
+  return '₹' + n.toLocaleString('en-IN');
+};
 
-/* ── Table Export Columns ── */
-const EXPORT_COLS: ExportColumn<Row>[] = [
-  { header: 'Sr. No.', accessor: (_, idx) => (idx !== undefined ? idx + 1 : 1) },
-  { header: 'Claim ID', accessor: (r) => String(r.id) },
-  { header: 'Project', accessor: (r) => r.project || 'kusum-c' },
-  { header: 'Claim Amount (₹)', accessor: (r) => `₹${Number(r.amount || 0).toLocaleString('en-IN')}` },
-  { header: 'Sites In Claim', accessor: (r) => String(r.site_id) },
-  { header: 'Status', accessor: (r) => (r.claim_status === 2 ? 'Approved' : r.claim_status === 3 ? 'Rejected' : 'Pending Review') },
-  { header: 'Remarks', accessor: (r) => r.remarks || DASH },
-];
+const fmtDate = (s?: string) => {
+  if (!s || s === 'NA' || s === 'null') return '—';
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } catch {}
+  return s.slice(0, 10);
+};
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   COMPONENT
-   ═══════════════════════════════════════════════════════════════════════════ */
+const renderClaimStatusBadge = (status: number) => {
+  if (status === 2) return <Badge tone="success">Approved</Badge>;
+  if (status === 3) return <Badge tone="danger">Rejected</Badge>;
+  return <Badge tone="warning">Raised (Pending)</Badge>;
+};
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const parseSiteIds = (val?: any): (number | string)[] => {
+  if (val === null || val === undefined || val === '') return [];
+  if (typeof val === 'number') return [val];
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === 'object' && item !== null && 'id' in item) return item.id;
+        const n = Number(item);
+        return isNaN(n) ? String(item).trim() : n;
+      })
+      .filter((x) => x !== '' && x !== null && x !== undefined);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '[]') return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => {
+            if (typeof item === 'object' && item !== null && 'id' in item) return item.id;
+            const n = Number(item);
+            return isNaN(n) ? String(item).trim() : n;
+          })
+          .filter((x) => x !== '' && x !== null && x !== undefined);
+      }
+      if (typeof parsed === 'number') return [parsed];
+    } catch {}
+    const parts = trimmed
+      .replace(/[\[\]"']/g, '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      return parts.map((p) => {
+        const n = Number(p);
+        return isNaN(n) ? p : n;
+      });
+    }
+    return [trimmed];
+  }
+  return [];
+};
+
 export function UP_Installation_KusumC_ViewPayment() {
+  const [claims, setClaims] = useState<UpKusumCClaimPaymentItem[]>([]);
+  const [claimableSites, setClaimableSites] = useState<{ id: number; f_farmer_name: string; inst_doc_status?: number; district?: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [payments, setPayments] = useState<UpKusumCClaimPaymentItem[]>([]);
-  const [claimableSites, setClaimableSites] = useState<{ id: number; f_farmer_name: string; inst_doc_status: number }[]>([]);
-  const [activeTab, setActiveTab] = useState<TabFilter>('claims');
-
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
-  const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | '1' | '2' | '3'>('all');
 
   // Add Claim Modal
-  const [openAddModal, setOpenAddModal] = useState(false);
-  const [claimAmount, setClaimAmount] = useState('');
-  const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
-  const [claimFile, setClaimFile] = useState<File | null>(null);
-  const [claimRemarks, setClaimRemarks] = useState('');
-  const [submittingClaim, setSubmittingClaim] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addAmount, setAddAmount] = useState('');
+  const [addSelectedSites, setAddSelectedSites] = useState<number[]>([]);
+  const [addFile, setAddFile] = useState<File | null>(null);
+  const [addRemarks, setAddRemarks] = useState('');
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
+  const addFileRef = useRef<HTMLInputElement>(null);
 
-  // Edit Claim Modal
-  const [editClaimItem, setEditClaimItem] = useState<UpKusumCClaimPaymentItem | null>(null);
+  // Update Claim Modal
+  const [editClaim, setEditClaim] = useState<UpKusumCClaimPaymentItem | null>(null);
   const [editAmount, setEditAmount] = useState('');
-  const [editSiteIds, setEditSiteIds] = useState<number[]>([]);
+  const [editSelectedSites, setEditSelectedSites] = useState<(number | string)[]>([]);
   const [editFile, setEditFile] = useState<File | null>(null);
   const [editRemarks, setEditRemarks] = useState('');
-  const [updatingClaim, setUpdatingClaim] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
-  // Modal refs for focus trap
-  const addModalRef = useRef<HTMLDivElement>(null);
-  const editModalRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(addModalRef, openAddModal);
-  useFocusTrap(editModalRef, !!editClaimItem);
+  // Map of site IDs to farmer names for quick label lookup
+  const siteLabelMap = useMemo(() => {
+    const map = new Map<number, { name: string; district?: string }>();
+    claimableSites.forEach((s) => {
+      map.set(Number(s.id), { name: s.f_farmer_name, district: s.district });
+    });
+    return map;
+  }, [claimableSites]);
 
-  /* ── Data Loading ── */
+  // Load Claims Data & Eligible Completed Sites
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await upInstallationService.getKusumCClaims();
-      setPayments(res.payments || []);
-      setClaimableSites(res.sites || []);
+      const [availRes, claimsRes, installedRes] = await Promise.allSettled([
+        upInstallationService.getKusumCAvailableSites(),
+        upInstallationService.getKusumCClaims(),
+        upInstallationService.getKusumCInstalledSites(),
+      ]);
+
+      let paymentsList: UpKusumCClaimPaymentItem[] = [];
+      const sitesMap = new Map<number, { id: number; f_farmer_name: string; inst_doc_status: number; district?: string }>();
+
+      // 1. Available sites from fetch-site
+      if (availRes.status === 'fulfilled' && Array.isArray(availRes.value)) {
+        availRes.value.forEach((s: any) => {
+          if (s && s.id) {
+            sitesMap.set(Number(s.id), {
+              id: Number(s.id),
+              f_farmer_name: s.f_farmer_name || s.farmer_name || s.site_name || `Site #${s.id}`,
+              district: s.district || '',
+              inst_doc_status: 2,
+            });
+          }
+        });
+      }
+
+      // 2. Sites & claims from view-claim
+      if (claimsRes.status === 'fulfilled') {
+        const cVal = claimsRes.value;
+        if (Array.isArray(cVal.payments)) paymentsList = cVal.payments;
+        if (Array.isArray(cVal.sites)) {
+          cVal.sites.forEach((s: any) => {
+            if (s && s.id && !sitesMap.has(Number(s.id))) {
+              sitesMap.set(Number(s.id), {
+                id: Number(s.id),
+                f_farmer_name: s.f_farmer_name || s.farmer_name || `Site #${s.id}`,
+                district: s.district || '',
+                inst_doc_status: s.inst_doc_status ?? 2,
+              });
+            }
+          });
+        }
+      }
+
+      // 3. Sites from view-installation
+      if (installedRes.status === 'fulfilled' && installedRes.value) {
+        const instVal = installedRes.value;
+        const candidateSites = [
+          ...(Array.isArray(instVal.payment_sites) ? instVal.payment_sites : []),
+          ...(Array.isArray(instVal.sites) ? instVal.sites : []),
+        ];
+        candidateSites.forEach((s: any) => {
+          if (s && s.id && !sitesMap.has(Number(s.id))) {
+            const farmerName =
+              s.f_farmer_name ||
+              s.farmer_name ||
+              s.beneficiary_name ||
+              s.applicant_name ||
+              s.site_name ||
+              `Site #${s.id}`;
+            sitesMap.set(Number(s.id), {
+              id: Number(s.id),
+              f_farmer_name: farmerName,
+              district: s.district || '',
+              inst_doc_status: s.inst_doc_status ?? 2,
+            });
+          }
+        });
+      }
+
+      setClaims(paymentsList);
+      setClaimableSites(Array.from(sitesMap.values()));
     } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Failed to load Kusum-C claims.' });
+      console.error('Failed to load UP Kusum-C claims:', err);
+      setClaims([]);
+      setClaimableSites([]);
+      setError(err?.message || 'Failed to load UP Kusum-C claims.');
     } finally {
       setLoading(false);
     }
@@ -314,166 +635,331 @@ export function UP_Installation_KusumC_ViewPayment() {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (!feedbackMsg) return;
-    const t = window.setTimeout(() => setFeedbackMsg(null), 4000);
-    return () => window.clearTimeout(t);
-  }, [feedbackMsg]);
-
-  /* ── Escape key for modals ── */
-  useEffect(() => {
-    if (!openAddModal && !editClaimItem) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (editClaimItem) setEditClaimItem(null);
-        else if (openAddModal) setOpenAddModal(false);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [openAddModal, editClaimItem]);
-
-  /* ── Add Claim Submit ── */
+  // Handle Add Claim Submit
   const handleAddClaimSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedSiteIds.length === 0) {
-      alert('Please select at least one eligible site.');
+    if (!addAmount || Number(addAmount) < 1) {
+      setAddError('Please enter a valid claim amount (minimum 1).');
       return;
     }
-    if (!claimFile) {
-      alert('Invoice file is required.');
+    if (addSelectedSites.length === 0) {
+      setAddError('Please select at least one eligible installation site.');
+      return;
+    }
+    if (!addFile) {
+      setAddError('Invoice document is required.');
+      return;
+    }
+    if (!addRemarks.trim()) {
+      setAddError('Claim remarks are required.');
       return;
     }
 
-    setSubmittingClaim(true);
-    const fd = new FormData();
-    fd.append('amount', claimAmount);
-    selectedSiteIds.forEach((id) => fd.append('site_id[]', String(id)));
-    fd.append('file', claimFile);
-    fd.append('remarks', claimRemarks);
-
+    setAddSubmitting(true);
+    setAddError(null);
     try {
-      const res = await upInstallationService.storeKusumCClaim(fd);
-      if (res.status) {
-        setFeedbackMsg({ type: 'success', text: res.message || 'Payment claim raised successfully!' });
-        setOpenAddModal(false);
-        setClaimAmount('');
-        setSelectedSiteIds([]);
-        setClaimFile(null);
-        setClaimRemarks('');
-        loadData();
+      const formData = new FormData();
+      formData.append('amount', addAmount.trim());
+      addSelectedSites.forEach((id) => {
+        formData.append('site_id[]', String(id));
+      });
+      if (addSelectedSites.length === 1) {
+        formData.append('site_id', String(addSelectedSites[0]));
+      }
+      formData.append('file', addFile);
+      formData.append('invoice', addFile);
+      formData.append('remarks', addRemarks.trim());
+
+      const res = await upInstallationService.storeKusumCClaim(formData);
+      if (res.status !== false && (res as any).success !== false) {
+        setAddSuccess(res.message || 'Payment claim raised successfully!');
+        setTimeout(() => {
+          setAddModalOpen(false);
+          setAddAmount('');
+          setAddSelectedSites([]);
+          setAddFile(null);
+          setAddRemarks('');
+          setAddSuccess(null);
+          loadData();
+        }, 1500);
       } else {
-        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to raise payment claim.' });
+        const errMsg =
+          res.message ||
+          (res.errors ? Object.values(res.errors).flat().join(', ') : 'Failed to raise payment claim.');
+        setAddError(errMsg);
       }
     } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Server error raising claim.' });
+      console.error('Failed to raise UP Kusum-C payment claim:', err);
+      setAddError(err?.message || 'Failed to raise payment claim');
     } finally {
-      setSubmittingClaim(false);
+      setAddSubmitting(false);
     }
   };
 
-  /* ── Open Edit Claim Modal ── */
-  const handleOpenEditClaim = (claim: UpKusumCClaimPaymentItem) => {
-    setEditClaimItem(claim);
-    setEditAmount(String(claim.amount || ''));
-    setEditRemarks(claim.remarks || '');
-    let parsed: number[] = [];
-    if (typeof claim.site_id === 'string') {
-      try {
-        parsed = JSON.parse(claim.site_id);
-      } catch {
-        parsed = claim.site_id.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n));
-      }
-    }
-    setEditSiteIds(parsed);
+  // Open Edit Modal
+  const openEditModal = (c: UpKusumCClaimPaymentItem) => {
+    setEditClaim(c);
+    setEditAmount(String(c.amount || ''));
+    setEditRemarks(c.remarks || '');
     setEditFile(null);
+    setEditError(null);
+    setEditSuccess(null);
+
+    let siteIds: (number | string)[] = parseSiteIds(c.site_id);
+    if (siteIds.length > 0) {
+      siteIds = siteIds.map((sid) => {
+        if (typeof sid === 'string' && isNaN(Number(sid))) {
+          const match = claimableSites.find(
+            (s) => s.f_farmer_name && s.f_farmer_name.trim().toLowerCase() === sid.trim().toLowerCase()
+          );
+          return match ? match.id : sid;
+        }
+        return sid;
+      });
+    } else if (c.site_id) {
+      const match = claimableSites.find(
+        (s) => s.f_farmer_name && s.f_farmer_name.trim().toLowerCase() === String(c.site_id).trim().toLowerCase()
+      );
+      siteIds = match ? [match.id] : [c.site_id as any];
+    }
+    setEditSelectedSites(siteIds);
   };
 
-  /* ── Edit Claim Submit ── */
-  const handleEditClaimSubmit = async (e: React.FormEvent) => {
+  // Handle Update Claim Submit
+  const handleUpdateClaimSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editClaimItem) return;
+    if (!editClaim) return;
+    if (!editAmount || Number(editAmount) < 1) {
+      setEditError('Please enter a valid claim amount.');
+      return;
+    }
 
-    setUpdatingClaim(true);
-    const fd = new FormData();
-    fd.append('update_id', String(editClaimItem.id));
-    fd.append('amount', editAmount);
-    editSiteIds.forEach((id) => fd.append('site_id[]', String(id)));
-    if (editFile) fd.append('file', editFile);
-    if (editRemarks) fd.append('remarks', editRemarks);
+    let sitesToSend = editSelectedSites;
+    if (sitesToSend.length === 0) {
+      sitesToSend = parseSiteIds(editClaim.site_id);
+    }
+    if (sitesToSend.length === 0 && editClaim.site_id) {
+      sitesToSend = [editClaim.site_id as any];
+    }
 
+    if (sitesToSend.length === 0) {
+      setEditError('Please select at least one site.');
+      return;
+    }
+    if (!editRemarks.trim()) {
+      setEditError('Claim remarks are required.');
+      return;
+    }
+
+    setEditSubmitting(true);
+    setEditError(null);
     try {
-      const res = await upInstallationService.updateKusumCClaim(fd);
-      if (res.status) {
-        setFeedbackMsg({ type: 'success', text: res.message || 'Payment claim updated successfully!' });
-        setEditClaimItem(null);
-        setEditFile(null);
-        loadData();
+      const formData = new FormData();
+      formData.append('update_id', String(editClaim.id));
+      formData.append('id', String(editClaim.id));
+      formData.append('amount', editAmount.trim());
+      sitesToSend.forEach((sid) => {
+        formData.append('site_id[]', String(sid));
+      });
+      if (sitesToSend.length === 1) {
+        formData.append('site_id', String(sitesToSend[0]));
+      }
+      if (editFile) {
+        formData.append('file', editFile);
+        formData.append('invoice', editFile);
+      }
+      formData.append('remarks', editRemarks.trim());
+
+      const res = await upInstallationService.updateKusumCClaim(formData);
+      if (res.status !== false && (res as any).success !== false) {
+        setEditSuccess(res.message || 'Payment claim updated successfully!');
+        setTimeout(() => {
+          setEditClaim(null);
+          setEditAmount('');
+          setEditSelectedSites([]);
+          setEditFile(null);
+          setEditRemarks('');
+          setEditSuccess(null);
+          loadData();
+        }, 1500);
       } else {
-        setFeedbackMsg({ type: 'danger', text: res.message || 'Failed to update payment claim.' });
+        const errMsg =
+          res.message ||
+          (res.errors ? Object.values(res.errors).flat().join(', ') : 'Failed to update payment claim.');
+        setEditError(errMsg);
       }
     } catch (err: any) {
-      setFeedbackMsg({ type: 'danger', text: err?.message || 'Server error updating claim.' });
+      console.error('Failed to update payment claim:', err);
+      setEditError(err?.message || 'Failed to update payment claim');
     } finally {
-      setUpdatingClaim(false);
+      setEditSubmitting(false);
     }
   };
 
-  const toggleSelectSite = (id: number) => {
-    setSelectedSiteIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
-  };
-
-  const selectAllClaimable = () => {
-    if (selectedSiteIds.length === claimableSites.length) {
-      setSelectedSiteIds([]);
-    } else {
-      setSelectedSiteIds(claimableSites.map((s) => s.id));
+  // Filtered dataset
+  const filtered = useMemo(() => {
+    let list = claims;
+    if (statusFilter !== 'all') {
+      const st = Number(statusFilter);
+      list = list.filter((c) => c.claim_status === st);
     }
-  };
 
-  /* ── Filtering claims ── */
-  const filteredClaims = useMemo(() => {
-    if (!search.trim()) return payments;
-    const q = search.toLowerCase();
-    return payments.filter((p) => {
-      return (
-        String(p.id).includes(q) ||
-        String(p.amount).includes(q) ||
-        String(p.remarks || '').toLowerCase().includes(q) ||
-        String(p.site_id).includes(q)
-      );
-    });
-  }, [payments, search]);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((c) => {
+        const idStr = String(c.id);
+        const amountStr = String(c.amount || '');
+        const remarksStr = (c.remarks || '').toLowerCase();
+        const dateStr = (c.date || (c as any).created_at || '').toLowerCase();
+        const siteStr = String(c.site_id || '').toLowerCase();
+        return (
+          idStr.includes(q) ||
+          amountStr.includes(q) ||
+          remarksStr.includes(q) ||
+          dateStr.includes(q) ||
+          siteStr.includes(q)
+        );
+      });
+    }
+    return list;
+  }, [claims, search, statusFilter]);
 
-  /* ── Pagination ── */
-  const pagedClaims = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredClaims.slice(start, start + pageSize);
-  }, [filteredClaims, currentPage, pageSize]);
+  // Pagination hook
+  const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
+    usePagination({ data: filtered, initialPageSize: 100 });
 
-  /* ── KPI derived counts ── */
-  const approvedCount = useMemo(() => payments.filter((p) => p.claim_status === 2).length, [payments]);
-  const pendingCount = useMemo(() => payments.filter((p) => p.claim_status === 1 || p.claim_status === 0).length, [payments]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, setPage]);
 
-  const hasFilters = !!search;
-  const clearFilters = () => {
+  const hasFilters = search.trim() !== '' || statusFilter !== 'all';
+  const resetFilters = () => {
     setSearch('');
-    setCurrentPage(1);
+    setStatusFilter('all');
+    setPage(1);
   };
 
-  /* ── Export handlers ── */
-  const handleCopy = () => copyTableDataToClipboard(filteredClaims, EXPORT_COLS);
-  const handleCsv = () => exportDataToCSV('UP_KusumC_Claims', filteredClaims, EXPORT_COLS);
-  const handleExcel = () => exportDataToExcel('UP_KusumC_Claims', filteredClaims, EXPORT_COLS);
-  const handlePdf = () => printTableData('UP Kusum-C Claims', filteredClaims, EXPORT_COLS);
+  // KPI Calculations
+  const totalClaimsCount = claims.length;
+  const approvedClaims = claims.filter((c) => c.claim_status === 2).length;
+  const pendingClaims = claims.filter((c) => c.claim_status === 1 || c.claim_status === 0).length;
+  const totalAmountSum = claims.reduce((acc, c) => acc + Number(c.amount || 0), 0);
+  const eligibleSitesCount = claimableSites.length;
+
+  // Export Columns definition
+  const exportCols: ExportColumn<UpKusumCClaimPaymentItem>[] = useMemo(
+    () => [
+      { header: 'Submission Date', accessor: (r: UpKusumCClaimPaymentItem) => fmtDate(r.date || (r as any).created_at) },
+      { header: 'Covered Sites', accessor: (r: UpKusumCClaimPaymentItem) => String(r.site_id || '—') },
+      { header: 'Claim Amount', accessor: (r: UpKusumCClaimPaymentItem) => fmtMoney(r.amount) },
+      { header: 'Invoice File', accessor: (r: UpKusumCClaimPaymentItem) => (r.file ? resolveUpMediaUrl(r.file) : '—') },
+      { header: 'Remarks', accessor: (r: UpKusumCClaimPaymentItem) => r.remarks || '—' },
+      {
+        header: 'Status',
+        accessor: (r: UpKusumCClaimPaymentItem) =>
+          r.claim_status === 2 ? 'Approved' : r.claim_status === 3 ? 'Rejected' : 'Raised (Pending)',
+      },
+    ],
+    []
+  );
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'UP_KusumC_Claims';
+  const fileTitle = 'UP Kusum-C Claims & Payments Register';
+
+  const getExportValue = <T,>(row: T, column: ExportColumn<T>, index: number) => {
+    if (typeof column.accessor === 'function') return (column.accessor as any)(row, index);
+    return (row as unknown as Record<string, unknown>)[column.accessor as string];
+  };
+
+  const escapeExportValue = (value: unknown) => (value === null || value === undefined ? '' : String(value));
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const out = [
+      columns.map((c) => c.header),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx)))),
+    ];
+    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
+  };
+
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[]) => {
+    if (!list.length || !columns.length) return;
+    const t = [
+      columns.map((c) => c.header).join('\t'),
+      ...list.map((row, idx) => columns.map((c) => escapeExportValue(getExportValue(row, c, idx))).join('\t')),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(t);
+      alert('Claims data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Claims data copied to clipboard!');
+    }
+  };
+
+  const exportToExcel = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
+    if (!list.length || !columns.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${list.map((row, idx) => `<tr>${columns.map((c) => `<td>${escapeHtml(escapeExportValue(getExportValue(row, c, idx)))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8" /></head><body>${tableHtml}</body></html>`;
+    downloadTextFile(`\ufeff${html}`, `${filename}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = <T,>(list: T[], columns: ExportColumn<T>[], title: string) => {
+    if (!list.length || !columns.length) return;
+    const body = list.map((row, idx) => columns.map((c) => escapeHtml(escapeExportValue(getExportValue(row, c, idx)))));
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8" /><title>${escapeHtml(title)}</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>${escapeHtml(title)}</h1><table><thead><tr>${columns.map((c) => `<th>${escapeHtml(escapeExportValue(c.header))}</th>`).join('')}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  const headers = ['S.no', 'Submission Date', 'Covered Sites / Farmers', 'Claim Amount', 'Invoice Document', 'Remarks', 'Status', 'Action'];
+  const TOTAL_COLUMNS = headers.length;
+
+  const renderSiteLabels = (siteIdRaw: any) => {
+    const ids = parseSiteIds(siteIdRaw);
+    if (!ids || ids.length === 0) return String(siteIdRaw || '—');
+    return ids
+      .map((id) => {
+        const numId = Number(id);
+        const match = !isNaN(numId) ? siteLabelMap.get(numId) : undefined;
+        return match ? `Site #${id} (${match.name})` : `Site #${id}`;
+      })
+      .join(', ');
+  };
 
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
 
-      {/* ── Page Head ── */}
+      {/* ── Page Header (exact Assam SWP pattern) ── */}
       <PageHead
         title="View Kusum-C Installation Claims & Payments"
         subtitle="Submit stage payment invoices and manage claims for verified Kusum-C solar pump installations"
@@ -482,578 +968,765 @@ export function UP_Installation_KusumC_ViewPayment() {
           { label: 'Uttar Pradesh' },
           { label: 'Installation' },
           { label: 'Kusum C' },
-          { label: 'View Payment' },
+          { label: 'Claims & Payments' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)', alignItems: 'center' }}>
-            <button type="button" className="ax-btn ax-btn--secondary ax-btn--sm" onClick={loadData} disabled={loading}>
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-              </svg>
-              <span className="ax-btn__label">Refresh</span>
-            </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
             <button
               type="button"
               className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={() => setOpenAddModal(true)}
-              disabled={claimableSites.length === 0}
+              onClick={() => {
+                setAddAmount('');
+                setAddSelectedSites([]);
+                setAddFile(null);
+                setAddRemarks('');
+                setAddError(null);
+                setAddSuccess(null);
+                setAddModalOpen(true);
+              }}
             >
-              <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 5l0 14" />
-                <path d="M5 12l14 0" />
-              </svg>
-              <span className="ax-btn__label">ADD CLAIM ({claimableSites.length} eligible)</span>
+              <span className="ax-btn__label">+ Raise New Claim</span>
             </button>
           </div>
         }
       />
 
-      {/* ── Feedback Alert ── */}
-      {feedbackMsg && (
-        <div className={`ax-alert ax-alert--${feedbackMsg.type}`} style={{ marginBottom: 16 }}>
-          <div className="ax-alert__content">{feedbackMsg.text}</div>
-          <button type="button" className="ax-btn ax-btn--ghost ax-btn--xs" onClick={() => setFeedbackMsg(null)}>
-            {X_ICON}
-          </button>
+      {error && (
+        <div className="ax-alert ax-alert--danger" style={{ marginBottom: 'var(--ax-space-4)' }} role="alert">
+          <div className="ax-alert__title">Error Loading Claims</div>
+          <div className="ax-alert__text">{error}</div>
         </div>
       )}
 
-      <div className="ax-dash-grid">
-        {/* ── KPI Row (4 Cards) ── */}
-        {loading ? (
-          <KpiSkeleton count={4} />
-        ) : (
-          <>
-            <KpiCard
-              tone="accent"
-              label="Total Claims"
-              value={payments.length}
-              sub="Claims raised to date"
-              icon={svgIcon(
-                <>
-                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="emerald"
-              label="Eligible Sites"
-              value={claimableSites.length}
-              sub="HOC approved, ready for claim"
-              icon={svgIcon(
-                <>
-                  <path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z" />
-                  <path d="M9 12l2 2 4-4" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="cyan"
-              label="Approved Claims"
-              value={approvedCount}
-              sub="Payment approved"
-              icon={svgIcon(
-                <>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                  <path d="M9 15l2 2 4-4" />
-                </>
-              )}
-            />
-            <KpiCard
-              tone="amber"
-              label="Pending Claims"
-              value={pendingCount}
-              sub="Under review"
-              icon={svgIcon(
-                <>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </>
-              )}
-            />
-          </>
-        )}
+      {/* ── Top Metric KPI Cards (4 cards in 1 row) ── */}
+      <div className="asw-cards-row">
+        <KpiCard
+          tone="accent"
+          label="Total Claims Raised"
+          value={totalClaimsCount.toLocaleString('en-IN')}
+          sub={`${approvedClaims} approved · ${pendingClaims} pending`}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="3" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          }
+        />
 
-        {/* ── Filter Tabs ── */}
-        <div className="ax-col--12">
-          <div className="ax-cluster" role="tablist" aria-label="Kusum-C claim filter tabs" style={{ gap: 'var(--ax-space-2)' }}>
-            {FILTER_TABS.map((t) => {
-              const active = t.key === activeTab;
-              const count = t.key === 'claims' ? payments.length : claimableSites.length;
-              return (
+        <KpiCard
+          tone="emerald"
+          label="Total Claimed Amount"
+          value={fmtMoney(totalAmountSum)}
+          sub="Disbursement requests"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="amber"
+          label="Pending Claims"
+          value={pendingClaims.toLocaleString('en-IN')}
+          sub="Under review by administration"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <polyline points="12 7 12 12 15 15" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          tone="cyan"
+          label="Eligible Unclaimed"
+          value={eligibleSitesCount.toLocaleString('en-IN')}
+          sub="Sites ready to claim"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 12l2 2l4 -4" />
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
+          }
+        />
+      </div>
+
+      {/* ── Main Table Card (exact Assam SWP table card layout) ── */}
+      <section className="ax-card ax-col--12" role="region" aria-label="Vendor Claims & Invoice Registry">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Vendor Claims & Invoice Registry</h2>
+            <p className="ax-card__subtitle">
+              Listing <span className="ax-num">{filtered.length}</span> of <span className="ax-num">{claims.length}</span> claims
+              {' '}· Approved <b className="ax-num">{approvedClaims}</b> · Pending <b className="ax-num">{pendingClaims}</b>
+            </p>
+          </div>
+
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              <select
+                id="kusumc_claim_filter"
+                className="ax-input ax-input--sm"
+                style={{ width: 140, height: 32, fontSize: 'var(--ax-text-xs)' }}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                aria-label="Filter by claim status"
+              >
+                <option value="all">All Status</option>
+                <option value="1">Raised (Pending)</option>
+                <option value="2">Approved</option>
+                <option value="3">Rejected</option>
+              </select>
+
+              {hasFilters && (
                 <button
-                  key={t.key}
                   type="button"
-                  role="tab"
-                  aria-selected={active}
-                  className={`ax-btn ax-btn--sm ${active ? 'ax-btn--primary' : 'ax-btn--secondary'}`}
-                  onClick={() => {
-                    setActiveTab(t.key);
-                    setSearch('');
-                    setCurrentPage(1);
-                  }}
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={resetFilters}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
                 >
-                  <span className="ax-btn__label">{t.label} ({loading ? '…' : count})</span>
+                  Reset
                 </button>
-              );
-            })}
+              )}
+
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search claim, amount, site…"
+                size="sm"
+                ariaLabel="Search vendor claims"
+              />
+
+              <TableExportToolbar
+                onCopy={() => copyToClipboard(filtered, exportCols)}
+                onExportCSV={() => exportToCSV(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportExcel={() => exportToExcel(filtered, exportCols, `${fileBase}_${stamp}`)}
+                onExportPDF={() => exportToPDF(filtered, exportCols, fileTitle)}
+              />
+            </div>
           </div>
         </div>
 
-        {/* ── Tab 1: Claims Raised ── */}
-        {activeTab === 'claims' && (
-          <section className="ax-card ax-col--12" role="region" aria-label="Raised Payment Claims">
-            <div className="ax-card__header">
-              <div className="ax-card__titles">
-                <span className="ax-card__eyebrow">UP KUSUM-C</span>
-                <h2 className="ax-card__title">Raised Payment Claims</h2>
-                <p className="ax-card__subtitle">
-                  <span className="ax-num">{filteredClaims.length}</span> of <span className="ax-num">{payments.length}</span> claims
-                  {' '}· Approved <b className="ax-num">{approvedCount}</b> · Pending <b className="ax-num">{pendingCount}</b>
-                </p>
-              </div>
-
-              <div className="ax-card__actions">
-                <div className="ax-cluster" style={actionsRowStyle}>
-                  {hasFilters && (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--ghost ax-btn--sm"
-                      onClick={clearFilters}
-                      style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                    >
-                      Reset
-                    </button>
-                  )}
-
-                  <SearchInput
-                    value={search}
-                    onChange={(val) => {
-                      setSearch(val);
-                      setCurrentPage(1);
-                    }}
-                    placeholder="Search claim ID, amount…"
-                    size="sm"
-                    ariaLabel="Search claims"
-                  />
-
-                  <TableExportToolbar
-                    onCopy={handleCopy}
-                    onExportCSV={handleCsv}
-                    onExportExcel={handleExcel}
-                    onExportPDF={handlePdf}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="ax-table-wrap">
-              <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 900 }}>
-                <caption className="ax-visually-hidden">UP Kusum-C Raised Payment Claims</caption>
-                <thead className="ax-table__head">
-                  <tr>
-                    <th className="ax-table__th" scope="col" style={{ width: 60 }}>Sr. No.</th>
-                    <th className="ax-table__th" scope="col" style={{ width: 90 }}>Claim ID</th>
-                    <th className="ax-table__th" scope="col">Claim Amount</th>
-                    <th className="ax-table__th" scope="col">Included Site IDs</th>
-                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Invoice</th>
-                    <th className="ax-table__th" scope="col">Remarks</th>
-                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Claim Status</th>
-                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center', width: 120 }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody aria-busy={loading}>
-                  {loading && (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--ax-text-muted)' }}>
-                        <span className="ax-spinner" style={{ width: 20, height: 20, marginRight: 8, verticalAlign: 'middle' }} />
-                        Loading Kusum-C claim records from server…
+        {/* All table columns fully scrollable horizontally */}
+        <div className="ax-table-wrap">
+          <table
+            className="ax-table ax-table--hover ula-table--wide"
+            style={{ whiteSpace: 'nowrap', minWidth: 1050 }}
+          >
+            <caption className="ax-visually-hidden">Vendor Claims & Invoice Registry</caption>
+            <thead className="ax-table__head">
+              <tr>
+                {headers.map((h) => (
+                  <th
+                    key={h}
+                    className="ax-table__th"
+                    scope="col"
+                    style={h === 'Action' ? { textAlign: 'right' } : undefined}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody aria-busy={loading}>
+              {loading && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={centerCell}>
+                    <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading claim records from server…
+                  </td>
+                </tr>
+              )}
+              {!loading && filtered.length === 0 && (
+                <tr>
+                  <td className="ax-table__td" colSpan={TOTAL_COLUMNS} style={{ padding: 0 }}>
+                    <TableEmptyState
+                      title="No claim records found"
+                      message={
+                        hasFilters
+                          ? 'No records match your filters or search query. Try clearing your query.'
+                          : 'No claims have been submitted yet. Click "+ Raise New Claim" to submit your first claim.'
+                      }
+                      onClear={hasFilters ? resetFilters : undefined}
+                      clearLabel="Clear filters"
+                    />
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                paginatedData.map((c, index) => {
+                  const invoiceUrl = c.file ? resolveUpMediaUrl(c.file) : '';
+                  return (
+                    <tr key={c.id} className="ax-table__row">
+                      <td className="ax-table__td ax-num" style={{ color: 'var(--ax-text-muted)' }}>
+                        {(currentPage - 1) * pageSize + index + 1}
                       </td>
-                    </tr>
-                  )}
-                  {!loading && filteredClaims.length === 0 && (
-                    <tr>
-                      <td colSpan={8} style={{ padding: 0 }}>
-                        <TableEmptyState
-                          title="No claims found"
-                          message={
-                            hasFilters
-                              ? 'No claims match your search. Try clearing the filter.'
-                              : 'Raised payment claims will appear here.'
-                          }
-                          onClear={hasFilters ? clearFilters : undefined}
-                          clearLabel="Clear filters"
-                        />
-                      </td>
-                    </tr>
-                  )}
-                  {!loading &&
-                    pagedClaims.map((item, idx) => {
-                      const srNo = (currentPage - 1) * pageSize + idx + 1;
-                      const invoiceUrl = item.file ? resolveUpMediaUrl(item.file) : null;
-                      const isApproved = item.claim_status === 2;
-                      const isRejected = item.claim_status === 3;
 
-                      return (
-                        <tr key={item.id} className="ax-table__row">
-                          <td className="ax-table__td ax-num">{srNo}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-text-strong)' }}>#{item.id}</td>
-                          <td className="ax-table__td" style={{ fontWeight: 700, color: 'var(--ax-accent)' }}>
-                            ₹{Number(item.amount || 0).toLocaleString('en-IN')}
-                          </td>
-                          <td className="ax-table__td" style={{ fontFamily: 'var(--ax-font-mono)', fontSize: 12 }}>
-                            {txt(item.site_id)}
-                          </td>
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            {invoiceUrl ? (
-                              <a href={invoiceUrl} target="_blank" rel="noopener noreferrer" className="ax-btn ax-btn--ghost ax-btn--xs">
-                                View Invoice
-                              </a>
-                            ) : DASH}
-                          </td>
-                          <td className="ax-table__td">{txt(item.remarks)}</td>
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            <span
-                              className={`ax-badge ax-badge--soft ax-badge--pill ${
-                                isApproved
-                                  ? 'ax-badge--success'
-                                  : isRejected
-                                  ? 'ax-badge--danger'
-                                  : 'ax-badge--warning'
-                              }`}
+                      <td className="ax-table__td">
+                        <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                          {fmtDate(c.date || (c as any).created_at)}
+                        </div>
+                      </td>
+                      <td className="ax-table__td">
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {renderSiteLabels(c.site_id)}
+                        </div>
+                      </td>
+                      <td className="ax-table__td">
+                        <strong style={{ fontSize: '14px', color: 'var(--asw-primary)' }}>
+                          {fmtMoney(c.amount)}
+                        </strong>
+                      </td>
+                      <td className="ax-table__td">
+                        {invoiceUrl ? (
+                          <a
+                            href={invoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: 'var(--asw-primary)', fontWeight: 600 }}
+                          >
+                            View Invoice ↗
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--ax-text-muted)', fontSize: '12px' }}>—</span>
+                        )}
+                      </td>
+                      <td className="ax-table__td">
+                        <span style={{ fontSize: '12px', color: 'var(--ax-text-muted)', maxWidth: 220, display: 'inline-block' }}>
+                          {c.remarks || '—'}
+                        </span>
+                      </td>
+                      <td className="ax-table__td">
+                        {renderClaimStatusBadge(c.claim_status)}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'right' }}>
+                        <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                          {c.claim_status === 2 ? (
+                            <button
+                              type="button"
+                              disabled
+                              title="Claim has been approved and payment settled. Action is locked."
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                background: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #cbd5e1',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'not-allowed',
+                              }}
                             >
-                              <span className="ax-badge__dot" />
-                              {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
-                            </span>
-                          </td>
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            {isApproved ? (
-                              <button
-                                type="button"
-                                disabled
-                                title="Claim has been approved and payment settled. Action is locked."
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '4px',
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  background: '#f1f5f9',
-                                  color: '#94a3b8',
-                                  border: '1px solid #cbd5e1',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  cursor: 'not-allowed',
-                                }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                Locked
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="ax-btn ax-btn--secondary ax-btn--sm"
-                                onClick={() => handleOpenEditClaim(item)}
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              Locked
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              onClick={() => openEditModal(c)}
+                            >
+                              Edit Claim
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="ax-card__footer">
-              <div className="ula-pagination-left">
-                <Pagination
-                  currentPage={currentPage}
-                  pageSize={pageSize}
-                  totalItems={filteredClaims.length}
-                  onPageChange={setCurrentPage}
-                  onPageSizeChange={setPageSize}
-                  pageSizeOptions={[50, 100, 200]}
+        {/* ── Table Footer (exact Assam SWP pagination structure) ── */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Add Claim Modal ── */}
+      <Modal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        title="Raise Installation Payment Claim"
+        subtitle="Submit payment invoice for verified & doc-approved UP Kusum-C sites"
+        maxWidth={620}
+      >
+        {addSuccess && (
+          <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }}>
+            <span>✓ {addSuccess}</span>
+          </div>
+        )}
+
+        {addError && (
+          <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }}>
+            <span>{addError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleAddClaimSubmit}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Amount Field with ₹ icon */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="add_amount">
+                <span>Claim Amount (₹)</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <div className="ax-modern-input-wrap">
+                <span className="ax-modern-addon">₹</span>
+                <input
+                  id="add_amount"
+                  type="number"
+                  className="ax-modern-input"
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
+                  placeholder="e.g. 50000"
+                  required
+                  min={1}
                 />
               </div>
             </div>
-          </section>
-        )}
 
-        {/* ── Tab 2: Claimable Sites ── */}
-        {activeTab === 'claimable' && (
-          <section className="ax-card ax-col--12" role="region" aria-label="Claim-Eligible Sites">
-            <div className="ax-card__header">
-              <div className="ax-card__titles">
-                <span className="ax-card__eyebrow">UP KUSUM-C</span>
-                <h2 className="ax-card__title">Sites Eligible for Claim</h2>
-                <p className="ax-card__subtitle">
-                  Verified sites with approved HOC that have not been claimed yet ·{' '}
-                  <span className="ax-num">{claimableSites.length}</span> sites available
-                </p>
-              </div>
-
-              <div className="ax-card__actions">
-                <div className="ax-cluster" style={actionsRowStyle}>
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--primary ax-btn--sm"
-                    onClick={() => setOpenAddModal(true)}
-                    disabled={selectedSiteIds.length === 0}
-                  >
-                    <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M12 5l0 14" />
-                      <path d="M5 12l14 0" />
-                    </svg>
-                    <span className="ax-btn__label">Raise Claim ({selectedSiteIds.length} selected)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="ax-table-wrap">
-              <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 700 }}>
-                <caption className="ax-visually-hidden">Sites Eligible for Kusum-C Claims</caption>
-                <thead className="ax-table__head">
-                  <tr>
-                    <th className="ax-table__th" scope="col" style={{ width: 40, textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSiteIds.length > 0 && selectedSiteIds.length === claimableSites.length}
-                        onChange={selectAllClaimable}
-                        aria-label="Select all sites"
-                      />
-                    </th>
-                    <th className="ax-table__th" scope="col" style={{ width: 80 }}>Site ID</th>
-                    <th className="ax-table__th" scope="col">Farmer Name</th>
-                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>HOC Status</th>
-                    <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody aria-busy={loading}>
-                  {claimableSites.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: 0 }}>
-                        <TableEmptyState
-                          title="No claim-eligible sites"
-                          message="Sites will appear here after verification and HOC approval."
-                        />
-                      </td>
-                    </tr>
-                  ) : (
-                    claimableSites.map((s) => (
-                      <tr key={s.id} className="ax-table__row">
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedSiteIds.includes(s.id)}
-                            onChange={() => toggleSelectSite(s.id)}
-                            aria-label={`Select site ${s.id}`}
-                          />
-                        </td>
-                        <td className="ax-table__td" style={{ fontWeight: 700, fontFamily: 'var(--ax-font-mono, monospace)' }}>#{s.id}</td>
-                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{s.f_farmer_name}</td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <span className="ax-badge ax-badge--soft ax-badge--pill ax-badge--success">
-                            <span className="ax-badge__dot" />
-                            HOC Approved
-                          </span>
-                        </td>
-                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            onClick={() => {
-                              setSelectedSiteIds([s.id]);
-                              setOpenAddModal(true);
-                            }}
-                          >
-                            Claim This Site
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+            {/* Eligible Completed Sites Dropdown */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="add_site_select">
+                <span>
+                  Select Eligible Completed Sites{' '}
+                  {addSelectedSites.length > 0 && (
+                    <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>
+                      ({addSelectedSites.length} selected)
+                    </span>
                   )}
-                </tbody>
-              </table>
+                </span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <select
+                id="add_site_select"
+                className="ax-modern-select"
+                value={addSelectedSites.length === 1 ? String(addSelectedSites[0]) : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const num = Number(val);
+                  if (!addSelectedSites.includes(num)) {
+                    setAddSelectedSites((prev) => [...prev, num]);
+                  }
+                }}
+                disabled={addSubmitting}
+                required={addSelectedSites.length === 0}
+              >
+                <option value="">
+                  {loading
+                    ? 'Fetching completed sites from server…'
+                    : claimableSites.length === 0
+                    ? 'No unclaimed eligible sites available'
+                    : '-- Choose Eligible Completed Site --'}
+                </option>
+                {claimableSites.map((site) => {
+                  const isSelected = addSelectedSites.includes(site.id);
+                  return (
+                    <option key={site.id} value={site.id}>
+                      {site.id} — {site.f_farmer_name || 'Farmer'} {site.district ? `(${site.district})` : ''} {isSelected ? '✓ [Selected]' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Selected site tags */}
+              {addSelectedSites.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {addSelectedSites.map((sid) => {
+                    const match = claimableSites.find((s) => s.id === sid);
+                    return (
+                      <span
+                        key={sid}
+                        className="ax-badge ax-badge--soft ax-badge--info"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '4px 10px',
+                          fontSize: '12px',
+                          borderRadius: 6,
+                        }}
+                      >
+                        <span>
+                          {sid} — {match?.f_farmer_name || `Site ${sid}`}
+                          {match?.district ? ` (${match.district})` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAddSelectedSites((prev) => prev.filter((id) => id !== sid))}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '14px',
+                            color: 'currentColor',
+                            lineHeight: 1,
+                          }}
+                          title="Remove site"
+                          aria-label="Remove site"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </section>
-        )}
-      </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-         ADD CLAIM MODAL (createPortal + useFocusTrap)
-         ═══════════════════════════════════════════════════════════════════ */}
-      {openAddModal &&
-        createPortal(
-          <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="kusumc-add-claim-title">
-            <div className="ax-modal__backdrop" onClick={() => setOpenAddModal(false)} />
-            <div ref={addModalRef} className="ax-modal__dialog" style={{ maxWidth: 560 }}>
-              <div className="ax-modal__header">
-                <h2 className="ax-modal__title" id="kusumc-add-claim-title" style={{ fontSize: 15, fontWeight: 700 }}>
-                  Raise Kusum-C Installation Payment Claim
-                </h2>
-                <button type="button" className="ax-modal__close" onClick={() => setOpenAddModal(false)} aria-label="Close dialog">
-                  {X_ICON}
-                </button>
-              </div>
-
-              <form onSubmit={handleAddClaimSubmit}>
-                <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                      Selected Sites for Claim ({selectedSiteIds.length}) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <div style={{ maxHeight: 130, overflowY: 'auto', border: '1px solid var(--ax-border)', borderRadius: 6, padding: 8 }}>
-                      {claimableSites.map((s) => (
-                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 4, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={selectedSiteIds.includes(s.id)}
-                            onChange={() => toggleSelectSite(s.id)}
-                          />
-                          <span><strong>#{s.id}</strong> — {s.f_farmer_name}</span>
-                        </label>
-                      ))}
+            {/* Document Upload Dropzone */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label">
+                <span>Invoice / Bill File (PDF / JPG / PNG)</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <input
+                ref={addFileRef}
+                type="file"
+                accept=".pdf,image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => setAddFile(e.target.files?.[0] || null)}
+              />
+              {!addFile ? (
+                <div
+                  className="ax-modern-dropzone"
+                  onClick={() => addFileRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="ax-modern-dropzone__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                      Click to upload invoice / bill file
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                      Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
                     </div>
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      Total Claim Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      required
-                      className="ax-input"
-                      placeholder="e.g. 150000"
-                      value={claimAmount}
-                      onChange={(e) => setClaimAmount(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      Invoice Document (PDF/JPG, max 5MB) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="file"
-                      required
-                      accept="image/*,application/pdf"
-                      className="ax-input"
-                      onChange={(e) => setClaimFile(e.target.files?.[0] || null)}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      Remarks <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <textarea
-                      className="ax-textarea"
-                      rows={2}
-                      required
-                      placeholder="e.g. Installation payment claim for verified sites"
-                      value={claimRemarks}
-                      onChange={(e) => setClaimRemarks(e.target.value)}
-                    />
-                  </div>
                 </div>
-
-                <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 10 }}>
-                  <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setOpenAddModal(false)} disabled={submittingClaim}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="ax-btn ax-btn--primary" disabled={submittingClaim}>
-                    {submittingClaim ? 'Submitting…' : 'Submit Claim'}
+              ) : (
+                <div className="ax-modern-file-chip">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <span className="ax-modern-file-chip__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {addFile.name}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                        {(addFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost ax-btn--sm"
+                    style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                    onClick={() => {
+                      setAddFile(null);
+                      if (addFileRef.current) addFileRef.current.value = '';
+                    }}
+                  >
+                    Remove
                   </button>
                 </div>
-              </form>
+              )}
             </div>
-          </div>,
-          document.body
+
+            {/* Remarks */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="add_remarks">
+                <span>Claim Remarks / Description</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <textarea
+                id="add_remarks"
+                className="ax-modern-textarea"
+                rows={3}
+                value={addRemarks}
+                onChange={(e) => setAddRemarks(e.target.value)}
+                placeholder="Enter remarks or invoice details..."
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => setAddModalOpen(false)}
+              disabled={addSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary"
+              disabled={addSubmitting || claimableSites.length === 0}
+            >
+              {addSubmitting ? 'Submitting…' : 'Submit Claim'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Edit Claim Modal ── */}
+      <Modal
+        open={!!editClaim}
+        onClose={() => setEditClaim(null)}
+        title="Edit Claim"
+        subtitle="Update claim amount, remarks, or replace invoice document"
+        maxWidth={620}
+      >
+        {editSuccess && (
+          <div className="ax-alert ax-alert--success" style={{ marginBottom: 16 }}>
+            <span>✓ {editSuccess}</span>
+          </div>
         )}
 
-      {/* ═══════════════════════════════════════════════════════════════════
-         EDIT CLAIM MODAL (createPortal + useFocusTrap)
-         ═══════════════════════════════════════════════════════════════════ */}
-      {editClaimItem &&
-        createPortal(
-          <div className="ax-modal" role="dialog" aria-modal="true" aria-labelledby="kusumc-edit-claim-title">
-            <div className="ax-modal__backdrop" onClick={() => setEditClaimItem(null)} />
-            <div ref={editModalRef} className="ax-modal__dialog" style={{ maxWidth: 540 }}>
-              <div className="ax-modal__header">
-                <h2 className="ax-modal__title" id="kusumc-edit-claim-title" style={{ fontSize: 15, fontWeight: 700 }}>
-                  Edit Claim #{editClaimItem.id}
-                </h2>
-                <button type="button" className="ax-modal__close" onClick={() => setEditClaimItem(null)} aria-label="Close dialog">
-                  {X_ICON}
-                </button>
+        {editError && (
+          <div className="ax-alert ax-alert--danger" style={{ marginBottom: 16 }}>
+            <span>{editError}</span>
+          </div>
+        )}
+
+        {editClaim && (
+          <form onSubmit={handleUpdateClaimSubmit}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Amount */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="edit_amount">
+                  <span>Claim Amount (₹)</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <div className="ax-modern-input-wrap">
+                  <span className="ax-modern-addon">₹</span>
+                  <input
+                    id="edit_amount"
+                    type="number"
+                    className="ax-modern-input"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    required
+                    min={1}
+                  />
+                </div>
               </div>
 
-              <form onSubmit={handleEditClaimSubmit}>
-                <div className="ax-modal__body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      Claim Amount (₹) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      className="ax-input"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                    />
-                  </div>
+              {/* Sites */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="edit_site_select">
+                  <span>Included Sites ({editSelectedSites.length > 0 ? editSelectedSites.length : 1} selected)</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <select
+                  id="edit_site_select"
+                  className="ax-modern-select"
+                  value={editSelectedSites.length === 1 ? String(editSelectedSites[0]) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    const num = Number(val);
+                    if (!editSelectedSites.some((id) => String(id) === String(num))) {
+                      setEditSelectedSites((prev) => [...prev, num]);
+                    }
+                  }}
+                >
+                  <option value="">-- Select Site from Dropdown to Add --</option>
+                  {claimableSites.map((site) => {
+                    const isChecked = editSelectedSites.some((id) => String(id) === String(site.id));
+                    return (
+                      <option key={site.id} value={site.id}>
+                        {site.id} — {site.f_farmer_name} {isChecked ? '✓ [Included]' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
 
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      New Invoice File (optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="ax-input"
-                      onChange={(e) => setEditFile(e.target.files?.[0] || null)}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      Remarks
-                    </label>
-                    <textarea
-                      className="ax-textarea"
-                      rows={2}
-                      value={editRemarks}
-                      onChange={(e) => setEditRemarks(e.target.value)}
-                    />
-                  </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                  {editSelectedSites.map((sid) => {
+                    const match = claimableSites.find((s) => String(s.id) === String(sid));
+                    return (
+                      <span
+                        key={sid}
+                        className="ax-badge ax-badge--soft ax-badge--info"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', fontSize: '12px' }}
+                      >
+                        <span>{sid} — {match?.f_farmer_name || String(sid)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditSelectedSites((prev) => prev.filter((id) => String(id) !== String(sid)))}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
+                          title="Remove site"
+                          aria-label="Remove site"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div className="ax-modal__footer" style={{ justifyContent: 'flex-end', gap: 10 }}>
-                  <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setEditClaimItem(null)} disabled={updatingClaim}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="ax-btn ax-btn--primary" disabled={updatingClaim}>
-                    {updatingClaim ? 'Updating…' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
+              {/* Replace Invoice File */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label">
+                  <span>Replace Invoice File (Optional)</span>
+                </label>
+                <input
+                  ref={editFileRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+                />
+                {!editFile ? (
+                  <div>
+                    <div
+                      className="ax-modern-dropzone"
+                      onClick={() => editFileRef.current?.click()}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="ax-modern-dropzone__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+                          Click to upload new invoice file
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+                          Leave empty to keep existing invoice document
+                        </div>
+                      </div>
+                    </div>
+                    {editClaim.file && (
+                      <div style={{ marginTop: 8, fontSize: '12px', color: 'var(--ax-text-muted)' }}>
+                        Current invoice:{' '}
+                        <a href={resolveUpMediaUrl(editClaim.file)} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                          View Current ↗
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="ax-modern-file-chip">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span className="ax-modern-file-chip__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                          <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {editFile.name}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
+                          {(editFile.size / 1024).toFixed(1)} KB (New file)
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--ghost ax-btn--sm"
+                      style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
+                      onClick={() => {
+                        setEditFile(null);
+                        if (editFileRef.current) editFileRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Remarks */}
+              <div className="ax-modern-field">
+                <label className="ax-modern-label" htmlFor="edit_remarks">
+                  <span>Claim Remarks / Description</span>
+                  <span className="ax-modern-req">*</span>
+                </label>
+                <textarea
+                  id="edit_remarks"
+                  className="ax-modern-textarea"
+                  rows={3}
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>,
-          document.body
+
+            <div style={{ marginTop: 22, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--secondary"
+                onClick={() => setEditClaim(null)}
+                disabled={editSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary"
+                disabled={editSubmitting}
+              >
+                {editSubmitting ? 'Updating…' : 'Update Claim'}
+              </button>
+            </div>
+          </form>
         )}
+      </Modal>
     </div>
   );
 }
 
+export { UP_Installation_KusumC_ViewPayment as ViewPayment };
 export default UP_Installation_KusumC_ViewPayment;

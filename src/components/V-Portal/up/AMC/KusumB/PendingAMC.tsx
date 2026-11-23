@@ -6,7 +6,7 @@ export function UP_AMC_KusumB_PendingAMC() {
     const res = await upKusumBAmcApi.getYears();
     const arr = Array.isArray(res) ? res : res?.data;
     if (Array.isArray(arr) && arr.length > 0) return arr;
-    return [new Date().getFullYear()];
+    return [];
   };
 
   const fetchMonths = async (year: number) => {
@@ -16,7 +16,8 @@ export function UP_AMC_KusumB_PendingAMC() {
     return [];
   };
 
-  const fetchSites = async (year: number) => {
+  const fetchSites = async (year?: number) => {
+    if (!year) return [];
     const res = await upKusumBAmcApi.getSites(year);
     const arr = Array.isArray(res) ? res : res?.data;
     if (Array.isArray(arr)) {
@@ -35,7 +36,7 @@ export function UP_AMC_KusumB_PendingAMC() {
     if (k) {
       return {
         ...k,
-        state: k.state || 'UP',
+        state: k.state || '',
         district: k.installation_dsitrict || k.district || k.f_district || '',
         village: k.installation_village || k.village || k.f_village || '',
         beneficiary_name: k.beneficiary || k.beneficiary_name || k.farmer_name || '',
@@ -46,7 +47,7 @@ export function UP_AMC_KusumB_PendingAMC() {
         address: k.address || k.location || k.installation_village || '',
         volume: k.pump_capacity || k.volume || k.capacity || '',
         contractor_name: k.contractor_name || k.contractor || '',
-        amc_type: k.amc_type || 'Monthly',
+        amc_type: k.amc_type || '',
         pending_months: res?.pending_months || k?.pending_months || [],
         schedule: res?.schedule || k?.schedule || [],
         current_due: res?.current_due || k?.current_due || null,
@@ -72,7 +73,6 @@ export function UP_AMC_KusumB_PendingAMC() {
       ]}
       viewLink="/v/up/kusumb/amc/completed-details"
       viewLabel="View Completed AMC"
-      defaultAmcType="Monthly"
       onFetchYears={fetchYears}
       onFetchMonths={fetchMonths}
       onFetchSites={fetchSites}

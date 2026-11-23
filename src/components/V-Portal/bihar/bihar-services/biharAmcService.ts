@@ -1,5 +1,6 @@
 import { authService, API_BASE_URL } from '../../../../services/authService';
 import { BIHAR_AMC_API } from '../../V_Portal_APIS/Bihar_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 const BASE_URL = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
 const ROOT_URL = BASE_URL.replace(/\/api\/?$/, '');
@@ -306,18 +307,12 @@ class BiharAmcService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false) {
-      let msg = json.message || 'Validation failed.';
-      if (json.errors && typeof json.errors === 'object') {
-        const errorList: string[] = [];
-        for (const [k, v] of Object.entries(json.errors)) {
-          errorList.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
-        }
-        if (errorList.length) msg = `${msg} (${errorList.join('; ')})`;
-      }
-      const err: any = new Error(msg);
-      err.errors = json.errors;
+      const extracted = extractBackendError(json, 'Failed to update SRT AMC record.');
+      const err: any = new Error(extracted.message);
+      err.errors = json.errors || extracted.fieldErrors;
+      err.data = json;
       throw err;
     }
     return json;
@@ -450,18 +445,12 @@ class BiharAmcService {
       headers: this.getHeaders(true),
       body: formData,
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     if (!res.ok || json.status === false) {
-      let msg = json.message || 'Validation failed.';
-      if (json.errors && typeof json.errors === 'object') {
-        const errorList: string[] = [];
-        for (const [k, v] of Object.entries(json.errors)) {
-          errorList.push(`${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
-        }
-        if (errorList.length) msg = `${msg} (${errorList.join('; ')})`;
-      }
-      const err: any = new Error(msg);
-      err.errors = json.errors;
+      const extracted = extractBackendError(json, 'Failed to update SSL AMC record.');
+      const err: any = new Error(extracted.message);
+      err.errors = json.errors || extracted.fieldErrors;
+      err.data = json;
       throw err;
     }
     return json;

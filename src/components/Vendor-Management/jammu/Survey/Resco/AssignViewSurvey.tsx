@@ -12,10 +12,12 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import {
-  jammuRescoSurveyService,
+  jammuSurveyAdminService,
   resolveJammuSurveyMediaUrl,
-  type JammuRescoAssignedSurveyItem,
-} from '../../../../V-Portal/jammu/jammu-services';
+  type JKRescoSurveyAssignRecord,
+  type JKRescoSurveyRecord,
+  type JKRescoSurveyStats,
+} from '../jammuSurveyAdminService';
 
 /* ───────── Responsive Page CSS (Exact Assam/Bihar Reference Standard) ───────── */
 const PAGE_CSS = `
@@ -466,126 +468,11 @@ function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: 
   );
 }
 
-/* ───────── Fallback realistic datasets for Jammu RESCO ───────── */
-const FALLBACK_ASSIGNED_SURVEYS: JammuRescoAssignedSurveyItem[] = [
-  {
-    id: 101,
-    vendor: 'utkarsh',
-    vendors: { id: 1, name: 'utkarsh', vendor_name: 'utkarsh' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Jammu',
-    site_name: 'DC Office Complex Jammu',
-    sitecount: 3,
-    sites: ['DC Office Main Block', 'DC Revenue Complex', 'DC Meeting Hall'],
-    assign_date: '2026-08-15',
-    created_at: '2026-08-15T09:30:00Z',
-    file: '/uploads/jammu/survey/resco/wo_101.pdf',
-    status: 1, // Approved
-    remarks: 'Priority rooftop solar assessment for administrative building',
-  },
-  {
-    id: 102,
-    vendor: 'bharti',
-    vendors: { id: 2, name: 'bharti', vendor_name: 'bharti' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Kathua',
-    site_name: 'District Hospital Kathua',
-    sitecount: 2,
-    sites: ['OPD Building Rooftop', 'Trauma Centre Wing'],
-    assign_date: '2026-08-18',
-    created_at: '2026-08-18T11:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_102.pdf',
-    status: 2, // Complete
-    remarks: 'Critical healthcare load with continuous grid backup',
-  },
-  {
-    id: 103,
-    vendor: 'Jammu TEsting',
-    vendors: { id: 3, name: 'Jammu TEsting', vendor_name: 'Jammu TEsting' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Samba',
-    site_name: 'Govt Higher Secondary School Samba',
-    sitecount: 1,
-    sites: ['Main School Academic Block'],
-    assign_date: '2026-08-20',
-    created_at: '2026-08-20T14:15:00Z',
-    file: '/uploads/jammu/survey/resco/wo_103.jpg',
-    status: 0, // Pending
-    remarks: 'Verify RCC roof structural strength and LTDB access',
-  },
-  {
-    id: 104,
-    vendor: 'utkarsh',
-    vendors: { id: 1, name: 'utkarsh', vendor_name: 'utkarsh' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-1',
-    district: 'Udhampur',
-    site_name: 'PWD Divisional Office Udhampur',
-    sitecount: 2,
-    sites: ['Executive Engineer Office', 'Sub-Divisional Store'],
-    assign_date: '2026-08-22',
-    created_at: '2026-08-22T10:45:00Z',
-    file: '/uploads/jammu/survey/resco/wo_104.pdf',
-    status: 2, // Complete
-    remarks: 'Completed field survey and submitted feasibility dossier',
-  },
-  {
-    id: 105,
-    vendor: 'bharti',
-    vendors: { id: 2, name: 'bharti', vendor_name: 'bharti' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Rajouri',
-    site_name: 'Govt Polytechnic College Rajouri',
-    sitecount: 4,
-    sites: ['Workshop Block A', 'Academic Block', 'Boys Hostel', 'Girls Hostel'],
-    assign_date: '2026-08-24',
-    created_at: '2026-08-24T12:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_105.pdf',
-    status: 1, // Approved
-    remarks: 'Educational campus large-scale solar feasibility',
-  },
-  {
-    id: 106,
-    vendor: 'mohit',
-    vendors: { id: 4, name: 'mohit', vendor_name: 'mohit' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-3',
-    district: 'Reasi',
-    site_name: 'Mini Secretariat Reasi',
-    sitecount: 2,
-    sites: ['Block 1 Main Building', 'Block 2 Conference Hall'],
-    assign_date: '2026-08-26',
-    created_at: '2026-08-26T16:20:00Z',
-    file: '/uploads/jammu/survey/resco/wo_106.jpg',
-    status: 0, // Pending
-    remarks: 'Inspect electrical room cable distance to LT panel',
-  },
-  {
-    id: 107,
-    vendor: 'App Testing',
-    vendors: { id: 5, name: 'App Testing', vendor_name: 'App Testing' },
-    state: 'Jammu & Kashmir',
-    volume: 'VOL-2',
-    district: 'Poonch',
-    site_name: 'District Police Lines Poonch',
-    sitecount: 3,
-    sites: ['Admin Headquarters', 'Mess Hall', 'Barracks Rooftop'],
-    assign_date: '2026-08-28',
-    created_at: '2026-08-28T09:00:00Z',
-    file: '/uploads/jammu/survey/resco/wo_107.pdf',
-    status: 1, // Approved
-    remarks: 'Security institution with dedicated earth pit required',
-  },
-];
-
 /* ───────── Main Component ───────── */
 export function AssignViewSurvey() {
   // Data states
-  const [records, setRecords] = useState<JammuRescoAssignedSurveyItem[]>([]);
+  const [records, setRecords] = useState<JKRescoSurveyAssignRecord[]>([]);
+  const [, setRescoStats] = useState<JKRescoSurveyStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
@@ -598,47 +485,99 @@ export function AssignViewSurvey() {
   const [districtFilter, setDistrictFilter] = useState<string>('all');
 
   // Modals state
-  const [selectedRecordForSites, setSelectedRecordForSites] = useState<JammuRescoAssignedSurveyItem | null>(null);
-  const [approvingRecord, setApprovingRecord] = useState<JammuRescoAssignedSurveyItem | null>(null);
+  const [selectedRecordForSites, setSelectedRecordForSites] = useState<JKRescoSurveyAssignRecord | null>(null);
+  const [approvingRecord, setApprovingRecord] = useState<JKRescoSurveyAssignRecord | null>(null);
   const [isApproving, setIsApproving] = useState<boolean>(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Helper to resolve vendor name
-  const getVendorName = useCallback((r?: Partial<JammuRescoAssignedSurveyItem> | null): string => {
+  const getVendorName = useCallback((r?: Partial<JKRescoSurveyAssignRecord> | null): string => {
     if (!r) return '—';
     if (r.vendors && typeof r.vendors === 'object') {
       if (r.vendors.name) return String(r.vendors.name).trim();
-      if (r.vendors.vendor_name) return String(r.vendors.vendor_name).trim();
     }
     if (r.vendor && String(r.vendor).trim()) return String(r.vendor).trim();
     return '—';
   }, []);
 
   // Helper to parse site breakdown array
-  const formatSitesList = (r: JammuRescoAssignedSurveyItem): string[] => {
-    if (r.sites && Array.isArray(r.sites) && r.sites.length > 0) {
-      return r.sites.map((s) => String(s).trim()).filter(Boolean);
+  const formatSitesList = (r: JKRescoSurveyAssignRecord): string[] => {
+    if (r.site_names && Array.isArray(r.site_names) && r.site_names.length > 0) {
+      return r.site_names.map((s) => String(s).trim()).filter(Boolean);
+    }
+    if (r.site_details && Array.isArray(r.site_details) && r.site_details.length > 0) {
+      return r.site_details.map((s) => String(s.site_name || s.id)).filter(Boolean);
     }
     if (r.site_name && String(r.site_name).trim()) {
-      return [String(r.site_name).trim()];
+      const trimmed = String(r.site_name).trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map((p) => `Site #${p}`);
+        } catch {}
+      }
+      return [trimmed];
     }
     return [`Batch #${r.id}`];
   };
 
-  // Load Data from API or fallback
+  // Load Data from API
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
-      const list = await jammuRescoSurveyService.getAssignedSurveys();
-      if (Array.isArray(list) && list.length > 0) {
-        setRecords(list);
-      } else {
-        setRecords(FALLBACK_ASSIGNED_SURVEYS);
-      }
+      const res = await jammuSurveyAdminService.viewRescoSurveyAssign();
+      const list = res.srtRecords || res.assign_surveys || [];
+      setRecords(Array.isArray(list) ? list : []);
+      setRescoStats(res.resco || null);
     } catch (err: any) {
-      console.warn('[AssignViewSurvey] API fetch failed, loading fallback data:', err);
-      setRecords(FALLBACK_ASSIGNED_SURVEYS);
+      console.warn('[AssignViewSurvey] API fetch failed, trying secondary fallback:', err);
+      try {
+        const [assignVendorRes, viewSurveyRes] = await Promise.allSettled([
+          jammuSurveyAdminService.getRescoSurveyAssignVendor(),
+          jammuSurveyAdminService.viewRescoSurvey(),
+        ]);
+
+        let fallbackRecords: JKRescoSurveyRecord[] = [];
+        let fallbackStats: JKRescoSurveyStats | null = null;
+
+        if (viewSurveyRes.status === 'fulfilled') {
+          fallbackStats = viewSurveyRes.value.resco || null;
+        }
+
+        if (assignVendorRes.status === 'fulfilled' && Array.isArray(assignVendorRes.value.srtRecords)) {
+          const vendorsMap = new Map<number, string>();
+          (assignVendorRes.value.vendors || []).forEach((v) => {
+            if (v.id) vendorsMap.set(Number(v.id), v.name);
+          });
+
+          fallbackRecords = assignVendorRes.value.srtRecords.map((site: any, idx: number) => ({
+            id: site.id || idx + 1,
+            vendor: site.survey_vendor || site.vendor_id || site.vendor,
+            type: 'resco',
+            purpose: 'survey',
+            state: site.state || 'jammu',
+            volume: site.volume || '1',
+            district: site.district || '',
+            site_name: site.site_name || '',
+            sitecount: 1,
+            assign_date: site.assign_date || site.created_at || '',
+            remarks: site.remarks || '',
+            vendors: site.vendors || (site.survey_vendor ? { id: Number(site.survey_vendor), name: vendorsMap.get(Number(site.survey_vendor)) || `Vendor #${site.survey_vendor}` } : undefined),
+            site_details: [{ id: site.id, site_name: site.site_name || '' }],
+            site_names: [site.site_name || ''],
+            status: site.survey_status ?? 0,
+          }));
+        }
+
+        setRecords(fallbackRecords);
+        setRescoStats(fallbackStats);
+      } catch (fallbackErr: any) {
+        console.error('[AssignViewSurvey] Fallback also failed:', fallbackErr);
+        setErrorMsg(err?.message || 'Failed to fetch assigned surveys from API');
+        setRecords([]);
+        setRescoStats(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -734,51 +673,51 @@ export function AssignViewSurvey() {
   }, [activeTab, searchQuery, districtFilter]);
 
   // Export Columns definition
-  const exportCols: ExportColumn<JammuRescoAssignedSurveyItem>[] = useMemo(
+  const exportCols: ExportColumn<JKRescoSurveyAssignRecord>[] = useMemo(
     () => [
       {
         header: 'Sr. No.',
-        accessor: (_r: JammuRescoAssignedSurveyItem, idx?: number) => (idx !== undefined ? idx + 1 : 1),
+        accessor: (_r: JKRescoSurveyAssignRecord, idx?: number) => (idx !== undefined ? idx + 1 : 1),
       } as any,
       {
         header: 'Batch ID',
-        accessor: (r: JammuRescoAssignedSurveyItem) => String(r.id),
+        accessor: (r: JKRescoSurveyAssignRecord) => String(r.id),
       },
       {
         header: 'Vendor Name',
-        accessor: (r: JammuRescoAssignedSurveyItem) => getVendorName(r),
+        accessor: (r: JKRescoSurveyAssignRecord) => getVendorName(r),
       },
       {
         header: 'Assign Date',
-        accessor: (r: JammuRescoAssignedSurveyItem) => fmtDate(r.assign_date || r.created_at),
+        accessor: (r: JKRescoSurveyAssignRecord) => fmtDate(r.assign_date || r.created_at),
       },
       {
         header: 'State',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.state || 'Jammu & Kashmir',
+        accessor: (r: JKRescoSurveyAssignRecord) => r.state || 'Jammu & Kashmir',
       },
       {
         header: 'Volume',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.volume || 'VOL-1',
+        accessor: (r: JKRescoSurveyAssignRecord) => r.volume || 'VOL-1',
       },
       {
         header: 'District',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.district || '—',
+        accessor: (r: JKRescoSurveyAssignRecord) => r.district || '—',
       },
       {
         header: 'Site Name',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.site_name || formatSitesList(r).join(', '),
+        accessor: (r: JKRescoSurveyAssignRecord) => r.site_name || formatSitesList(r).join(', '),
       },
       {
         header: 'Allocated Sites Count',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.sitecount ?? r.site_count ?? 1,
+        accessor: (r: JKRescoSurveyAssignRecord) => r.sitecount ?? r.site_count ?? 1,
       },
       {
         header: 'Remarks',
-        accessor: (r: JammuRescoAssignedSurveyItem) => r.remarks || r.remark || '—',
+        accessor: (r: JKRescoSurveyAssignRecord) => r.remarks || r.remark || '—',
       },
       {
         header: 'Status',
-        accessor: (r: JammuRescoAssignedSurveyItem) =>
+        accessor: (r: JKRescoSurveyAssignRecord) =>
           Number(r.status) === 2 ? 'Complete Survey' : Number(r.status) === 1 ? 'Approved' : 'Pending Assign',
       },
     ],
@@ -1026,45 +965,49 @@ export function AssignViewSurvey() {
       </div>
 
       {/* ── Report Wise Bifurcation Pills ── */}
-      <div className="asw-bifurcation-row">
+      <div className="asw-bifurcation-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted, #64748b)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'all' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => setActiveTab('all')}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          All Allocations
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+          <span>All Allocations</span>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)', fontSize: 11, fontWeight: 700 }}>
             {records.length}
           </span>
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'pending' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => setActiveTab('pending')}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          Pending Assign
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+          <span>Pending Assign</span>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)', fontSize: 11, fontWeight: 700 }}>
             {records.filter((r) => !r.status || Number(r.status) === 0).length}
           </span>
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'approved' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'approved' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => setActiveTab('approved')}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          Approved
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+          <span>Approved</span>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)', fontSize: 11, fontWeight: 700 }}>
             {records.filter((r) => Number(r.status) === 1).length}
           </span>
         </button>
         <button
           type="button"
-          className={`asw-pill-btn ${activeTab === 'complete' ? 'active' : ''}`}
+          className={`ax-btn ${activeTab === 'complete' ? 'ax-btn--primary' : 'ax-btn--secondary'} ax-btn--sm`}
           onClick={() => setActiveTab('complete')}
+          style={{ borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          Complete Survey
-          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'complete' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+          <span>Complete Survey</span>
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'complete' ? 'rgba(255,255,255,0.25)' : 'var(--ax-surface-hover, #e2e8f0)', fontSize: 11, fontWeight: 700 }}>
             {records.filter((r) => Number(r.status) === 2).length}
           </span>
         </button>
@@ -1190,7 +1133,7 @@ export function AssignViewSurvey() {
                   </td>
                 </tr>
               ) : (
-                pagination.paged.map((row: JammuRescoAssignedSurveyItem, idx: number) => {
+                pagination.paged.map((row: JKRescoSurveyAssignRecord, idx: number) => {
                   const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   const vendorName = getVendorName(row);
                   const sitesList = formatSitesList(row);
@@ -1319,12 +1262,10 @@ export function AssignViewSurvey() {
                           {/* Conduct Button */}
                           <Link
                             to={`/vendor-management/jammu/survey/resco/assigned-vendor?siteId=${row.id}`}
+                            className="ax-btn ax-btn--primary ax-btn--sm"
+                            title="Conduct or review field survey"
                             style={{
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              background: '#2563eb',
-                              color: '#ffffff',
-                              border: 'none',
+                              padding: '4px 10px',
                               fontSize: 11,
                               fontWeight: 700,
                               textDecoration: 'none',
@@ -1332,7 +1273,6 @@ export function AssignViewSurvey() {
                               alignItems: 'center',
                               gap: 3,
                             }}
-                            title="Conduct or review field survey"
                           >
                             Conduct
                           </Link>
@@ -1421,7 +1361,7 @@ export function AssignViewSurvey() {
         footer={
           <button
             type="button"
-            className="ax-button ax-button--secondary"
+            className="ax-btn ax-btn--secondary"
             onClick={() => setSelectedRecordForSites(null)}
             style={{ padding: '6px 16px', fontSize: 13 }}
           >
@@ -1509,11 +1449,9 @@ export function AssignViewSurvey() {
                         <Link
                           to={`/vendor-management/jammu/survey/resco/assigned-vendor?siteId=${selectedRecordForSites.id}`}
                           onClick={() => setSelectedRecordForSites(null)}
+                          className="ax-btn ax-btn--primary ax-btn--sm"
                           style={{
                             padding: '3px 10px',
-                            background: '#2563eb',
-                            color: '#ffffff',
-                            borderRadius: 6,
                             fontSize: 11,
                             fontWeight: 700,
                             textDecoration: 'none',
@@ -1546,7 +1484,7 @@ export function AssignViewSurvey() {
           <>
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setApprovingRecord(null)}
               disabled={isApproving}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1555,7 +1493,7 @@ export function AssignViewSurvey() {
             </button>
             <button
               type="button"
-              className="ax-button ax-button--primary"
+              className="ax-btn ax-btn--primary"
               onClick={handleConfirmApprove}
               disabled={isApproving}
               style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -1609,7 +1547,7 @@ export function AssignViewSurvey() {
             ) : <div />}
             <button
               type="button"
-              className="ax-button ax-button--secondary"
+              className="ax-btn ax-btn--secondary"
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >

@@ -11,8 +11,21 @@ import { upPowerPackAmcApi } from '../../up-services';
 export function UP_AMC_PowerPack_CompletedAMC() {
   const fetchCompleted = async () => {
     const res = await upPowerPackAmcApi.completedDetails();
-    if (!res.status || !Array.isArray(res.data)) return [];
-    return res.data;
+    if (!res || res.status === false) return [];
+    const rawList: any[] = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.report)
+      ? res.data.report
+      : Array.isArray(res.data?.reports)
+      ? res.data.reports
+      : Array.isArray(res.data?.sites)
+      ? res.data.sites
+      : Array.isArray(res.report)
+      ? res.report
+      : Array.isArray(res.reports)
+      ? res.reports
+      : [];
+    return rawList;
   };
 
   const columns = [
@@ -22,7 +35,10 @@ export function UP_AMC_PowerPack_CompletedAMC() {
     amcTextCol('Contact', ['beneficiary_contact']),
     amcTextCol('Period', ['report_month'], { fallback: '—' }),
     amcTextCol('AMC Date', ['amc_date']),
-    amcMediaCol('Maintenance Photo', (r: any) => resolveUpMediaUrl(r.image1)),
+    amcMediaCol('Image 1', (r: any) => resolveUpMediaUrl(r.image1)),
+    amcMediaCol('Image 2', (r: any) => resolveUpMediaUrl(r.image2)),
+    amcMediaCol('Image 3', (r: any) => resolveUpMediaUrl(r.image3)),
+    amcMediaCol('Image 4', (r: any) => resolveUpMediaUrl(r.image4)),
     amcStatusCol('Status'),
   ];
 

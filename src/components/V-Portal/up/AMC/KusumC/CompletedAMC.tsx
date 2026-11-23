@@ -11,8 +11,21 @@ import { upKusumCAmcApi } from '../../up-services';
 export function UP_AMC_KusumC_CompletedAMC() {
   const fetchCompleted = async () => {
     const res = await upKusumCAmcApi.completedDetails();
-    if (!res.status || !Array.isArray(res.data)) return [];
-    return res.data;
+    if (!res || res.status === false) return [];
+    const rawList: any[] = Array.isArray(res.data)
+      ? res.data
+      : Array.isArray(res.data?.report)
+      ? res.data.report
+      : Array.isArray(res.data?.reports)
+      ? res.data.reports
+      : Array.isArray(res.data?.pumps)
+      ? res.data.pumps
+      : Array.isArray(res.report)
+      ? res.report
+      : Array.isArray(res.reports)
+      ? res.reports
+      : [];
+    return rawList;
   };
 
   const columns = [

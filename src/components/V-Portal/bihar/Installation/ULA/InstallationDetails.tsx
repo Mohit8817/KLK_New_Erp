@@ -565,11 +565,11 @@ export function Bihar_Installation_ULA_InstallationDetails() {
   }, []);
 
   useEffect(() => {
-    // Only auto-trigger GPS if site is NOT being edited and coordinates are empty
-    if (!id && !latitude && !longitude) {
+    // Auto-trigger GPS if coordinates are empty
+    if (!latitude && !longitude) {
       handleDetectGps();
     }
-  }, [id, latitude, longitude, handleDetectGps]);
+  }, [latitude, longitude, handleDetectGps]);
 
   /* ───────── Validation helpers ───────── */
   const textMessages: Record<string, string> = {
@@ -1185,9 +1185,10 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   id="latitude"
                   label="Latitude"
                   required
-                  placeholder="Latitude"
+                  readOnly
+                  placeholder="Auto-detected GPS Latitude"
                   value={latitude}
-                  onChange={(v) => setText('latitude', v, setLatitude)}
+                  onChange={() => {}}
                   onBlur={() => handleBlur('latitude')}
                   status={getStatus('latitude', latitude)}
                   error={errors.latitude}
@@ -1197,9 +1198,10 @@ export function Bihar_Installation_ULA_InstallationDetails() {
                   id="longitude"
                   label="Longitude"
                   required
-                  placeholder="Longitude"
+                  readOnly
+                  placeholder="Auto-detected GPS Longitude"
                   value={longitude}
-                  onChange={(v) => setText('longitude', v, setLongitude)}
+                  onChange={() => {}}
                   onBlur={() => handleBlur('longitude')}
                   status={getStatus('longitude', longitude)}
                   error={errors.longitude}
@@ -1410,6 +1412,7 @@ interface FloatingInputProps {
   label: string;
   type?: string;
   required?: boolean;
+  readOnly?: boolean;
   placeholder: string;
   maxLength?: number;
   value: string;
@@ -1417,15 +1420,17 @@ interface FloatingInputProps {
   onBlur: () => void;
   status: FieldStatusProps;
   error?: string;
+  style?: React.CSSProperties;
 }
 
-function FloatingInput({ id, label, type = 'text', required, placeholder, maxLength, value, onChange, onBlur, status, error }: FloatingInputProps) {
+function FloatingInput({ id, label, type = 'text', required, readOnly, placeholder, maxLength, value, onChange, onBlur, status, error, style }: FloatingInputProps) {
   return (
     <div>
       <div className="ax-float">
         <input
           id={id}
           type={type}
+          readOnly={readOnly}
           maxLength={maxLength}
           className={`ax-input ax-float__input ${status.className}`}
           placeholder={placeholder}
@@ -1433,6 +1438,10 @@ function FloatingInput({ id, label, type = 'text', required, placeholder, maxLen
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
           aria-invalid={status.isInvalid}
+          style={{
+            ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+            ...style,
+          }}
         />
         <label className="ax-float__label" htmlFor={id}>
           {label}

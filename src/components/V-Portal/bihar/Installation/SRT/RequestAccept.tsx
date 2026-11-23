@@ -560,8 +560,19 @@ export function Bihar_Installation_SRT_RequestAccept() {
     }
   };
 
+  const toSafeString = (val: any, fallback = ''): string => {
+    if (val === null || val === undefined) return fallback;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'object') {
+      return val.site_name || val.name || val.title || (val.id ? `Site #${val.id}` : fallback);
+    }
+    return String(val);
+  };
+
   // Helper for counting sites
   const getSiteCount = (batch: SrtAssignBatchItem): number => {
+    if (Array.isArray(batch.site_names) && batch.site_names.length > 0) return batch.site_names.length;
     if (batch.site_count !== undefined && batch.site_count !== null && batch.site_count !== '') {
       const n = Number(batch.site_count);
       if (!isNaN(n) && n > 0) return n;
@@ -570,33 +581,77 @@ export function Bihar_Installation_SRT_RequestAccept() {
       const n = Number(batch.sitecount);
       if (!isNaN(n) && n > 0) return n;
     }
-    if (Array.isArray(batch.site_names) && batch.site_names.length > 0) return batch.site_names.length;
     if (Array.isArray(batch.site_name)) return batch.site_name.length;
     return 1;
   };
 
   // Helper to get array of site records
   const getSiteRows = (batch: SrtAssignBatchItem): { id?: number | string; name: string; deadline?: string }[] => {
-    if (Array.isArray(batch.site_names) && batch.site_names.length > 0) {
-      return batch.site_names.map((s, idx) => ({
-        id: s.id || idx + 1,
-        name: s.site_name || `Site #${s.id || idx + 1}`,
-        deadline: s.inst_deadline || batch.deadline_date,
-      }));
+    let siteNamesList = batch.site_names;
+    if (typeof siteNamesList === 'string') {
+      try {
+        siteNamesList = JSON.parse(siteNamesList);
+      } catch {
+        siteNamesList = undefined;
+      }
     }
+
+    if (Array.isArray(siteNamesList) && siteNamesList.length > 0) {
+      return siteNamesList.map((s: any, idx: number) => {
+        if (typeof s === 'object' && s !== null) {
+          return {
+            id: s.id || idx + 1,
+            name: toSafeString(s.site_name || s.name || `Site #${s.id || idx + 1}`),
+            deadline: typeof s.inst_deadline === 'string'
+              ? s.inst_deadline
+              : typeof s.deadline === 'string'
+              ? s.deadline
+              : typeof s.deadline_date === 'string'
+              ? s.deadline_date
+              : typeof (batch as any).inst_deadline === 'string'
+              ? (batch as any).inst_deadline
+              : typeof (batch as any).deadline_date === 'string'
+              ? (batch as any).deadline_date
+              : undefined,
+          };
+        }
+        return {
+          id: idx + 1,
+          name: toSafeString(s),
+          deadline: (batch as any).inst_deadline || (batch as any).deadline_date,
+        };
+      });
+    }
+
+    let siteNameField = batch.site_name;
+    if (typeof siteNameField === 'string' && siteNameField.trim().startsWith('[') && siteNameField.trim().endsWith(']')) {
+      try {
+        const parsed = JSON.parse(siteNameField);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((item: any, idx: number) => ({
+            id: idx + 1,
+            name: toSafeString(item),
+            deadline: (typeof item === 'object' && item !== null ? (item.inst_deadline || item.deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
+          }));
+        }
+      } catch {
+        // fallback
+      }
+    }
+
     if (Array.isArray(batch.site_name) && batch.site_name.length > 0) {
-      return batch.site_name.map((name, idx) => ({
+      return batch.site_name.map((item: any, idx: number) => ({
         id: idx + 1,
-        name: String(name),
-        deadline: batch.deadline_date,
+        name: toSafeString(item),
+        deadline: (typeof item === 'object' && item !== null ? (item.inst_deadline || item.deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
       }));
     }
     if (batch.site_name) {
       return [
         {
           id: batch.id,
-          name: String(batch.site_name),
-          deadline: batch.deadline_date,
+          name: toSafeString(batch.site_name),
+          deadline: (typeof batch.site_name === 'object' && batch.site_name !== null ? ((batch.site_name as any).inst_deadline || (batch.site_name as any).deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
         },
       ];
     }
@@ -604,7 +659,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
       {
         id: batch.id,
         name: `Site #${batch.id}`,
-        deadline: batch.deadline_date,
+        deadline: (batch as any).inst_deadline || (batch as any).deadline_date,
       },
     ];
   };
@@ -651,7 +706,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
         const state = String(item.state || '').toLowerCase();
         const idStr = String(item.id || '').toLowerCase();
         const remark = String(item.remarks || '').toLowerCase();
-        const siteNames = getSiteRows(item).map((s) => s.name.toLowerCase()).join(' ');
+        const siteNames = getSiteRows(item).map((s) => `${s.name} ${s.deadline || ''}`).join(' ').toLowerCase();
 
         const match =
           vName.includes(q) ||
@@ -683,7 +738,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
     setCurrentPage(1);
   };
 
-  // Export Columns (Exact match with 12 table headers)
+  // Export Columns (Exact match with 11 table headers, excluding Action)
   const exportCols: ExportColumn<SrtAssignBatchItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (r: SrtAssignBatchItem) => String(r.id || DASH) },
@@ -695,14 +750,13 @@ export function Bihar_Installation_SRT_RequestAccept() {
         header: 'Site Name - Deadline',
         accessor: (r) => {
           const rows = getSiteRows(r);
-          return rows.map((s) => `${s.name}${s.deadline ? ' (' + s.deadline + ')' : ''}`).join(', ');
+          return rows.map((s) => `${s.name}${s.deadline ? ' - ' + s.deadline : ''}`).join(', ');
         },
       },
       {
         header: 'Count',
         accessor: (r) => String(getSiteCount(r)),
       },
-      { header: 'Deadline Date', accessor: (r) => r.deadline_date || DASH },
       { header: 'File', accessor: (r) => r.file || DASH },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
       { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Pending Accept') },
@@ -718,28 +772,50 @@ export function Bihar_Installation_SRT_RequestAccept() {
   const renderSiteNameSnippet = (batch: SrtAssignBatchItem) => {
     const list = getSiteRows(batch);
     if (list.length > 0) {
-      const first = list[0].name;
       const count = list.length;
+      const displayCount = count <= 2 ? count : 1;
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{first}</span>
-          {count > 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200 }}>
+          {list.slice(0, displayCount).map((st, idx) => {
+            const dl = st.deadline || (batch as any).deadline_date || (batch as any).inst_deadline;
+            return (
+              <div key={st.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{toSafeString(st.name)}</span>
+                {dl ? (
+                  <span style={{ fontSize: 12, color: '#000000', fontWeight: 500 }}>
+                    - {dl}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+          {count > displayCount && (
             <button
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--xs"
               style={{ padding: '0 4px', height: 20, fontSize: 11, alignSelf: 'flex-start', color: 'var(--ax-accent)' }}
               onClick={() => setViewBatch(batch)}
             >
-              + {count - 1} more sites
+              + {count - displayCount} more sites
             </button>
           )}
         </div>
       );
     }
-    return String(batch.site_name || DASH);
+    const fallbackDl = (batch as any).deadline_date || (batch as any).inst_deadline;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{toSafeString(batch.site_name, DASH)}</span>
+        {fallbackDl ? (
+          <span style={{ fontSize: 12, color: '#000000', fontWeight: 500 }}>
+            - {fallbackDl}
+          </span>
+        ) : null}
+      </div>
+    );
   };
 
-  const TOTAL_COLUMNS = 12;
+  const TOTAL_COLUMNS = 11;
   const tableHeaders = [
     'Sr. No.',
     'Vendor',
@@ -748,7 +824,6 @@ export function Bihar_Installation_SRT_RequestAccept() {
     'District',
     'Site Name - Deadline',
     'Count',
-    'Deadline Date',
     'File',
     'Remarks',
     'Status',
@@ -959,7 +1034,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                       className="ax-table__th"
                       scope="col"
                       style={{
-                        textAlign: idx === 0 || idx === 6 || idx === 8 ? 'center' : idx === 11 ? 'right' : 'left',
+                        textAlign: idx === 0 || idx === 6 || idx === 7 ? 'center' : idx === 10 ? 'right' : 'left',
                         width: idx === 0 ? 60 : undefined,
                       }}
                     >
@@ -1061,16 +1136,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                           </button>
                         </td>
 
-                        {/* 8. Deadline Date */}
-                        <td className="ax-table__td" style={{ fontSize: 13 }}>
-                          {item.deadline_date ? (
-                            <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>{item.deadline_date}</span>
-                          ) : (
-                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                          )}
-                        </td>
-
-                        {/* 9. File */}
+                        {/* 8. File */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {fileUrl ? (
                             <InstallationThumbnail
@@ -1084,7 +1150,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                           )}
                         </td>
 
-                        {/* 10. Remarks */}
+                        {/* 9. Remarks */}
                         <td
                           className="ax-table__td"
                           style={{ maxWidth: 180, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -1093,7 +1159,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                           {item.remarks || DASH}
                         </td>
 
-                        {/* 11. Status */}
+                        {/* 10. Status */}
                         <td className="ax-table__td">
                           {isAccepted ? (
                             <span className="ax-badge ax-badge--soft ax-badge--success" style={{ fontWeight: 600 }}>
@@ -1106,7 +1172,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                           )}
                         </td>
 
-                        {/* 12. Action */}
+                        {/* 11. Action */}
                         <td className="ax-table__td" style={{ textAlign: 'right' }}>
                           <div className="ax-cluster" style={{ justifyContent: 'flex-end', gap: 6 }}>
                             {!isAccepted ? (
@@ -1192,7 +1258,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16, padding: '12px 14px', background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8, border: '1px solid var(--ax-border)' }}>
               <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Vendor: </span><b>{viewBatch.vendors?.name || (viewBatch as any).vendor_name || `Vendor #${viewBatch.vendor || viewBatch.company_id || viewBatch.id}`}</b></div>
               <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Assign Date: </span><b>{viewBatch.assign_date || viewBatch.created_at || DASH}</b></div>
-              <div style={{ fontSize: 12 }}><span style={{ color: 'var(--ax-text-muted)' }}>Deadline Date: </span><b>{viewBatch.deadline_date || DASH}</b></div>
+
               <div style={{ fontSize: 12 }}>
                 <span style={{ color: 'var(--ax-text-muted)' }}>Status: </span>
                 {Number(viewBatch.status) === 2 || String(viewBatch.status).toLowerCase() === 'accepted' ? (
@@ -1213,7 +1279,7 @@ export function Bihar_Installation_SRT_RequestAccept() {
                   <tr>
                     <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>#</th>
                     <th className="ax-table__th">Site Name / ID</th>
-                    <th className="ax-table__th" style={{ width: 140 }}>Deadline</th>
+                    <th className="ax-table__th" style={{ width: 190 }}>Deadline</th>
                     <th className="ax-table__th" style={{ width: 130, textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
@@ -1222,7 +1288,9 @@ export function Bihar_Installation_SRT_RequestAccept() {
                     <tr key={st.id || i} className="ax-table__row">
                       <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>{i + 1}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{st.name}</td>
-                      <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{st.deadline || viewBatch.deadline_date || DASH}</td>
+                      <td className="ax-table__td" style={{ color: '#000000', fontSize: 13 }}>
+                        {st.deadline || viewBatch.deadline_date || DASH}
+                      </td>
                       <td className="ax-table__td" style={{ textAlign: 'right' }}>
                         <span
                           className="ax-badge ax-badge--soft ax-badge--success"

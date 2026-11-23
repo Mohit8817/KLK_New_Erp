@@ -17,24 +17,24 @@ const T = (h: string, keys: string[], o?: Parameters<typeof textCol>[2]) =>
 
 const COLUMNS: ComplaintColumn<UpKusumBComplaintItem>[] = [
   T('Complaint ID', ['complaint_id', 'id'], { accent: true }),
-  T('Complaint Date', ['complaint_date']),
+  T('Complaint Date', ['complaint_date', 'created_date']),
   T('Complaint', ['complaint'], { clamp: true }),
   T('State', ['state'], { fallback: 'UP' }),
   T('District', ['district'], { strong: true }),
   T('Village', ['village']),
   T('Location', ['location']),
-  T('Beneficiary Name', ['beneficiary_name'], { strong: true }),
-  T('Father Name', ['father_name']),
-  T('Contact No', ['contact_no']),
+  T('Beneficiary Name', ['beneficiary_name', 'farmer_name', 'f_name'], { strong: true }),
+  T('Father Name', ['father_name', 'f_father_name']),
+  T('Contact No', ['contact_no', 'contact_number', 'f_mobile']),
   T('Saral ID', ['saral_id']),
-  T('Application No', ['application_no']),
+  T('Application No', ['application_no', 'app_no']),
   T('Category', ['category']),
-  T('Installation Date', ['installation_date']),
-  T('Pump Type', ['pump_type', 'pump_sub_type']),
+  T('Installation Date', ['sys_installed', 'installation_date', 'sys_installed_date', 'inst_date']),
+  T('Pump Type', ['required_pump', 'pump_type', 'pump_sub_type']),
   T('Pump Make', ['pump_make']),
   T('Module Make', ['module_make']),
   T('SPV Capacity', ['spv_capacity'], { strong: true }),
-  T('Total Pump Cost', ['total_pump_cost']),
+  T('Total Pump Cost', ['total_pumb_cost', 'total_pump_cost', 'pumb_cost', 'pump_cost']),
   documentCol<UpKusumBComplaintItem>(),
   T('Assigned Date', ['assigned_date']),
   statusCol<UpKusumBComplaintItem>(),
@@ -59,6 +59,7 @@ export function UPComplaintKBView() {
       loadingText="Loading Kusum B complaints…"
       emptyMessage="Kusum B complaints will appear here once they are registered."
       fetchData={() => upComplaintService.getKusumBViewComplaints()}
+      onDeleteComplaint={(id) => upComplaintService.deleteKusumBComplaint(id)}
       columns={COLUMNS}
       searchFields={(c) => [
         pick(c, ['complaint_id', 'id'], ''),
@@ -73,20 +74,20 @@ export function UPComplaintKBView() {
       ]}
       detailEyebrow="Kusum Component-B Complaint"
       detailFields={(c) => [
-        { label: 'Beneficiary Name', value: pick(c, ['beneficiary_name']) },
-        { label: 'Contact Number', value: pick(c, ['contact_no']) },
-        { label: 'Application No.', value: pick(c, ['application_no']) },
-        { label: 'Father Name', value: pick(c, ['father_name']) },
+        { label: 'Beneficiary Name', value: pick(c, ['beneficiary_name', 'farmer_name', 'f_name']) },
+        { label: 'Contact Number', value: pick(c, ['contact_no', 'contact_number', 'f_mobile']) },
+        { label: 'Application No.', value: pick(c, ['application_no', 'app_no']) },
+        { label: 'Father Name', value: pick(c, ['father_name', 'f_father_name']) },
         { label: 'Location / Village', value: `${pick(c, ['location'])} / ${pick(c, ['village'])}` },
         { label: 'District / State', value: `${pick(c, ['district'])}, ${pick(c, ['state'], 'UP')}` },
         { label: 'Saral ID', value: pick(c, ['saral_id']) },
         { label: 'Category', value: pick(c, ['category']) },
         { label: 'Status', value: <StatusBadge row={c} /> },
-        { label: 'Pump Type / Make', value: `${pick(c, ['pump_type', 'pump_sub_type'])} / ${pick(c, ['pump_make'])}` },
+        { label: 'Pump Type / Make', value: `${pick(c, ['required_pump', 'pump_type', 'pump_sub_type'])} / ${pick(c, ['pump_make'])}` },
         { label: 'Module Make / SPV', value: `${pick(c, ['module_make'])} / ${pick(c, ['spv_capacity'])}` },
-        { label: 'Total Pump Cost', value: pick(c, ['total_pump_cost']) },
-        { label: 'Installation Date', value: pick(c, ['installation_date']) },
-        { label: 'Complaint Date', value: pick(c, ['complaint_date']) },
+        { label: 'Total Pump Cost', value: pick(c, ['total_pumb_cost', 'total_pump_cost', 'pumb_cost', 'pump_cost']) },
+        { label: 'Installation Date', value: pick(c, ['sys_installed', 'installation_date', 'sys_installed_date', 'inst_date']) },
+        { label: 'Complaint Date', value: pick(c, ['complaint_date', 'created_date']) },
         { label: 'Assigned Date', value: pick(c, ['assigned_date']) },
         { label: 'Created By', value: pick(c, ['created_by']) },
       ]}

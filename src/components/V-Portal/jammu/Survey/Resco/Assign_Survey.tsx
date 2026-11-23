@@ -31,9 +31,10 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
+    width: 100%;
   }
   @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
@@ -614,19 +615,6 @@ export function Assign_Survey() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-        />
-
-        <KpiCard
-          tone="amber"
-          label="Project Type"
-          value="RESCO"
-          sub="Rooftop Solar Program"
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
             </svg>
           }
         />

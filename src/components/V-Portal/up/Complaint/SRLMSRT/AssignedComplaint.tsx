@@ -107,10 +107,14 @@ export function UP_Complaint_SRLMSRT_AssignedComplaint() {
           const fd = new FormData();
           fd.append('id', String(item.id || ''));
           if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
+          fd.append('resolved_by', v.resolvedBy);
           fd.append('remarks', v.remarks);
           fd.append('closing_date', v.date);
           fd.append('document', v.file);
           fd.append('file', v.file);
+          fd.append('r_file', v.file);
+          fd.append('r_file1', v.file);
+          fd.append('r_file2', v.file);
           return upComplaintService.closeSrlmsrtComplaint(fd);
         },
       }}

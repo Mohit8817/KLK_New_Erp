@@ -1,5 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { BIHAR_API } from '../../V_Portal_APIS/Bihar_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 export interface BiharSrtSiteItem {
   id: number;
@@ -153,15 +154,11 @@ class BiharSrt200mwService {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        let msg = data?.message;
-        if (typeof msg === 'object' && msg !== null) {
-          const firstKey = Object.keys(msg)[0];
-          msg = Array.isArray(msg[firstKey]) ? msg[firstKey][0] : String(msg[firstKey]);
-        }
+        const extracted = extractBackendError(data, `Failed to submit survey (${res.status})`);
         return {
           success: false,
-          message: msg || `Failed to submit survey (${res.status})`,
-          errors: data?.message || data?.errors,
+          message: extracted.message,
+          errors: data?.errors || extracted.fieldErrors,
         };
       }
 
@@ -210,15 +207,11 @@ class BiharSrt200mwService {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        let msg = data?.message;
-        if (typeof msg === 'object' && msg !== null) {
-          const firstKey = Object.keys(msg)[0];
-          msg = Array.isArray(msg[firstKey]) ? msg[firstKey][0] : String(msg[firstKey]);
-        }
+        const extracted = extractBackendError(data, `Failed to update survey (${res.status})`);
         return {
           success: false,
-          message: msg || `Failed to update survey (${res.status})`,
-          errors: data?.message || data?.errors,
+          message: extracted.message,
+          errors: data?.errors || extracted.fieldErrors,
         };
       }
 

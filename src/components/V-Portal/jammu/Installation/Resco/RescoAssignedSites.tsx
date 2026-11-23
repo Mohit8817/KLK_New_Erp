@@ -16,6 +16,8 @@ import {
   TableEmptyState,
   type ExportColumn,
 } from '../../../../../common';
+import { useAuth } from '../../../../../context/AuthContext';
+import { authService } from '../../../../../services/authService';
 
 /* ───────── Badges & Status ───────── */
 type Tone = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
@@ -116,9 +118,10 @@ const PAGE_CSS = `
 
   .solar-erp-page .asw-cards-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--ax-space-4, 16px);
     margin-bottom: var(--ax-space-5, 20px);
+    width: 100%;
   }
   @media (max-width: 992px) {
     .solar-erp-page .asw-cards-row {
@@ -238,6 +241,107 @@ const centerCell: CSSProperties = { textAlign: 'center', padding: 24 };
 
 export function RescoAssignedSites() {
   const navigate = useNavigate();
+  const { user, rawResponse } = useAuth();
+
+  // Vendor name resolution from session/user
+  const loginVendorName = useMemo(() => {
+    const getCleanString = (val: any): string => {
+      if (
+        typeof val === 'string' &&
+        val.trim() &&
+        val.trim().toLowerCase() !== '[object object]' &&
+        val.trim().toLowerCase() !== 'null' &&
+        val.trim().toLowerCase() !== 'undefined' &&
+        isNaN(Number(val.trim()))
+      ) {
+        return val.trim();
+      }
+      return '';
+    };
+
+    if (user) {
+      const fromUser =
+        getCleanString((user as any).vendor_name) ||
+        getCleanString((user as any).vendor) ||
+        getCleanString((user as any).name) ||
+        getCleanString((user as any).username) ||
+        getCleanString((user as any).email);
+      if (fromUser) return fromUser;
+    }
+
+    if (rawResponse) {
+      const fromRaw =
+        getCleanString(rawResponse?.vendor?.name) ||
+        getCleanString(rawResponse?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.vendor) ||
+        getCleanString(rawResponse?.vendor_name) ||
+        getCleanString(rawResponse?.name) ||
+        getCleanString(rawResponse?.user?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.name) ||
+        getCleanString(rawResponse?.data?.vendor?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor_name) ||
+        getCleanString(rawResponse?.data?.vendor) ||
+        getCleanString(rawResponse?.data?.name);
+      if (fromRaw) return fromRaw;
+    }
+
+    try {
+      const session = authService.getSession() as any;
+      if (session) {
+        const fromSession =
+          getCleanString(session.vendor_name) ||
+          getCleanString(session.vendor) ||
+          getCleanString(session.name);
+        if (fromSession) return fromSession;
+      }
+    } catch {}
+
+    try {
+      const sessionStr = sessionStorage.getItem('klk_user_session') || localStorage.getItem('klk_user_session');
+      if (sessionStr) {
+        const parsed = JSON.parse(sessionStr);
+        const fromStorage =
+          getCleanString(parsed?.vendor?.name) ||
+          getCleanString(parsed?.vendor?.vendor_name) ||
+          getCleanString(parsed?.vendor_name) ||
+          getCleanString(parsed?.name);
+        if (fromStorage) return fromStorage;
+      }
+    } catch {}
+
+    return '';
+  }, [user, rawResponse]);
+
+  // Priority helper to retrieve vendor name rather than vendor numeric ID
+  const getVendorName = useCallback((r?: JammuRescoAssignedSiteItem | null): string => {
+    if (!r) return loginVendorName || '—';
+    // 1. Nested vendors object from API response (e.g., vendors: { name: "App Testing" })
+    const fromVendorsObj =
+      (typeof r.vendors?.name === 'string' && r.vendors.name.trim()) ||
+      (typeof r.vendors?.company === 'string' && r.vendors.company.trim()) ||
+      (typeof r.vendors?.vendor_name === 'string' && r.vendors.vendor_name.trim());
+    if (fromVendorsObj) return fromVendorsObj;
+
+    // 2. Normalized vendor_name property
+    if (typeof r.vendor_name === 'string' && r.vendor_name.trim()) {
+      return r.vendor_name.trim();
+    }
+
+    // 3. String vendor/inst_vendor if not pure numeric
+    if (typeof r.vendor === 'string' && r.vendor.trim() && isNaN(Number(r.vendor))) {
+      return r.vendor.trim();
+    }
+    if (typeof r.inst_vendor === 'string' && r.inst_vendor.trim() && isNaN(Number(r.inst_vendor))) {
+      return r.inst_vendor.trim();
+    }
+
+    // 4. Fallback to logged-in vendor name
+    if (loginVendorName) return loginVendorName;
+
+    // 5. Fallback to vendor id
+    const vId = r.vendor || r.inst_vendor || r.vendors?.id;
+    return vId ? `Vendor #${vId}` : '—';
+  }, [loginVendorName]);
 
   const [records, setRecords] = useState<JammuRescoAssignedSiteItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -340,7 +444,6 @@ export function RescoAssignedSites() {
     [records]
   );
   const pendingBatches = totalBatches - acceptedBatches;
-  const acceptRate = totalBatches > 0 ? Math.round((acceptedBatches / totalBatches) * 100) : 0;
 
   // Filtered
   const filtered = useMemo(() => {
@@ -351,17 +454,18 @@ export function RescoAssignedSites() {
 
       if (search.trim()) {
         const q = search.trim().toLowerCase();
-        const v = String(r.inst_vendor || r.vendor || '').toLowerCase();
+        const v = getVendorName(r).toLowerCase();
+        const vId = String(r.inst_vendor || r.vendor || '').toLowerCase();
         const s = String(r.site_name || '').toLowerCase();
         const d = String(r.district || '').toLowerCase();
         const rem = String(r.remarks || r.remark || '').toLowerCase();
-        if (!v.includes(q) && !s.includes(q) && !d.includes(q) && !rem.includes(q) && !String(r.id).includes(q)) {
+        if (!v.includes(q) && !vId.includes(q) && !s.includes(q) && !d.includes(q) && !rem.includes(q) && !String(r.id).includes(q)) {
           return false;
         }
       }
       return true;
     });
-  }, [records, districtFilter, statusFilter, search]);
+  }, [records, districtFilter, statusFilter, search, getVendorName]);
 
   const { paginatedData, currentPage, pageSize, totalItems, setPage, setPageSize } =
     usePagination({ data: filtered, initialPageSize: 100 });
@@ -382,7 +486,7 @@ export function RescoAssignedSites() {
   const exportCols: ExportColumn<JammuRescoAssignedSiteItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (_r, idx?: number) => (idx !== undefined ? idx + 1 : '') } as any,
-      { header: 'Vendor', accessor: (r) => String(r.inst_vendor || r.vendor || '—') },
+      { header: 'Vendor', accessor: (r) => getVendorName(r) },
       { header: 'Assign Date', accessor: (r) => formatDate(r.assign_date || r.created_at) },
       { header: 'State', accessor: (r) => r.state || 'Jammu & Kashmir' },
       { header: 'District', accessor: (r) => r.district || '—' },
@@ -392,7 +496,7 @@ export function RescoAssignedSites() {
       { header: 'Remarks', accessor: (r) => r.remarks || r.remark || '—' },
       { header: 'Status', accessor: (r) => (Number(r.status) === 2 ? 'Accepted' : 'Assigned') },
     ],
-    []
+    [getVendorName]
   );
 
   return (
@@ -464,19 +568,6 @@ export function RescoAssignedSites() {
             </svg>
           }
         />
-
-        <KpiCard
-          tone="cyan"
-          label="Acceptance Rate"
-          value={`${acceptRate}%`}
-          sub={`${acceptedBatches} of ${totalBatches} sites`}
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          }
-        />
       </div>
 
       {/* ── Main Table Card ── */}
@@ -544,7 +635,7 @@ export function RescoAssignedSites() {
                     .map((r, i) =>
                       [
                         i + 1,
-                        r.inst_vendor || r.vendor || '',
+                        getVendorName(r),
                         formatDate(r.assign_date || r.created_at),
                         r.state || 'Jammu',
                         r.district || '',
@@ -564,7 +655,7 @@ export function RescoAssignedSites() {
                     'Sr. No.,Vendor,Assign Date,State,District,Site Name,Deadline,Count,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${r.inst_vendor || r.vendor || ''}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${getVendorName(r)}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -579,7 +670,7 @@ export function RescoAssignedSites() {
                     'Sr. No.,Vendor,Assign Date,State,District,Site Name,Deadline,Count,Remarks,Status',
                     ...filtered.map(
                       (r, i) =>
-                        `"${i + 1}","${r.inst_vendor || r.vendor || ''}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
+                        `"${i + 1}","${getVendorName(r)}","${formatDate(r.assign_date || r.created_at)}","${r.state || 'Jammu'}","${r.district || ''}","${r.site_name || ''}","${formatDate(r.inst_deadline)}","${r.count ?? 1}","${r.remarks || r.remark || ''}","${Number(r.status) === 2 ? 'Accepted' : 'Assigned'}"`
                     ),
                   ].join('\n');
                   const blob = new Blob([out], { type: 'text/csv' });
@@ -645,7 +736,7 @@ export function RescoAssignedSites() {
                     <tr key={row.id || idx} className="ax-table__row">
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                        {String(row.inst_vendor || row.vendor || '—')}
+                        {getVendorName(row)}
                       </td>
                       <td className="ax-table__td" style={{ fontSize: 12 }}>
                         {assignDate}
@@ -797,7 +888,7 @@ export function RescoAssignedSites() {
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Vendor</span>
-                  <b>{String(detailModalItem.inst_vendor || detailModalItem.vendor || '—')}</b>
+                  <b>{getVendorName(detailModalItem)}</b>
                 </div>
                 <div>
                   <span style={{ color: 'var(--ax-text-muted)', display: 'block', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>State</span>

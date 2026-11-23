@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { upRescoAmcApi } from '../../up-services';
 import { authService } from '../../../../../services/authService';
 
-// Unified Single-Card Layout CSS with Floating Labels & Section Dividers
-const RESCO_AMC_CSS = `
-.resco-amc-form .ax-card {
+// Unified Single-Card Layout CSS with Floating Labels (Same design as Bihar SRT AMC)
+const SINGLE_CARD_FORM_CSS = `
+.resco-single-card-form .ax-card {
   border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius-xl);
   background: var(--ax-surface-solid);
   box-shadow: var(--ax-shadow-sm);
   overflow: hidden;
 }
-.resco-amc-form .ax-card__header {
+.resco-single-card-form .ax-card__header {
   padding: var(--ax-space-5) var(--ax-space-6);
   border-bottom: 1px solid var(--ax-border-subtle);
   background: var(--ax-surface-subtle);
@@ -21,43 +21,41 @@ const RESCO_AMC_CSS = `
   flex-direction: column;
   gap: var(--ax-space-4);
 }
-.resco-amc-form .ax-card__body {
+.resco-single-card-form .ax-card__body {
   padding: var(--ax-space-6);
 }
 
 .resco-section-pills {
   display: flex;
   gap: var(--ax-space-2);
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
+  flex-wrap: wrap;
+  padding-top: var(--ax-space-1);
 }
 .resco-section-pill-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 6px 14px;
   border-radius: var(--ax-radius-pill);
   font-size: var(--ax-text-xs);
-  font-weight: 500;
-  white-space: nowrap;
-  background: var(--ax-surface-solid);
+  font-weight: 600;
   border: 1px solid var(--ax-border);
-  color: var(--ax-text);
+  background: var(--ax-surface-solid);
+  color: var(--ax-text-muted);
   cursor: pointer;
   transition: all var(--ax-motion-fast) var(--ax-ease-standard);
-  text-decoration: none;
 }
 .resco-section-pill-btn:hover {
-  border-color: var(--ax-accent);
-  color: var(--ax-accent);
-  background: color-mix(in srgb, var(--ax-accent) 6%, var(--ax-surface-solid));
+  background: var(--ax-surface-hover);
+  color: var(--ax-text-strong);
+  border-color: var(--ax-border-strong);
 }
 .resco-section-pill-btn .pill-num {
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: var(--ax-surface-subtle);
+  color: var(--ax-text-subtle);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -68,6 +66,11 @@ const RESCO_AMC_CSS = `
 .resco-section-block {
   padding-top: var(--ax-space-2);
   scroll-margin-top: 80px;
+}
+.resco-section-block + .resco-section-block {
+  margin-top: var(--ax-space-8);
+  padding-top: var(--ax-space-6);
+  border-top: 1px solid var(--ax-border-subtle);
 }
 .resco-section-header {
   display: flex;
@@ -83,11 +86,6 @@ const RESCO_AMC_CSS = `
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-.resco-section-divider {
-  border: 0;
-  border-top: 1px dashed var(--ax-border);
-  margin: var(--ax-space-8) 0 var(--ax-space-6);
 }
 
 .ax-float {
@@ -145,8 +143,7 @@ const RESCO_AMC_CSS = `
 .ax-float__input:focus + .ax-float__label,
 .ax-float__input:not(:placeholder-shown) + .ax-float__label,
 .ax-float--select .ax-float__label,
-.ax-float--date .ax-float__label,
-.ax-float--file .ax-float__label {
+.ax-float--date .ax-float__label {
   top: 0;
   transform: translateY(-50%);
   font-size: var(--ax-text-2xs);
@@ -201,84 +198,44 @@ const RESCO_AMC_CSS = `
   gap: var(--ax-space-4);
 }
 @media (min-width: 1024px) {
+  .resco-form-grid--2col {
+    grid-template-columns: repeat(2, 1fr);
+  }
   .resco-form-grid--3col {
     grid-template-columns: repeat(3, 1fr);
+  }
+  .resco-form-grid--4col {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 .resco-form-col-span-full {
   grid-column: 1 / -1;
 }
 
-.resco-info-box {
+.resco-info-card {
   background: var(--ax-surface-subtle);
-  border: 1px solid var(--ax-border-subtle);
+  border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius-lg);
   padding: var(--ax-space-4);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--ax-space-3);
-  margin-bottom: var(--ax-space-4);
+  font-size: var(--ax-text-xs);
 }
-.resco-info-cell {
+.resco-info-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .resco-info-label {
-  font-size: 11px;
-  font-weight: 500;
   color: var(--ax-text-muted);
-}
-.resco-info-val {
-  font-size: var(--ax-text-sm);
-  font-weight: 600;
-  color: var(--ax-text-strong);
-  word-break: break-word;
-}
-
-.resco-photo-box {
-  border: 1px dashed var(--ax-border);
-  border-radius: var(--ax-radius-md);
-  padding: var(--ax-space-3);
-  background: var(--ax-surface-solid);
-  display: flex;
-  flex-direction: column;
-  gap: var(--ax-space-2);
-}
-.resco-photo-previews {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-.resco-thumb-wrap {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  border-radius: var(--ax-radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--ax-border);
-}
-.resco-thumb-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.resco-thumb-del {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  font-weight: 500;
   font-size: 11px;
+}
+.resco-info-value {
+  color: var(--ax-text-strong);
+  font-weight: 600;
+  word-break: break-word;
 }
 
 .resco-form-sticky-bar {
@@ -297,6 +254,10 @@ const RESCO_AMC_CSS = `
   flex-wrap: wrap;
   gap: var(--ax-space-3);
   backdrop-filter: blur(12px);
+}
+
+@keyframes resco-spin {
+  to { transform: rotate(360deg); }
 }
 `;
 
@@ -340,13 +301,15 @@ const cleanStr = (val: any): string => {
 };
 
 const SECTIONS = [
-  { id: 'sec-site-info', num: '1', title: 'Site Selection & Info' },
-  { id: 'sec-cleaning', num: '2', title: 'Cleaning Module' },
-  { id: 'sec-inverter', num: '3', title: 'Inverter Section' },
-  { id: 'sec-equipment', num: '4', title: 'Equipment Status' },
-  { id: 'sec-reminder', num: '5', title: 'Reminder & Due Date' },
-  { id: 'sec-ack', num: '6', title: 'Technician Acknowledgement' },
-  { id: 'sec-complaint', num: '7', title: 'Raised Complaint' },
+  { id: 'sec-select', num: '1', title: 'Select Year, Month & Site' },
+  { id: 'sec-site-info', num: '2', title: 'Site Information' },
+  { id: 'sec-visit', num: '3', title: 'Visit Details' },
+  { id: 'sec-cleaning', num: '4', title: 'Cleaning Module' },
+  { id: 'sec-inverter', num: '5', title: 'Inverter Section' },
+  { id: 'sec-equipment', num: '6', title: 'Equipment Status' },
+  { id: 'sec-reminder', num: '7', title: 'Reminder & Due Date' },
+  { id: 'sec-ack', num: '8', title: 'Acknowledgement' },
+  { id: 'sec-complaint', num: '9', title: 'Raised Complaint' },
 ];
 
 export function UP_AMC_Resco_PendingAMC() {
@@ -354,9 +317,9 @@ export function UP_AMC_Resco_PendingAMC() {
   const [searchParams] = useSearchParams();
   const querySiteId = searchParams.get('id') || searchParams.get('site_id') || '';
 
-  // ── Section 1: Dropdown & Selection States ──
+  // ── Selection States ──
   const [years, setYears] = useState<number[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number | ''>('');
   const [months, setMonths] = useState<{ id: string | number; label: string }[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
   const [sites, setSites] = useState<any[]>([]);
@@ -375,17 +338,17 @@ export function UP_AMC_Resco_PendingAMC() {
   const [beneficiaryName, setBeneficiaryName] = useState('');
   const [beneficiaryContact, setBeneficiaryContact] = useState('');
 
-  // ── Section 2: 1. Cleaning Module ──
+  // Cleaning Module
   const [beforeCleaningPhotos, setBeforeCleaningPhotos] = useState<File[]>([]);
   const [afterCleaningPhotos, setAfterCleaningPhotos] = useState<File[]>([]);
 
-  // ── Section 3: 2. Inverter Section ──
+  // Inverter Section
   const [jmrReport, setJmrReport] = useState<File | null>(null);
   const [meterReading, setMeterReading] = useState<string>('');
   const [inverterStatus, setInverterStatus] = useState<string>('Working');
   const [inverterRemarks, setInverterRemarks] = useState<string>('');
 
-  // ── Section 4: 3. Equipment Status ──
+  // Equipment Status
   const [laStatus, setLaStatus] = useState<string>('OK');
   const [wiringStatus, setWiringStatus] = useState<string>('OK');
   const [earthingStatus, setEarthingStatus] = useState<string>('OK');
@@ -393,7 +356,7 @@ export function UP_AMC_Resco_PendingAMC() {
   const [dcdbStatus, setDcdbStatus] = useState<string>('Working');
   const [rmsStatus, setRmsStatus] = useState<string>('Working');
 
-  // ── Section 5: 4. Reminder & Due Date ──
+  // Reminder & Due Date
   const [nextDueDate, setNextDueDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
@@ -401,12 +364,12 @@ export function UP_AMC_Resco_PendingAMC() {
   });
   const [reminderNotes, setReminderNotes] = useState<string>('');
 
-  // ── Section 6: 5. Technician/User Acknowledgement ──
+  // Acknowledgement
   const [digitalSignature, setDigitalSignature] = useState<File | null>(null);
   const [acknowledgement, setAcknowledgement] = useState<boolean>(true);
   const [remarks, setRemarks] = useState<string>('');
 
-  // ── Section 7: Raised Complaint ──
+  // Raised Complaint
   const [raiseComplaint, setRaiseComplaint] = useState<boolean>(false);
   const [complaintImage1, setComplaintImage1] = useState<File | null>(null);
   const [complaintImage2, setComplaintImage2] = useState<File | null>(null);
@@ -461,7 +424,8 @@ export function UP_AMC_Resco_PendingAMC() {
 
   useEffect(() => {
     handleDetectGps(true);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSiteId]);
 
   // ── 1. Fetch Years ──
   useEffect(() => {
@@ -478,14 +442,24 @@ export function UP_AMC_Resco_PendingAMC() {
           (Array.isArray(res?.data) ? res.data : null) ||
           (Array.isArray(res) ? res : null);
         if (active && Array.isArray(arr) && arr.length > 0) {
-          const numYears = arr.map(Number);
+          const numYears = arr.map(Number).filter((n: number) => !Number.isNaN(n) && n > 0);
           setYears(numYears);
-          const curY = new Date().getFullYear();
-          if (numYears.includes(curY)) setSelectedYear(curY);
-          else setSelectedYear(numYears[0]);
+          if (numYears.length > 0) {
+            const curY = new Date().getFullYear();
+            setSelectedYear(numYears.includes(curY) ? curY : numYears[0]);
+          } else {
+            setSelectedYear('');
+          }
+        } else if (active) {
+          setYears([]);
+          setSelectedYear('');
         }
       } catch (err) {
         console.error('Error fetching Resco AMC years:', err);
+        if (active) {
+          setYears([]);
+          setSelectedYear('');
+        }
       } finally {
         if (active) setLoadingYears(false);
       }
@@ -495,7 +469,11 @@ export function UP_AMC_Resco_PendingAMC() {
 
   // ── 2. Fetch Months when Year changes ──
   useEffect(() => {
-    if (!selectedYear) return;
+    if (!selectedYear) {
+      setMonths([]);
+      setSelectedMonth('');
+      return;
+    }
     let active = true;
     (async () => {
       setLoadingMonths(true);
@@ -511,11 +489,6 @@ export function UP_AMC_Resco_PendingAMC() {
         else if (Array.isArray(res?.data?.amc_months)) list = res.data.amc_months;
         else if (Array.isArray(res?.data)) list = res.data;
 
-        if (list.length === 0) {
-          // Fallback to all 12 months
-          list = Object.keys(MONTH_NAMES);
-        }
-
         const normalized = list.map((m: any) => {
           const val = typeof m === 'object' && m !== null ? (m.month ?? m.months ?? m.id ?? m.value ?? m) : m;
           const strVal = String(val);
@@ -525,16 +498,19 @@ export function UP_AMC_Resco_PendingAMC() {
 
         if (active) {
           setMonths(normalized);
-          const curM = String(new Date().getMonth() + 1);
-          const match = normalized.find((m) => m.id === curM || m.label.toLowerCase() === MONTH_NAMES[curM]?.toLowerCase());
-          setSelectedMonth(match ? String(match.id) : String(normalized[0]?.id || '11'));
+          if (normalized.length > 0) {
+            const curM = String(new Date().getMonth() + 1);
+            const match = normalized.find((m) => m.id === curM || m.label.toLowerCase() === MONTH_NAMES[curM]?.toLowerCase());
+            setSelectedMonth(match ? String(match.id) : String(normalized[0].id));
+          } else {
+            setSelectedMonth('');
+          }
         }
       } catch (err) {
         console.error('Error fetching Resco AMC months:', err);
         if (active) {
-          const fallback = Object.entries(MONTH_NAMES).map(([id, label]) => ({ id, label }));
-          setMonths(fallback);
-          setSelectedMonth(String(new Date().getMonth() + 1));
+          setMonths([]);
+          setSelectedMonth('');
         }
       } finally {
         if (active) setLoadingMonths(false);
@@ -545,15 +521,19 @@ export function UP_AMC_Resco_PendingAMC() {
 
   // ── 3. Fetch Sites when Year or Month changes ──
   useEffect(() => {
-    if (!selectedYear) return;
+    if (!selectedYear || !selectedMonth) {
+      setSites([]);
+      return;
+    }
     let active = true;
     (async () => {
       setLoadingSites(true);
       try {
-        const m = selectedMonth || new Date().getMonth() + 1;
-        const res: any = await upRescoAmcApi.getSiteName(selectedYear, m);
+        const res: any = await upRescoAmcApi.getSiteName(selectedYear, selectedMonth);
         let list: any[] = [];
         if (Array.isArray(res)) list = res;
+        else if (Array.isArray(res?.srtamc)) list = res.srtamc;
+        else if (Array.isArray(res?.data?.srtamc)) list = res.data.srtamc;
         else if (Array.isArray(res?.srtsite)) list = res.srtsite;
         else if (Array.isArray(res?.data?.srtsite)) list = res.data.srtsite;
         else if (Array.isArray(res?.srt_site)) list = res.srt_site;
@@ -600,6 +580,8 @@ export function UP_AMC_Resco_PendingAMC() {
       try {
         const res: any = await upRescoAmcApi.getSiteDetails(selectedSiteId);
         const r =
+          res?.data?.srtamc ||
+          res?.srtamc ||
           res?.data?.srtsite ||
           res?.srtsite ||
           res?.data?.srt_site ||
@@ -615,7 +597,7 @@ export function UP_AMC_Resco_PendingAMC() {
           const info = {
             ...d,
             id: d.id ?? selectedSiteId,
-            state: d.state || 'UP',
+            state: d.state || '',
             district: d.district || d.f_district || '—',
             dept_name: d.dept_name || d.department || d.department_name || '—',
             site_name: d.site_name || d.name || '—',
@@ -624,16 +606,12 @@ export function UP_AMC_Resco_PendingAMC() {
             sanction_load: d.sanction_load || d.volume || d.capacity || '—',
             plant_sc: d.plant_sc || d.plan_sc || d.plant_capacity || '—',
             beneficiary_name: d.beneficiary_name || d.contact_person || d.name || '',
-            beneficiary_contact: d.beneficiary_contact || d.contact || d.mobile || d.contact_person_number || '',
-            amc_type: d.amc_type || 'Monthly',
+            beneficiary_contact: String(d.beneficiary_contact || d.contact_number || d.contact || d.mobile || d.contact_person_number || '').replace(/\D/g, '').slice(-10),
+            amc_type: d.amc_type || '',
           };
           setSiteDetail(info);
-          if (info.beneficiary_name && !beneficiaryName) {
-            setBeneficiaryName(info.beneficiary_name);
-          }
-          if (info.beneficiary_contact && !beneficiaryContact) {
-            setBeneficiaryContact(info.beneficiary_contact);
-          }
+          setBeneficiaryName(info.beneficiary_name || '');
+          setBeneficiaryContact(info.beneficiary_contact || '');
         }
       } catch (err) {
         console.error('Error fetching Resco AMC site details:', err);
@@ -644,7 +622,7 @@ export function UP_AMC_Resco_PendingAMC() {
     return () => { active = false; };
   }, [selectedSiteId]);
 
-  // When visitDate changes, keep nextDueDate at +30 days if user hasn't explicitly set another
+  // When visitDate changes, keep nextDueDate at +30 days
   const handleVisitDateChange = (val: string) => {
     setVisitDate(val);
     clearError('visitDate');
@@ -676,7 +654,6 @@ export function UP_AMC_Resco_PendingAMC() {
       errs.beneficiaryContact = 'Contact must be a valid 10-digit number.';
     }
 
-    // Cleaning photos
     if (beforeCleaningPhotos.length === 0) {
       errs.beforeCleaningPhotos = 'At least 1 Before Cleaning photo is required (max 5).';
     } else if (beforeCleaningPhotos.length > 5) {
@@ -688,31 +665,22 @@ export function UP_AMC_Resco_PendingAMC() {
       errs.afterCleaningPhotos = 'Maximum 5 After Cleaning photos are allowed.';
     }
 
-    // Inverter Section
     if (!jmrReport) errs.jmrReport = 'JMR Report Upload is required.';
-    if (!meterReading.trim()) {
-      errs.meter_reading = 'The meter reading field is required.';
-    }
+    if (!meterReading.trim()) errs.meter_reading = 'The meter reading field is required.';
     if (!inverterStatus) errs.inverterStatus = 'Inverter Status is required.';
     if (!inverterRemarks.trim()) errs.inverterRemarks = 'Inverter Remarks is required.';
 
-    // Equipment Status
     if (!laStatus) errs.laStatus = 'LA Status is required.';
     if (!wiringStatus) errs.wiringStatus = 'Wiring Status is required.';
     if (!earthingStatus) errs.earthingStatus = 'Earthing Status is required.';
     if (!acdbStatus) errs.acdbStatus = 'ACDB Status is required.';
     if (!dcdbStatus) errs.dcdbStatus = 'DCDB Status is required.';
 
-    // Reminder & Due Date
-    if (!nextDueDate.trim()) {
-      errs.next_due_date = 'The next due date field is required.';
-    }
+    if (!nextDueDate.trim()) errs.next_due_date = 'The next due date field is required.';
 
-    // Technician Acknowledgement
     if (!digitalSignature) errs.digitalSignature = 'Digital Signature Upload is required.';
     if (!acknowledgement) errs.acknowledgement = 'You must confirm that all maintenance activity has been completed.';
 
-    // Complaint if checked
     if (raiseComplaint) {
       if (!complaintText.trim()) errs.complaint = 'Complaint description is required.';
       if (!complaintImage1) errs.complaintImage1 = 'Complaint Image 1 is required.';
@@ -740,14 +708,12 @@ export function UP_AMC_Resco_PendingAMC() {
     try {
       const fd = new FormData();
 
-      // Resolve numeric month & month label safely
       const numMonth = parseMonthNumber(selectedMonth);
       const strMonth = String(numMonth);
       const paddedMonth = strMonth.padStart(2, '0');
       const monthName = MONTH_NAMES[strMonth] || String(selectedMonth);
       const monthYear = `${paddedMonth}-${selectedYear}`;
 
-      // IDs & Primary site keys
       const selectedSiteObj = sites.find((s) => String(s.id) === String(selectedSiteId));
       const primarySiteId = cleanStr(siteDetail?.site_id || siteDetail?.resco_id || selectedSiteObj?.site_id || selectedSiteObj?.resco_id || siteDetail?.id) || selectedSiteId;
       const trueRescoId = cleanStr(siteDetail?.resco_id || siteDetail?.site_id || selectedSiteObj?.resco_id || selectedSiteObj?.site_id || siteDetail?.id) || selectedSiteId;
@@ -761,7 +727,6 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('assignment_id', assignId);
       }
 
-      // AMC Period & Date
       fd.append('amc_years', String(selectedYear));
       fd.append('year', String(selectedYear));
       fd.append('report_year', String(selectedYear));
@@ -773,14 +738,12 @@ export function UP_AMC_Resco_PendingAMC() {
       fd.append('month_name', monthName);
       fd.append('month_year', monthYear);
 
-      // Visit details
       fd.append('amc_date', visitDate);
       fd.append('visit_date', visitDate);
       fd.append('date', visitDate);
       fd.append('report_date', visitDate);
       fd.append('visit_time', visitTime);
 
-      // Beneficiary & Contact
       const cleanBName = beneficiaryName.trim();
       const cleanBContact = beneficiaryContact.trim();
       fd.append('beneficiary_name', cleanBName);
@@ -797,7 +760,6 @@ export function UP_AMC_Resco_PendingAMC() {
       fd.append('contact_number', cleanBContact);
       fd.append('contact_no', cleanBContact);
 
-      // GPS
       if (latitude) {
         fd.append('latitude', latitude);
         fd.append('amc_latitude', latitude);
@@ -809,7 +771,6 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('inst_longitude', longitude);
       }
 
-      // Vendor & Session Information
       const session = authService.getSession?.();
       const raw = authService.getRawResponse?.();
       const resolvedVendorName =
@@ -835,11 +796,13 @@ export function UP_AMC_Resco_PendingAMC() {
       if (resolvedVendorId) {
         fd.append('vendor_id', String(resolvedVendorId));
       }
-      if (session?.company_id) {
-        fd.append('company_id', String(session.company_id));
+      const resolvedCompanyId = session?.company_id || cleanStr(siteDetail?.company_id);
+      if (resolvedCompanyId) {
+        fd.append('company_id', String(resolvedCompanyId));
       }
+      const firm = cleanStr(siteDetail?.firm_name);
+      if (firm) fd.append('firm_name', firm);
 
-      // Site Meta (Cleaned - NO '—' values)
       const st = cleanStr(siteDetail?.state) || 'UP';
       fd.append('state', st);
 
@@ -854,9 +817,7 @@ export function UP_AMC_Resco_PendingAMC() {
       }
 
       const sName = cleanStr(siteDetail?.site_name || siteDetail?.name);
-      if (sName) {
-        fd.append('site_name', sName);
-      }
+      if (sName) fd.append('site_name', sName);
 
       const loc = cleanStr(siteDetail?.location || siteDetail?.address || siteDetail?.village);
       if (loc) {
@@ -892,24 +853,26 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('work_order', wo);
       }
 
-      // Numeric load & capacity (Cleaned numbers only)
       const sLoad = cleanNum(siteDetail?.sanction_load || siteDetail?.volume || siteDetail?.capacity);
       if (sLoad) fd.append('sanction_load', sLoad);
 
       const pSc = cleanNum(siteDetail?.plant_sc || siteDetail?.plan_sc || siteDetail?.plant_capacity);
       if (pSc) fd.append('plant_sc', pSc);
 
-      // AMC Type & Frequency codes
-      const rawAmc = cleanStr(siteDetail?.amc_type) || 'Monthly';
+      const amcLower = (cleanStr(siteDetail?.amc_type) || 'monthly').toLowerCase();
+      let rawAmc = 'Monthly';
       let aCode = 'M';
       let aId = '1';
-      if (rawAmc === 'Quarterly' || rawAmc === '3' || rawAmc === 'Q') {
+      if (['quarterly', '3', 'q'].includes(amcLower)) {
+        rawAmc = 'Quarterly';
         aCode = 'Q';
         aId = '3';
-      } else if (rawAmc === 'Half-Yearly' || rawAmc === '6' || rawAmc === 'H') {
+      } else if (['half-yearly', 'half yearly', 'halfyearly', '6', 'h'].includes(amcLower)) {
+        rawAmc = 'Half-Yearly';
         aCode = 'H';
         aId = '6';
-      } else if (rawAmc === 'Yearly' || rawAmc === '12' || rawAmc === 'Y') {
+      } else if (['yearly', '12', 'y'].includes(amcLower)) {
+        rawAmc = 'Yearly';
         aCode = 'Y';
         aId = '12';
       }
@@ -917,10 +880,7 @@ export function UP_AMC_Resco_PendingAMC() {
       fd.append('amc_type_code', aCode);
       fd.append('amc_type_id', aId);
 
-      // 1. Cleaning Module Photos
-      // Backend Laravel validator rule: 'before_cleaning_photo' => 'required|array|max:5', 'after_cleaning_photo' => 'required|array|max:5'
-      // Critical: Must ONLY be appended with array brackets 'before_cleaning_photo[]' and 'after_cleaning_photo[]'.
-      // NEVER append scalar 'before_cleaning_photo' as PHP overwrites the array with a single UploadedFile!
+      // Cleaning Module Photos — ONLY array brackets (Laravel array validator)
       const finalBeforePhotos = beforeCleaningPhotos.slice(0, 5);
       finalBeforePhotos.forEach((file) => {
         fd.append('before_cleaning_photo[]', file);
@@ -943,7 +903,7 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('amc_image3', finalAfterPhotos[1]);
       }
 
-      // 2. Inverter Section (CRITICAL FIX FOR METER READING)
+      // Inverter Section
       if (jmrReport) {
         fd.append('jmr_report', jmrReport);
         fd.append('document', jmrReport);
@@ -960,18 +920,16 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('inverter_remark', inverterRemarks.trim());
       }
 
-      // 3. Equipment Status
+      // Equipment Status
       fd.append('la_status', laStatus);
       fd.append('lightning_arrester_status', laStatus);
       fd.append('wiring_status', wiringStatus);
       fd.append('earthing_status', earthingStatus);
       fd.append('acdb_status', acdbStatus);
       fd.append('dcdb_status', dcdbStatus);
-      if (rmsStatus) {
-        fd.append('rms_status', rmsStatus);
-      }
+      if (rmsStatus) fd.append('rms_status', rmsStatus);
 
-      // 4. Reminder & Due Date (CRITICAL FIX FOR NEXT DUE DATE)
+      // Reminder & Due Date
       fd.append('next_due_date', nextDueDate);
       fd.append('due_date', nextDueDate);
       if (reminderNotes.trim()) {
@@ -979,7 +937,7 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('reminder_note', reminderNotes.trim());
       }
 
-      // 5. Technician/User Acknowledgement
+      // Acknowledgement
       if (digitalSignature) {
         fd.append('digital_signature', digitalSignature);
         fd.append('signature', digitalSignature);
@@ -995,7 +953,7 @@ export function UP_AMC_Resco_PendingAMC() {
         fd.append('amc_remark', remarks.trim());
       }
 
-      // 6. Raised Complaint
+      // Raised Complaint
       if (raiseComplaint && complaintText.trim()) {
         fd.append('raised_complaint', '1');
         fd.append('complaint', complaintText.trim());
@@ -1035,24 +993,12 @@ export function UP_AMC_Resco_PendingAMC() {
             if (Array.isArray(msgs) && msgs.length > 0) {
               const msg = msgs[0];
               serverErrors[k] = msg;
-              if (k === 'before_cleaning_photo' || k.startsWith('before_cleaning_photo.')) {
-                serverErrors.beforeCleaningPhotos = msg;
-              }
-              if (k === 'after_cleaning_photo' || k.startsWith('after_cleaning_photo.')) {
-                serverErrors.afterCleaningPhotos = msg;
-              }
-              if (k === 'meter_reading' || k === 'reading') {
-                serverErrors.meter_reading = msg;
-              }
-              if (k === 'next_due_date' || k === 'due_date') {
-                serverErrors.next_due_date = msg;
-              }
-              if (k === 'jmr_report' || k === 'document') {
-                serverErrors.jmrReport = msg;
-              }
-              if (k === 'digital_signature' || k === 'signature') {
-                serverErrors.digitalSignature = msg;
-              }
+              if (k === 'before_cleaning_photo' || k.startsWith('before_cleaning_photo.')) serverErrors.beforeCleaningPhotos = msg;
+              if (k === 'after_cleaning_photo' || k.startsWith('after_cleaning_photo.')) serverErrors.afterCleaningPhotos = msg;
+              if (k === 'meter_reading' || k === 'reading') serverErrors.meter_reading = msg;
+              if (k === 'next_due_date' || k === 'due_date') serverErrors.next_due_date = msg;
+              if (k === 'jmr_report' || k === 'document') serverErrors.jmrReport = msg;
+              if (k === 'digital_signature' || k === 'signature') serverErrors.digitalSignature = msg;
             }
           }
           setErrors((prev) => ({ ...prev, ...serverErrors }));
@@ -1061,7 +1007,13 @@ export function UP_AMC_Resco_PendingAMC() {
       }
     } catch (err: any) {
       console.error('Submission error:', err);
-      setToast({ type: 'error', message: err?.message || 'Server error occurred during submission. Please try again.' });
+      const serverData = err?.response?.data || err?.data || null;
+      const serverMsg =
+        (serverData?.errors ? Object.values(serverData.errors).flat().join(' ') : null) ||
+        serverData?.message ||
+        serverData?.error ||
+        err?.message;
+      setToast({ type: 'error', message: serverMsg || 'Server error occurred during submission. Please try again.' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setSubmitting(false);
@@ -1096,9 +1048,12 @@ export function UP_AMC_Resco_PendingAMC() {
     setToast(null);
   };
 
+  const T = SECTIONS.length;
+  const noSite = !selectedSiteId;
+
   return (
-    <div className="ax-page resco-amc-form">
-      <style>{RESCO_AMC_CSS}</style>
+    <div className="resco-single-card-form">
+      <style>{SINGLE_CARD_FORM_CSS}</style>
 
       <PageHead
         title="UP RESCO — Submit Pending AMC Report"
@@ -1115,1060 +1070,1056 @@ export function UP_AMC_Resco_PendingAMC() {
         ]}
         actions={
           <Link to="/v/up-resco-amc-view-site" className="ax-btn ax-btn--secondary ax-btn--pill">
-            <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M5 12l14 0" />
-              <path d="M5 12l6 6" />
-              <path d="M5 12l6 -6" />
-            </svg>
+            <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l14 0" /><path d="M5 12l6 6" /><path d="M5 12l6 -6" /></svg>
             <span className="ax-btn__label">View Completed AMC</span>
           </Link>
         }
       />
 
-      {/* Toast Alert */}
-      {toast && (
-        <div
-          className={`ax-alert ax-alert--${toast.type === 'success' ? 'success' : 'danger'}`}
-          role="status"
-          style={{ marginBottom: 'var(--ax-space-6)', animation: 'fadeIn .25s ease' }}
-        >
+      {/* Success Alert */}
+      {toast?.type === 'success' && (
+        <div className="ax-alert ax-alert--success" role="status" style={{ marginBottom: 'var(--ax-space-6)' }}>
           <span className="ax-alert__icon">
-            {toast.type === 'success' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /><path d="M12 16h.01" /></svg>
-            )}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
           </span>
           <div className="ax-alert__content">
-            <h3 className="ax-alert__title" style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600 }}>
-              {toast.type === 'success' ? 'Report Submitted' : 'Validation Error'}
-            </h3>
-            <p className="ax-alert__message">{toast.message}</p>
+            <h3 className="ax-alert__title" style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600 }}>{toast.message}</h3>
+          </div>
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {toast?.type === 'error' && (
+        <div className="ax-alert ax-alert--danger" role="alert" style={{ marginBottom: 'var(--ax-space-6)' }}>
+          <span className="ax-alert__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0" /><path d="M12 16h.01" /></svg>
+          </span>
+          <div className="ax-alert__content">
+            <h4 className="ax-alert__title" style={{ fontWeight: 600 }}>{toast.message}</h4>
           </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="ax-card">
-          {/* Header with Quick Jump Pills */}
           <div className="ax-card__header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <h2 style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong)' }}>
-                  UP Resco AMC Site Information
-                </h2>
-                <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  All 7 maintenance sections organized inside one card
-                </span>
-              </div>
-              <span className="ax-badge ax-badge--info">Uttar Pradesh RESCO</span>
+            <div>
+              <span className="ax-card__eyebrow">Uttar Pradesh RESCO</span>
+              <h2 className="ax-card__title" style={{ margin: 0 }}>
+                UP Resco AMC Site Information
+              </h2>
+              <p className="ax-card__subtitle" style={{ margin: '4px 0 0' }}>
+                Select Year, Month and Site to populate technical details, then record maintenance visit information.
+              </p>
             </div>
 
-            <div className="resco-section-pills" role="navigation" aria-label="Sections">
-              {SECTIONS.map((sec) => (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => scrollToSection(sec.id)}
-                  className="resco-section-pill-btn"
-                >
-                  <span className="pill-num">{sec.num}</span>
-                  <span>{sec.title}</span>
+            <div className="resco-section-pills" role="navigation" aria-label="Jump to section">
+              {SECTIONS.map((s) => (
+                <button key={s.id} type="button" onClick={() => scrollToSection(s.id)} className="resco-section-pill-btn">
+                  <span className="pill-num">{s.num}</span>
+                  <span>{s.title}</span>
                 </button>
               ))}
             </div>
           </div>
 
           <div className="ax-card__body">
-            {/* ── Section 1: Site Selection & Information ── */}
+            {/* Section 1: Selection */}
+            <div id="sec-select" className="resco-section-block">
+              <SectionHeader num="1" total={T} title="Select Year, Month & Site" desc="Choose the AMC period and assigned site." />
+              <div className="resco-form-grid resco-form-grid--3col">
+                <FloatingSelect
+                  id="amc-year"
+                  label="AMC Year"
+                  required
+                  placeholder={loadingYears ? 'Loading years...' : '-- Select Year --'}
+                  value={selectedYear === '' ? '' : String(selectedYear)}
+                  options={years.map((y) => ({ value: String(y), label: String(y) }))}
+                  disabled={loadingYears}
+                  onChange={(val) => {
+                    setSelectedYear(val ? Number(val) : '');
+                    setSelectedMonth('');
+                    setSelectedSiteId('');
+                    clearError('year');
+                  }}
+                  error={errors.year}
+                />
+                <FloatingSelect
+                  id="amc-month"
+                  label="AMC Month"
+                  required
+                  placeholder={!selectedYear ? 'Select Year First' : loadingMonths ? 'Loading months...' : '-- Select Month --'}
+                  value={selectedMonth}
+                  options={months.map((m) => ({ value: String(m.id), label: m.label }))}
+                  disabled={loadingMonths || !selectedYear}
+                  onChange={(val) => {
+                    setSelectedMonth(val);
+                    setSelectedSiteId('');
+                    clearError('month');
+                  }}
+                  error={errors.month}
+                />
+                <FloatingSelect
+                  id="site-select"
+                  label="Site Name"
+                  required
+                  placeholder={
+                    !selectedYear
+                      ? 'Select Year First'
+                      : !selectedMonth
+                      ? 'Select Month First'
+                      : loadingSites
+                      ? 'Loading sites...'
+                      : sites.length === 0
+                      ? 'No sites available'
+                      : '-- Select Site --'
+                  }
+                  value={selectedSiteId}
+                  options={sites.map((s) => ({ value: String(s.id), label: s.label }))}
+                  disabled={loadingSites || !selectedYear || !selectedMonth || sites.length === 0}
+                  onChange={(val) => {
+                    setSelectedSiteId(val);
+                    clearError('site');
+                  }}
+                  error={errors.site}
+                />
+              </div>
+            </div>
+
+            {/* Section 2: Site Information */}
             <div id="sec-site-info" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 1 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    Site Selection & Information
-                  </h3>
+              <SectionHeader num="2" total={T} title="Site Information" desc="Read-only site metadata fetched from master records." />
+              {loadingDetail ? (
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--ax-text-muted)' }}>
+                  <span className="ax-spinner" style={{ marginRight: 8 }} /> Loading site information…
                 </div>
-              </div>
-
-              {/* Year, Month, Site Selectors */}
-              <div className="resco-form-grid resco-form-grid--3col" style={{ marginBottom: 'var(--ax-space-4)' }}>
-                {/* AMC Year */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="amc-year"
-                      className={`ax-float__input ${errors.year ? 'is-invalid' : ''}`}
-                      value={selectedYear}
-                      onChange={(e) => {
-                        setSelectedYear(Number(e.target.value));
-                        setSelectedMonth('');
-                        setSelectedSiteId('');
-                        clearError('year');
-                      }}
-                      disabled={loadingYears}
-                    >
-                      <option value="">Select Year</option>
-                      {years.map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                    <label htmlFor="amc-year" className="ax-float__label">AMC Year *</label>
-                  </div>
-                  {errors.year && <div className="ax-field-feedback ax-field-feedback--error">{errors.year}</div>}
+              ) : siteDetail ? (
+                <div className="resco-info-card">
+                  <InfoItem label="State" value={siteDetail.state || 'UP'} />
+                  <InfoItem label="District" value={siteDetail.district} />
+                  <InfoItem label="Department Name" value={siteDetail.dept_name} />
+                  <InfoItem label="Site Name" value={siteDetail.site_name} />
+                  <InfoItem label="Location" value={siteDetail.location} />
+                  <InfoItem label="CA No." value={siteDetail.ca_no} />
+                  <InfoItem label="Sanction Load (kVA)" value={siteDetail.sanction_load} />
+                  <InfoItem label="Plant SC (kVA)" value={siteDetail.plant_sc} />
                 </div>
-
-                {/* AMC Month */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="amc-month"
-                      className={`ax-float__input ${errors.month ? 'is-invalid' : ''}`}
-                      value={selectedMonth}
-                      onChange={(e) => {
-                        setSelectedMonth(e.target.value);
-                        setSelectedSiteId('');
-                        clearError('month');
-                      }}
-                      disabled={loadingMonths || !selectedYear}
-                    >
-                      <option value="">{!selectedYear ? 'Select Year First' : 'Select Month'}</option>
-                      {months.map((m) => (
-                        <option key={m.id} value={m.id}>{m.label}</option>
-                      ))}
-                    </select>
-                    <label htmlFor="amc-month" className="ax-float__label">AMC Month *</label>
-                  </div>
-                  {errors.month && <div className="ax-field-feedback ax-field-feedback--error">{errors.month}</div>}
-                </div>
-
-                {/* Site Name */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="site-select"
-                      className={`ax-float__input ${errors.site ? 'is-invalid' : ''}`}
-                      value={selectedSiteId}
-                      onChange={(e) => {
-                        setSelectedSiteId(e.target.value);
-                        clearError('site');
-                      }}
-                      disabled={loadingSites || !selectedYear || !selectedMonth}
-                    >
-                      <option value="">
-                        {!selectedYear
-                          ? 'Select Year First'
-                          : !selectedMonth
-                          ? 'Select Month First'
-                          : loadingSites
-                          ? 'Loading sites…'
-                          : 'Select Site'}
-                      </option>
-                      {sites.map((s) => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                    </select>
-                    <label htmlFor="site-select" className="ax-float__label">Site Name *</label>
-                  </div>
-                  {errors.site && <div className="ax-field-feedback ax-field-feedback--error">{errors.site}</div>}
-                </div>
-              </div>
-
-              {/* Site Details Preview Card */}
-              {siteDetail && (
-                <div className="resco-info-box">
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">State</span>
-                    <span className="resco-info-val">{siteDetail.state || 'UP'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">District</span>
-                    <span className="resco-info-val">{siteDetail.district || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">Department Name</span>
-                    <span className="resco-info-val">{siteDetail.dept_name || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">Site Name</span>
-                    <span className="resco-info-val">{siteDetail.site_name || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">Location</span>
-                    <span className="resco-info-val">{siteDetail.location || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">CA NO.</span>
-                    <span className="resco-info-val">{siteDetail.ca_no || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">Sanction Load (kVA)</span>
-                    <span className="resco-info-val">{siteDetail.sanction_load || '—'}</span>
-                  </div>
-                  <div className="resco-info-cell">
-                    <span className="resco-info-label">Plan SC (kVA)</span>
-                    <span className="resco-info-val">{siteDetail.plant_sc || '—'}</span>
-                  </div>
+              ) : (
+                <div style={{ padding: 20, textAlign: 'center', background: 'var(--ax-surface-subtle)', borderRadius: 8, color: 'var(--ax-text-muted)', fontSize: 13 }}>
+                  Please select Year, Month and Site above to preview site details.
                 </div>
               )}
+            </div>
 
-              {!selectedSiteId && (
-                <div style={{
-                  padding: 'var(--ax-space-5)',
-                  marginBottom: 'var(--ax-space-5)',
-                  background: 'var(--ax-surface-subtle)',
-                  borderRadius: 'var(--ax-radius-lg)',
-                  border: '1px dashed var(--ax-border)',
-                  color: 'var(--ax-text-muted)',
-                  fontSize: 'var(--ax-text-sm)',
-                  textAlign: 'center'
-                }}>
-                  Please select <strong>AMC Year</strong>, <strong>AMC Month</strong>, and <strong>Site Name</strong> above to unlock the report form fields.
-                </div>
-              )}
-
-              {/* Visit Date, Time, GPS, Beneficiary Info */}
+            {/* Section 3: Visit Details */}
+            <div id="sec-visit" className="resco-section-block">
+              <SectionHeader num="3" total={T} title="Visit Details" desc="The field labels marked with * are required fields." />
               <div className="resco-form-grid resco-form-grid--3col">
-                {/* Visit Date */}
-                <div>
-                  <div className="ax-float ax-float--date">
-                    <input
-                      id="visit-date"
-                      type="date"
-                      disabled={!selectedSiteId}
-                      className={`ax-float__input ${errors.visitDate ? 'is-invalid' : ''}`}
-                      value={visitDate}
-                      onChange={(e) => handleVisitDateChange(e.target.value)}
+                <FloatingInput
+                  id="visit-date"
+                  label="Visit Date"
+                  required
+                  type="date"
+                  disabled={noSite}
+                  value={visitDate}
+                  onChange={handleVisitDateChange}
+                  error={errors.visitDate}
+                />
+                <FloatingInput
+                  id="visit-time"
+                  label="Visit Time"
+                  required
+                  type="time"
+                  disabled={noSite}
+                  value={visitTime}
+                  onChange={(val) => {
+                    setVisitTime(val);
+                    clearError('visitTime');
+                  }}
+                  error={errors.visitTime}
+                />
+                <FloatingInput
+                  id="ben-name"
+                  label="Beneficiary Name"
+                  required
+                  disabled={noSite}
+                  placeholder="Enter Beneficiary Name"
+                  value={beneficiaryName}
+                  onChange={(val) => {
+                    setBeneficiaryName(val);
+                    clearError('beneficiaryName');
+                  }}
+                  error={errors.beneficiaryName}
+                />
+                <FloatingInput
+                  id="ben-contact"
+                  label="Beneficiary Contact (10 Digits)"
+                  required
+                  type="tel"
+                  maxLength={10}
+                  disabled={noSite}
+                  placeholder="10-digit mobile number"
+                  value={beneficiaryContact}
+                  onChange={(val) => {
+                    setBeneficiaryContact(val.replace(/\D/g, '').slice(0, 10));
+                    clearError('beneficiaryContact');
+                  }}
+                  error={errors.beneficiaryContact}
+                />
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <FloatingInput
+                      id="gps-lat"
+                      label="Latitude"
+                      required
+                      readOnly
+                      disabled={noSite}
+                      placeholder="Auto-detected GPS Latitude"
+                      value={latitude}
+                      onChange={() => {}}
+                      error={errors.latitude}
                     />
-                    <label htmlFor="visit-date" className="ax-float__label">Visit Date *</label>
                   </div>
-                  {errors.visitDate && <div className="ax-field-feedback ax-field-feedback--error">{errors.visitDate}</div>}
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary"
+                    style={{ height: 46, whiteSpace: 'nowrap', padding: '0 12px' }}
+                    onClick={() => handleDetectGps(false)}
+                    disabled={noSite || gpsStatus === 'fetching'}
+                    title="Get current GPS coordinates"
+                  >
+                    {gpsStatus === 'fetching' ? (
+                      <span className="ax-spinner" style={{ width: 14, height: 14 }} />
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" /></svg>
+                    )}
+                    <span className="ax-btn__label" style={{ fontSize: 11 }}>GPS</span>
+                  </button>
                 </div>
 
-                {/* Visit Time */}
-                <div>
-                  <div className="ax-float ax-float--date">
-                    <input
-                      id="visit-time"
-                      type="time"
-                      disabled={!selectedSiteId}
-                      className={`ax-float__input ${errors.visitTime ? 'is-invalid' : ''}`}
-                      value={visitTime}
-                      onChange={(e) => {
-                        setVisitTime(e.target.value);
-                        clearError('visitTime');
-                      }}
-                    />
-                    <label htmlFor="visit-time" className="ax-float__label">Visit Time *</label>
-                  </div>
-                  {errors.visitTime && <div className="ax-field-feedback ax-field-feedback--error">{errors.visitTime}</div>}
-                </div>
-
-                {/* GPS Location Auto-detect */}
-                <div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <div className="ax-float" style={{ flex: 1 }}>
-                      <input
-                        id="gps-lat"
-                        type="text"
-                        disabled={!selectedSiteId}
-                        placeholder="Latitude"
-                        className={`ax-float__input ${errors.latitude ? 'is-invalid' : ''}`}
-                        value={latitude}
-                        onChange={(e) => {
-                          setLatitude(e.target.value);
-                          clearError('latitude');
-                        }}
-                      />
-                      <label htmlFor="gps-lat" className="ax-float__label">Latitude *</label>
-                    </div>
-                    <div className="ax-float" style={{ flex: 1 }}>
-                      <input
-                        id="gps-lng"
-                        type="text"
-                        disabled={!selectedSiteId}
-                        placeholder="Longitude"
-                        className={`ax-float__input ${errors.longitude ? 'is-invalid' : ''}`}
-                        value={longitude}
-                        onChange={(e) => {
-                          setLongitude(e.target.value);
-                          clearError('longitude');
-                        }}
-                      />
-                      <label htmlFor="gps-lng" className="ax-float__label">Longitude *</label>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDetectGps(false)}
-                      className="ax-btn ax-btn--secondary"
-                      style={{ height: 46, padding: '0 12px', whiteSpace: 'nowrap' }}
-                      title="Auto-detect current GPS location"
-                      disabled={!selectedSiteId || gpsStatus === 'fetching'}
-                    >
-                      {gpsStatus === 'fetching' ? (
-                        <span style={{ fontSize: 11 }}>Locating…</span>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                          <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-                          <circle cx="12" cy="10" r="3" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                  {(errors.latitude || errors.longitude) && (
-                    <div className="ax-field-feedback ax-field-feedback--error">
-                      {errors.latitude || errors.longitude}
-                    </div>
-                  )}
-                </div>
-
-                {/* Beneficiary Name */}
-                <div>
-                  <div className="ax-float">
-                    <input
-                      id="ben-name"
-                      type="text"
-                      disabled={!selectedSiteId}
-                      placeholder="Beneficiary Name"
-                      className={`ax-float__input ${errors.beneficiaryName ? 'is-invalid' : ''}`}
-                      value={beneficiaryName}
-                      onChange={(e) => {
-                        setBeneficiaryName(e.target.value);
-                        clearError('beneficiaryName');
-                      }}
-                    />
-                    <label htmlFor="ben-name" className="ax-float__label">Beneficiary Name *</label>
-                  </div>
-                  {errors.beneficiaryName && <div className="ax-field-feedback ax-field-feedback--error">{errors.beneficiaryName}</div>}
-                </div>
-
-                {/* Beneficiary Contact */}
-                <div>
-                  <div className="ax-float">
-                    <input
-                      id="ben-contact"
-                      type="tel"
-                      maxLength={10}
-                      disabled={!selectedSiteId}
-                      placeholder="Beneficiary Contact"
-                      className={`ax-float__input ${errors.beneficiaryContact ? 'is-invalid' : ''}`}
-                      value={beneficiaryContact}
-                      onChange={(e) => {
-                        setBeneficiaryContact(e.target.value.replace(/\D/g, '').slice(0, 10));
-                        clearError('beneficiaryContact');
-                      }}
-                    />
-                    <label htmlFor="ben-contact" className="ax-float__label">Beneficiary Contact *</label>
-                  </div>
-                  {errors.beneficiaryContact && <div className="ax-field-feedback ax-field-feedback--error">{errors.beneficiaryContact}</div>}
-                </div>
+                <FloatingInput
+                  id="gps-lng"
+                  label="Longitude"
+                  required
+                  readOnly
+                  disabled={noSite}
+                  placeholder="Auto-detected GPS Longitude"
+                  value={longitude}
+                  onChange={() => {}}
+                  error={errors.longitude}
+                />
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 2: 1. Cleaning Module ── */}
+            {/* Section 4: Cleaning Module */}
             <div id="sec-cleaning" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 2 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    1. Cleaning Module
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Photo will be geotagged with GPS coordinates and timestamp automatically.
-                  </span>
-                </div>
-              </div>
-
+              <SectionHeader
+                num="4"
+                total={T}
+                title="Cleaning Module"
+                desc="Upload geo-tagged before and after cleaning photos (min 1, max 5 each, JPG/PNG)."
+              />
               <div className="resco-form-grid resco-form-grid--2col">
-                {/* Before Cleaning Photos */}
-                <div className="resco-photo-box">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                      Before Cleaning Photos * <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(Max 5)</span>
-                    </label>
-                    <span style={{ fontSize: '11px', color: beforeCleaningPhotos.length >= 5 ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)' }}>
-                      {beforeCleaningPhotos.length} / 5 selected
-                    </span>
-                  </div>
-                  <input
-                    id="before-cleaning-input"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    disabled={!selectedSiteId || beforeCleaningPhotos.length >= 5}
-                    style={{ fontSize: 'var(--ax-text-xs)' }}
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        const files = Array.from(e.target.files);
-                        setBeforeCleaningPhotos((prev) => {
-                          const combined = [...prev, ...files];
-                          if (combined.length > 5) {
-                            setToast({ type: 'error', message: 'Maximum 5 Before Cleaning photos allowed. Extra photos truncated.' });
-                            return combined.slice(0, 5);
-                          }
-                          return combined;
-                        });
-                        clearError('beforeCleaningPhotos');
-                        clearError('before_cleaning_photo');
-                      }
-                      e.target.value = '';
-                    }}
-                  />
-                  {beforeCleaningPhotos.length > 0 && (
-                    <div className="resco-photo-previews">
-                      {beforeCleaningPhotos.map((f, i) => (
-                        <div key={i} className="resco-thumb-wrap">
-                          <img src={URL.createObjectURL(f)} alt={`Before ${i + 1}`} className="resco-thumb-img" />
-                          <button
-                            type="button"
-                            className="resco-thumb-del"
-                            onClick={() => {
-                              setBeforeCleaningPhotos((prev) => prev.filter((_, idx) => idx !== i));
-                              clearError('beforeCleaningPhotos');
-                              clearError('before_cleaning_photo');
-                            }}
-                            title="Remove photo"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {(errors.beforeCleaningPhotos || errors.before_cleaning_photo) && (
-                    <div className="ax-field-feedback ax-field-feedback--error">
-                      {errors.beforeCleaningPhotos || errors.before_cleaning_photo}
-                    </div>
-                  )}
-                </div>
-
-                {/* After Cleaning Photos */}
-                <div className="resco-photo-box">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                      After Cleaning Photos * <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)' }}>(Max 5)</span>
-                    </label>
-                    <span style={{ fontSize: '11px', color: afterCleaningPhotos.length >= 5 ? 'var(--ax-danger, #ef4444)' : 'var(--ax-text-muted)' }}>
-                      {afterCleaningPhotos.length} / 5 selected
-                    </span>
-                  </div>
-                  <input
-                    id="after-cleaning-input"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    disabled={!selectedSiteId || afterCleaningPhotos.length >= 5}
-                    style={{ fontSize: 'var(--ax-text-xs)' }}
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        const files = Array.from(e.target.files);
-                        setAfterCleaningPhotos((prev) => {
-                          const combined = [...prev, ...files];
-                          if (combined.length > 5) {
-                            setToast({ type: 'error', message: 'Maximum 5 After Cleaning photos allowed. Extra photos truncated.' });
-                            return combined.slice(0, 5);
-                          }
-                          return combined;
-                        });
-                        clearError('afterCleaningPhotos');
-                        clearError('after_cleaning_photo');
-                      }
-                      e.target.value = '';
-                    }}
-                  />
-                  {afterCleaningPhotos.length > 0 && (
-                    <div className="resco-photo-previews">
-                      {afterCleaningPhotos.map((f, i) => (
-                        <div key={i} className="resco-thumb-wrap">
-                          <img src={URL.createObjectURL(f)} alt={`After ${i + 1}`} className="resco-thumb-img" />
-                          <button
-                            type="button"
-                            className="resco-thumb-del"
-                            onClick={() => {
-                              setAfterCleaningPhotos((prev) => prev.filter((_, idx) => idx !== i));
-                              clearError('afterCleaningPhotos');
-                              clearError('after_cleaning_photo');
-                            }}
-                            title="Remove photo"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {(errors.afterCleaningPhotos || errors.after_cleaning_photo) && (
-                    <div className="ax-field-feedback ax-field-feedback--error">
-                      {errors.afterCleaningPhotos || errors.after_cleaning_photo}
-                    </div>
-                  )}
-                </div>
+                <MultiFileDrop
+                  id="before-cleaning-input"
+                  label="Before Cleaning Photos"
+                  required
+                  max={5}
+                  disabled={noSite}
+                  files={beforeCleaningPhotos}
+                  onChange={(f) => {
+                    setBeforeCleaningPhotos(f);
+                    clearError('beforeCleaningPhotos');
+                    clearError('before_cleaning_photo');
+                  }}
+                  onOverflow={() => setToast({ type: 'error', message: 'Maximum 5 Before Cleaning photos allowed. Extra photos truncated.' })}
+                  error={errors.beforeCleaningPhotos || errors.before_cleaning_photo}
+                />
+                <MultiFileDrop
+                  id="after-cleaning-input"
+                  label="After Cleaning Photos"
+                  required
+                  max={5}
+                  disabled={noSite}
+                  files={afterCleaningPhotos}
+                  onChange={(f) => {
+                    setAfterCleaningPhotos(f);
+                    clearError('afterCleaningPhotos');
+                    clearError('after_cleaning_photo');
+                  }}
+                  onOverflow={() => setToast({ type: 'error', message: 'Maximum 5 After Cleaning photos allowed. Extra photos truncated.' })}
+                  error={errors.afterCleaningPhotos || errors.after_cleaning_photo}
+                />
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 3: 2. Inverter Section (CRITICAL FIX FOR METER READING) ── */}
+            {/* Section 5: Inverter Section */}
             <div id="sec-inverter" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 3 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    2. Inverter Section
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Capture Joint Meter Reading (JMR), energy meter units, and inverter working parameters
-                  </span>
-                </div>
-              </div>
-
+              <SectionHeader
+                num="5"
+                total={T}
+                title="Inverter Section"
+                desc="Capture Joint Meter Reading (JMR), energy meter units, and inverter working parameters."
+              />
               <div className="resco-form-grid resco-form-grid--2col">
-                {/* JMR Report Upload */}
-                <div className="resco-photo-box">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                      JMR Report Upload *
-                    </label>
-                    {jmrReport && (
-                      <span style={{ fontSize: '11px', color: 'var(--ax-success-500)', fontWeight: 600 }}>
-                        {jmrReport.name} ({(jmrReport.size / 1024).toFixed(1)} KB)
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    id="jmr-report-input"
-                    type="file"
-                    accept="image/*,.pdf"
-                    style={{ fontSize: 'var(--ax-text-xs)' }}
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setJmrReport(e.target.files[0]);
-                        clearError('jmrReport');
-                      }
-                    }}
-                  />
-                  {errors.jmrReport && <div className="ax-field-feedback ax-field-feedback--error">{errors.jmrReport}</div>}
-                </div>
-
-                {/* Meter Reading (kWh) - MANDATORY */}
-                <div>
-                  <div className="ax-float">
-                    <input
-                      id="meter-reading"
-                      type="number"
-                      step="any"
-                      placeholder="Meter Reading"
-                      className={`ax-float__input ${errors.meter_reading ? 'is-invalid' : ''}`}
-                      value={meterReading}
-                      onChange={(e) => {
-                        setMeterReading(e.target.value);
-                        clearError('meter_reading');
-                      }}
-                      required
-                    />
-                    <label htmlFor="meter-reading" className="ax-float__label">
-                      Meter Reading (kWh) *
-                    </label>
-                  </div>
-                  {errors.meter_reading && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.meter_reading}</div>
-                  )}
-                  <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2, display: 'block' }}>
-                    Enter current cumulative generation reading in kWh
-                  </span>
-                </div>
-
-                {/* Inverter Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="inverter-status"
-                      className={`ax-float__input ${errors.inverterStatus ? 'is-invalid' : ''}`}
-                      value={inverterStatus}
-                      onChange={(e) => {
-                        setInverterStatus(e.target.value);
-                        clearError('inverterStatus');
-                      }}
-                    >
-                      <option value="Working">Working</option>
-                      <option value="Non-Working">Non-Working</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <label htmlFor="inverter-status" className="ax-float__label">Inverter Status *</label>
-                  </div>
-                  {errors.inverterStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.inverterStatus}</div>}
-                </div>
-
-                {/* Inverter Remarks */}
-                <div>
-                  <div className="ax-float">
-                    <input
-                      id="inverter-remarks"
-                      type="text"
-                      placeholder="Inverter Remarks"
-                      className={`ax-float__input ${errors.inverterRemarks ? 'is-invalid' : ''}`}
-                      value={inverterRemarks}
-                      onChange={(e) => {
-                        setInverterRemarks(e.target.value);
-                        clearError('inverterRemarks');
-                      }}
-                    />
-                    <label htmlFor="inverter-remarks" className="ax-float__label">Inverter Remarks *</label>
-                  </div>
-                  {errors.inverterRemarks && <div className="ax-field-feedback ax-field-feedback--error">{errors.inverterRemarks}</div>}
-                </div>
+                <FloatingFileInput
+                  id="jmr-report-input"
+                  label="JMR Report Upload"
+                  required
+                  accept="image/*,.pdf"
+                  file={jmrReport}
+                  onChange={(f) => {
+                    setJmrReport(f);
+                    clearError('jmrReport');
+                  }}
+                  error={errors.jmrReport}
+                />
+                <FloatingInput
+                  id="meter-reading"
+                  label="Meter Reading (kWh)"
+                  required
+                  type="number"
+                  placeholder="Enter current cumulative generation in kWh"
+                  value={meterReading}
+                  onChange={(val) => {
+                    setMeterReading(val);
+                    clearError('meter_reading');
+                  }}
+                  error={errors.meter_reading}
+                />
+                <FloatingSelect
+                  id="inverter-status"
+                  label="Inverter Status"
+                  required
+                  placeholder="-- Select --"
+                  value={inverterStatus}
+                  options={[
+                    { value: 'Working', label: 'Working' },
+                    { value: 'Non-Working', label: 'Non-Working' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                  onChange={(val) => {
+                    setInverterStatus(val);
+                    clearError('inverterStatus');
+                  }}
+                  error={errors.inverterStatus}
+                />
+                <FloatingInput
+                  id="inverter-remarks"
+                  label="Inverter Remarks"
+                  required
+                  placeholder="Enter Inverter Remarks"
+                  value={inverterRemarks}
+                  onChange={(val) => {
+                    setInverterRemarks(val);
+                    clearError('inverterRemarks');
+                  }}
+                  error={errors.inverterRemarks}
+                />
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 4: 3. Equipment Status ── */}
+            {/* Section 6: Equipment Status */}
             <div id="sec-equipment" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 4 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    3. Equipment Status
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Verify Lightning Arrester, Earthing, Wiring, and Distribution Boxes
-                  </span>
-                </div>
-              </div>
-
+              <SectionHeader
+                num="6"
+                total={T}
+                title="Equipment Status"
+                desc="Verify Lightning Arrester, Earthing, Wiring, and Distribution Boxes."
+              />
               <div className="resco-form-grid resco-form-grid--3col">
-                {/* LA Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="la-status"
-                      className={`ax-float__input ${errors.laStatus ? 'is-invalid' : ''}`}
-                      value={laStatus}
-                      onChange={(e) => {
-                        setLaStatus(e.target.value);
-                        clearError('laStatus');
-                      }}
-                    >
-                      <option value="OK">OK</option>
-                      <option value="Broken">Broken</option>
-                    </select>
-                    <label htmlFor="la-status" className="ax-float__label">LA Status *</label>
-                  </div>
-                  {errors.laStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.laStatus}</div>}
-                </div>
-
-                {/* Wiring Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="wiring-status"
-                      className={`ax-float__input ${errors.wiringStatus ? 'is-invalid' : ''}`}
-                      value={wiringStatus}
-                      onChange={(e) => {
-                        setWiringStatus(e.target.value);
-                        clearError('wiringStatus');
-                      }}
-                    >
-                      <option value="OK">OK</option>
-                      <option value="Not OK">Not OK</option>
-                    </select>
-                    <label htmlFor="wiring-status" className="ax-float__label">Wiring Status *</label>
-                  </div>
-                  {errors.wiringStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.wiringStatus}</div>}
-                </div>
-
-                {/* Earthing Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="earthing-status"
-                      className={`ax-float__input ${errors.earthingStatus ? 'is-invalid' : ''}`}
-                      value={earthingStatus}
-                      onChange={(e) => {
-                        setEarthingStatus(e.target.value);
-                        clearError('earthingStatus');
-                      }}
-                    >
-                      <option value="OK">OK</option>
-                      <option value="Broken">Broken</option>
-                    </select>
-                    <label htmlFor="earthing-status" className="ax-float__label">Earthing Status *</label>
-                  </div>
-                  {errors.earthingStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.earthingStatus}</div>}
-                </div>
-
-                {/* ACDB Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="acdb-status"
-                      className={`ax-float__input ${errors.acdbStatus ? 'is-invalid' : ''}`}
-                      value={acdbStatus}
-                      onChange={(e) => {
-                        setAcdbStatus(e.target.value);
-                        clearError('acdbStatus');
-                      }}
-                    >
-                      <option value="Working">Working</option>
-                      <option value="Not Working">Not Working</option>
-                    </select>
-                    <label htmlFor="acdb-status" className="ax-float__label">ACDB Status *</label>
-                  </div>
-                  {errors.acdbStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.acdbStatus}</div>}
-                </div>
-
-                {/* DCDB Status */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="dcdb-status"
-                      className={`ax-float__input ${errors.dcdbStatus ? 'is-invalid' : ''}`}
-                      value={dcdbStatus}
-                      onChange={(e) => {
-                        setDcdbStatus(e.target.value);
-                        clearError('dcdbStatus');
-                      }}
-                    >
-                      <option value="Working">Working</option>
-                      <option value="Not Working">Not Working</option>
-                    </select>
-                    <label htmlFor="dcdb-status" className="ax-float__label">DCDB Status *</label>
-                  </div>
-                  {errors.dcdbStatus && <div className="ax-field-feedback ax-field-feedback--error">{errors.dcdbStatus}</div>}
-                </div>
-
-                {/* RMS Status (Optional) */}
-                <div>
-                  <div className="ax-float ax-float--select">
-                    <select
-                      id="rms-status"
-                      className="ax-float__input"
-                      value={rmsStatus}
-                      onChange={(e) => setRmsStatus(e.target.value)}
-                    >
-                      <option value="Working">Working</option>
-                      <option value="Not Working">Not Working</option>
-                      <option value="NA">NA / Not Applicable</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <label htmlFor="rms-status" className="ax-float__label">RMS Status (Optional)</label>
-                  </div>
-                </div>
+                <FloatingSelect
+                  id="la-status"
+                  label="LA Status"
+                  required
+                  placeholder="-- Select --"
+                  value={laStatus}
+                  options={[{ value: 'OK', label: 'OK' }, { value: 'Broken', label: 'Broken' }]}
+                  onChange={(val) => { setLaStatus(val); clearError('laStatus'); }}
+                  error={errors.laStatus}
+                />
+                <FloatingSelect
+                  id="wiring-status"
+                  label="Wiring Status"
+                  required
+                  placeholder="-- Select --"
+                  value={wiringStatus}
+                  options={[{ value: 'OK', label: 'OK' }, { value: 'Not OK', label: 'Not OK' }]}
+                  onChange={(val) => { setWiringStatus(val); clearError('wiringStatus'); }}
+                  error={errors.wiringStatus}
+                />
+                <FloatingSelect
+                  id="earthing-status"
+                  label="Earthing Status"
+                  required
+                  placeholder="-- Select --"
+                  value={earthingStatus}
+                  options={[{ value: 'OK', label: 'OK' }, { value: 'Broken', label: 'Broken' }]}
+                  onChange={(val) => { setEarthingStatus(val); clearError('earthingStatus'); }}
+                  error={errors.earthingStatus}
+                />
+                <FloatingSelect
+                  id="acdb-status"
+                  label="ACDB Status"
+                  required
+                  placeholder="-- Select --"
+                  value={acdbStatus}
+                  options={[{ value: 'Working', label: 'Working' }, { value: 'Not Working', label: 'Not Working' }]}
+                  onChange={(val) => { setAcdbStatus(val); clearError('acdbStatus'); }}
+                  error={errors.acdbStatus}
+                />
+                <FloatingSelect
+                  id="dcdb-status"
+                  label="DCDB Status"
+                  required
+                  placeholder="-- Select --"
+                  value={dcdbStatus}
+                  options={[{ value: 'Working', label: 'Working' }, { value: 'Not Working', label: 'Not Working' }]}
+                  onChange={(val) => { setDcdbStatus(val); clearError('dcdbStatus'); }}
+                  error={errors.dcdbStatus}
+                />
+                <FloatingSelect
+                  id="rms-status"
+                  label="RMS Status (Optional)"
+                  placeholder="-- Select --"
+                  value={rmsStatus}
+                  options={[
+                    { value: 'Working', label: 'Working' },
+                    { value: 'Not Working', label: 'Not Working' },
+                    { value: 'NA', label: 'NA / Not Applicable' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                  onChange={setRmsStatus}
+                />
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 5: 4. Reminder & Due Date (CRITICAL FIX FOR NEXT DUE DATE) ── */}
+            {/* Section 7: Reminder & Due Date */}
             <div id="sec-reminder" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 5 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    4. Reminder & Due Date
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Specify next periodic visit schedule and operational notes
-                  </span>
-                </div>
-              </div>
-
+              <SectionHeader
+                num="7"
+                total={T}
+                title="Reminder & Due Date"
+                desc="Specify next periodic visit schedule (auto-defaults to +30 days) and operational notes."
+              />
               <div className="resco-form-grid resco-form-grid--2col">
-                {/* Next Due Date - MANDATORY */}
-                <div>
-                  <div className="ax-float ax-float--date">
-                    <input
-                      id="next-due-date"
-                      type="date"
-                      className={`ax-float__input ${errors.next_due_date ? 'is-invalid' : ''}`}
-                      value={nextDueDate}
-                      onChange={(e) => {
-                        setNextDueDate(e.target.value);
-                        clearError('next_due_date');
-                      }}
-                      required
-                    />
-                    <label htmlFor="next-due-date" className="ax-float__label">
-                      Next Due Date *
-                    </label>
-                  </div>
-                  {errors.next_due_date && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.next_due_date}</div>
-                  )}
-                  <span style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2, display: 'block' }}>
-                    Scheduled date for next AMC maintenance visit (auto-defaults to +30 days)
-                  </span>
-                </div>
-
-                {/* Reminder Notes */}
-                <div>
-                  <div className="ax-float">
-                    <input
-                      id="reminder-notes"
-                      type="text"
-                      placeholder="Reminder Notes"
-                      className="ax-float__input"
-                      value={reminderNotes}
-                      onChange={(e) => setReminderNotes(e.target.value)}
-                    />
-                    <label htmlFor="reminder-notes" className="ax-float__label">Reminder Notes</label>
-                  </div>
-                </div>
+                <FloatingInput
+                  id="next-due-date"
+                  label="Next Due Date"
+                  required
+                  type="date"
+                  value={nextDueDate}
+                  onChange={(val) => {
+                    setNextDueDate(val);
+                    clearError('next_due_date');
+                  }}
+                  error={errors.next_due_date}
+                />
+                <FloatingInput
+                  id="reminder-notes"
+                  label="Reminder Notes"
+                  placeholder="Enter Reminder Notes"
+                  value={reminderNotes}
+                  onChange={setReminderNotes}
+                />
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 6: 5. Technician/User Acknowledgement ── */}
+            {/* Section 8: Acknowledgement */}
             <div id="sec-ack" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 6 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    5. Technician/User Acknowledgement
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Upload digital signature and certify periodic checkup execution
-                  </span>
-                </div>
-              </div>
-
+              <SectionHeader
+                num="8"
+                total={T}
+                title="Technician/User Acknowledgement"
+                desc="Upload digital signature and certify periodic checkup execution."
+              />
               <div className="resco-form-grid resco-form-grid--2col">
-                {/* Digital Signature Upload */}
-                <div className="resco-photo-box">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                      Digital Signature Upload *
-                    </label>
-                    {digitalSignature && (
-                      <span style={{ fontSize: '11px', color: 'var(--ax-success-500)', fontWeight: 600 }}>
-                        {digitalSignature.name} ({(digitalSignature.size / 1024).toFixed(1)} KB)
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    id="digital-signature-input"
-                    type="file"
-                    accept="image/*"
-                    style={{ fontSize: 'var(--ax-text-xs)' }}
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setDigitalSignature(e.target.files[0]);
-                        clearError('digitalSignature');
-                      }
-                    }}
-                  />
-                  {digitalSignature && (
-                    <div style={{ width: 100, height: 60, border: '1px solid var(--ax-border)', borderRadius: 4, overflow: 'hidden', marginTop: 4 }}>
-                      <img src={URL.createObjectURL(digitalSignature)} alt="Signature" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    </div>
-                  )}
-                  {errors.digitalSignature && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.digitalSignature}</div>
-                  )}
-                </div>
-
-                {/* Acknowledgement Confirmation Checkbox */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, justifyContent: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-strong)' }}>
+                <FloatingFileInput
+                  id="digital-signature-input"
+                  label="Digital Signature Upload"
+                  required
+                  file={digitalSignature}
+                  onChange={(f) => {
+                    setDigitalSignature(f);
+                    clearError('digitalSignature');
+                  }}
+                  error={errors.digitalSignature}
+                />
+                <div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                     <input
                       type="checkbox"
+                      className="ax-checkbox"
                       checked={acknowledgement}
                       onChange={(e) => {
                         setAcknowledgement(e.target.checked);
                         clearError('acknowledgement');
                       }}
-                      style={{ width: 18, height: 18, accentColor: 'var(--ax-accent)' }}
                     />
                     <span>
-                      <strong>Acknowledgement Confirmation *</strong>: I confirm all maintenance activity has been completed.
+                      Acknowledgement Confirmation <Asterisk /> — I confirm all maintenance activity has been completed.
                     </span>
                   </label>
-                  {errors.acknowledgement && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.acknowledgement}</div>
-                  )}
-
-                  {/* Remarks */}
-                  <div className="ax-float ax-float--area">
-                    <textarea
-                      id="general-remarks"
-                      placeholder="Remarks"
-                      className="ax-float__input"
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                    />
-                    <label htmlFor="general-remarks" className="ax-float__label">Remarks</label>
-                  </div>
+                  <FieldFeedback error={errors.acknowledgement} />
+                </div>
+                <div className="resco-form-col-span-full">
+                  <FloatingTextarea
+                    id="general-remarks"
+                    label="Remarks"
+                    placeholder="Enter Remarks..."
+                    value={remarks}
+                    rows={3}
+                    onChange={setRemarks}
+                  />
                 </div>
               </div>
             </div>
 
-            <hr className="resco-section-divider" />
-
-            {/* ── Section 7: Raised Complaint ── */}
+            {/* Section 9: Raised Complaint */}
             <div id="sec-complaint" className="resco-section-block">
-              <div className="resco-section-header">
-                <div className="resco-section-title-wrap">
-                  <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Section 7 of {SECTIONS.length}
-                  </span>
-                  <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
-                    Raised Complaint
-                  </h3>
-                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                    Log warranty defects or damage requiring department resolution
-                  </span>
-                </div>
+              <SectionHeader
+                num="9"
+                total={T}
+                title="Raised Complaint (Optional)"
+                desc="Log warranty defects or damage requiring department resolution."
+              />
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+              <div style={{ marginBottom: 'var(--ax-space-3)' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
                   <input
                     type="checkbox"
+                    className="ax-checkbox"
                     checked={raiseComplaint}
-                    onChange={(e) => setRaiseComplaint(e.target.checked)}
-                    style={{ width: 16, height: 16, accentColor: 'var(--ax-accent)' }}
+                    onChange={(e) => {
+                      setRaiseComplaint(e.target.checked);
+                      clearError('complaint');
+                      clearError('complaintImage1');
+                    }}
                   />
                   <span>Raise Complaint for this Site</span>
                 </label>
               </div>
 
               {raiseComplaint && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-4)', padding: 'var(--ax-space-4)', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-lg)', border: '1px solid var(--ax-border)' }}>
-                  <div className="resco-form-grid resco-form-grid--2col">
-                    {/* Complaint Image 1 */}
-                    <div className="resco-photo-box">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          Complaint Image 1 *
-                        </label>
-                        {complaintImage1 && (
-                          <span style={{ fontSize: '11px', color: 'var(--ax-success-500)', fontWeight: 600 }}>
-                            {complaintImage1.name}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        id="complaint-img1"
-                        type="file"
-                        accept="image/*"
-                        style={{ fontSize: 'var(--ax-text-xs)' }}
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            setComplaintImage1(e.target.files[0]);
-                            clearError('complaintImage1');
-                          }
-                        }}
-                      />
-                      {errors.complaintImage1 && (
-                        <div className="ax-field-feedback ax-field-feedback--error">{errors.complaintImage1}</div>
-                      )}
-                    </div>
-
-                    {/* Complaint Image 2 */}
-                    <div className="resco-photo-box">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                          Complaint Image 2 (Optional)
-                        </label>
-                        {complaintImage2 && (
-                          <span style={{ fontSize: '11px', color: 'var(--ax-success-500)', fontWeight: 600 }}>
-                            {complaintImage2.name}
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        id="complaint-img2"
-                        type="file"
-                        accept="image/*"
-                        style={{ fontSize: 'var(--ax-text-xs)' }}
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            setComplaintImage2(e.target.files[0]);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Complaint Description */}
-                  <div className="ax-float ax-float--area">
-                    <textarea
+                <div className="resco-form-grid resco-form-grid--2col" style={{ marginTop: 12 }}>
+                  <FloatingFileInput
+                    id="complaint-img1"
+                    label="Complaint Image 1"
+                    required
+                    file={complaintImage1}
+                    onChange={(f) => {
+                      setComplaintImage1(f);
+                      clearError('complaintImage1');
+                    }}
+                    error={errors.complaintImage1}
+                  />
+                  <FloatingFileInput
+                    id="complaint-img2"
+                    label="Complaint Image 2 (Optional)"
+                    file={complaintImage2}
+                    onChange={setComplaintImage2}
+                  />
+                  <div className="resco-form-col-span-full">
+                    <FloatingTextarea
                       id="complaint-desc"
-                      placeholder="Complaint Details"
-                      className={`ax-float__input ${errors.complaint ? 'is-invalid' : ''}`}
+                      label="Complaint Description"
+                      required
+                      placeholder="Describe the complaint in detail..."
                       value={complaintText}
-                      onChange={(e) => {
-                        setComplaintText(e.target.value);
+                      rows={3}
+                      onChange={(val) => {
+                        setComplaintText(val);
                         clearError('complaint');
                       }}
+                      error={errors.complaint}
                     />
-                    <label htmlFor="complaint-desc" className="ax-float__label">Complaint *</label>
                   </div>
-                  {errors.complaint && (
-                    <div className="ax-field-feedback ax-field-feedback--error">{errors.complaint}</div>
-                  )}
                 </div>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* ── Sticky Bottom Action Bar ── */}
-            <div className="resco-form-sticky-bar">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-                  {Object.keys(errors).length > 0 ? (
-                    <span style={{ color: 'var(--ax-danger-500)', fontWeight: 600 }}>
-                      ⚠️ {Object.keys(errors).length} field(s) require your attention
-                    </span>
-                  ) : (
-                    <span>Ready to submit maintenance report</span>
-                  )}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="ax-btn ax-btn--secondary"
-                  disabled={submitting}
-                >
-                  Reset Form
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary"
-                  disabled={submitting || !selectedSiteId}
-                  style={{ minWidth: 160 }}
-                >
-                  {submitting ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span className="ax-spinner" aria-hidden="true" />
-                      Submitting…
-                    </span>
-                  ) : !selectedSiteId ? (
-                    'Select Site to Submit'
-                  ) : (
-                    'Submit AMC Report'
-                  )}
-                </button>
-              </div>
-            </div>
+        {/* Sticky Action Bar */}
+        <div className="resco-form-sticky-bar">
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill">
+            {Object.keys(errors).length > 0
+              ? `${Object.keys(errors).length} field(s) require attention`
+              : 'RESCO AMC Submission'}
+          </span>
+          <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
+            <button type="button" className="ax-btn ax-btn--secondary" onClick={handleReset} disabled={submitting}>
+              <span className="ax-btn__label">Reset Form</span>
+            </button>
+            <button type="submit" disabled={submitting || noSite} className="ax-btn ax-btn--primary" style={{ minWidth: 200 }}>
+              {submitting ? (
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: 'resco-spin 1s linear infinite' }}><path d="M12 3a9 9 0 1 0 9 9" /></svg>
+                  <span className="ax-btn__label">Submitting…</span>
+                </>
+              ) : (
+                <>
+                  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
+                  <span className="ax-btn__label">{noSite ? 'Select Site to Submit' : 'Submit AMC Report'}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </form>
+    </div>
+  );
+}
+
+/* ── Section Header ── */
+function SectionHeader({ num, total, title, desc }: { num: string; total: number; title: string; desc: string }) {
+  return (
+    <div className="resco-section-header">
+      <div className="resco-section-title-wrap">
+        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', alignItems: 'center' }}>
+          <span className="ax-badge ax-badge--soft ax-badge--primary ax-badge--pill" style={{ fontWeight: 600 }}>
+            Step {num} of {total}
+          </span>
+          <h3 style={{ fontSize: 'var(--ax-text-base)', fontWeight: 600, margin: 0, color: 'var(--ax-text-strong)' }}>
+            {title}
+          </h3>
+        </div>
+        <p style={{ margin: '4px 0 0', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
+          {desc}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Read-only Info Item ── */
+function InfoItem({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div className="resco-info-item">
+      <span className="resco-info-label">{label}</span>
+      <span className="resco-info-value">{value || '—'}</span>
+    </div>
+  );
+}
+
+/* ── Asterisk ── */
+const Asterisk = () => <span style={{ color: 'var(--ax-danger-500)', marginLeft: 3 }}>*</span>;
+
+/* ── Field Feedback ── */
+function FieldFeedback({ error }: { error?: string }) {
+  if (error) {
+    return (
+      <span className="ax-field-feedback ax-field-feedback--error" role="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 12, height: 12 }}>
+          <circle cx="12" cy="12" r="9" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        {error}
+      </span>
+    );
+  }
+  return <span className="ax-field-feedback" />;
+}
+
+/* ── Floating Input ── */
+function FloatingInput({
+  id, label, type = 'text', required, readOnly, disabled, placeholder = ' ', value, maxLength, onChange, error,
+}: {
+  id: string; label: string; type?: string; required?: boolean; readOnly?: boolean; disabled?: boolean; placeholder?: string; value: string; maxLength?: number; onChange?: (val: string) => void; error?: string;
+}) {
+  const floated = type === 'date' || type === 'time';
+  return (
+    <div>
+      <div className={`ax-float ${floated ? 'ax-float--date' : ''}`}>
+        <input
+          id={id}
+          type={type}
+          step={type === 'number' ? 'any' : undefined}
+          readOnly={readOnly}
+          disabled={disabled}
+          maxLength={maxLength}
+          className={`ax-input ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
+          aria-invalid={Boolean(error)}
+          style={readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : undefined}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+/* ── Floating Select ── */
+function FloatingSelect({
+  id, label, required, disabled, placeholder = '-- Select --', value, options, onChange, error,
+}: {
+  id: string; label: string; required?: boolean; disabled?: boolean; placeholder?: string; value: string; options: { value: string; label: string }[]; onChange: (val: string) => void; error?: string;
+}) {
+  return (
+    <div>
+      <div className="ax-float ax-float--select">
+        <select
+          id={id}
+          className={`ax-select ax-float__input ${error ? 'is-invalid' : ''}`}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+/* ── Floating Textarea ── */
+function FloatingTextarea({
+  id, label, required, placeholder = 'Enter Remarks...', value, rows = 3, onChange, error,
+}: {
+  id: string; label: string; required?: boolean; placeholder?: string; value: string; rows?: number; onChange: (val: string) => void; error?: string;
+}) {
+  return (
+    <div>
+      <div className="ax-float ax-float--area">
+        <textarea
+          id={id}
+          rows={rows}
+          className={`ax-textarea ax-float__input ${error ? 'is-invalid' : ''}`}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+        />
+        <label className="ax-float__label" htmlFor={id}>
+          {label}
+          {required && <Asterisk />}
+        </label>
+      </div>
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+/* ── Floating File Input (Drag & drop with image preview) ── */
+function FloatingFileInput({
+  id, label, required, accept = 'image/*', file, onChange, error,
+}: {
+  id: string; label: string; required?: boolean; accept?: string; file: File | null; onChange: (file: File | null) => void; error?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setObjectUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setObjectUrl(null);
+  }, [file]);
+
+  return (
+    <div className={error ? 'is-invalid' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+      >
+        <span>{label}</span>
+        {required && <Asterisk />}
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept={accept}
+        style={{ display: 'none' }}
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) onChange(f);
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered ? '#fbfcfd' : '#ffffff',
+          padding: file ? '8px 10px' : '12px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minHeight: 88,
+        }}
+      >
+        {file ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, textAlign: 'left' }}>
+              {objectUrl && (
+                <img
+                  src={objectUrl}
+                  alt={label}
+                  style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--ax-border)', flexShrink: 0 }}
+                />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.name}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>
+                  {(file.size / 1024).toFixed(0)} KB
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(null);
+                if (inputRef.current) inputRef.current.value = '';
+              }}
+              style={{ color: '#ef4444', flexShrink: 0, padding: '2px 6px' }}
+              title="Remove file"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 4 }}>
+              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+              <path d="M12 12v9" />
+              <path d="m8 16 4-4 4 4" />
+            </svg>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Choose File
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+              No file chosen
+            </div>
+          </>
+        )}
+      </div>
+
+      <FieldFeedback error={error} />
+    </div>
+  );
+}
+
+/* ── Multi File Drop (same drag & drop style, multiple images with thumbnails) ── */
+function MultiFileDrop({
+  id, label, required, max = 5, disabled, files, onChange, onOverflow, error,
+}: {
+  id: string; label: string; required?: boolean; max?: number; disabled?: boolean; files: File[]; onChange: (files: File[]) => void; onOverflow?: () => void; error?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const urls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
+  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+
+  const addFiles = (incoming: File[]) => {
+    const imgs = incoming.filter((f) => f.type.startsWith('image/'));
+    if (imgs.length === 0) return;
+    const combined = [...files, ...imgs];
+    if (combined.length > max) onOverflow?.();
+    onChange(combined.slice(0, max));
+  };
+
+  const full = files.length >= max;
+  const inactive = disabled || full;
+
+  return (
+    <div className={error ? 'is-invalid' : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: error ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-strong, #334155)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 4,
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          {label}
+          {required && <Asterisk />}
+          <span style={{ fontWeight: 400, color: 'var(--ax-text-muted)', marginLeft: 6 }}>(Max {max})</span>
+        </span>
+        <span style={{ fontWeight: 500, color: full ? 'var(--ax-danger-500, #ef4444)' : 'var(--ax-text-muted)' }}>
+          {files.length} / {max}
+        </span>
+      </label>
+
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={inactive}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files) addFiles(Array.from(e.target.files));
+          e.target.value = '';
+        }}
+      />
+
+      <div
+        onClick={() => !inactive && inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); if (!inactive) setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          if (!inactive) addFiles(Array.from(e.dataTransfer.files || []));
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={inactive ? -1 : 0}
+        onKeyDown={(e) => {
+          if (inactive) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        style={{
+          border: isDragging
+            ? '1.5px dashed #2563eb'
+            : error
+            ? '1.5px dashed var(--ax-danger-500, #ef4444)'
+            : isHovered && !inactive ? '1.5px dashed #94a3b8' : '1.5px dashed #cbd5e1',
+          borderRadius: 8,
+          background: isDragging
+            ? '#eff6ff'
+            : error
+            ? '#fef2f2'
+            : isHovered && !inactive ? '#fbfcfd' : '#ffffff',
+          padding: '12px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          cursor: inactive ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.7 : 1,
+          transition: 'all 0.2s ease',
+          minHeight: 88,
+          gap: 8,
+        }}
+      >
+        {files.length === 0 ? (
+          <>
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+              <path d="M12 12v9" />
+              <path d="m8 16 4-4 4 4" />
+            </svg>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
+              Choose Files or Drag & Drop
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+              No file chosen
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', width: '100%' }}>
+              {files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  style={{ position: 'relative', width: 64, height: 64, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--ax-border)' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <img src={urls[i]} alt={`${label} ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    type="button"
+                    title="Remove photo"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange(files.filter((_, idx) => idx !== i));
+                    }}
+                    style={{
+                      position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%',
+                      background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', cursor: 'pointer',
+                      fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+              {full ? 'Maximum photos selected' : 'Click or drop to add more'}
+            </div>
+          </>
+        )}
+      </div>
+
+      <FieldFeedback error={error} />
     </div>
   );
 }

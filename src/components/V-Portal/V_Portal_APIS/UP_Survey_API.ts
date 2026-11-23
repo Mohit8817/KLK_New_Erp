@@ -1,12 +1,6 @@
 import { API_BASE_URL } from '../../../services/authService';
 
-/**
- * Base URLs for UP Survey API Endpoints
- * Supports:
- * 1. Resco Survey (11 methods under VendorUpRescoSurveyController)
- * 2. SSL Survey (5 methods under VendorUpSSlSurveyController)
- * 3. SRT Survey (Add Survey, View Survey)
- */
+
 const BASE_URL = (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
 
 export const UP_SURVEY_API = {

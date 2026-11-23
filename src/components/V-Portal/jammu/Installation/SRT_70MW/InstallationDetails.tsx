@@ -81,6 +81,77 @@ const fmtSerials = (val?: any): string => {
   return arr.length > 0 ? arr.join(', ') : DASH;
 };
 
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 14, height: 14 }}>
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
+function computeDurationDays(fromStr?: string | null, toStr?: string | null): number | null {
+  if (!fromStr) return null;
+  const parseD = (s: string): number | null => {
+    const trimmed = s.trim();
+    if (!trimmed) return null;
+    const slashMatch = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+    if (slashMatch) {
+      const [, d, m, y] = slashMatch;
+      return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+    }
+    const isoMatch = trimmed.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+    if (isoMatch) {
+      const [, y, m, d] = isoMatch;
+      return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+    }
+    const t = Date.parse(trimmed);
+    return isNaN(t) ? null : t;
+  };
+
+  const start = parseD(fromStr);
+  if (!start) return null;
+  const end = toStr ? parseD(toStr) : Date.now();
+  if (!end) return null;
+  const diffMs = end - start;
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return days < 0 ? 0 : days;
+}
+
+function formatDurationLabel(days: number | null): string {
+  if (days === null) return DASH;
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 Day';
+  return `${days} Days`;
+}
+
+function getSiteDuration(row: JammuCompleteSiteItem): {
+  days: number | null;
+  label: string;
+} {
+  let days: number | null = null;
+  if ((row as any).duration !== undefined && (row as any).duration !== null && (row as any).duration !== '') {
+    const d = Number((row as any).duration);
+    if (!isNaN(d)) days = d;
+  } else if ((row as any).claim_duration !== undefined && (row as any).claim_duration !== null && (row as any).claim_duration !== '') {
+    const d = Number((row as any).claim_duration);
+    if (!isNaN(d)) days = d;
+  }
+
+  if (days === null) {
+    const installDate = (row as any).inst_date || (row as any).created_at || (row as any).date;
+    const claimDate = (row as any).inst_claim_date || (row as any).claim_date;
+    if (claimDate && installDate) {
+      days = computeDurationDays(installDate, claimDate);
+    } else if (installDate) {
+      days = computeDurationDays(installDate);
+    }
+  }
+
+  return {
+    days,
+    label: formatDurationLabel(days),
+  };
+}
+
 /* ───────── Modal Component ───────── */
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -202,6 +273,336 @@ function ImagePreviewModal({ url, title, onClose }: { url: string; title: string
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
+    </Modal>
+  );
+}
+
+/* ───────── Raise Installation Claim Modal (Goa SRT pattern) ───────── */
+function RaiseClaimModal({
+  site,
+  onClose,
+  onSuccess,
+}: {
+  site: JammuCompleteSiteItem;
+  onClose: () => void;
+  onSuccess: (message: string) => void;
+}) {
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimRemarks, setClaimRemarks] = useState('');
+  const [claimInvoiceFile, setClaimInvoiceFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!claimAmount || Number(claimAmount) <= 0) {
+      setError('Please enter a valid claim amount.');
+      return;
+    }
+    if (!claimInvoiceFile) {
+      setError('Please upload the certified tax invoice file (PDF/Image).');
+      return;
+    }
+    const trimmedRemarks = claimRemarks.trim();
+    if (!trimmedRemarks) {
+      setError('Please enter remarks for audit submission.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const fd = new FormData();
+      fd.append('srt_id', String(site.id));
+      fd.append('site_id', String(site.id));
+      fd.append('claim_amount', claimAmount.trim());
+      fd.append('inst_claim_amount', claimAmount.trim());
+      fd.append('amount', claimAmount.trim());
+      fd.append('claim_invoice', claimInvoiceFile);
+      fd.append('inst_claim_invoice', claimInvoiceFile);
+      fd.append('remarks', trimmedRemarks);
+      fd.append('claim_remarks', trimmedRemarks);
+
+      const res = await jammuSrt70mwService.raiseClaim(fd);
+      onSuccess(res?.message || 'Milestone claim request submitted successfully! Dispatched for department audit.');
+    } catch (err: any) {
+      console.error('[Jammu SRT RaiseClaimModal] submit error:', err);
+      setError(err?.message || 'Failed to submit claim request. Note: Claims can only be raised 7 days after installation.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const mutedBlock = { color: 'var(--ax-text-muted, #64748b)', display: 'block', fontSize: 11, marginBottom: 2 } as const;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      labelledBy="raise-claim-modal-title"
+      dialogClass="ax-dialog--md"
+      dialogStyle={{ maxWidth: 540, width: '100%', borderRadius: 8 }}
+    >
+      <form onSubmit={handleSubmit} style={{ margin: 0 }}>
+        <div
+          className="ax-modal__header"
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <h3
+              id="raise-claim-modal-title"
+              style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }}
+            >
+              Raise Installation Milestone Claim
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
+              Submit verified invoice for completed SRT 70MW installation
+            </p>
+          </div>
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--icon"
+            onClick={onClose}
+            aria-label="Close dialog"
+            style={{ width: 32, height: 32, padding: 0 }}
+          >
+            {X_ICON}
+          </button>
+        </div>
+
+        <div className="ax-modal__body" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Policy banner */}
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 6,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              color: '#1e40af',
+              fontSize: 12,
+              lineHeight: 1.4,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div>
+              <strong>7-Day Disbursal Policy:</strong> Claims can only be raised 7 days after installation completion and verification audit clearance.
+            </div>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                borderRadius: 6,
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Site Overview Details Card */}
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 6,
+              background: 'var(--ax-surface-subtle, #f8fafc)',
+              border: '1px solid var(--ax-border, #e2e8f0)',
+              fontSize: 12,
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+              <div>
+                <span style={mutedBlock}>Site Name:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.site_name || DASH}</strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>CA Number:</span>
+                <strong style={{ fontFamily: 'var(--ax-font-mono, monospace)', color: 'var(--ax-text-strong, #0f172a)' }}>
+                  {site.ca_no || DASH}
+                </strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>District / State:</span>
+                <span>{txt(site, 'district') || DASH}, {txt(site, 'state') || 'Jammu & Kashmir'}</span>
+              </div>
+              <div>
+                <span style={mutedBlock}>Contact Person:</span>
+                <span>{site.contact_person || DASH} {site.contact_number ? `(${site.contact_number})` : ''}</span>
+              </div>
+              <div>
+                <span style={mutedBlock}>Sanction Load:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{site.sanction_load ? `${site.sanction_load} kW` : DASH}</strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>Install Date:</span>
+                <strong style={{ color: 'var(--ax-text-strong, #0f172a)' }}>{(site as any).inst_date || (site as any).created_at || DASH}</strong>
+              </div>
+              <div>
+                <span style={mutedBlock}>Duration Elapsed:</span>
+                <span className="ax-badge ax-badge--soft ax-badge--warning" style={{ fontWeight: 700, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span>⏱</span>
+                  <span>{getSiteDuration(site).label}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Claim Amount Field */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-amount" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Claim Amount (₹) <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ax-text-muted, #64748b)',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ₹
+              </span>
+              <input
+                id="modal-claim-amount"
+                type="number"
+                min="1"
+                step="any"
+                className="ax-input"
+                style={{ paddingLeft: 28, width: '100%' }}
+                placeholder="e.g. 50000"
+                value={claimAmount}
+                onChange={(e) => setClaimAmount(e.target.value)}
+                required
+                autoFocus
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+
+          {/* Claim Invoice Document Upload */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-invoice" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Certified Tax Invoice Document <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <input
+              id="modal-claim-invoice"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,image/png,image/jpeg,image/jpg"
+              className="ax-input"
+              style={{ width: '100%', padding: '8px' }}
+              onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
+              required
+              disabled={isSubmitting}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+              Allowed formats: PDF, JPG, PNG (Max 10MB)
+            </p>
+            {claimInvoiceFile && (
+              <div
+                style={{
+                  marginTop: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  color: 'var(--ax-primary-default, #2563eb)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>{claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Remarks */}
+          <div className="ax-form-field">
+            <label htmlFor="modal-claim-remarks" className="ax-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, display: 'block' }}>
+              Submission Remarks <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
+            </label>
+            <input
+              id="modal-claim-remarks"
+              type="text"
+              className="ax-input"
+              style={{ width: '100%' }}
+              placeholder="e.g. Installation verified on site, invoice attached"
+              value={claimRemarks}
+              onChange={(e) => setClaimRemarks(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div
+          className="ax-modal__footer"
+          style={{
+            padding: '14px 20px',
+            borderTop: '1px solid var(--ax-border, #e2e8f0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 10,
+          }}
+        >
+          <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </button>
+          <button type="submit" className="ax-btn ax-btn--primary" disabled={isSubmitting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {isSubmitting ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                  <circle cx="12" cy="12" r="10" strokeOpacity={0.25} />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Submit Claim Request</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }
@@ -558,13 +959,21 @@ function SiteDossierModal({
   onClose,
   onOpenPreview,
   onOpenPanels,
+  onRaiseClaim,
 }: {
   site: JammuCompleteSiteItem | null;
   onClose: () => void;
   onOpenPreview: (url: string, title: string) => void;
   onOpenPanels: (siteName: string, caNo: string | undefined, serials: string[]) => void;
+  onRaiseClaim?: (site: JammuCompleteSiteItem) => void;
 }) {
   if (!site) return null;
+
+  const isVerifyApproved =
+    Number(site.inst_verify_status ?? site.verify_status ?? 0) === 1 ||
+    String(site.inst_verify_status ?? site.verify_status ?? '').toLowerCase().trim() === 'approved' ||
+    String(site.inst_verify_status ?? site.verify_status ?? '').toLowerCase().trim() === '1';
+  const isClaimDue = isVerifyApproved && Number(site.inst_claim_status ?? site.claim_status ?? 0) === 0;
 
   const lat = txt(site, 'latitude') || txt(site, 'inst_latitude');
   const lng = txt(site, 'longitude') || txt(site, 'inst_longitude');
@@ -754,8 +1163,26 @@ function SiteDossierModal({
         </div>
       </div>
 
-      <div className="ax-modal__footer">
-        <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>
+      <div className="ax-modal__footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          {onRaiseClaim && isClaimDue && (
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary"
+              onClick={() => {
+                onClose();
+                onRaiseClaim(site);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Raise Milestone Claim</span>
+            </button>
+          )}
+        </div>
+        <button type="button" className="ax-btn ax-btn--secondary" onClick={onClose}>
           Close
         </button>
       </div>
@@ -1068,6 +1495,9 @@ export function InstallationDetails() {
   // Full Site Dossier Modal State
   const [detailModalSite, setDetailModalSite] = useState<JammuCompleteSiteItem | null>(null);
 
+  // Raise Claim Modal State (Goa SRT pattern)
+  const [claimModalSite, setClaimModalSite] = useState<JammuCompleteSiteItem | null>(null);
+
   // Toast / feedback message
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
@@ -1253,6 +1683,52 @@ export function InstallationDetails() {
       setEditLoading(false);
     }
   };
+
+  const [detectingGps, setDetectingGps] = useState(false);
+  const detectEditLocation = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditForm((prev) => ({
+          ...prev,
+          latitude: pos.coords.latitude.toFixed(6),
+          longitude: pos.coords.longitude.toFixed(6),
+        }));
+        setDetectingGps(false);
+      },
+      (err) => {
+        console.warn('Geolocation high accuracy failed, retrying standard...', err);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setEditForm((prev) => ({
+              ...prev,
+              latitude: pos.coords.latitude.toFixed(6),
+              longitude: pos.coords.longitude.toFixed(6),
+            }));
+            setDetectingGps(false);
+          },
+          (err2) => {
+            setDetectingGps(false);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please allow location access in your browser.`);
+            }
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (editingId) {
+      detectEditLocation(true);
+    }
+  }, [editingId]);
 
   // Save Edit Form (API 8)
   const handleSaveEdit = async (e: FormEvent) => {
@@ -1465,8 +1941,8 @@ export function InstallationDetails() {
 
       {/* ── Page Head matching reference ── */}
       <PageHead
-        title="Jammu SRT 70MW Installed Sites"
-        subtitle="Complete audit register of verified solar rooftop installations and billing certificates"
+        title="View Jammu SRT 70MW Installation"
+        subtitle="Master register of completed solar rooftop installations, payment sites, verification evidence, and compliance documents"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Jammu & Kashmir' },
@@ -1475,9 +1951,21 @@ export function InstallationDetails() {
           { label: 'Installation Details' },
         ]}
         actions={
-          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2)' }}>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadData}
+              disabled={loading}
+            >
+              {ICON_REFRESH}
+              <span className="ax-btn__label">Refresh</span>
+            </button>
             <Link to="/v/jammu/installation/srt-70mw/install-sites" className="ax-btn ax-btn--primary ax-btn--sm">
               <span className="ax-btn__label">+ New Installation</span>
+            </Link>
+            <Link to="/v/jammu/installation/srt-70mw/claim-request" className="ax-btn ax-btn--secondary ax-btn--sm">
+              <span className="ax-btn__label">Claim Register →</span>
             </Link>
           </div>
         }
@@ -1892,9 +2380,15 @@ export function InstallationDetails() {
                   const rawVerifyStr = String(row.inst_verify_status ?? row.verify_status ?? '').toLowerCase().trim();
                   const isVerifyApproved = vStatus === 1 || rawVerifyStr === '1' || rawVerifyStr === 'approved';
                   const cStatus = Number(row.inst_claim_status ?? row.claim_status ?? 0);
+                  const siteClaimRaised = cStatus !== 0;
+                  const isClaimDue = isVerifyApproved && !siteClaimRaised;
 
                   return (
-                    <tr key={row.id} className="ax-table__row">
+                    <tr
+                      key={row.id}
+                      className="ax-table__row"
+                      style={isClaimDue ? { background: 'rgba(245, 158, 11, 0.04)' } : undefined}
+                    >
                       <td className="ax-table__td ax-num">{(currentPage - 1) * pageSize + index + 1}</td>
                       <td className="ax-table__td">{txt(row, 'state') || 'Jammu & Kashmir'}</td>
                       <td className="ax-table__td"><b>{txt(row, 'district') || DASH}</b></td>
@@ -2086,8 +2580,73 @@ export function InstallationDetails() {
                           <td className="ax-table__td" style={{ textAlign: 'center' }}>
                             <VerifyBadge value={vStatus} raw={row.inst_verify_status ?? row.verify_status} />
                           </td>
-                          <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                            <ClaimBadge status={cStatus} />
+                          <td className="ax-table__td" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            {siteClaimRaised ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
+                                {cStatus === 2 ? (
+                                  <Badge tone="success">
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      <span>Approved</span>
+                                    </span>
+                                  </Badge>
+                                ) : cStatus === 3 ? (
+                                  <Badge tone="danger">
+                                    <span>Rejected</span>
+                                  </Badge>
+                                ) : (
+                                  <Badge tone="info">
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      <span>Claim Raised</span>
+                                    </span>
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : isClaimDue ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="ax-btn ax-btn--primary ax-btn--xs"
+                                  onClick={() => setClaimModalSite(row as any)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 5,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    lineHeight: 1.2,
+                                    whiteSpace: 'nowrap',
+                                    background: 'var(--ax-primary-default, #2563eb)',
+                                    color: '#fff',
+                                  }}
+                                  title={`Raise milestone claim request for ${row.site_name || 'site'}`}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M12 5v14M5 12h14" />
+                                  </svg>
+                                  <span>Raise Claim</span>
+                                </button>
+                              </div>
+                            ) : vStatus === 2 || rawVerifyStr === '2' || rawVerifyStr === 'rejected' || rawVerifyStr === 'reject' ? (
+                              <Badge tone="danger">
+                                <span>Verify Rejected</span>
+                              </Badge>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+                                <Badge tone="neutral">
+                                  <span>Awaiting Approval</span>
+                                </Badge>
+                                <span style={{ fontSize: 10, color: 'var(--ax-text-muted, #64748b)' }}>
+                                  Claim unlocks after verify
+                                </span>
+                              </div>
+                            )}
                           </td>
 
                           {/* Action: View Dossier + Locked/Edit Button */}
@@ -2223,6 +2782,20 @@ export function InstallationDetails() {
           onOpenPanels={(siteName, caNo, serials) => {
             setDetailModalSite(null);
             setPanelModalData({ siteName, caNo, serials });
+          }}
+          onRaiseClaim={(s) => setClaimModalSite(s)}
+        />
+      )}
+
+      {/* ── Raise Installation Milestone Claim Modal (Goa SRT pattern) ── */}
+      {claimModalSite && (
+        <RaiseClaimModal
+          site={claimModalSite}
+          onClose={() => setClaimModalSite(null)}
+          onSuccess={(msg) => {
+            setToastMsg({ type: 'success', text: msg });
+            setClaimModalSite(null);
+            loadData();
           }}
         />
       )}
@@ -2422,6 +2995,18 @@ export function InstallationDetails() {
                 </div>
 
                 {/* Geolocation & Remarks */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-subtle, #64748b)' }}>GPS Coordinates</span>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary ax-btn--xs"
+                    onClick={() => detectEditLocation(false)}
+                    disabled={detectingGps}
+                  >
+                    {detectingGps ? 'Detecting...' : '📍 Auto-detect GPS'}
+                  </button>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                   <div className="ax-modern-field">
                     <label className="ax-modern-label">
@@ -2432,7 +3017,10 @@ export function InstallationDetails() {
                       type="text"
                       className="ax-input"
                       value={editForm.latitude}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, latitude: e.target.value }))}
+                      onChange={() => {}}
+                      readOnly={true}
+                      style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                      placeholder="Auto-detected GPS Latitude"
                       required
                     />
                   </div>
@@ -2446,7 +3034,10 @@ export function InstallationDetails() {
                       type="text"
                       className="ax-input"
                       value={editForm.longitude}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, longitude: e.target.value }))}
+                      onChange={() => {}}
+                      readOnly={true}
+                      style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                      placeholder="Auto-detected GPS Longitude"
                       required
                     />
                   </div>

@@ -38,6 +38,15 @@ export function getGoaSrtInstallationImageCandidates(path?: string | null): stri
   // Goa SRT specific paths
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/srt/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/geo/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/slip/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/doc/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/meter/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/test/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/fix/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/insurance/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/report/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/assignsite/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/srt/installation/assignsite/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/panel/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/system/${filename}`);
@@ -47,9 +56,13 @@ export function getGoaSrtInstallationImageCandidates(path?: string | null): stri
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/claim/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/gen/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/installation/srt/rms/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/installation/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/goa/srt/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/goa/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
   candidates.push(`${BACKEND_BASE}/${normalized}`);
+  candidates.push(`${BACKEND_BASE}/storage/goa/installation/srt/${filename}`);
+  candidates.push(`${BACKEND_BASE}/storage/goa/${filename}`);
 
   if (R2_BASE) {
     candidates.push(`${R2_BASE}/uploads/goa/installation/srt/${filename}`);
@@ -117,6 +130,8 @@ export interface GoaSrtAssignBatchItem {
   assign_date?: string;
   deadline_date?: string;
   site_count?: number | string;
+  sitecount?: number | string;
+  site_names?: any[];
   file?: string;
   remarks?: string;
   [key: string]: any;
@@ -305,7 +320,12 @@ class GoaSrtInstallationService {
       });
       if (!res.ok) return [];
       const json = await res.json();
-      return json?.data || [];
+      if (Array.isArray(json?.data)) return json.data;
+      if (Array.isArray(json?.data?.sites)) return json.data.sites;
+      if (Array.isArray(json?.data?.srt)) return json.data.srt;
+      if (Array.isArray(json?.data?.data)) return json.data.data;
+      if (Array.isArray(json?.sites)) return json.sites;
+      return [];
     } catch (err) {
       console.error('[Goa SRT Service] getDashboardViewData error:', err);
       return [];
@@ -324,7 +344,12 @@ class GoaSrtInstallationService {
       );
       if (!res.ok) return [];
       const json = await res.json();
-      return json?.data || [];
+      if (Array.isArray(json?.data)) return json.data;
+      if (Array.isArray(json?.data?.sites)) return json.data.sites;
+      if (Array.isArray(json?.data?.srt)) return json.data.srt;
+      if (Array.isArray(json?.data?.data)) return json.data.data;
+      if (Array.isArray(json?.sites)) return json.sites;
+      return [];
     } catch (err) {
       console.error('[Goa SRT Service] getDashboardDistrictwiseData error:', err);
       return [];
@@ -441,6 +466,16 @@ class GoaSrtInstallationService {
     }
   }
 
+  private extractErrorMessage(json: any, fallback: string): string {
+    if (json?.errors && typeof json.errors === 'object') {
+      const errList = Object.values(json.errors).flat().filter(Boolean);
+      if (errList.length > 0) {
+        return errList.join(', ');
+      }
+    }
+    return json?.message || fallback;
+  }
+
   /* 11. Update Installation Data: POST /goa/srt/installation/update-site-store */
   async updateSiteStore(formData: FormData): Promise<{ success: boolean; message: string }> {
     const res = await this.fetchWithFallback(GOA_API.INSTALLATION.SRT.UPDATE_SITE_STORE, {
@@ -450,10 +485,7 @@ class GoaSrtInstallationService {
     });
     const json = await res.json();
     if (!res.ok) {
-      const errMsg =
-        json?.message ||
-        (json?.errors ? Object.values(json.errors).flat().join(', ') : 'Failed to update installation details');
-      throw new Error(errMsg);
+      throw new Error(this.extractErrorMessage(json, 'Failed to update installation details'));
     }
     return json;
   }
@@ -483,10 +515,7 @@ class GoaSrtInstallationService {
     });
     const json = await res.json();
     if (!res.ok) {
-      const errMsg =
-        json?.message ||
-        (json?.errors ? Object.values(json.errors).flat().join(', ') : 'Failed to raise installation claim');
-      throw new Error(errMsg);
+      throw new Error(this.extractErrorMessage(json, 'Failed to raise installation claim'));
     }
     return json;
   }
@@ -500,10 +529,7 @@ class GoaSrtInstallationService {
     });
     const json = await res.json();
     if (!res.ok) {
-      const errMsg =
-        json?.message ||
-        (json?.errors ? Object.values(json.errors).flat().join(', ') : 'Failed to raise 3rd payment request');
-      throw new Error(errMsg);
+      throw new Error(this.extractErrorMessage(json, 'Failed to raise 3rd payment request'));
     }
     return json;
   }
@@ -516,7 +542,7 @@ class GoaSrtInstallationService {
     });
     const json = await res.json();
     if (!res.ok) {
-      throw new Error(json?.message || 'Failed to submit document');
+      throw new Error(this.extractErrorMessage(json, 'Failed to submit document'));
     }
     return json;
   }

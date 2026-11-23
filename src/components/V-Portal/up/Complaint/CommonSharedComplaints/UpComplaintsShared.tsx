@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
-import { getMediaUrl } from '../../up-services';
+import { getMediaUrl, getUpMediaCandidates } from '../../up-services';
+import { UP_MODAL_CSS } from './UpComplaintModalUI';
 import {
   Pagination,
   usePagination,
@@ -29,7 +30,10 @@ export const pick = (row: unknown, keys: string[], fallback: string = DASH): str
   for (const k of keys) {
     const v = r[k];
     if (v !== null && v !== undefined && v !== '') {
-      const s = String(v).trim();
+      let s = String(v).trim();
+      if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) {
+        s = s.slice(1, -1).trim();
+      }
       if (s !== '' && s !== 'null' && s !== 'undefined') return s;
     }
   }
@@ -68,17 +72,27 @@ export const StatusBadge = ({ row }: { row: unknown }) => {
   return <span className={`ax-badge ax-badge--soft ax-badge--${m.tone}`}>{m.label}</span>;
 };
 
-export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => {
+export const allDocUrlsOf = (row: unknown): { label: string; url: string; candidates: string[] }[] => {
   const r = asRec(row);
   if (!r) return [];
-  const list: { label: string; url: string }[] = [];
+  const list: { label: string; url: string; candidates: string[] }[] = [];
   const add = (label: string, path?: string | null) => {
     if (path && typeof path === 'string') {
       const trimmed = path.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item, pIdx) => add(`${label} ${pIdx + 1}`, item));
+            return;
+          }
+        } catch {}
+      }
       if (trimmed && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== 'NA') {
-        const url = getMediaUrl(trimmed);
+        const candidates = getUpMediaCandidates(trimmed);
+        const url = candidates[0] || getMediaUrl(trimmed);
         if (url && !list.some((item) => item.url === url)) {
-          list.push({ label, url });
+          list.push({ label, url, candidates: candidates.length ? candidates : [url] });
         }
       }
     }
@@ -87,9 +101,9 @@ export const allDocUrlsOf = (row: unknown): { label: string; url: string }[] => 
   add('File 2', r.file2);
   add('Document', r.document);
   add('File', r.file);
-  add('Resolution File 1', r.r_file1);
-  add('Resolution File 2', r.r_file2);
-  add('Resolution File', r.r_file);
+  add('Resolution File 1', r.r_file1 || r.resolution_file1 || r.closing_file1);
+  add('Resolution File 2', r.r_file2 || r.resolution_file2 || r.closing_file2);
+  add('Resolution File', r.r_file || r.resolution_file || r.closing_file);
   return list;
 };
 
@@ -102,7 +116,7 @@ export const docUrlOf = (row: unknown): string => {
 /* ───────── Column helpers ───────── */
 export interface CellCtx {
   serial: number;
-  openPreview: (url: string, title: string) => void;
+  openPreview: (url: string, title: string, candidates?: string[]) => void;
 }
 
 export interface ComplaintColumn<T> {
@@ -153,12 +167,12 @@ export function documentCol<T>(header = 'Document'): ComplaintColumn<T> {
       }
       return (
         <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-          {docs.slice(0, 2).map((d, i) => (
-            <DocThumb key={i} url={d.url} alt={d.label} onPreview={ctx.openPreview} />
+          {docs.slice(0, 4).map((d, i) => (
+            <DocThumb key={i} url={d.url} candidates={d.candidates} alt={d.label} onPreview={ctx.openPreview} />
           ))}
-          {docs.length > 2 && (
+          {docs.length > 4 && (
             <span style={{ fontSize: 11, color: 'var(--ax-text-muted)', fontWeight: 600 }}>
-              +{docs.length - 2}
+              +{docs.length - 4}
             </span>
           )}
         </div>
@@ -220,7 +234,7 @@ export function Modal({
 
   if (!open) return null;
   return createPortal(
-    <div className="ax-modal ax-modal--centered" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+    <div className="ax-modal ax-modal--centered up-modal" role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
       <div className="ax-modal__backdrop" onClick={onClose} />
       <div ref={dialogRef} className={`ax-modal__dialog${dialogClass ? ' ' + dialogClass : ''}`}>
         {children}
@@ -233,20 +247,40 @@ export function Modal({
 /* ───────── Image preview modal (zoom) ───────── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
 
-export function ImagePreviewModal({ url, title, onClose }: { url: string; title: string; onClose: () => void }) {
+export function ImagePreviewModal({
+  url,
+  candidates,
+  title,
+  onClose,
+}: {
+  url: string;
+  candidates?: string[];
+  title: string;
+  onClose: () => void;
+}) {
+  const list = useMemo(() => {
+    const arr = candidates && candidates.length > 0 ? candidates : url ? [url] : [];
+    return url && !arr.includes(url) ? [url, ...arr] : arr;
+  }, [url, candidates]);
+  const [srcIdx, setSrcIdx] = useState(0);
   const [zoomIdx, setZoomIdx] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const zoom = ZOOM_STEPS[zoomIdx];
+  const activeUrl = list[srcIdx] || url;
 
   useEffect(() => {
+    setSrcIdx(0);
     setZoomIdx(0);
     setStatus('loading');
-  }, [url]);
+  }, [url, candidates]);
 
   return (
-    <Modal open onClose={onClose} labelledBy="ula-preview-title" dialogClass="ax-modal__dialog--lg">
+    <Modal open onClose={onClose} labelledBy="ula-preview-title" dialogClass="up-modal__dialog--preview">
       <div className="ax-modal__header">
-        <h2 className="ax-modal__title" id="ula-preview-title">{title || 'Media Preview'}</h2>
+        <div>
+          <span className="up-modal__eyebrow">Media Preview</span>
+          <h2 className="ax-modal__title" id="ula-preview-title">{title || 'Attached Document'}</h2>
+        </div>
         <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">{X_ICON}</button>
       </div>
 
@@ -259,11 +293,17 @@ export function ImagePreviewModal({ url, title, onClose }: { url: string; title:
             <div className="ula-m-stage__msg">Image could not be loaded. Try opening it in a new tab.</div>
           )}
           <img
-            key={url}
-            src={url}
+            key={activeUrl}
+            src={activeUrl}
             alt={title || 'Preview'}
             onLoad={() => setStatus('ready')}
-            onError={() => setStatus('error')}
+            onError={() => {
+              if (srcIdx + 1 < list.length) {
+                setSrcIdx((i) => i + 1);
+              } else {
+                setStatus('error');
+              }
+            }}
             style={{
               display: status === 'ready' ? 'block' : 'none',
               margin: 'auto',
@@ -283,7 +323,7 @@ export function ImagePreviewModal({ url, title, onClose }: { url: string; title:
           <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1))} disabled={zoomIdx === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
         </div>
         <div className="ula-m-zoom">
-          <a href={url} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
+          <a href={activeUrl} target="_blank" rel="noreferrer" className="ax-btn ax-btn--ghost">Open in new tab ↗</a>
           <button type="button" className="ax-btn ax-btn--primary" onClick={onClose}>Close</button>
         </div>
       </div>
@@ -294,26 +334,65 @@ export function ImagePreviewModal({ url, title, onClose }: { url: string; title:
 /* ───────── Thumbnail (NO BORDER RADIUS) ───────── */
 export function DocThumb({
   url,
+  candidates,
   alt,
   onPreview,
   size = 34,
 }: {
   url?: string | null;
+  candidates?: string[];
   alt: string;
-  onPreview: (url: string, title: string) => void;
+  onPreview: (url: string, title: string, candidates?: string[]) => void;
   size?: number;
 }) {
+  const list = useMemo(() => {
+    const arr = candidates && candidates.length > 0 ? candidates : url ? [url] : [];
+    return url && !arr.includes(url) ? [url, ...arr] : arr;
+  }, [url, candidates]);
+  const [idx, setIdx] = useState(0);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    setIdx(0);
     setFailed(false);
-  }, [url]);
+  }, [url, candidates]);
 
-  if (!url || failed) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+  const activeUrl = list[idx];
+  if (!activeUrl) return <span style={{ color: 'var(--ax-text-subtle)' }}>{DASH}</span>;
+
+  if (failed) {
+    return (
+      <a
+        href={list[0]}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        title={`${alt} — open file`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 0,
+          border: '1px solid var(--ax-border, #cbd5e1)',
+          background: 'var(--ax-surface-subtle, #f1f5f9)',
+          color: 'var(--ax-primary-default, #2563eb)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          textDecoration: 'none',
+        }}
+      >
+        <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      </a>
+    );
+  }
 
   return (
     <img
-      src={url}
+      src={activeUrl}
       alt={alt}
       style={{
         width: size,
@@ -326,8 +405,14 @@ export function DocThumb({
         display: 'block',
         flexShrink: 0,
       }}
-      onError={() => setFailed(true)}
-      onClick={() => onPreview(url, alt)}
+      onError={() => {
+        if (idx + 1 < list.length) {
+          setIdx((i) => i + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+      onClick={() => onPreview(activeUrl, alt, list)}
       title="Click to preview"
     />
   );
@@ -439,9 +524,12 @@ function RowActionDropdown({ docUrl, onView }: { docUrl: string; onView: () => v
   );
 }
 
-/* ───────── CSS (same as ULA View Installation) ───────── */
+/* ───────── CSS (same as ULA View Installation + Unified Vendor Modal) ───────── */
 export const OVERLAY_CSS = `
+  ${UP_MODAL_CSS}
   .ax-modal img { border-radius: 0 !important; }
+  .up-modal .up-drop-preview,
+  .up-modal .view-card img { border-radius: 6px !important; }
 
   .ula-m-stage {
     position: relative; display: flex; overflow: auto;

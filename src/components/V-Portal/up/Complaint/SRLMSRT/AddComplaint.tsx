@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  getMediaUrl,
   upComplaintService,
   type UpSrlmsrtDetails,
 } from '../../up-services';
@@ -14,6 +15,10 @@ import {
   SmsRadioGroup,
   opts,
   getTodayFormatted,
+  formatDateForInput,
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
   type SectionItem,
 } from '../CommonSharedComplaints';
 
@@ -25,8 +30,14 @@ const SECTIONS: SectionItem[] = [
 
 export function UPComplaintSRLMAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   // Form State
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [complaintDate, setComplaintDate] = useState(getTodayFormatted());
   const [district, setDistrict] = useState('');
   const [block, setBlock] = useState('');
@@ -108,6 +119,84 @@ export function UPComplaintSRLMAdd() {
     };
   }, []);
 
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const blk = String(rec.block || '').trim();
+      const sName = String(rec.site_name || '').trim();
+      const sId = String(rec.site_id || sName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'no').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.document || rec.file || rec.file1) || '');
+      setComplaintDate(formatDateForInput(rec.complaint_date || rec.created_date || rec.created_at) || getTodayFormatted());
+      setDistrict(dist);
+      setBlock(blk);
+      setSiteId(sId);
+      setSiteName(sName);
+      setCustomerName(String(rec.customer_name || rec.beneficiary_name || ''));
+      setContactNo(String(rec.contact_no || rec.contact_number || ''));
+      setCaNo(String(rec.ca_no || ''));
+      setCapacity(String(rec.capacity || ''));
+      setSanctionLoad(rec.sanction_load !== undefined && rec.sanction_load !== null ? String(rec.sanction_load) : '');
+      setRoofShedArea(String(rec.roof_shed_area || ''));
+      setRoofType(String(rec.roof_type || ''));
+      setShadowFreeArea(String(rec.shadow_free_area || ''));
+      setPhase(String(rec.phase || ''));
+      setInstallation(String(rec.installation || rec.installtion || ''));
+      setInstallationDate(formatDateForInput(rec.installation_date || rec.installtion_date));
+      setRequiredSqft(String(rec.required_sqft || ''));
+      setLatitude(rec.latitude !== undefined && rec.latitude !== null ? String(rec.latitude) : '');
+      setLongitude(rec.longitude !== undefined && rec.longitude !== null ? String(rec.longitude) : '');
+      setComplaintText(String(rec.complaint || ''));
+      setSendSms(rawSms === 'yes' || rawSms === '1' || rawSms === 'true' ? 'yes' : 'no');
+
+      if (dist) {
+        try {
+          const bList = await upComplaintService.getSrlmsrtBlocks(dist);
+          if (active) setBlocks(bList);
+        } catch {}
+        if (blk) {
+          try {
+            const sList = await upComplaintService.getSrlmsrtSiteNames(dist, blk);
+            if (!active) return;
+            const matched = sList.find((s) => String(s.id) === sId || s.site_name === sName);
+            if (matched) {
+              setSites(sList);
+              setSiteId(String(matched.id));
+              setSiteName(matched.site_name);
+            } else if (sId || sName) {
+              setSites([{ id: sId || sName, site_name: sName || sId }, ...sList]);
+            } else {
+              setSites(sList);
+            }
+          } catch {
+            if (active && (sId || sName)) setSites([{ id: sId || sName, site_name: sName || sId }]);
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getSrlmsrtEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
+
   // When District changes, load Blocks
   const handleDistrictChange = async (newDist: string) => {
     setDistrict(newDist);
@@ -166,7 +255,7 @@ export function UPComplaintSRLMAdd() {
 
     setLoadingDetails(true);
     try {
-      const details = await upComplaintService.getSrlmsrtSiteDetails(selectedId);
+      const details = await upComplaintService.getSrlmsrtSiteDetails(selectedId, chosen?.site_name);
       if (details) {
         populateDetails(details);
       }
@@ -233,7 +322,35 @@ export function UPComplaintSRLMAdd() {
     setFileKey((k) => k + 1);
   };
 
-  const validate = () => {
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const detectLocation = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setGettingLocation(false);
+      },
+      (err) => {
+        console.warn('Geolocation failed:', err);
+        setGettingLocation(false);
+        if (!silent) {
+          alert('Could not retrieve GPS coordinates. Please ensure location permissions are enabled.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [siteId]);
+
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!complaintDate) errs.complaint_date = 'Complaint Date is required.';
     if (!district) errs.district = 'District is required.';
@@ -243,26 +360,30 @@ export function UPComplaintSRLMAdd() {
     if (!contactNo.trim()) errs.contact_no = 'Contact Number is required.';
     if (!capacity.trim()) errs.capacity = 'Capacity is required.';
     if (!sanctionLoad.trim()) errs.sanction_load = 'Sanction Load is required.';
-    if (!selectedFile) errs.document = 'Document / Photo is required.';
+    if (!isEdit && !selectedFile) errs.document = 'Document / Photo is required.';
     if (!complaintText.trim()) errs.complaint = 'Complaint description is required.';
     setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setToast(null);
 
-    if (!validate()) {
-      setToast({ type: 'error', message: 'Please correct highlighted errors before submitting.' });
-      setTimeout(() => {
-        document.querySelector('.has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setToast({ type: 'error', message: missingMsg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
     setSubmitting(true);
     const fd = new FormData();
+    if (isEdit && editId) {
+      fd.append('id', String(editId));
+      if (complaintCode) fd.append('complaint_id', complaintCode);
+    }
     fd.append('complaint_date', complaintDate);
     fd.append('district', district);
     fd.append('block', block);
@@ -295,28 +416,33 @@ export function UPComplaintSRLMAdd() {
     }
 
     try {
-      const res = await upComplaintService.saveSrlmsrtComplaint(fd);
+      const res =
+        isEdit && editId
+          ? await upComplaintService.updateSrlmsrtComplaint(editId, fd)
+          : await upComplaintService.saveSrlmsrtComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'SRLMSRT Complaint saved successfully!' });
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'SRLMSRT Complaint updated successfully!' : 'SRLMSRT Complaint saved successfully!'),
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        handleReset();
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/srlmsrt/view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        if (res.errors) {
-          const mapped: Record<string, string> = {};
-          Object.entries(res.errors).forEach(([k, v]) => {
-            mapped[k] = Array.isArray(v) ? v[0] : String(v);
-          });
-          setFieldErrors(mapped);
-        }
-        setToast({ type: 'error', message: res.message || 'Submission failed. Please check form data.' });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const extracted = extractBackendError(res, isEdit ? 'Update failed. Please check form data.' : 'Submission failed. Please check form data.');
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setToast({ type: 'error', message: extracted.message });
+        setTimeout(() => scrollToFirstError(), 50);
       }
     } catch (errAny: any) {
-      setToast({ type: 'error', message: errAny?.message || 'Network error occurred during submission.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(errAny, 'Network error occurred during submission.');
+      setToast({ type: 'error', message: extracted.message });
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -324,27 +450,28 @@ export function UPComplaintSRLMAdd() {
 
   return (
     <ComplaintFormLayout
-      title="Welcome to, Add Vendor UP SRLMSRT Complaint"
+      title={isEdit ? 'Edit Vendor UP SRLMSRT Complaint' : 'Welcome to, Add Vendor UP SRLMSRT Complaint'}
       subtitle={
         <span style={{ fontSize: 'var(--ax-text-sm, 13px)', color: 'var(--ax-text-muted, #64748b)' }}>
-          Register SRLM Solar Rooftop maintenance tickets and site breakdown reports
+          {isEdit ? 'Update SRLM Solar Rooftop maintenance ticket and breakdown report' : 'Register SRLM Solar Rooftop maintenance tickets and site breakdown reports'}
         </span>
       }
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'UP SRLMSRT Complaints', href: '/v/complaint/up/srlmsrt/view-complaint' },
-        { label: 'Add Vendor UP SRLMSRT Complaint' },
+        { label: isEdit ? 'Edit Vendor UP SRLMSRT Complaint' : 'Add Vendor UP SRLMSRT Complaint' },
       ]}
       viewLink="/v/complaint/up/srlmsrt/view-complaint"
       viewLabel="View Complaints"
       eyebrow="SRLM Solar Rooftop"
-      formTitle="Add Vendor UP SRLMSRT Complaint"
-      formSubtitle="Select block and rooftop solar site, verify technical parameters, and register the complaint across 3 dedicated sections."
+      formTitle={isEdit ? `Edit Vendor UP SRLMSRT Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add Vendor UP SRLMSRT Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Select block and rooftop solar site, verify technical parameters, and register the complaint across 3 dedicated sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={submitting}
-      submitLabel="Save Complaint"
+      submitLabel={isEdit ? 'Update Complaint' : 'Save Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* Section 1 */}
@@ -453,8 +580,35 @@ export function UPComplaintSRLMAdd() {
           <FloatingInput id="srlm-installation" label="Installation (YES/NO)" value={installation} onChange={setInstallation} />
           <FloatingInput id="srlm-inst-date" label="Installation Date" type="date" value={installationDate} onChange={setInstallationDate} />
           <FloatingInput id="srlm-sqft" label="Required Sqft" value={requiredSqft} onChange={setRequiredSqft} />
-          <FloatingInput id="srlm-lat" label="Latitude" value={latitude} onChange={setLatitude} />
-          <FloatingInput id="srlm-lng" label="Longitude" value={longitude} onChange={setLongitude} />
+          <FloatingInput
+            id="srlm-lat"
+            label="Latitude"
+            value={latitude}
+            onChange={() => {}}
+            readOnly={true}
+            style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+            placeholder="Auto-detected GPS Latitude"
+          />
+          <FloatingInput
+            id="srlm-lng"
+            label="Longitude"
+            value={longitude}
+            onChange={() => {}}
+            readOnly={true}
+            style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+            placeholder="Auto-detected GPS Longitude"
+          />
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              style={{ width: '100%', height: 46 }}
+              onClick={() => detectLocation(false)}
+              disabled={gettingLocation}
+            >
+              {gettingLocation ? 'Detecting...' : '📍 Auto-detect GPS'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -473,9 +627,10 @@ export function UPComplaintSRLMAdd() {
             key={fileKey}
             id="srlm-file"
             label="Upload File (Rooftop Photo / Fault Document)"
-            required
+            required={!isEdit}
             accept="image/*,.pdf,.doc,.docx"
             file={selectedFile}
+            existingUrl={existingFile}
             onChange={(f) => {
               setSelectedFile(f);
               clearErr('document');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { authService } from '../../../../../services/authService';
@@ -162,6 +162,8 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   placeholder?: string;
   onCameraClick?: () => void;
@@ -174,6 +176,8 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   placeholder,
   onCameraClick,
@@ -193,9 +197,13 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
@@ -759,13 +767,13 @@ export function RescoInstallSite() {
   };
 
   // Auto-detect GPS Coordinates
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
-    setFeedback(null);
+    if (!silent) setFeedback(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -783,7 +791,9 @@ export function RescoInstallSite() {
           },
           (err2) => {
             setGettingLocation(false);
-            alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please enter manually.`);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please allow location access in your browser.`);
+            }
           },
           { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
         );
@@ -791,6 +801,10 @@ export function RescoInstallSite() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSiteId]);
 
   // Form Submit Handler (API 6: POST /jk/resco-install-site-store)
   const handleSubmit = async (e: FormEvent) => {
@@ -1024,15 +1038,7 @@ export function RescoInstallSite() {
                   Choose from accepted RESCO sites pending installation in Jammu & Kashmir
                 </span>
               </div>
-              <button
-                type="button"
-                className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={fetchSitesList}
-                disabled={loadingSites}
-                title="Refresh installable sites"
-              >
-                {loadingSites ? 'Refreshing...' : '🔄 Refresh Sites'}
-              </button>
+        
             </div>
 
             <div className="ax-form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
@@ -1176,7 +1182,7 @@ export function RescoInstallSite() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1330,17 +1336,21 @@ export function RescoInstallSite() {
                   label="Latitude"
                   name="inst_latitude"
                   value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="Enter Latitude"
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Latitude"
                   required
                 />
 
                 <FloatingInput
-                  label="longitude"
+                  label="Longitude"
                   name="inst_longitude"
                   value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="Enter Longitude"
+                  onChange={() => {}}
+                  readOnly={true}
+                  style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                  placeholder="Auto-detected GPS Longitude"
                   required
                 />
 

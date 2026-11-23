@@ -22,15 +22,24 @@ import {
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
 
 // Palette constants matching Solar ERP design language
-const LIGHT_BLUE = '#2559bf';
+const LIGHT_BLUE = '#2563eb';
 const LIGHT_GREEN = '#10b981';
 const LIGHT_CYAN = '#0891b2';
 const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
 
-const num = (x: number | string | undefined | null) => Number(x || 0).toLocaleString('en-IN');
-const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+const num = (x: number | string | undefined | null) => {
+  const n = Number(x);
+  return isNaN(n) ? '0' : n.toLocaleString('en-IN');
+};
+
+const pctOf = (a: number | string | undefined | null, b: number | string | undefined | null) => {
+  const numA = Number(a) || 0;
+  const numB = Number(b) || 0;
+  return numB ? Math.round((numA / numB) * 1000) / 10 : 0;
+};
+
 const escapeHtml = (s: string) =>
   String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -38,7 +47,7 @@ const escapeHtml = (s: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-// Responsive chart height hook
+// Responsive chart height hook matching Solar ERP standard
 const useChartHeight = (desktop: number, mobile: number) => {
   const pick = () => (typeof window !== 'undefined' && window.innerWidth < 640 ? mobile : desktop);
   const [h, setH] = useState(pick);
@@ -50,25 +59,11 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-/* ───────── Responsive page CSS (Solar ERP reference, all columns scrollable) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP reference, all columns scrollable) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2559bf;
-    --asw-primary-rgb: 37, 89, 191;
-    --ax-primary: #2559bf;
-    --ax-primary-hover: #1e4699;
-    --ax-primary-rgb: 37, 89, 191;
-  }
-  .solar-erp-page .ax-btn--primary,
-  .solar-erp-page .ax-button--primary {
-    background: #2559bf !important;
-    border-color: #2559bf !important;
-    color: #ffffff !important;
-  }
-  .solar-erp-page .ax-btn--primary:hover,
-  .solar-erp-page .ax-button--primary:hover {
-    background: #1e4699 !important;
-    border-color: #1e4699 !important;
+    --asw-primary: var(--ax-accent, #2563eb);
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
   }
   .solar-erp-page .ax-page-head { margin-block-end: 10px; }
   .solar-erp-page .ax-page-head .ax-breadcrumb { margin-block-end: 4px; }
@@ -149,10 +144,10 @@ const PAGE_CSS = `
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .solar-erp-page .ax-table { min-width: 850px; }
-  .solar-erp-page .ax-welcome__lede { max-width: 820px; }
+  .solar-erp-page .ax-table { min-width: 900px; }
+  .solar-erp-page .ax-welcome__lede { max-width: 860px; }
 
-  /* Filter bar styling */
+  /* Filter bar matching DleDashboard */
   .solar-erp-page .asw-filter-item { display: flex; align-items: center; gap: 6px; }
   .solar-erp-page .asw-filter-item select { width: 165px; }
 
@@ -272,23 +267,23 @@ const PAGE_CSS = `
   }
 `;
 
-/* ───────── SVG Icons matching Solar ERP design language ───────── */
+/* ───────── SVG Icons matching Solar ERP standard ───────── */
 const svg = (children: ReactNode) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
 const I_PIN = svg(<><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0" /></>);
-const I_BOLT = svg(<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />);
 const I_CLOCK = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 7v5l3 3" /></>);
 const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" /></>);
 const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 10l4 4m0 -4l-4 4" /></>);
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
 const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="7" y1="15" x2="7.01" y2="15" /><line x1="11" y1="15" x2="13" y2="15" /></>);
+const I_USER = svg(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>);
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
 
-/* ───────── KPI Card Component ───────── */
+/* ───────── KPI card Component matching Solar ERP reference ───────── */
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -302,7 +297,7 @@ interface KpiProps {
   onClick?: () => void;
 }
 const TONE: Record<KpiProps['tone'], { bg: string; fg: string; apex: string }> = {
-  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf', apex: '#2559bf' },
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb', apex: '#2563eb' },
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2', apex: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a', apex: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706', apex: '#d97706' },
@@ -389,40 +384,26 @@ export function SslDashboard() {
 
   // Filter states
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
-  const [selectedVendor, setSelectedVendor] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [tableQuery, setTableQuery] = useState<string>('');
   const [vendorQuery, setVendorQuery] = useState<string>('');
 
-  // Responsive chart heights
+  // Chart heights
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // Vendor Lookup Map
-  const [vendorMap, setVendorMap] = useState<Record<string | number, string>>({
-    '142': 'Surya Roshni Solar Infrastructure',
-    '212': 'Havells India Lighting Division',
-    '304': 'Signify Innovations Solar Systems',
-    '418': 'Microsun Solar Tech J&K',
-    '520': 'Tata Power Solar Systems J&K',
-    '630': 'Jakson Green Power & Lighting',
-  });
-
-  // Load Dashboard Data
+  // 1. Load Live Dashboard Data (Strictly live API - zero fake fallback)
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
-      const [res, vMap] = await Promise.all([
-        jammuSslAdminService.getDashboard(),
-        jammuSslAdminService.getVendorMap(),
-      ]);
-      setData(res);
-      setVendorMap(vMap);
+      const res = await jammuSslAdminService.getDashboard();
+      setData(res || null);
       setUpdatedAt(new Date());
     } catch (err: any) {
       console.error('Jammu SSL Dashboard fetch error:', err);
-      setApiError(err?.message || 'Failed to fetch Jammu SSL dashboard data');
+      setApiError(err?.message || 'Failed to fetch dynamic dashboard data');
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -432,28 +413,31 @@ export function SslDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Status Drill-down Navigation to Verify Desk
+  // ── Status Drill-down Navigation to StatusView ──
   const openDrillDown = (statusKey: string, _label?: string, district?: string, vendorId?: string | number) => {
     const normalizedStatus = normalizeJammuDashboardStatus(statusKey);
     const targetDistrict = district && district !== 'All' ? district : (selectedDistrict !== 'All' ? selectedDistrict : undefined);
-    const targetVendor = vendorId && vendorId !== 'All' ? vendorId : (selectedVendor !== 'All' ? selectedVendor : undefined);
     const params = new URLSearchParams();
     params.set('status', normalizedStatus);
-    if (targetDistrict) params.set('district', String(targetDistrict));
-    if (targetVendor) params.set('vendor', String(targetVendor));
-    navigate(`/vendor-management/jammu/installation/ssl/verify-lights?${params.toString()}`);
+    if (targetDistrict) {
+      params.set('district', targetDistrict);
+      params.set('mode', 'district');
+      params.set('value', targetDistrict);
+    }
+    if (vendorId !== undefined && vendorId !== null && vendorId !== '' && vendorId !== 'All') {
+      params.set('vendor', String(vendorId));
+      params.set('mode', 'vendor');
+      params.set('value', String(vendorId));
+    }
+    navigate(`/vendor-management/jammu/installation/ssl/status-view?${params.toString()}`);
   };
 
   const districtwise: DistrictWiseItem[] = useMemo(() => data?.districtwise || [], [data]);
   const vendorswise: VendorWiseItem[] = useMemo(() => data?.vendorswise || [], [data]);
-  const monthlyInstallations: MonthInstallationItem[] = useMemo(
-    () => data?.vendor_installation_month || [],
-    [data]
-  );
-  const todayInstallations: TodayInstallationItem[] = useMemo(
-    () => data?.vendor_today_installation || [],
-    [data]
-  );
+  const monthlyInstallations: MonthInstallationItem[] = useMemo(() => {
+    const raw = data?.vendor_installation_month || [];
+    return [...raw].sort((a, b) => (a.month_year || '').localeCompare(b.month_year || ''));
+  }, [data]);
 
   // District options for filter
   const districtOptions = useMemo(
@@ -461,72 +445,45 @@ export function SslDashboard() {
     [districtwise]
   );
 
-  // Vendor options for filter
-  const vendorOptions = useMemo(
-    () =>
-      vendorswise.map((v) => ({
-        id: v.inst_vendor,
-        name: v.vendor_name || vendorMap[String(v.inst_vendor)] || `Vendor ${v.inst_vendor}`,
-      })),
-    [vendorswise, vendorMap]
-  );
-
   // Filtered district rows based on selectedDistrict and selectedStatus
   const filteredDistricts = useMemo(() => {
     return districtwise.filter((d) => {
       const matchDistrict = selectedDistrict === 'All' || d.district.toLowerCase() === selectedDistrict.toLowerCase();
       let matchStatus = true;
-      if (selectedStatus === 'Complete') matchStatus = (d.inst_complete || 0) > 0;
-      else if (selectedStatus === 'Pending') matchStatus = (d.inst_pending || 0) > 0;
+      if (selectedStatus === 'Complete') matchStatus = (d.complete || 0) > 0;
+      else if (selectedStatus === 'Pending') matchStatus = (d.pending || 0) > 0;
+      else if (selectedStatus === 'Assigned') matchStatus = (Number(d.light_count) || 0) > 0;
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
       else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
       else if (selectedStatus === 'ClaimApproved') matchStatus = (d.claim_approved || 0) > 0;
-      else if (selectedStatus === 'PayDone') matchStatus = (d.payment_done || 0) > 0;
+      else if (selectedStatus === 'PayComplete') matchStatus = (d.inst_pay_done || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
-  // Filtered vendor rows based on selectedVendor and selectedStatus
-  const filteredVendors = useMemo(() => {
-    return vendorswise.filter((v) => {
-      const matchVendor = selectedVendor === 'All' || String(v.inst_vendor) === String(selectedVendor);
-      let matchStatus = true;
-      if (selectedStatus === 'Complete') matchStatus = (v.inst_complete || 0) > 0;
-      else if (selectedStatus === 'Pending') matchStatus = (v.inst_pending || 0) > 0;
-      else if (selectedStatus === 'VerifyApproved') matchStatus = (v.verify_approved || 0) > 0;
-      else if (selectedStatus === 'VerifyPending') matchStatus = (v.verify_pending || 0) > 0;
-      else if (selectedStatus === 'VerifyReject') matchStatus = (v.verify_reject || 0) > 0;
-      else if (selectedStatus === 'ClaimApproved') matchStatus = (v.claim_approved || 0) > 0;
-      else if (selectedStatus === 'PayDone') matchStatus = (v.payment_done || 0) > 0;
-      return matchVendor && matchStatus;
-    });
-  }, [vendorswise, selectedVendor, selectedStatus]);
+  const rawShl = useMemo(() => {
+    const s = data?.shldatas;
+    return {
+      site_count: Number(s?.site_count || 0),
+      site_assigned: Number(s?.site_assigned || 0),
+      site_not_assigned: Number(s?.site_not_assigned || 0),
+      complete: Number(s?.complete || 0),
+      pending: Number(s?.pending || 0),
+      verify_pending: Number(s?.verify_pending || 0),
+      verify_approved: Number(s?.verify_approved || 0),
+      verify_reject: Number(s?.verify_reject || 0),
+      claim_applicable: Number(s?.claim_applicable || 0),
+      claim_approved: Number(s?.claim_approved || 0),
+      claim_pending: Number(s?.claim_pending || 0),
+      inst_pay_done: Number(s?.inst_pay_done || 0),
+      inst_pay_pending: Number(s?.inst_pay_pending || 0),
+    };
+  }, [data]);
 
-  const rawShl = useMemo(
-    () =>
-      data?.shldatas || {
-        site_count: 0,
-        site_assigned: 0,
-        site_not_assigned: 0,
-        complete: 0,
-        pending: 0,
-        verify_pending: 0,
-        verify_approved: 0,
-        verify_reject: 0,
-        claim_applicable: 0,
-        claim_raised: 0,
-        claim_approved: 0,
-        claim_pending: 0,
-        inst_pay_done: 0,
-        inst_pay_pending: 0,
-      },
-    [data]
-  );
-
-  // Dynamic metrics aggregate when filters are active
+  // Dynamic shl metrics: aggregates from filteredDistricts when any filter is selected
   const shl = useMemo(() => {
-    if (selectedDistrict === 'All' && selectedStatus === 'All' && selectedVendor === 'All') {
+    if (selectedDistrict === 'All' && selectedStatus === 'All') {
       return rawShl;
     }
     if (filteredDistricts.length === 0) {
@@ -540,7 +497,6 @@ export function SslDashboard() {
         verify_approved: 0,
         verify_reject: 0,
         claim_applicable: 0,
-        claim_raised: 0,
         claim_approved: 0,
         claim_pending: 0,
         inst_pay_done: 0,
@@ -552,17 +508,16 @@ export function SslDashboard() {
         site_count: acc.site_count + (Number(d.light_count) || 0),
         site_assigned: acc.site_assigned + (Number(d.light_count) || 0),
         site_not_assigned: 0,
-        complete: acc.complete + (Number(d.inst_complete) || 0),
-        pending: acc.pending + (Number(d.inst_pending) || 0),
+        complete: acc.complete + (Number(d.complete) || 0),
+        pending: acc.pending + (Number(d.pending) || 0),
         verify_pending: acc.verify_pending + (Number(d.verify_pending) || 0),
         verify_approved: acc.verify_approved + (Number(d.verify_approved) || 0),
         verify_reject: acc.verify_reject + (Number(d.verify_reject) || 0),
-        claim_applicable: acc.claim_applicable + (Number(d.claim_raised) || 0),
-        claim_raised: acc.claim_raised + (Number(d.claim_raised) || 0),
+        claim_applicable: acc.claim_applicable,
         claim_approved: acc.claim_approved + (Number(d.claim_approved) || 0),
-        claim_pending: acc.claim_pending + (Number(d.claim_reject || 0)),
-        inst_pay_done: acc.inst_pay_done + (Number(d.payment_done) || 0),
-        inst_pay_pending: acc.inst_pay_pending + (Number(d.payment_pending) || 0),
+        claim_pending: acc.claim_pending,
+        inst_pay_done: acc.inst_pay_done + (Number(d.inst_pay_done) || 0),
+        inst_pay_pending: acc.inst_pay_pending,
       }),
       {
         site_count: 0,
@@ -574,18 +529,17 @@ export function SslDashboard() {
         verify_approved: 0,
         verify_reject: 0,
         claim_applicable: 0,
-        claim_raised: 0,
         claim_approved: 0,
         claim_pending: 0,
         inst_pay_done: 0,
         inst_pay_pending: 0,
       }
     );
-  }, [rawShl, filteredDistricts, selectedDistrict, selectedStatus, selectedVendor]);
+  }, [rawShl, filteredDistricts, selectedDistrict, selectedStatus]);
 
-  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All' || selectedVendor !== 'All';
+  const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
-  // Table search & pagination for District Table
+  // Table search & pagination for Districts
   const deferredDistrictQuery = useDeferredValue(tableQuery);
   const tableDistricts = useMemo(() => {
     const q = deferredDistrictQuery.trim().toLowerCase();
@@ -596,39 +550,41 @@ export function SslDashboard() {
 
   const {
     paginatedData: pagedDistricts,
-    currentPage: districtCurrentPage,
-    pageSize: districtPageSize,
-    totalItems: districtTotalItems,
-    setPage: setDistrictPage,
-    setPageSize: setDistrictPageSize,
-  } = usePagination({ data: tableDistricts, initialPageSize: 10 });
+    currentPage,
+    pageSize,
+    totalItems,
+    setPage,
+    setPageSize,
+  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
 
   useEffect(() => {
-    setDistrictPage(1);
-  }, [tableQuery, selectedDistrict, selectedStatus]);
+    setPage(1);
+  }, [tableQuery, selectedDistrict, selectedStatus, setPage]);
 
-  // Table search & pagination for Vendor Table
+  // Table search & pagination for Vendors
   const deferredVendorQuery = useDeferredValue(vendorQuery);
   const tableVendors = useMemo(() => {
     const q = deferredVendorQuery.trim().toLowerCase();
-    return filteredVendors.filter((v) => {
-      const vName = (v.vendor_name || vendorMap[String(v.inst_vendor)] || `Vendor ${v.inst_vendor}`).toLowerCase();
-      return !q || vName.includes(q);
+    return vendorswise.filter((v) => {
+      if (!q) return true;
+      const vName = (v.vendor_name || `Vendor #${v.inst_vendor}`).toLowerCase();
+      const vId = String(v.inst_vendor || '').toLowerCase();
+      return vName.includes(q) || vId.includes(q);
     });
-  }, [filteredVendors, deferredVendorQuery, vendorMap]);
+  }, [vendorswise, deferredVendorQuery]);
 
   const {
     paginatedData: pagedVendors,
-    currentPage: vendorCurrentPage,
+    currentPage: currentVendorPage,
     pageSize: vendorPageSize,
-    totalItems: vendorTotalItems,
+    totalItems: totalVendorItems,
     setPage: setVendorPage,
     setPageSize: setVendorPageSize,
   } = usePagination({ data: tableVendors, initialPageSize: 10 });
 
   useEffect(() => {
     setVendorPage(1);
-  }, [vendorQuery, selectedVendor, selectedStatus]);
+  }, [vendorQuery, setVendorPage]);
 
   // Percentages & Rates
   const pctComplete = pctOf(shl.complete, shl.site_count);
@@ -637,64 +593,60 @@ export function SslDashboard() {
   const pctClaimApproved = pctOf(shl.claim_approved, shl.complete || 1);
   const pctPaid = pctOf(shl.inst_pay_done, shl.complete || 1);
 
-  // Workflow Milestones list
+  // Milestones list
   const milestones = [
-    { label: '1. Allocated Solar Street Lights', v: shl.site_count, of: shl.site_count || 1, color: LIGHT_BLUE },
-    { label: '2. Pole Erection & Lux Photos Uploaded', v: shl.complete, of: shl.site_count || 1, color: LIGHT_GREEN },
-    { label: '3. Field & RMS Telemetry Verified', v: shl.verify_approved, of: shl.complete || shl.site_count || 1, color: LIGHT_CYAN },
-    { label: '4. Compliance Claims & CA Approved', v: shl.claim_approved, of: shl.complete || shl.site_count || 1, color: LIGHT_VIOLET },
+    { label: '1. Allocated Solar Lights', v: shl.site_count, of: shl.site_count || 1, color: LIGHT_BLUE },
+    { label: '2. Equipment Installed & Photos', v: shl.complete, of: shl.site_count || 1, color: LIGHT_GREEN },
+    { label: '3. Field Verification Approved', v: shl.verify_approved, of: shl.complete || shl.site_count || 1, color: LIGHT_CYAN },
+    { label: '4. Installation Claims Approved', v: shl.claim_approved, of: shl.complete || shl.site_count || 1, color: LIGHT_VIOLET },
     { label: '5. Payment Disbursement Settled', v: shl.inst_pay_done, of: shl.complete || shl.site_count || 1, color: LIGHT_AMBER },
   ];
 
-  // Top districts for bar chart
+  // Top districts for bar chart matching filters
   const chartDistricts = useMemo(
-    () => [...filteredDistricts].sort((a, b) => (b.inst_complete || 0) - (a.inst_complete || 0)).slice(0, 15),
+    () => [...filteredDistricts].sort((a, b) => (Number(b.complete) || 0) - (Number(a.complete) || 0)).slice(0, 15),
     [filteredDistricts]
   );
 
-  // Real Sparklines datasets
+  // Sparklines datasets derived from real data
   const siteSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.light_count || 0) : undefined;
-  const completeSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.inst_complete || 0) : undefined;
-  const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.inst_pending || 0) : undefined;
+  const completeSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.complete || 0) : undefined;
+  const pendingSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.pending || 0) : undefined;
   const verifySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.verify_approved || 0) : undefined;
 
-  const execRateSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_complete, d.light_count)) : undefined;
-  const auditPassSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.verify_approved, (d.verify_approved + d.verify_reject) || 1)) : undefined;
-  const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.claim_approved, d.inst_complete || 1)) : undefined;
-  const paySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.payment_done, d.inst_complete || 1)) : undefined;
+  const claimSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.claim_approved, d.complete || 1)) : undefined;
+  const paySpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => pctOf(d.inst_pay_done, d.complete || 1)) : undefined;
 
-  // Export definitions for District Table
-  const districtCols: ExportColumn<DistrictWiseItem>[] = useMemo(
-    () => [
-      { header: 'District', accessor: 'district' },
-      { header: 'Allocated Lights', accessor: 'light_count' },
-      { header: 'Installed Lights', accessor: 'inst_complete' },
-      { header: 'Pending Lights', accessor: 'inst_pending' },
-      { header: 'Verify Approved', accessor: 'verify_approved' },
-      { header: 'Verify Pending', accessor: 'verify_pending' },
-      { header: 'Claims Approved', accessor: 'claim_approved' },
-      { header: 'Payment Settled', accessor: 'payment_done' },
-    ],
-    []
-  );
+  // Export Columns definition for District Table
+  const districtCols: ExportColumn<DistrictWiseItem>[] = useMemo(() => [
+    { header: 'District', accessor: 'district' },
+    { header: 'Allocated Lights', accessor: 'light_count' },
+    { header: 'Installed Lights', accessor: 'complete' },
+    { header: 'Pending Lights', accessor: 'pending' },
+    { header: 'Verify Approved', accessor: 'verify_approved' },
+    { header: 'Verify Pending', accessor: 'verify_pending' },
+    { header: 'Verify Rejected', accessor: 'verify_reject' },
+    { header: 'Claims Approved', accessor: 'claim_approved' },
+    { header: 'Payment Settled', accessor: 'inst_pay_done' },
+  ], []);
 
-  // Export definitions for Vendor Table
-  const vendorCols: ExportColumn<VendorWiseItem>[] = useMemo(
-    () => [
-      { header: 'Vendor Name', accessor: 'vendor_name' },
-      { header: 'Allocated Lights', accessor: 'light_count' },
-      { header: 'Installed', accessor: 'inst_complete' },
-      { header: 'Pending', accessor: 'inst_pending' },
-      { header: 'Verify Approved', accessor: 'verify_approved' },
-      { header: 'Verify Pending', accessor: 'verify_pending' },
-      { header: 'Verify Rejected', accessor: 'verify_reject' },
-      { header: 'Claims Approved', accessor: 'claim_approved' },
-      { header: 'Payment Settled', accessor: 'payment_done' },
-    ],
-    []
-  );
+  // Export Columns definition for Vendor Performance Table
+  const vendorCols: ExportColumn<VendorWiseItem>[] = useMemo(() => [
+    { header: 'Vendor Name', accessor: (v) => v.vendor_name || `Vendor #${v.inst_vendor}` },
+    { header: 'Vendor ID', accessor: 'inst_vendor' },
+    { header: 'Allocated Lights', accessor: 'site_count' },
+    { header: 'Installed Lights', accessor: 'complete' },
+    { header: 'Pending Lights', accessor: 'pending' },
+    { header: 'Verify Approved', accessor: 'verify_approved' },
+    { header: 'Verify Pending', accessor: 'verify_pending' },
+    { header: 'Verify Rejected', accessor: 'verify_reject' },
+    { header: 'Claims Approved', accessor: 'claim_approved' },
+    { header: 'Payment Settled', accessor: 'inst_pay_done' },
+  ], []);
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const fileBase = 'Jammu_SSL_District_Overview';
+  const fileTitle = 'Jammu SSL District-Wise Installation Performance';
 
   const getExportValue = <T,>(row: T, column: ExportColumn<T>) =>
     typeof column.accessor === 'function'
@@ -718,14 +670,14 @@ export function SslDashboard() {
   const exportToCSV = <T,>(list: T[], columns: ExportColumn<T>[], filename: string) => {
     if (!list.length || !columns.length) return;
     const out = [
-      columns.map((c) => String(c.header ?? '')),
+      columns.map((c) => c.header),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
     const csv = out.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
-  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[], label: string) => {
+  const copyToClipboard = async <T,>(list: T[], columns: ExportColumn<T>[], msg = 'Data copied to clipboard!') => {
     if (!list.length || !columns.length) return;
     const t = [
       columns.map((c) => c.header).join('\t'),
@@ -733,7 +685,7 @@ export function SslDashboard() {
     ].join('\n');
     try {
       await navigator.clipboard.writeText(t);
-      alert(`${label} copied to clipboard!`);
+      alert(msg);
     } catch {
       const ta = document.createElement('textarea');
       ta.value = t;
@@ -743,7 +695,7 @@ export function SslDashboard() {
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      alert(`${label} copied to clipboard!`);
+      alert(msg);
     }
   };
 
@@ -777,35 +729,39 @@ export function SslDashboard() {
         title="Jammu SSL Installation Dashboard"
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Operational oversight of solar street light allotments, pole erection milestones, RMS telemetry, and disbursements across Jammu & Kashmir.
+            Solar Street Light (SSL) Operations, District Analysis & Execution Throughput
             {updatedAt ? ` · Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
           </span>
         }
         breadcrumbs={[
-          { label: 'Home', href: '/' },
+          { label: 'ERP Dashboard', href: '/' },
           { label: 'Vendor Management', href: '/vendor-management' },
-          { label: 'Jammu', href: '/vendor-management/jammu' },
-          { label: 'SSL Installation', href: '/vendor-management/jammu/installation/ssl/dashboard' },
+          { label: 'Jammu' },
+          { label: 'Installation' },
+          { label: 'SSL' },
           { label: 'Dashboard' },
         ]}
         actions={
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
-              <span className="ax-badge__dot" /> State: Jammu & Kashmir
+              <span className="ax-badge__dot" /> State: Jammu
             </span>
-            <Link to="/vendor-management/jammu/installation/ssl/assign-lights" className="ax-btn ax-btn--secondary ax-btn--sm">
+            <Link to="/vendor-management/jammu/installation/ssl/status-view?status=complete" className="ax-btn ax-btn--primary ax-btn--sm">
+              Status Register
+            </Link>
+            <Link to="/vendor-management/jammu/installation/ssl/assign-lights" className="ax-btn ax-btn--primary ax-btn--sm">
               Assign Lights
             </Link>
-            <Link to="/vendor-management/jammu/installation/ssl/view-assign-lights" className="ax-btn ax-btn--secondary ax-btn--sm">
-              View Assigned
+            <Link to="/vendor-management/jammu/installation/ssl/view-assign" className="ax-btn ax-btn--primary ax-btn--sm">
+              View Assign
             </Link>
             <Link to="/vendor-management/jammu/installation/ssl/verify-lights" className="ax-btn ax-btn--primary ax-btn--sm">
-              <span className="ax-btn__label">Verify Lights</span>
+              Verify Lights
             </Link>
-            <Link to="/vendor-management/jammu/installation/ssl/claim-request" className="ax-btn ax-btn--secondary ax-btn--sm">
+            <Link to="/vendor-management/jammu/installation/ssl/claim-request" className="ax-btn ax-btn--primary ax-btn--sm">
               Claim Request
             </Link>
-            <Link to="/vendor-management/jammu/installation/ssl/payment-request" className="ax-btn ax-btn--secondary ax-btn--sm">
+            <Link to="/vendor-management/jammu/installation/ssl/payment-request" className="ax-btn ax-btn--primary ax-btn--sm">
               Payment Request
             </Link>
           </div>
@@ -833,17 +789,17 @@ export function SslDashboard() {
                 style={{
                   gap: '6px', color: 'var(--ax-text-strong)', fontSize: 'var(--ax-text-xs)', fontWeight: 700,
                   textTransform: 'uppercase', letterSpacing: '0.04em', padding: '4px 10px',
-                  background: 'rgba(37, 89, 191, 0.08)', borderRadius: 'var(--ax-radius-pill, 9999px)',
-                  border: '1px solid rgba(37, 89, 191, 0.2)',
+                  background: 'rgba(37, 99, 235, 0.08)', borderRadius: 'var(--ax-radius-pill, 9999px)',
+                  border: '1px solid rgba(37, 99, 235, 0.2)',
                 }}
               >
                 {ICON_FILTER} Filter Operations
               </span>
 
               <div className="ax-cluster asw-filter-item">
-                <label htmlFor="ssl-district-select" style={labelStyle}>District:</label>
+                <label htmlFor="asw-district-select" style={labelStyle}>District:</label>
                 <select
-                  id="ssl-district-select"
+                  id="asw-district-select"
                   className="ax-input ax-input--sm"
                   style={{ height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }}
                   value={selectedDistrict}
@@ -854,26 +810,10 @@ export function SslDashboard() {
                 </select>
               </div>
 
-              {vendorOptions.length > 0 && (
-                <div className="ax-cluster asw-filter-item">
-                  <label htmlFor="ssl-vendor-select" style={labelStyle}>Vendor:</label>
-                  <select
-                    id="ssl-vendor-select"
-                    className="ax-input ax-input--sm"
-                    style={{ height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }}
-                    value={selectedVendor}
-                    onChange={(e) => setSelectedVendor(e.target.value)}
-                  >
-                    <option value="All">All Vendors ({vendorOptions.length})</option>
-                    {vendorOptions.map((v) => <option key={v.id} value={String(v.id)}>{v.name}</option>)}
-                  </select>
-                </div>
-              )}
-
               <div className="ax-cluster asw-filter-item">
-                <label htmlFor="ssl-status-select" style={labelStyle}>Status:</label>
+                <label htmlFor="asw-status-select" style={labelStyle}>Status:</label>
                 <select
-                  id="ssl-status-select"
+                  id="asw-status-select"
                   className="ax-input ax-input--sm"
                   style={{ height: 30, fontSize: 'var(--ax-text-xs)', paddingInline: '8px' }}
                   value={selectedStatus}
@@ -886,7 +826,7 @@ export function SslDashboard() {
                   <option value="VerifyPending">Verification Pending</option>
                   <option value="VerifyReject">Verification Rejected</option>
                   <option value="ClaimApproved">Claim Approved</option>
-                  <option value="PayDone">Payment Settled</option>
+                  <option value="PayComplete">Payment Settled</option>
                 </select>
               </div>
 
@@ -895,7 +835,7 @@ export function SslDashboard() {
                   type="button"
                   className="ax-btn ax-btn--ghost ax-btn--sm"
                   style={{ height: 28, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
-                  onClick={() => { setSelectedDistrict('All'); setSelectedVendor('All'); setSelectedStatus('All'); setTableQuery(''); setVendorQuery(''); }}
+                  onClick={() => { setSelectedDistrict('All'); setSelectedStatus('All'); setTableQuery(''); }}
                 >
                   Reset Filters
                 </button>
@@ -918,8 +858,8 @@ export function SslDashboard() {
               { key: 'Pending', label: 'Pending' },
               { key: 'VerifyApproved', label: 'Verify Approved' },
               { key: 'VerifyPending', label: 'In Audit' },
-              { key: 'ClaimApproved', label: 'Claims Approved' },
-              { key: 'PayDone', label: 'Payment Settled' },
+              { key: 'ClaimApproved', label: 'Claim Approved' },
+              { key: 'PayComplete', label: 'Payment Settled' },
             ].map((p) => {
               const isActive = selectedStatus === p.key;
               return (
@@ -947,18 +887,18 @@ export function SslDashboard() {
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Jammu SSL Operations Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
-              <p className="ax-welcome__eyebrow">Jammu & Kashmir Solar Street Light System</p>
+              <p className="ax-welcome__eyebrow">Jammu Solar Street Light System</p>
               <h2 className="ax-card__title">Welcome to Jammu SSL Operations Dashboard</h2>
               <p className="ax-welcome__lede">
                 {selectedDistrict !== 'All' ? (
                   <>
-                    Jammu & Kashmir SSL execution overview for <b>{selectedDistrict}</b>: <b>{num(shl.site_count)} solar street lights</b> allocated.
-                    <b> {num(shl.complete)} ({pctComplete}%)</b> installed, with <b>{num(shl.verify_approved)}</b> verified approved, <b>{num(shl.claim_approved)}</b> claims settled, and <b>{num(shl.inst_pay_done)}</b> payment disbursements.
+                    Jammu SSL execution overview for <b>{selectedDistrict}</b>: <b>{num(shl.site_count)} solar lights</b> allocated.
+                    <b> {num(shl.complete)} ({pctComplete}%)</b> installed, with <b>{num(shl.verify_approved)}</b> verified approved, <b>{num(shl.claim_approved)}</b> claims approved, and <b>{num(shl.inst_pay_done)}</b> payment settlements.
                   </>
                 ) : (
                   <>
-                    Jammu & Kashmir SSL execution overview: <b>{num(shl.site_count)} solar street lights</b> allocated across <b>{districtOptions.length} districts</b> and <b>{vendorswise.length} authorized vendors</b>.
-                    <b> {num(shl.complete)} ({pctComplete}%)</b> installed, with <b>{num(shl.verify_approved)}</b> verified approved, <b>{num(shl.claim_approved)}</b> claims settled, and <b>{num(shl.inst_pay_done)}</b> payment disbursements.
+                    Jammu SSL execution overview: <b>{num(shl.site_count)} solar lights</b> allocated across <b>{districtOptions.length} districts</b> in Jammu.
+                    <b> {num(shl.complete)} ({pctComplete}%)</b> installed, with <b>{num(shl.verify_approved)}</b> verified approved, <b>{num(shl.claim_approved)}</b> claims approved, and <b>{num(shl.inst_pay_done)}</b> payment settlements.
                   </>
                 )}
               </p>
@@ -971,13 +911,13 @@ export function SslDashboard() {
                   {selectedDistrict !== 'All' ? selectedDistrict : num(districtOptions.length)}
                 </dd>
                 <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-viz-emerald, #10b981)' }}>
-                  {selectedDistrict !== 'All' ? 'Active Filter Scope' : 'Operational Scope'}
+                  {selectedDistrict !== 'All' ? 'Active Filter Scope' : 'Jammu Operational Scope'}
                 </small>
               </div>
               <div className="ax-welcome__stat">
                 <dt>Allocated Lights</dt>
                 <dd className="ax-num">{num(shl.site_count)}</dd>
-                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--asw-primary)' }}>Total Scope</small>
+                <small style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--asw-primary)' }}>Total Beneficiaries</small>
               </div>
               <div className="ax-welcome__stat">
                 <dt>Installed Lights</dt>
@@ -993,7 +933,7 @@ export function SslDashboard() {
           </div>
         </section>
 
-        {/* 4. Core KPI Cards (interactive with sparklines) */}
+        {/* 4. Core 8 KPI Cards */}
         <KpiCard
           icon={I_PIN}
           tone="accent"
@@ -1066,8 +1006,8 @@ export function SslDashboard() {
           tone="violet"
           label="Claims Approved"
           value={num(shl.claim_approved)}
-          unit="Lights"
-          sub={`${num(shl.claim_applicable)} Claim applicable`}
+          unit="Claims"
+          sub={`${pctClaimApproved}% of installations`}
           badge={`${pctClaimApproved}%`}
           onClick={() => openDrillDown('claim-approved', 'Claims Approved Lights')}
         />
@@ -1078,12 +1018,13 @@ export function SslDashboard() {
           label="Payment Settled"
           value={num(shl.inst_pay_done)}
           unit="Lights"
-          sub={`${num(shl.inst_pay_pending)} Payment pending`}
+          sub="Payment cleared"
           badge={`${pctPaid}%`}
+          spark={paySpark}
           onClick={() => openDrillDown('pay-done', 'Payment Settled Lights')}
         />
 
-        {/* 5. Operational Highlights & Execution Tracker */}
+        {/* 5. Additional Full Response Operational Highlights */}
         <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
           <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
             <div>
@@ -1091,55 +1032,58 @@ export function SslDashboard() {
                 Operations & Quality Performance
               </span>
               <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', margin: 0 }}>
-                Execution Throughput & Quality Health
+                Full Operational Metrics & Governance
               </h2>
             </div>
             <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 'var(--ax-text-xs)' }}>
-              Super Admin Management
+              Jammu SSL Full Response Tracker
             </span>
           </div>
         </div>
 
-        {/* Operational Highlights Cards */}
+        {/* Secondary Operational Metrics Cards */}
         <KpiCard
-          icon={I_BOLT}
-          tone="emerald"
-          label="Execution Rate"
-          value={`${pctComplete}%`}
-          sub={`${num(shl.complete)} of ${num(shl.site_count)} lights installed`}
-          badge="Installed"
-          spark={execRateSpark}
-          onClick={() => openDrillDown('complete', 'Completed Lights')}
-        />
-
-        <KpiCard
-          icon={I_SHIELD}
-          tone="cyan"
-          label="Audit Pass Rate"
-          value={`${pctOf(shl.verify_approved, (shl.verify_approved + shl.verify_reject) || 1)}%`}
-          sub={`${num(shl.verify_approved)} Passed · ${num(shl.verify_reject)} Rejected`}
-          spark={auditPassSpark}
-          onClick={() => openDrillDown('verify-approved', 'Approved Audits')}
+          icon={I_USER}
+          tone="accent"
+          label="Assigned Lights"
+          value={num(shl.site_assigned || 0)}
+          unit="Lights"
+          sub={`${num(shl.site_not_assigned || 0)} unassigned lights`}
+          badge={`${pctOf(shl.site_assigned || 0, shl.site_count || 1)}%`}
+          spark={siteSpark}
+          onClick={() => openDrillDown('assigned', 'Assigned Lights')}
         />
 
         <KpiCard
           icon={I_DOC}
           tone="violet"
-          label="Claim Approved"
+          label="Claim Approved Rate"
           value={`${pctClaimApproved}%`}
-          sub={`${num(shl.claim_approved)} claims settled`}
+          sub={`${num(shl.claim_approved)} approved lights`}
           spark={claimSpark}
-          onClick={() => openDrillDown('claim-approved', 'Approved Claims')}
+          onClick={() => openDrillDown('claim-approved', 'Claims Cleared Lights')}
         />
 
         <KpiCard
           icon={I_CREDIT}
-          tone="accent"
-          label="Payment Settlement"
-          value={`${pctPaid}%`}
-          sub={`${num(shl.inst_pay_done)} lights disbursed`}
-          spark={paySpark}
-          onClick={() => openDrillDown('pay-done', 'Settled Payments')}
+          tone="cyan"
+          label="Payment Done"
+          value={num(shl.inst_pay_done || 0)}
+          unit="Lights"
+          sub={`${num(shl.inst_pay_pending || 0)} Payment pending`}
+          badge="Settlements"
+          onClick={() => openDrillDown('pay-done', 'Paid Lights')}
+        />
+
+        <KpiCard
+          icon={I_CLOCK}
+          tone="amber"
+          label="Pending Verification"
+          value={num(shl.verify_pending || 0)}
+          unit="Lights"
+          sub={`${pctOf(shl.verify_pending, shl.complete || 1)}% of complete`}
+          spark={verifySpark}
+          onClick={() => openDrillDown('verify-pending', 'Pending Verification Lights')}
         />
 
         {/* State Operations Executive Card */}
@@ -1147,11 +1091,11 @@ export function SslDashboard() {
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>State Operations</span>
-              <h3 className="ax-card__title">Jammu & Kashmir · Solar Street Light (SSL) Operations</h3>
-              <p className="ax-card__subtitle">{num(shl.complete)} lights installed across {districtOptions.length} districts in Jammu & Kashmir</p>
+              <h3 className="ax-card__title">Jammu · Solar Street Light (SSL) Operations</h3>
+              <p className="ax-card__subtitle">{num(shl.complete)} lights installed across {districtOptions.length} districts in Jammu</p>
             </div>
             <Link to="/vendor-management/jammu/installation/ssl/verify-lights" className="ax-btn ax-btn--sm ax-btn--primary">
-              View Installation Register →
+              View Verification Register →
             </Link>
           </div>
           <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
@@ -1185,7 +1129,7 @@ export function SslDashboard() {
             </div>
 
             <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle, #f1f5f9)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
-              <b>Verification & Compliance:</b> {num(shl.verify_approved)} lights approved by auditor ({pctVerified}%) · {num(shl.claim_approved)} claims approved · {num(shl.inst_pay_done)} payment settlements confirmed across Jammu & Kashmir.
+              <b>Verification & Compliance Summary:</b> {num(shl.site_count)} allocated · {num(shl.verify_approved)} verified approved ({num(shl.verify_pending)} QA pending, {num(shl.verify_reject)} rejected) · {num(shl.claim_approved)} claims approved · {num(shl.inst_pay_done)} payments settled.
             </div>
           </div>
         </section>
@@ -1196,7 +1140,7 @@ export function SslDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
               <h2 className="ax-card__title">District Wise Installations</h2>
-              <p className="ax-card__subtitle">{num(shl.complete)} installed of {num(shl.site_count)} allocated across {districtOptions.length} districts</p>
+              <p className="ax-card__subtitle">{num(shl.complete)} installed of {num(shl.site_count)} allocated across {districtOptions.length} districts in Jammu</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={{ gap: 'var(--ax-space-3)' }}>
@@ -1216,13 +1160,13 @@ export function SslDashboard() {
             {chartDistricts.length > 0 ? (
               <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
                 <ApexChart
-                  key={`dist-chart-${chartH}-${chartDistricts.map((d) => `${d.district}-${d.inst_complete}-${d.light_count}`).join('-')}`}
+                  key={`dist-chart-${chartH}-${chartDistricts.map((d) => `${d.district}-${d.complete}-${d.light_count}`).join('-')}`}
                   type="bar"
                   height={chartH}
                   legend="none"
                   ariaLabel="District-wise installation comparison"
                   series={[
-                    { name: 'Installed Lights', data: chartDistricts.map((d) => d.inst_complete || 0) },
+                    { name: 'Installed Lights', data: chartDistricts.map((d) => d.complete || 0) },
                     { name: 'Allocated Lights', data: chartDistricts.map((d) => d.light_count || 0) },
                   ]}
                   apex={{
@@ -1326,7 +1270,7 @@ export function SslDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Monthly Execution</span>
               <h2 className="ax-card__title">Monthly Installation Trend</h2>
-              <p className="ax-card__subtitle">Installation pace and throughput across recent months in Jammu & Kashmir</p>
+              <p className="ax-card__subtitle">Installation pace and throughput across recent months</p>
             </div>
             <div className="ax-card__actions">
               <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
@@ -1405,13 +1349,13 @@ export function SslDashboard() {
           </div>
         </section>
 
-        {/* 8. District Wise Detailed Table */}
-        <section className="ax-card ax-col--8" role="region" aria-label="District wise summary table">
+        {/* 8. District Wise Detailed Table (Full Response Data) */}
+        <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Geographic Breakdown</span>
-              <h2 className="ax-card__title">District Wise SSL Summary</h2>
-              <p className="ax-card__subtitle">Allocated, installed, verification & payment metrics per district across J&K</p>
+              <h2 className="ax-card__title">District Wise SSL Summary (Complete Response Data)</h2>
+              <p className="ax-card__subtitle">Allocated, installed, verification & payment settlement metrics across all districts</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
@@ -1422,95 +1366,127 @@ export function SslDashboard() {
                   ariaLabel="Search districts"
                 />
                 <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableDistricts, districtCols, 'District overview data')}
-                  onExportCSV={() => exportToCSV(tableDistricts, districtCols, `Jammu_SSL_District_${stamp}`)}
-                  onExportExcel={() => exportToExcel(tableDistricts, districtCols, `Jammu_SSL_District_${stamp}`)}
-                  onExportPDF={() => exportToPDF(tableDistricts, districtCols, 'Jammu & Kashmir SSL District Summary')}
+                  onCopy={() => copyToClipboard(tableDistricts, districtCols, 'District summary data copied to clipboard!')}
+                  onExportCSV={() => exportToCSV(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableDistricts, districtCols, `${fileBase}_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableDistricts, districtCols, fileTitle)}
                 />
               </div>
             </div>
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1200, whiteSpace: 'nowrap' }}>
               <thead className="ax-table__head">
                 <tr>
                   <th className="ax-table__th" scope="col">District</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Allocated Lights</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Installed Lights</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending Lights</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Verify Rejected</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Claims Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedDistricts.map((d) => (
-                  <tr
-                    key={d.district}
-                    className="ax-table__row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                      <b>{d.district}</b>
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ fontWeight: 600, cursor: 'pointer' }}
-                      title={`View all allocated lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Lights', d.district); }}
+                {pagedDistricts.map((d) => {
+                  const pct = pctOf(d.complete, d.light_count);
+                  return (
+                    <tr
+                      key={d.district}
+                      className="ax-table__row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrillDown('complete', 'District Installations', d.district); } }}
+                      style={{ cursor: 'pointer' }}
                     >
-                      {num(d.light_count || 0)}
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                      title={`View completed lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Lights', d.district); }}
-                    >
-                      {num(d.inst_complete || 0)}
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
-                      title={`View pending lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Lights', d.district); }}
-                    >
-                      {num(d.inst_pending || 0)}
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
-                      title={`View verify approved lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Lights', d.district); }}
-                    >
-                      {num(d.verify_approved || 0)}
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
-                      title={`View claim approved lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('claim-approved', 'Claim Approved Lights', d.district); }}
-                    >
-                      {num(d.claim_approved || 0)}
-                    </td>
-                    <td
-                      className="ax-table__td ax-table__td--num ax-num"
-                      style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                      title={`View payment settled lights in ${d.district}`}
-                      onClick={(e) => { e.stopPropagation(); openDrillDown('pay-done', 'Payment Settled Lights', d.district); }}
-                    >
-                      {num(d.payment_done || 0)}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                        <b>{d.district}</b>
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ fontWeight: 600, cursor: 'pointer' }}
+                        title={`View all allocated lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Lights', d.district); }}
+                      >
+                        {num(d.light_count || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View completed lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Lights', d.district); }}
+                      >
+                        {num(d.complete || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View pending lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Lights', d.district); }}
+                      >
+                        {num(d.pending || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify approved lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Lights', d.district); }}
+                      >
+                        {num(d.verify_approved || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify pending lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verify Pending Lights', d.district); }}
+                      >
+                        {num(d.verify_pending || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View verify rejected lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Verify Rejected Lights', d.district); }}
+                      >
+                        {num(d.verify_reject || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View claims approved in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('claim-approved', 'Claim Approved Lights', d.district); }}
+                      >
+                        {num(d.claim_approved || 0)}
+                      </td>
+                      <td
+                        className="ax-table__td ax-table__td--num ax-num"
+                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
+                        title={`View payment settled lights in ${d.district}`}
+                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay-done', 'Payment Settled Lights', d.district); }}
+                      >
+                        {num(d.inst_pay_done || 0)}
+                      </td>
+                      <td className="ax-table__td">
+                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
+                            <div className="ax-progress__track">
+                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
+                            </div>
+                          </div>
+                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {!loading && pagedDistricts.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={7} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                    <td className="ax-table__td" colSpan={10} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
                       No districts match the filter criteria.
                     </td>
                   </tr>
@@ -1522,8 +1498,13 @@ export function SslDashboard() {
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed lights" onClick={() => openDrillDown('complete', 'Total Installed Lights')}>{num(shl.complete)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending lights" onClick={() => openDrillDown('pending', 'Total Pending Lights')}>{num(shl.pending)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved lights" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Lights')}>{num(shl.verify_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', cursor: 'pointer' }} title="View claim approved lights" onClick={() => openDrillDown('claim-approved', 'Total Claim Approved Lights')}>{num(shl.claim_approved)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View verify pending lights" onClick={() => openDrillDown('verify-pending', 'Total Verify Pending Lights')}>{num(shl.verify_pending)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)', cursor: 'pointer' }} title="View verify rejected lights" onClick={() => openDrillDown('verify-reject', 'Total Verify Rejected Lights')}>{num(shl.verify_reject)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', cursor: 'pointer' }} title="View claims approved" onClick={() => openDrillDown('claim-approved', 'Total Claims Approved')}>{num(shl.claim_approved)}</td>
                     <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View payment settled lights" onClick={() => openDrillDown('pay-done', 'Total Payment Settled Lights')}>{num(shl.inst_pay_done)}</td>
+                    <td className="ax-table__td">
+                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{pctComplete}%</b>
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1533,122 +1514,24 @@ export function SslDashboard() {
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
-                currentPage={districtCurrentPage}
-                curPage={districtCurrentPage}
-                totalItems={districtTotalItems}
-                total={districtTotalItems}
-                pageSize={districtPageSize}
-                onPageChange={setDistrictPage}
-                setPage={setDistrictPage}
-                onPageSizeChange={setDistrictPageSize}
+                currentPage={currentPage}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
                 pageSizeOptions={[10, 25, 50, 100, 200]}
               />
             </div>
           </div>
         </section>
 
-        {/* 9. District Quick-Access & Recent Activity */}
-        <section className="ax-card ax-col--4" role="region" aria-label="District Status & Quick Navigation">
+        {/* 9. Vendor-Wise Performance Table */}
+        <section className="ax-card ax-col--12" role="region" aria-label="Vendor Wise Performance">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">District Operations</span>
-              <h2 className="ax-card__title">District Quick Access</h2>
-              <p className="ax-card__subtitle">Installation progress by district across J&K</p>
-            </div>
-          </div>
-          <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <div>
-              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
-                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                  Top Execution Districts
-                </span>
-                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(shl.complete)} Installed</span>
-              </div>
-              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                {(filteredDistricts.length > 0 ? filteredDistricts : districtwise).slice(0, 8).map((d) => (
-                  <button
-                    key={d.district}
-                    type="button"
-                    className="ax-cluster"
-                    onClick={() => openDrillDown('complete', 'District Installations', d.district)}
-                    style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', border: 0, background: 'transparent', padding: '6px 0', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
-                  >
-                    <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
-                    <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                      {num(d.inst_complete || 0)} / {num(d.light_count || 0)} ({pctOf(d.inst_complete || 0, d.light_count || 1)}%)
-                    </b>
-                  </button>
-                ))}
-                {districtwise.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
-              </div>
-            </div>
-
-            {todayInstallations.length > 0 && (
-              <>
-                <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-3)' }} />
-                <div>
-                  <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
-                    <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
-                      Today's Installations
-                    </span>
-                    <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
-                      {num(todayInstallations.reduce((acc, t) => acc + (t.today_install || 0), 0))} Today
-                    </span>
-                  </div>
-                  <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
-                    {todayInstallations.map((t) => (
-                      <div
-                        key={t.inst_vendor}
-                        className="ax-cluster"
-                        style={{ width: '100%', justifyContent: 'space-between', fontSize: 'var(--ax-text-xs)', padding: '4px 0', borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)' }}
-                      >
-                        <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{t.vendor_name}</span>
-                        <b className="ax-num" style={{ color: 'var(--asw-primary)' }}>{num(t.today_install)} Lights</b>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="ax-divider" style={{ marginBlock: 'var(--ax-space-4)' }} />
-
-            {/* Quick Actions Links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ fontSize: 'var(--ax-text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
-                Quick Module Actions
-              </span>
-              <Link to="/vendor-management/jammu/installation/ssl/assign-lights" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Assign Jammu SSL Batches</span>
-                <span>→</span>
-              </Link>
-              <Link to="/vendor-management/jammu/installation/ssl/view-assign-lights" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>View Assigned SSL Lights</span>
-                <span>→</span>
-              </Link>
-              <Link to="/vendor-management/jammu/installation/ssl/verify-lights" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Verify Installed SSL Poles</span>
-                <span>→</span>
-              </Link>
-              <Link to="/vendor-management/jammu/installation/ssl/claim-request" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>Review Claim Requests</span>
-                <span>→</span>
-              </Link>
-              <Link to="/vendor-management/jammu/installation/ssl/payment-request" className="ax-btn ax-btn--secondary ax-btn--sm" style={{ justifyContent: 'space-between' }}>
-                <span>View Payment Settlements</span>
-                <span>→</span>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* 10. Vendor Wise Detailed Table */}
-        <section className="ax-card ax-col--12" role="region" aria-label="Vendor wise performance table" style={{ marginTop: 'var(--ax-space-2)' }}>
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <span className="ax-card__eyebrow">Vendor Execution Breakdown</span>
-              <h2 className="ax-card__title">Vendor Wise SSL Performance</h2>
-              <p className="ax-card__subtitle">Work allocation, completion, verification audit, and payment metrics per vendor across Jammu & Kashmir</p>
+              <span className="ax-card__eyebrow">Contractor & Vendor Execution</span>
+              <h2 className="ax-card__title">Vendor-Wise Installation Performance</h2>
+              <p className="ax-card__subtitle">Field throughput, audit approvals, compliance documentation and claim status per vendor contractor</p>
             </div>
             <div className="ax-card__actions">
               <div className="ax-cluster" style={actionsRowStyle}>
@@ -1659,36 +1542,38 @@ export function SslDashboard() {
                   ariaLabel="Search vendors"
                 />
                 <TableExportToolbar
-                  onCopy={() => copyToClipboard(tableVendors, vendorCols, 'Vendor performance data')}
-                  onExportCSV={() => exportToCSV(tableVendors, vendorCols, `Jammu_SSL_Vendors_${stamp}`)}
-                  onExportExcel={() => exportToExcel(tableVendors, vendorCols, `Jammu_SSL_Vendors_${stamp}`)}
-                  onExportPDF={() => exportToPDF(tableVendors, vendorCols, 'Jammu & Kashmir SSL Vendor Performance')}
+                  onCopy={() => copyToClipboard(tableVendors, vendorCols, 'Vendor performance data copied to clipboard!')}
+                  onExportCSV={() => exportToCSV(tableVendors, vendorCols, `Jammu_SSL_Vendor_Performance_${stamp}`)}
+                  onExportExcel={() => exportToExcel(tableVendors, vendorCols, `Jammu_SSL_Vendor_Performance_${stamp}`)}
+                  onExportPDF={() => exportToPDF(tableVendors, vendorCols, 'Jammu SSL Vendor-Wise Performance')}
                 />
               </div>
             </div>
           </div>
 
           <div className="ax-table-wrap">
-            <table className="ax-table ax-table--hover">
+            <table className="ax-table ax-table--hover" style={{ minWidth: 1200, whiteSpace: 'nowrap' }}>
               <thead className="ax-table__head">
                 <tr>
-                  <th className="ax-table__th" scope="col">Vendor Name</th>
+                  <th className="ax-table__th" scope="col">Vendor</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Allocated Lights</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Installed</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Pending</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Installed Lights</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Pending Lights</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Pending</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Rejected</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Claims Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Payment Settled</th>
+                  <th className="ax-table__th" scope="col" style={{ width: 140 }}>Progress</th>
                 </tr>
               </thead>
               <tbody>
                 {pagedVendors.map((v) => {
-                  const resolvedVendorTitle = v.vendor_name || vendorMap[String(v.inst_vendor)] || `Vendor ${v.inst_vendor}`;
+                  const pct = pctOf(v.complete, v.site_count);
+                  const vName = v.vendor_name || `Vendor #${v.inst_vendor}`;
                   return (
                     <tr
-                      key={v.inst_vendor}
+                      key={String(v.inst_vendor)}
                       className="ax-table__row"
                       role="button"
                       tabIndex={0}
@@ -1697,93 +1582,71 @@ export function SslDashboard() {
                       style={{ cursor: 'pointer' }}
                     >
                       <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                        <b>{resolvedVendorTitle}</b>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <b>{vName}</b>
+                          <small style={{ color: 'var(--ax-text-muted)', fontSize: '11px' }}>ID: #{v.inst_vendor}</small>
+                        </div>
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ fontWeight: 600, cursor: 'pointer' }}
-                        title={`View all lights assigned to ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('total', 'Allocated Lights', undefined, v.inst_vendor); }}
-                      >
-                        {num(v.light_count || 0)}
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                        {num(v.site_count || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View installed lights by ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('complete', 'Installed Lights', undefined, v.inst_vendor); }}
-                      >
-                        {num(v.inst_complete || 0)}
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                        {num(v.complete || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View pending lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('pending', 'Pending Lights', undefined, v.inst_vendor); }}
-                      >
-                        {num(v.inst_pending || 0)}
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
+                        {num(v.pending || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View verify approved lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-approved', 'Verify Approved Lights', undefined, v.inst_vendor); }}
-                      >
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', fontWeight: 600 }}>
                         {num(v.verify_approved || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View verification pending lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-pending', 'Verification Pending Lights', undefined, v.inst_vendor); }}
-                      >
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', fontWeight: 600 }}>
                         {num(v.verify_pending || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-red, #ef4444)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View rejected lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('verify-reject', 'Rejected Lights', undefined, v.inst_vendor); }}
-                      >
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)', fontWeight: 600 }}>
                         {num(v.verify_reject || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View claim approved lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('claim-approved', 'Claim Approved Lights', undefined, v.inst_vendor); }}
-                      >
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', fontWeight: 600 }}>
                         {num(v.claim_approved || 0)}
                       </td>
-                      <td
-                        className="ax-table__td ax-table__td--num ax-num"
-                        style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600, cursor: 'pointer' }}
-                        title={`View payment settled lights for ${resolvedVendorTitle}`}
-                        onClick={(e) => { e.stopPropagation(); openDrillDown('pay-done', 'Payment Settled Lights', undefined, v.inst_vendor); }}
-                      >
-                        {num(v.payment_done || 0)}
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                        {num(v.inst_pay_done || 0)}
+                      </td>
+                      <td className="ax-table__td">
+                        <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', flexWrap: 'nowrap', alignItems: 'center' }}>
+                          <div className="ax-progress ax-progress--sm" style={{ minWidth: 60, width: 60 }}>
+                            <div className="ax-progress__track">
+                              <div className="ax-progress__fill" style={{ width: `${pct}%`, background: pct >= 90 ? 'var(--ax-viz-emerald, #10b981)' : 'var(--asw-primary)' }} />
+                            </div>
+                          </div>
+                          <span className="ax-num" style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)', minWidth: 36 }}>{pct}%</span>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
                 {!loading && pagedVendors.length === 0 && (
                   <tr>
-                    <td className="ax-table__td" colSpan={9} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
-                      No vendors match the search criteria.
+                    <td className="ax-table__td" colSpan={10} style={{ textAlign: 'center', color: 'var(--ax-text-muted)', padding: 24 }}>
+                      No vendor performance records match your search.
                     </td>
                   </tr>
                 )}
                 {pagedVendors.length > 0 && (
                   <tr className="ax-table__row" style={{ background: 'var(--ax-surface-subtle, #f8fafc)', fontWeight: 'var(--ax-weight-bold)' }}>
                     <td className="ax-table__td" style={{ color: 'var(--ax-text-strong)' }}>Total (All Vendors)</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ cursor: 'pointer' }} title="View all allocated lights" onClick={() => openDrillDown('total', 'Total Allocated Lights')}>{num(shl.site_count)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View completed lights" onClick={() => openDrillDown('complete', 'Total Installed Lights')}>{num(shl.complete)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View pending lights" onClick={() => openDrillDown('pending', 'Total Pending Lights')}>{num(shl.pending)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)', cursor: 'pointer' }} title="View verify approved lights" onClick={() => openDrillDown('verify-approved', 'Total Verify Approved Lights')}>{num(shl.verify_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)', cursor: 'pointer' }} title="View verify pending lights" onClick={() => openDrillDown('verify-pending', 'Total Verify Pending Lights')}>{num(shl.verify_pending)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #ef4444)', cursor: 'pointer' }} title="View rejected lights" onClick={() => openDrillDown('verify-reject', 'Total Rejected Lights')}>{num(shl.verify_reject)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)', cursor: 'pointer' }} title="View claim approved lights" onClick={() => openDrillDown('claim-approved', 'Total Claim Approved Lights')}>{num(shl.claim_approved)}</td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', cursor: 'pointer' }} title="View payment settled lights" onClick={() => openDrillDown('pay-done', 'Total Payment Settled Lights')}>{num(shl.inst_pay_done)}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num">{num(vendorswise.reduce((s, v) => s + (Number(v.site_count) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.complete) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.pending) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-cyan, #0891b2)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.verify_approved) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.verify_pending) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #dc2626)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.verify_reject) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.claim_approved) || 0), 0))}</td>
+                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>{num(vendorswise.reduce((s, v) => s + (Number(v.inst_pay_done) || 0), 0))}</td>
+                    <td className="ax-table__td">
+                      <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                        {pctOf(vendorswise.reduce((s, v) => s + (Number(v.complete) || 0), 0), vendorswise.reduce((s, v) => s + (Number(v.site_count) || 0), 1))}%
+                      </b>
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -1793,16 +1656,108 @@ export function SslDashboard() {
           <div className="ax-card__footer" style={footerStyle}>
             <div className="ula-pagination-left">
               <Pagination
-                currentPage={vendorCurrentPage}
-                curPage={vendorCurrentPage}
-                totalItems={vendorTotalItems}
-                total={vendorTotalItems}
+                currentPage={currentVendorPage}
+                totalItems={totalVendorItems}
                 pageSize={vendorPageSize}
                 onPageChange={setVendorPage}
-                setPage={setVendorPage}
                 onPageSizeChange={setVendorPageSize}
-                pageSizeOptions={[10, 25, 50, 100, 200]}
+                pageSizeOptions={[5, 10, 25, 50]}
               />
+            </div>
+          </div>
+        </section>
+
+        {/* 10. District Quick-Access & Quick Actions */}
+        <section className="ax-card ax-col--6" role="region" aria-label="District Status & Quick Navigation">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">District Operations</span>
+              <h2 className="ax-card__title">Top Execution Districts (Leaderboard)</h2>
+              <p className="ax-card__subtitle">Highest installation completion across districts in Jammu</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div>
+              <div className="ax-cluster" style={{ justifyContent: 'space-between', marginBottom: 'var(--ax-space-2)' }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                  Installation Ranking
+                </span>
+                <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">{num(shl.complete)} Installed</span>
+              </div>
+              <div className="ax-statgroup ax-statgroup--stack" style={{ gap: 'var(--ax-space-2)' }}>
+                {(() => {
+                  const items = filteredDistricts;
+                  return items
+                    .slice()
+                    .sort((a: any, b: any) => (Number(b.complete) || 0) - (Number(a.complete) || 0))
+                    .slice(0, 10)
+                    .map((d: any) => {
+                      const completeVal = Number(d.complete) || 0;
+                      const totalVal = Number(d.light_count) || completeVal;
+                      const pct = pctOf(completeVal, totalVal);
+                      return (
+                        <button
+                          key={d.district}
+                          type="button"
+                          className="ax-cluster"
+                          onClick={() => openDrillDown('complete', 'District Installations', d.district)}
+                          style={{
+                            width: '100%',
+                            justifyContent: 'space-between',
+                            fontSize: 'var(--ax-text-xs)',
+                            border: 0,
+                            background: 'transparent',
+                            padding: '6px 0',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            borderBottom: '1px solid var(--ax-border-subtle, #f1f5f9)',
+                          }}
+                        >
+                          <span style={{ color: 'var(--ax-text-muted)', fontWeight: 500 }}>{d.district}</span>
+                          <b className="ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                            {num(completeVal)} / {num(totalVal)} ({pct}%)
+                          </b>
+                        </button>
+                      );
+                    });
+                })()}
+                {districtwise.length === 0 && <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>{loading ? 'Loading districts…' : 'No district data.'}</span>}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 11. Quick Module Actions */}
+        <section className="ax-card ax-col--6" role="region" aria-label="Quick Module Actions">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <span className="ax-card__eyebrow">Workflows & Portals</span>
+              <h2 className="ax-card__title">Quick Module Actions</h2>
+              <p className="ax-card__subtitle">Shortcuts to manage light allocations, audits and vendor payments</p>
+            </div>
+          </div>
+          <div className="ax-card__body" style={{ paddingTop: 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link to="/vendor-management/jammu/installation/ssl/assign-lights" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Assign Solar Street Lights</span>
+                <span>→</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/ssl/view-assign" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>View Assigned Lights Registry</span>
+                <span>📋</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/ssl/verify-lights" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Verify Light Installations</span>
+                <span>🔍</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/ssl/claim-request" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Review Claim Requests</span>
+                <span>📑</span>
+              </Link>
+              <Link to="/vendor-management/jammu/installation/ssl/payment-request" className="ax-btn ax-btn--primary ax-btn--sm" style={{ justifyContent: 'space-between', padding: '10px 14px' }}>
+                <span>Process Payment Requests</span>
+                <span>₹</span>
+              </Link>
             </div>
           </div>
         </section>

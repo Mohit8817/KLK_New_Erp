@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  getMediaUrl,
   upComplaintService,
   type UpPowerpackDetails,
 } from '../../up-services';
@@ -14,6 +15,10 @@ import {
   SmsRadioGroup,
   opts,
   getTodayFormatted,
+  formatDateForInput,
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
   type SectionItem,
 } from '../CommonSharedComplaints';
 
@@ -25,8 +30,14 @@ const SECTIONS: SectionItem[] = [
 
 export function UPComplaintPPAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   // Form State
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [complaintDate, setComplaintDate] = useState(getTodayFormatted());
   const [district, setDistrict] = useState('');
   const [block, setBlock] = useState('');
@@ -106,6 +117,88 @@ export function UPComplaintPPAdd() {
       mounted = false;
     };
   }, []);
+
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const blk = String(rec.block || '').trim();
+      const vil = String(rec.village || '').trim();
+      const bName = String(rec.beneficiary_name || '').trim();
+      const bId = String(rec.beneficiary_id || rec.uid || rec.uid_no || bName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'no').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.document || rec.file || rec.file1) || '');
+      setComplaintDate(formatDateForInput(rec.complaint_date || rec.created_date || rec.created_at) || getTodayFormatted());
+      setDistrict(dist);
+      setBlock(blk);
+      setVillage(vil);
+      setBeneficiaryId(bId);
+      setBeneficiaryName(bName);
+      setGender(String(rec.gender || ''));
+      setContactNo(String(rec.contact_no || rec.contact_number || ''));
+      setAddress(String(rec.address || ''));
+      setLatitude(rec.latitude !== undefined && rec.latitude !== null ? String(rec.latitude) : '');
+      setLongitude(rec.longitude !== undefined && rec.longitude !== null ? String(rec.longitude) : '');
+      setUidNo(String(rec.uid || rec.uid_no || ''));
+      setEmpanelledAgencies(String(rec.empanelled_agency || rec.empanelled_agencies || ''));
+      setInstallationStatus(String(rec.installation || rec.installation_status || ''));
+      setInstallationDate(formatDateForInput(rec.installation_date));
+      setContractorName(String(rec.contractor_name || ''));
+      setComplaintText(String(rec.complaint || ''));
+      setSendSms(rawSms === 'yes' || rawSms === '1' || rawSms === 'true' ? 'yes' : 'no');
+
+      if (dist) {
+        try {
+          const bList = await upComplaintService.getPowerpackBlocks(dist);
+          if (active) setBlocks(bList);
+        } catch {}
+        if (blk) {
+          try {
+            const vList = await upComplaintService.getPowerpackVillages(dist, blk);
+            if (active) setVillages(vList);
+          } catch {}
+          if (vil) {
+            try {
+              const list = await upComplaintService.getPowerpackBeneficiaryNames(dist, blk, vil);
+              if (!active) return;
+              const matched = list.find((b) => String(b.id) === bId || b.name === bName);
+              if (matched) {
+                setBeneficiaries(list);
+                setBeneficiaryId(String(matched.id));
+                setBeneficiaryName(matched.name);
+              } else if (bId || bName) {
+                setBeneficiaries([{ id: bId || bName, name: bName || bId }, ...list]);
+              } else {
+                setBeneficiaries(list);
+              }
+            } catch {
+              if (active && (bId || bName)) setBeneficiaries([{ id: bId || bName, name: bName || bId }]);
+            }
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getPowerpackEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
 
   // When District changes, load Blocks
   const handleDistrictChange = async (newDist: string) => {
@@ -191,7 +284,7 @@ export function UPComplaintPPAdd() {
 
     setLoadingDetails(true);
     try {
-      const details = await upComplaintService.getPowerpackDetails(selectedId);
+      const details = await upComplaintService.getPowerpackDetails(selectedId, chosen?.name);
       if (details) {
         populateDetails(details);
       }
@@ -222,6 +315,34 @@ export function UPComplaintPPAdd() {
     }
     if (details.contractor_name) setContractorName(String(details.contractor_name));
   };
+
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const detectLocation = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setGettingLocation(false);
+      },
+      (err) => {
+        console.warn('Geolocation failed:', err);
+        setGettingLocation(false);
+        if (!silent) {
+          alert('Could not retrieve GPS coordinates. Please ensure location permissions are enabled.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [beneficiaryId]);
 
   const resetAutoPopulatedFields = () => {
     setGender('');
@@ -254,7 +375,7 @@ export function UPComplaintPPAdd() {
     setFileKey((k) => k + 1);
   };
 
-  const validate = () => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!complaintDate) errs.complaint_date = 'Complaint Date is required.';
     if (!district) errs.district = 'District is required.';
@@ -262,26 +383,30 @@ export function UPComplaintPPAdd() {
     if (!village) errs.village = 'Village is required.';
     if (!beneficiaryId && !beneficiaryName) errs.beneficiary_name = 'Beneficiary Name is required.';
     if (!contactNo.trim()) errs.contact_no = 'Contact Number is required.';
-    if (!selectedFile) errs.document = 'Document / Photo is required.';
+    if (!isEdit && !selectedFile) errs.document = 'Document / Photo is required.';
     if (!complaintText.trim()) errs.complaint = 'Complaint description is required.';
     setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setToast(null);
 
-    if (!validate()) {
-      setToast({ type: 'error', message: 'Please correct highlighted errors before submitting.' });
-      setTimeout(() => {
-        document.querySelector('.has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setToast({ type: 'error', message: missingMsg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
     setSubmitting(true);
     const fd = new FormData();
+    if (isEdit && editId) {
+      fd.append('id', String(editId));
+      if (complaintCode) fd.append('complaint_id', complaintCode);
+    }
     fd.append('complaint_date', complaintDate);
     fd.append('district', district);
     fd.append('block', block);
@@ -312,28 +437,32 @@ export function UPComplaintPPAdd() {
     }
 
     try {
-      const res = await upComplaintService.savePowerpackComplaint(fd);
+      const res = isEdit
+        ? await upComplaintService.updatePowerpackComplaint(fd)
+        : await upComplaintService.savePowerpackComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Power Pack Complaint registered successfully!' });
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'Power Pack Complaint updated successfully!' : 'Power Pack Complaint registered successfully!'),
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        handleReset();
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/powerpack-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        if (res.errors) {
-          const mapped: Record<string, string> = {};
-          Object.entries(res.errors).forEach(([k, v]) => {
-            mapped[k] = Array.isArray(v) ? v[0] : String(v);
-          });
-          setFieldErrors(mapped);
-        }
-        setToast({ type: 'error', message: res.message || 'Submission failed. Please check form data.' });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const extracted = extractBackendError(res, isEdit ? 'Update failed. Please check form data.' : 'Submission failed. Please check form data.');
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setToast({ type: 'error', message: extracted.message });
+        setTimeout(() => scrollToFirstError(), 50);
       }
     } catch (errAny: any) {
-      setToast({ type: 'error', message: errAny?.message || 'Network error occurred during submission.' });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(errAny, 'Network error occurred during submission.');
+      setToast({ type: 'error', message: extracted.message });
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -341,27 +470,28 @@ export function UPComplaintPPAdd() {
 
   return (
     <ComplaintFormLayout
-      title="Welcome to, Add Vendor UP Power Pack Complaints"
+      title={isEdit ? 'Edit Vendor UP Power Pack Complaint' : 'Welcome to, Add Vendor UP Power Pack Complaints'}
       subtitle={
         <span style={{ fontSize: 'var(--ax-text-sm, 13px)', color: 'var(--ax-text-muted, #64748b)' }}>
-          Register mini-grid / micro-solar power pack breakdown and repair requests
+          {isEdit ? 'Update mini-grid / micro-solar power pack breakdown and repair request' : 'Register mini-grid / micro-solar power pack breakdown and repair requests'}
         </span>
       }
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'Vendor Power Pack Complaints', href: '/v/complaint/up/powerpack-view-complaint' },
-        { label: 'Add UP Power Pack Complaints' },
+        { label: isEdit ? 'Edit UP Power Pack Complaint' : 'Add UP Power Pack Complaints' },
       ]}
       viewLink="/v/complaint/up/powerpack-view-complaint"
       viewLabel="View Complaints"
       eyebrow="Solar Power Pack"
-      formTitle="Add UP Power Pack Complaints"
-      formSubtitle="Select the rural micro-grid beneficiary, verify solar power pack details, and submit the service request across 3 dedicated sections."
+      formTitle={isEdit ? `Edit UP Power Pack Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP Power Pack Complaints'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Select the rural micro-grid beneficiary, verify solar power pack details, and submit the service request across 3 dedicated sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={submitting}
-      submitLabel="Submit Complaint"
+      submitLabel={isEdit ? 'Update Complaint' : 'Submit Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* Section 1 */}
@@ -456,11 +586,38 @@ export function UPComplaintPPAdd() {
           num="2"
           total={3}
           title="Geo Coordinates, Agency & Contractor Info"
-          desc="Auto-populated from system record; editable."
+          desc="Site GPS coordinates and contractor details."
         />
         <div className="up-form-grid up-form-grid--3col">
-          <FloatingInput id="pp-lat" label="Latitude" value={latitude} onChange={setLatitude} />
-          <FloatingInput id="pp-lng" label="Longitude" value={longitude} onChange={setLongitude} />
+          <FloatingInput
+            id="pp-lat"
+            label="Latitude"
+            value={latitude}
+            onChange={() => {}}
+            readOnly={true}
+            style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+            placeholder="Auto-detected GPS Latitude"
+          />
+          <FloatingInput
+            id="pp-lng"
+            label="Longitude"
+            value={longitude}
+            onChange={() => {}}
+            readOnly={true}
+            style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+            placeholder="Auto-detected GPS Longitude"
+          />
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              style={{ width: '100%', height: 46 }}
+              onClick={() => detectLocation(false)}
+              disabled={gettingLocation}
+            >
+              {gettingLocation ? 'Detecting...' : '📍 Auto-detect GPS'}
+            </button>
+          </div>
           <FloatingInput id="pp-agencies" label="Empanelled Agencies" value={empanelledAgencies} onChange={setEmpanelledAgencies} />
           <FloatingInput id="pp-inst-status" label="Installation Status" value={installationStatus} onChange={setInstallationStatus} />
           <FloatingInput id="pp-inst-date" label="Installation Date" type="date" value={installationDate} onChange={setInstallationDate} />
@@ -483,9 +640,10 @@ export function UPComplaintPPAdd() {
             key={fileKey}
             id="pp-file"
             label="Upload File (Defect Photo / Site Document)"
-            required
+            required={!isEdit}
             accept="image/*,.pdf,.doc,.docx"
             file={selectedFile}
+            existingUrl={existingFile}
             onChange={(f) => {
               setSelectedFile(f);
               clearErr('document');

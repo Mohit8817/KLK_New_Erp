@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../../../../services/authService';
 import { getAuthToken, resolveUpMediaUrl } from './upComplaintService';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 export { resolveUpMediaUrl };
 
@@ -77,19 +78,36 @@ async function apiRequest<T = any>(
         json.status === true ||
         json.status === 'success' ||
         json.success === true ||
-        (res.ok && json.status !== false && json.success !== false);
+        (res.ok && json.status !== false && json.success !== false && !json.errors);
+
+      if (!isSuccess) {
+        const extracted = extractBackendError(json, json?.message || `Request failed with status ${res.status}`);
+        return {
+          status: false,
+          ...json,
+          message: extracted.message,
+          errors: json.errors || extracted.rawErrors,
+        };
+      }
+
       return {
         status: isSuccess,
         ...json,
       };
     }
 
+    if (!res.ok) {
+      const extracted = extractBackendError(json, `Request failed with status ${res.status}`);
+      return { status: false, message: extracted.message, errors: extracted.rawErrors, data: json };
+    }
+
     return { status: res.ok, data: json };
   } catch (err: any) {
     console.warn(`[UP Installation API] Request failed for ${endpoint}:`, err);
+    const extracted = extractBackendError(err, err?.message || 'Network request failed');
     return {
       status: false,
-      message: err?.message || 'Network request failed',
+      message: extracted.message,
       error: err?.message,
     };
   }
@@ -178,13 +196,21 @@ export interface UpSsl18wInstallDetailsCount {
 export interface UpSsl18wInstalledLightItem {
   id: number;
   uid: string;
+  company_id?: string;
+  wo_no?: string;
+  wo_received?: number;
+  volume?: string;
   installation_date?: string;
   inst_date?: string;
+  inst_deadline?: string;
+  inst_assign_date?: string;
+  inst_status?: number;
   state?: string;
   phase?: string;
   district?: string;
   block?: string;
   panchayat?: string;
+  village?: string | null;
   ward_no?: string;
   pole_no?: string;
   beneficiary_name?: string;
@@ -192,9 +218,11 @@ export interface UpSsl18wInstalledLightItem {
   latitude?: string;
   longitude?: string;
   light_no?: string;
+  light_type?: string | null;
   uuid_no?: string;
   battery_serial_no?: string;
   panel_no?: string;
+  imei_no?: string | null;
   light_file?: string;
   remark?: string;
   inst_remarks?: string;
@@ -205,8 +233,17 @@ export interface UpSsl18wInstalledLightItem {
   inst_verify_remarks?: string;
   claim_status?: number;
   inst_claim_status?: number;
+  inst_claim_date?: string | null;
+  inst_claim_id?: number | string | null;
   inst_pay_status?: number;
   payment_status?: number;
+  bill_raised_85?: number;
+  payment_85?: number;
+  amc_status?: number;
+  amc_date?: string | null;
+  amc_type?: string | number | null;
+  created_at?: string;
+  updated_at?: string;
   action?: string;
 }
 
@@ -388,29 +425,75 @@ export interface UpRescoClaimItem {
 
 export interface UpRescoInstalledSiteItem {
   id: number;
+  unique_id?: string | null;
+  company_id?: string;
+  volume?: string;
+  phase?: string;
+  wo_no?: string;
   state?: string;
   district?: string;
   site_name?: string;
+  dept_name?: string;
+  address?: string;
+  firm_name?: string;
+  ca_no?: string;
+  sanction_load?: string;
+  revised_load?: string | null;
+  plant_sc?: string;
   installation_date?: string;
+  inst_date?: string;
+  inst_status?: number;
   contact_person?: string;
   contact_number?: string;
   solar_meter_no?: string;
+  solarmeter_no?: string;
   inverter_no?: string;
+  inverter_make?: string | null;
   net_smart_meter_no?: string;
+  nm_sm_no?: string;
   loger_no?: string;
+  panel_make?: string | null;
+  panel_wp?: string | null;
+  panel_qty?: string | null;
   latitude?: string;
   longitude?: string;
+  inst_latitude?: string;
+  inst_longitude?: string;
   remark?: string;
+  inst_remarks?: string;
   verify_status?: number;
+  inst_verify_status?: number;
   verify_remarks?: string;
+  inst_verify_remarks?: string;
+  inst_verify_by?: string | number;
+  inst_verify_date?: string;
   document_status?: number;
+  inst_doc_status?: number;
   document_file?: string;
+  inst_doc_file?: string;
+  inst_doc_date?: string;
   document_remarks?: string;
+  inst_doc_remarks?: string;
+  inst_doc_verify_by?: string | number;
+  inst_doc_verify_date?: string;
+  inst_doc_verify_remarks?: string;
+  inst_claim1_status?: number;
+  inst_claim2_status?: number;
+  inst_claim3_status?: number;
+  inst_pay1_status?: number;
+  inst_pay2_status?: number;
+  inst_pay3_status?: number;
+  amc_status?: number;
+  amc_date?: string;
+  amc_type?: string;
   system_image?: string;
   inverter_image?: string;
   panel_image?: string;
   net_meter_smart_meter_image?: string;
+  nm_sm_image?: string;
   loger_image?: string;
+  created_at?: string;
+  updated_at?: string;
   [key: string]: any;
 }
 
@@ -472,18 +555,31 @@ export interface UpRescoVerifiedSite {
 export type UpRescoMonthlyBillItem = UpRescoVerifiedSite;
 
 export interface UpRescoBillInverterReading {
+  id?: number;
+  company_id?: string;
+  resco_bill_id?: string | number;
   inverter_no: string;
   previous_reading: number | string;
   current_reading: number | string;
   generated_reading: number | string;
   amount: number | string;
+  reading_date?: string;
+  doc_file?: string | null;
   file?: string | null;
+  status?: string | number;
+  created_at?: string;
+  updated_at?: string;
   remarks?: string | null;
   [key: string]: any;
 }
 
 export interface UpRescoBillItem {
   id: number;
+  company_id?: string;
+  resco_id?: number | string;
+  state?: string;
+  site_name?: string;
+  inverter_no?: string | null;
   bill_no: string;
   bill_date?: string;
   billing_from?: string;
@@ -494,7 +590,19 @@ export interface UpRescoBillItem {
   reading?: number | string;
   per_unit_price?: number | string;
   bill_status?: number;
+  type?: number;
   verify_status?: number;
+  verify_by?: string | null;
+  verify_remarks?: string | null;
+  verify_date?: string | null;
+  pay_date?: string | null;
+  pay_amount?: number | string | null;
+  pay_status?: number;
+  created_by?: string | number;
+  updated_by?: string | number | null;
+  created_at?: string;
+  updated_at?: string;
+  doc_file?: string | null;
   file?: string | null;
   remarks?: string | null;
   readings?: UpRescoBillInverterReading[];
@@ -931,9 +1039,16 @@ class UpInstallationService {
   /** SSL 5: Pending lights and parent vendor */
   async getSsl18wInstallSiteData(): Promise<UpSsl18wInstallSiteResponse> {
     const res = await apiRequest('up/ssl-install-18w-light');
+    const sslSites = Array.isArray(res.ssl_sites)
+      ? res.ssl_sites
+      : Array.isArray(res.data?.ssl_sites)
+      ? res.data.ssl_sites
+      : Array.isArray(res.data)
+      ? res.data
+      : [];
     return {
-      vendor: res.vendor,
-      ssl_sites: Array.isArray(res.ssl_sites) ? res.ssl_sites : [],
+      vendor: res.vendor ?? res.data?.vendor,
+      ssl_sites: sslSites,
     };
   }
 
@@ -1053,9 +1168,14 @@ class UpInstallationService {
   /** SSL 14: Lights eligible for a claim */
   async getSsl18wClaimApplicableLights(): Promise<{ count: number; ids: number[] }> {
     const res = await apiRequest('up/ssl-fetch-claim-applicable-light');
+    const ids = Array.isArray(res.ids)
+      ? res.ids
+      : Array.isArray(res.data?.ids)
+      ? res.data.ids
+      : [];
     return {
-      count: Number(res.count ?? (res.ids?.length || 0)),
-      ids: Array.isArray(res.ids) ? res.ids : [],
+      count: Number(res.count ?? res.data?.count ?? ids.length),
+      ids,
     };
   }
 
@@ -1234,9 +1354,9 @@ class UpInstallationService {
   /** Resco 2: View assigned site detail */
   async getRescoAssignDetail(id: number | string): Promise<{ status: boolean; data?: UpRescoAssignSiteItem }> {
     const res = await apiRequest(`up/resco/installation/view-assign-detail/${id}`);
-    const assign = res.data?.assign_resc || res.data?.assign || res.data || res.assign_resc || res;
+    const assign = res.data?.assign_resc || res.data?.assign || res.data || res.assign_resc || null;
     if (!assign) {
-      return { status: res.status, data: undefined };
+      return { status: Boolean(res.status), data: undefined };
     }
 
     let siteNameObj: Record<string, string> | string = assign.site_name;
@@ -1321,55 +1441,63 @@ class UpInstallationService {
 
   /** Resco 4: Fetch sites ready for installation (dropdown) */
   async getRescoAvailableSites(): Promise<{ id: number | string; site_name: string; resco_id?: number | string; site_id?: number | string; district?: string; state?: string; [key: string]: any }[]> {
-    const endpoints = [
-      'up/resco/installation/fetch-site',
-      'up/resco/installation/fetch-site-name',
-      'up/resco/installation/fetch-sites',
-      'up/resco/installation/fetch-sites-name',
-      'up/resco-installation-fetch-site',
-      'up/resco-install-site',
-      'up/resco/fetch-site',
-      'up/resco/fetch-site-name',
-      'up/resco-survey',
-    ];
-
-    for (const ep of endpoints) {
-      try {
-        const res = await apiRequest(ep);
-        let list: any[] = [];
-        if (Array.isArray(res)) list = res;
-        else if (Array.isArray(res.data)) list = res.data;
-        else if (Array.isArray(res.sites)) list = res.sites;
-        else if (Array.isArray(res.site)) list = res.site;
-        else if (Array.isArray(res.resco)) list = res.resco;
-        else if (Array.isArray(res.rescos)) list = res.rescos;
-        else if (res.data && typeof res.data === 'object') {
-          if (Array.isArray(res.data.sites)) list = res.data.sites;
-          else if (Array.isArray(res.data.site)) list = res.data.site;
-          else if (Array.isArray(res.data.resco)) list = res.data.resco;
-          else if (Array.isArray(res.data.rescos)) list = res.data.rescos;
-          else if (Array.isArray(res.data.data)) list = res.data.data;
-        }
-
-        if (list.length > 0) {
-          return list.map((item: any) => {
-            const rawId = item.id ?? item.resco_id ?? item.site_id;
-            const rescoId = item.resco_id ?? item.site_id ?? item.id;
-            return {
-              id: rawId,
-              resco_id: rescoId,
-              site_id: rescoId,
-              site_name: item.site_name || item.name || `Site #${rawId}`,
-              district: item.district || '',
-              state: item.state || 'UP',
-              ...item,
-            };
-          });
-        }
-      } catch {
-        // try next endpoint
+    const extractList = (res: any): any[] => {
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res?.data)) return res.data;
+      if (Array.isArray(res?.sites)) return res.sites;
+      if (Array.isArray(res?.site)) return res.site;
+      if (Array.isArray(res?.resco)) return res.resco;
+      if (Array.isArray(res?.rescos)) return res.rescos;
+      if (res?.data && typeof res.data === 'object') {
+        if (Array.isArray(res.data.sites)) return res.data.sites;
+        if (Array.isArray(res.data.site)) return res.data.site;
+        if (Array.isArray(res.data.resco)) return res.data.resco;
+        if (Array.isArray(res.data.rescos)) return res.data.rescos;
+        if (Array.isArray(res.data.data)) return res.data.data;
       }
+      return [];
+    };
+
+    const mapItems = (list: any[]) =>
+      list
+        .filter((item) => item && typeof item === 'object')
+        .map((item: any) => {
+          const rawId = item.id ?? item.resco_id ?? item.site_id;
+          const rescoId = item.resco_id ?? item.site_id ?? item.id;
+          return {
+            ...item,
+            id: rawId,
+            resco_id: rescoId,
+            site_id: rescoId,
+            site_name: item.site_name || item.name || (rawId ? `Site #${rawId}` : ''),
+            district: item.district || '',
+            state: item.state || '',
+          };
+        })
+        .filter((item) => item.id !== undefined && item.id !== null && String(item.id).trim() !== '');
+
+    // 1. Primary Resco installation dropdown endpoint
+    try {
+      const res = await apiRequest('up/resco/installation/fetch-site');
+      const list = extractList(res);
+      if (list.length > 0) {
+        return mapItems(list);
+      }
+    } catch {
+      // fall through to pending dashboard sites
     }
+
+    // 2. Fallback to real pending Resco installation sites (master Resco records)
+    try {
+      const pendingRes = await apiRequest('up/resco/installation/view-dashboard/pending');
+      const pendingList = extractList(pendingRes);
+      if (pendingList.length > 0) {
+        return mapItems(pendingList);
+      }
+    } catch {
+      // ignore
+    }
+
     return [];
   }
 
@@ -1394,6 +1522,7 @@ class UpInstallationService {
       else if (res.data && typeof res.data === 'object' && res.data !== null) {
         if (res.data.resco && typeof res.data.resco === 'object') detail = res.data.resco;
         else if (res.data.site && typeof res.data.site === 'object') detail = res.data.site;
+        else if (Array.isArray(res.data) && res.data.length > 0) detail = res.data[0];
         else if (!Array.isArray(res.data)) detail = res.data;
       } else if (res && typeof res === 'object' && !Array.isArray(res)) {
         // Only accept if res contains actual site record properties
@@ -1404,11 +1533,13 @@ class UpInstallationService {
 
       if (detail && typeof detail === 'object' && Object.keys(detail).length > 0) {
         const resolvedId = detail.id ?? detail.resco_id ?? detail.site_id ?? cleanId;
+        const apiVendor = res.ven?.name || res.data?.ven?.name || res.vendor?.name || res.data?.vendor?.name;
         return {
           ...detail,
           id: resolvedId,
           resco_id: detail.resco_id ?? resolvedId,
           site_id: detail.site_id ?? resolvedId,
+          ...(apiVendor && !detail.vendor ? { vendor: apiVendor } : {}),
         } as UpRescoSiteDetail;
       }
     } catch (err) {
@@ -1488,7 +1619,13 @@ class UpInstallationService {
   /** Resco 13: Verified installed sites (pick a site for billing) */
   async getRescoVerifiedSites(): Promise<UpRescoVerifiedSite[]> {
     const res = await apiRequest('up/resco/view-install');
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.sites)) return res.sites;
+    if (Array.isArray(res.resco)) return res.resco;
+    if (Array.isArray(res.data?.sites)) return res.data.sites;
+    if (Array.isArray(res.data?.resco)) return res.data.resco;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    return [];
   }
 
   /** Alias for Resco 13: Monthly billing verified sites */
@@ -1510,9 +1647,14 @@ class UpInstallationService {
   /** Resco 15: Bills of a site */
   async getRescoSiteBills(rescoId: number | string): Promise<{ rescos?: any; bills: UpRescoBillItem[] }> {
     const res = await apiRequest(`up/resco/view-create-bill?resco_id=${rescoId}`);
+    const rawBills =
+      (Array.isArray(res.bills) && res.bills) ||
+      (Array.isArray(res.data?.bills) && res.data.bills) ||
+      (Array.isArray(res.data) && res.data) ||
+      [];
     return {
-      rescos: res.data?.rescos,
-      bills: Array.isArray(res.data?.bills) ? res.data.bills : [],
+      rescos: res.rescos || res.data?.rescos,
+      bills: rawBills,
     };
   }
 
@@ -1523,6 +1665,91 @@ class UpInstallationService {
       body: fd,
       isMultipart: true,
     });
+  }
+
+  /** Resco 17: Download Resco Billing PDF (GET up/resco-billing-pdf/{id}) */
+  async downloadRescoBillingPdf(
+    billId: number | string,
+    billNo?: string
+  ): Promise<{ status: boolean; message?: string }> {
+    const base = getBaseUrl();
+    const url = `${base}/up/resco-billing-pdf/${billId}`;
+    const token = getAuthToken();
+
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/pdf, application/json, */*',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        try {
+          const json = JSON.parse(text);
+          return {
+            status: false,
+            message: json?.error || json?.message || `Download failed with HTTP ${res.status}`,
+          };
+        } catch {
+          return { status: false, message: `Download failed with HTTP ${res.status}` };
+        }
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        const fileUrl =
+          json?.url ||
+          json?.pdf_url ||
+          json?.file ||
+          json?.pdf ||
+          json?.download_url ||
+          json?.data?.url ||
+          json?.data?.pdf_url ||
+          json?.data?.file;
+
+        if (fileUrl) {
+          const fullUrl = resolveUpMediaUrl(fileUrl);
+          const a = document.createElement('a');
+          a.href = fullUrl;
+          a.target = '_blank';
+          const cleanBillNo = billNo ? String(billNo).replace(/[^a-zA-Z0-9_-]/g, '_') : billId;
+          a.download = `Resco_Bill_${cleanBillNo}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          return { status: true, message: 'Resco billing PDF downloaded successfully!' };
+        }
+
+        return {
+          status: false,
+          message: json?.message || json?.error || 'PDF document not available for this bill.',
+        };
+      }
+
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      const cleanBillNo = billNo ? String(billNo).replace(/[^a-zA-Z0-9_-]/g, '_') : billId;
+      a.download = `Resco_Bill_${cleanBillNo}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(objectUrl);
+      document.body.removeChild(a);
+      return { status: true, message: 'Resco billing PDF downloaded successfully!' };
+    } catch (err: any) {
+      console.error('Error downloading Resco billing PDF:', err);
+      return { status: false, message: err?.message || 'Error downloading Resco billing PDF.' };
+    }
+  }
+
+  /** Resco 18: Get Resco Billing PDF direct URL */
+  getRescoBillingPdfUrl(billId: number | string): string {
+    return `${getBaseUrl()}/up/resco-billing-pdf/${billId}`;
   }
 
   /** Resco Claim Helper: List claims */
@@ -1547,7 +1774,7 @@ class UpInstallationService {
   }
 
   /** Resco Claim Helper: Submit claim */
-  async storeRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string }> {
+  async storeRescoClaim(fd: FormData): Promise<{ status: boolean; message?: string; errors?: any }> {
     const endpoints = [
       'up/resco/installation/claim-store',
       'up/resco/installation/add-claim',
@@ -1564,6 +1791,13 @@ class UpInstallationService {
         });
         if (res.status !== false && res.success !== false) {
           return { status: true, message: res.message || 'Payment claim submitted successfully!' };
+        }
+        if (res.errors && typeof res.errors === 'object') {
+          const errMsg = Object.values(res.errors).flat().join(' ');
+          return { status: false, message: errMsg || res.message || 'Validation failed.', errors: res.errors };
+        }
+        if (res.message && !String(res.message).toLowerCase().includes('not found') && !String(res.message).includes('404')) {
+          lastError = res;
         }
       } catch (err: any) {
         lastError = err;
@@ -1611,13 +1845,21 @@ class UpInstallationService {
   /** Kusum-C 1: Sites ready for installation */
   async getKusumCReadySites(): Promise<UpKusumCReadySiteItem[]> {
     const res = await apiRequest('up/kusumc/installation');
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.sites)) return res.sites;
+    if (Array.isArray(res.data?.sites)) return res.data.sites;
+    return [];
   }
 
   /** Kusum-C 2: Assigned batches */
   async getKusumCAssignments(): Promise<UpKusumCAssignmentItem[]> {
     const res = await apiRequest('up/kusumc/view-assign-installation');
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.sites)) return res.sites;
+    if (Array.isArray(res.assign)) return res.assign;
+    if (Array.isArray(res.data?.sites)) return res.data.sites;
+    if (Array.isArray(res.data?.assign)) return res.data.assign;
+    return [];
   }
 
   /** Kusum-C 3: Sites in one batch */
@@ -1643,8 +1885,10 @@ class UpInstallationService {
   /** Kusum-C 6: Installed sites and counts (note route spelling: view-installtion) */
   async getKusumCInstalledSites(): Promise<{
     assign?: number;
+    has_install_detail?: boolean;
     install_detail: UpKusumCInstalledCounts;
     sites: UpKusumCInstalledSiteItem[];
+    payment_sites?: UpKusumCInstalledSiteItem[];
   }> {
     const res = await apiRequest('up/kusumc/view-installtion');
     const defaultCounts: UpKusumCInstalledCounts = {
@@ -1666,13 +1910,21 @@ class UpInstallationService {
 
     const d = res.data;
     const sites = Array.isArray(d?.sites) ? d.sites : Array.isArray(d) ? d : [];
-    const install_detail = d?.install_detail || defaultCounts;
+    const payment_sites = Array.isArray(d?.payment_sites)
+      ? d.payment_sites
+      : Array.isArray(d?.paymentsite)
+        ? d.paymentsite
+        : undefined;
+    const has_install_detail = Boolean(d?.install_detail && typeof d.install_detail === 'object');
+    const install_detail = has_install_detail ? d.install_detail : defaultCounts;
     const assign = d?.assign ?? install_detail?.total ?? sites.length;
 
     return {
       assign,
+      has_install_detail,
       install_detail,
       sites,
+      payment_sites,
     };
   }
 
@@ -1703,7 +1955,11 @@ class UpInstallationService {
   /** Kusum-C 10: Site dropdown list (uses success flag) */
   async getKusumCAvailableSites(): Promise<{ id: number; f_farmer_name: string }[]> {
     const res = await apiRequest('up/kusumc/installation/fetch-site');
-    return Array.isArray(res.data) ? res.data : [];
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.data)) return res.data.data;
+    if (Array.isArray(res.sites)) return res.sites;
+    if (Array.isArray((res as any).data?.sites)) return (res as any).data.sites;
+    return [];
   }
 
   /** Kusum-C 11: Detail of one site */
@@ -1718,19 +1974,49 @@ class UpInstallationService {
     sites: { id: number; f_farmer_name: string; inst_doc_status: number }[];
   }> {
     const res = await apiRequest('up/kusumc/installation/view-claim');
-    return {
-      payments: Array.isArray(res.data?.payments) ? res.data.payments : [],
-      sites: Array.isArray(res.data?.sites) ? res.data.sites : [],
-    };
+    const payments = Array.isArray(res.data?.payments)
+      ? res.data.payments
+      : Array.isArray(res.payments)
+      ? res.payments
+      : [];
+    const sites = Array.isArray(res.data?.sites)
+      ? res.data.sites
+      : Array.isArray(res.sites)
+      ? res.sites
+      : [];
+    return { payments, sites };
   }
 
   /** Kusum-C 13: Raise a claim (multipart) */
   async storeKusumCClaim(fd: FormData): Promise<{ status: boolean; message?: string; data?: any; errors?: any }> {
-    return apiRequest('up/kusumc/installation/add-claim', {
-      method: 'POST',
-      body: fd,
-      isMultipart: true,
-    });
+    const endpoints = [
+      'up/kusumc/installation/add-claim',
+      'up/kusumc/installation/claim-store',
+      'up/kusumc/claim-store',
+      'up/kusumc/installation-claim-store',
+    ];
+    let lastRes: any = null;
+    for (const ep of endpoints) {
+      try {
+        const res = await apiRequest(ep, {
+          method: 'POST',
+          body: fd,
+          isMultipart: true,
+        });
+        if (res.status !== false && res.success !== false) {
+          return { status: true, message: res.message || 'Payment claim raised successfully!', data: res.data };
+        }
+        if (res.errors && typeof res.errors === 'object') {
+          return res;
+        }
+        if (res.message && !String(res.message).toLowerCase().includes('not found') && !String(res.message).includes('404')) {
+          lastRes = res;
+        }
+      } catch (err: any) {
+        lastRes = err;
+      }
+    }
+    return lastRes || { status: false, message: 'Failed to submit claim' };
   }
 
   /** Kusum-C 14: Edit a claim (multipart) */
@@ -1748,17 +2034,372 @@ class UpInstallationService {
     return res.status && res.data ? res.data : null;
   }
 
-  /** Kusum-C 16: Sites by status */
+  /** Kusum-C 16: Sites by status with candidate URL fallbacks and core installation data fallback */
   async getKusumCDashboardByStatus(status: string): Promise<any[]> {
-    const res = await apiRequest(`up/kusumc/installation/view-dashboard/${status}`);
-    return Array.isArray(res.data) ? res.data : [];
+    const norm = normalizeKusumCStatus(status);
+
+    // 1. Candidate dedicated endpoints on the server
+    const candidateEndpoints = [
+      `up/kusumc/installation/view-dashboard/${norm}`,
+      `up/kusumc/installation-view-dashboard/${norm}`,
+      `up/kusumc/view-dashboard/${norm}`,
+      `up/kusumc/view-dashboard-data/${norm}`,
+      `up/kusumc/installation/view-dashboard-data/${norm}`,
+    ];
+
+    for (const ep of candidateEndpoints) {
+      try {
+        const res = await apiRequest(ep);
+        const list = extractKusumCSiteList(res);
+        if (Array.isArray(list) && list.length > 0) {
+          return list;
+        }
+      } catch {
+        // try next endpoint
+      }
+    }
+
+    // 2. Resilient Fallback: Retrieve real records from core UP Kusum-C APIs
+    return this.getKusumCFallbackSitesByStatus(norm);
   }
 
-  /** Kusum-C 17: Sites by status and district */
+  /** Kusum-C 17: Sites by status and district with resilient fallbacks */
   async getKusumCDashboardByDistrict(status: string, district: string): Promise<any[]> {
-    const res = await apiRequest(`up/kusumc/installation/view-districtwise/${status}/${encodeURIComponent(district)}`);
-    return Array.isArray(res.data) ? res.data : [];
+    const norm = normalizeKusumCStatus(status);
+    const cleanDistrict = (district || '').trim();
+
+    if (!cleanDistrict || cleanDistrict.toLowerCase() === 'all') {
+      return this.getKusumCDashboardByStatus(norm);
+    }
+
+    // 1. Candidate dedicated district endpoints on the server
+    const candidateEndpoints = [
+      `up/kusumc/installation/view-districtwise/${norm}/${encodeURIComponent(cleanDistrict)}`,
+      `up/kusumc/installation-view-districtwise/${norm}/${encodeURIComponent(cleanDistrict)}`,
+      `up/kusumc/view-districtwise/${norm}/${encodeURIComponent(cleanDistrict)}`,
+      `up/kusumc/installation/view-dashboard/districtwise/${norm}/${encodeURIComponent(cleanDistrict)}`,
+      `up/kusumc/installation/view-dashboard/${norm}?district=${encodeURIComponent(cleanDistrict)}`,
+    ];
+
+    for (const ep of candidateEndpoints) {
+      try {
+        const res = await apiRequest(ep);
+        const list = extractKusumCSiteList(res);
+        if (Array.isArray(list) && list.length > 0) {
+          return list.filter((s) => {
+            const d = (s.f_district || s.district || '').trim().toLowerCase();
+            return !cleanDistrict || d === cleanDistrict.toLowerCase();
+          });
+        }
+      } catch {
+        // try next endpoint
+      }
+    }
+
+    // 2. Fallback: Query all sites for the status, then filter by district
+    const statusSites = await this.getKusumCDashboardByStatus(norm);
+    return statusSites.filter((s) => {
+      const d = (s.f_district || s.district || '').trim().toLowerCase();
+      return d === cleanDistrict.toLowerCase();
+    });
   }
+
+  /**
+   * Helper fallback: aggregates real records across UP Kusum-C installation APIs and applies status filter.
+   */
+  async getKusumCFallbackSitesByStatus(status: string): Promise<any[]> {
+    const norm = normalizeKusumCStatus(status);
+
+    try {
+      const [installedRes, readySitesRes, assignmentsRes, claimsRes] = await Promise.all([
+        this.getKusumCInstalledSites().catch(() => ({ sites: [], payment_sites: [] })),
+        this.getKusumCReadySites().catch(() => []),
+        this.getKusumCAssignments().catch(() => []),
+        this.getKusumCClaims().catch(() => ({ payments: [], sites: [] })),
+      ]);
+
+      const siteMap = new Map<string, any>();
+
+      // 1. Core installed sites (up/kusumc/view-installtion)
+      const installedList = Array.isArray(installedRes?.sites) ? installedRes.sites : [];
+      installedList.forEach((s) => {
+        if (!s) return;
+        const key = String(s.id ?? s.excel_id ?? '').trim();
+        if (!key) return;
+        siteMap.set(key, {
+          ...s,
+          inst_status: s.inst_status !== undefined ? Number(s.inst_status) : (s.vfd_no || s.Inverter_no ? 1 : 0),
+        });
+      });
+
+      // 2. Payment sites if present
+      if (Array.isArray(installedRes?.payment_sites)) {
+        installedRes.payment_sites.forEach((s) => {
+          if (!s) return;
+          const key = String(s.id ?? s.excel_id ?? '').trim();
+          if (!key) return;
+          const existing = siteMap.get(key);
+          siteMap.set(key, { ...existing, ...s });
+        });
+      }
+
+      // 3. Ready sites (up/kusumc/installation - pending installation)
+      if (Array.isArray(readySitesRes)) {
+        readySitesRes.forEach((s) => {
+          if (!s) return;
+          const key = String(s.id ?? s.excel_id ?? '').trim();
+          if (!key) return;
+          const existing = siteMap.get(key);
+          if (!existing) {
+            siteMap.set(key, {
+              ...s,
+              inst_status: 0,
+            });
+          } else {
+            siteMap.set(key, { ...s, ...existing });
+          }
+        });
+      }
+
+      // 4. Batch assignments (up/kusumc/view-assign-installation)
+      if (Array.isArray(assignmentsRes)) {
+        assignmentsRes.forEach((batch: any) => {
+          const batchSites = Array.isArray(batch.sites) ? batch.sites : (Array.isArray(batch.site) ? batch.site : []);
+          batchSites.forEach((s: any) => {
+            if (!s) return;
+            const key = String(s.id ?? s.excel_id ?? '').trim();
+            if (!key) return;
+            const existing = siteMap.get(key);
+            if (!existing) {
+              siteMap.set(key, {
+                ...s,
+                inst_vendor: s.inst_vendor ?? batch.company_id ?? batch.vendor_id,
+                lot_no: s.lot_no ?? batch.lot_no,
+                inst_status: 0,
+              });
+            } else {
+              siteMap.set(key, {
+                inst_vendor: existing.inst_vendor ?? batch.company_id ?? batch.vendor_id,
+                lot_no: existing.lot_no ?? batch.lot_no,
+                ...existing,
+              });
+            }
+          });
+        });
+      }
+
+      // 5. Link claim records if present
+      if (Array.isArray(claimsRes?.payments)) {
+        claimsRes.payments.forEach((pay: any) => {
+          const sids: string[] = [];
+          if (Array.isArray(pay.site_id)) {
+            sids.push(...pay.site_id.map(String));
+          } else if (typeof pay.site_id === 'string') {
+            try {
+              const parsed = JSON.parse(pay.site_id);
+              if (Array.isArray(parsed)) sids.push(...parsed.map(String));
+            } catch {
+              pay.site_id.split(',').forEach((x: string) => {
+                if (x.trim()) sids.push(x.trim());
+              });
+            }
+          } else if (pay.site_id) {
+            sids.push(String(pay.site_id));
+          }
+
+          sids.forEach((sid) => {
+            const existing = siteMap.get(sid);
+            if (existing) {
+              siteMap.set(sid, {
+                ...existing,
+                inst_claim_status: existing.inst_claim_status ?? pay.claim_status ?? 1,
+                inst_pay_status: existing.inst_pay_status ?? pay.payment_status ?? pay.status,
+                claim_amount: pay.amount,
+                claim_reference_no: pay.reference_no,
+              });
+            }
+          });
+        });
+      }
+
+      const allSites = Array.from(siteMap.values());
+      return this.filterKusumCSitesByStatus(allSites, norm);
+    } catch (err) {
+      console.error('[UP Kusum-C] getKusumCFallbackSitesByStatus error:', err);
+      return [];
+    }
+  }
+
+  /** Filter site array by normalized Kusum C status */
+  filterKusumCSitesByStatus(sites: any[], status: string): any[] {
+    const norm = normalizeKusumCStatus(status);
+    switch (norm) {
+      case 'total':
+      case 'all':
+        return sites;
+
+      case 'complete':
+      case 'installed':
+      case 'installation-complete':
+        return sites.filter((s) => {
+          const statusNum = Number(s.inst_status);
+          const hasVfd = Boolean(s.vfd_no || s.Inverter_no || s.inverter_no || s.vfd_serial_no || s.inverter_serial_no);
+          const hasDate = Boolean(s.installation_date || s.inst_date);
+          return statusNum === 1 || hasVfd || hasDate;
+        });
+
+      case 'pending':
+      case 'not-installed':
+      case 'not-install':
+        return sites.filter((s) => {
+          const statusNum = Number(s.inst_status);
+          const hasVfd = Boolean(s.vfd_no || s.Inverter_no || s.inverter_no || s.vfd_serial_no || s.inverter_serial_no);
+          const hasDate = Boolean(s.installation_date || s.inst_date);
+          return statusNum === 0 || (!hasVfd && !hasDate);
+        });
+
+      case 'site-assigned':
+        return sites.filter((s) => Boolean(s.inst_vendor || s.inst_assigned_id || s.lot_no || s.inst_assign_date || s.company_id));
+
+      case 'accept-pending':
+        return sites.filter((s) => Number(s.inst_accept) === 0);
+
+      case 'site-not-assigned':
+        return sites.filter((s) => !s.inst_vendor && !s.inst_assigned_id && !s.lot_no);
+
+      case 'verify-approved':
+      case 'approved':
+      case 'verified':
+        return sites.filter((s) => {
+          const v = Number(s.inst_verify_status ?? s.verify_status);
+          const str = String(s.inst_verify_status ?? s.verify_status ?? '').toLowerCase().trim();
+          return v === 1 || str === '1' || str === 'approved' || str === 'ok';
+        });
+
+      case 'verify-pending':
+        return sites.filter((s) => {
+          const v = Number(s.inst_verify_status ?? s.verify_status ?? 0);
+          const str = String(s.inst_verify_status ?? s.verify_status ?? '').toLowerCase().trim();
+          const isInstalled = Number(s.inst_status) === 1 || Boolean(s.vfd_no || s.Inverter_no);
+          return isInstalled && (v === 0 || str === '' || str === '0' || str === 'pending');
+        });
+
+      case 'verify-reject':
+      case 'rejected':
+      case 'reject':
+        return sites.filter((s) => {
+          const v = Number(s.inst_verify_status ?? s.verify_status);
+          const str = String(s.inst_verify_status ?? s.verify_status ?? '').toLowerCase().trim();
+          return v === 2 || str === '2' || str === 'rejected' || str === 'reject';
+        });
+
+      case 'doc-approved':
+      case 'doc-approve':
+        return sites.filter((s) => {
+          const d = Number(s.inst_doc_status ?? s.document_status);
+          const str = String(s.inst_doc_status ?? '').toLowerCase().trim();
+          return d === 2 || str === 'approved' || str === 'ok';
+        });
+
+      case 'doc-pending':
+        return sites.filter((s) => {
+          const d = Number(s.inst_doc_status ?? s.document_status ?? 0);
+          const hasDoc = Boolean(s.inst_doc || s.hoc_photo || s.doc_hoc_photo);
+          return d === 1 || (d === 0 && hasDoc);
+        });
+
+      case 'doc-reject':
+        return sites.filter((s) => {
+          const d = Number(s.inst_doc_status ?? s.document_status);
+          const str = String(s.inst_doc_status ?? '').toLowerCase().trim();
+          return d === 3 || str === 'rejected' || str === 'reject';
+        });
+
+      case 'claim-applicable':
+        return sites.filter((s) => {
+          const v = Number(s.inst_verify_status ?? s.verify_status);
+          const d = Number(s.inst_doc_status ?? s.document_status);
+          return v === 1 || d === 2;
+        });
+
+      case 'claim-raised':
+        return sites.filter((s) => {
+          const c = Number(s.inst_claim_status ?? s.claim_status);
+          const str = String(s.inst_claim_status ?? '').toLowerCase().trim();
+          return c === 1 || str === 'raised' || Boolean(s.claim_amount);
+        });
+
+      case 'claim-approved':
+        return sites.filter((s) => {
+          const c = Number(s.inst_claim_status ?? s.claim_status);
+          const str = String(s.inst_claim_status ?? '').toLowerCase().trim();
+          return c === 2 || str === 'approved';
+        });
+
+      case 'claim-pending':
+        return sites.filter((s) => {
+          const c = Number(s.inst_claim_status ?? s.claim_status ?? 0);
+          return c === 1 || c === 0;
+        });
+
+      case 'pay-done':
+      case 'inst-pay-done':
+        return sites.filter((s) => {
+          const p = Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status);
+          const str = String(s.inst_pay_status ?? '').toLowerCase().trim();
+          return p === 1 || p === 2 || str === 'paid';
+        });
+
+      case 'pay-partially':
+      case 'inst-pay-partially':
+        return sites.filter((s) => {
+          const p = Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status);
+          const str = String(s.inst_pay_status ?? '').toLowerCase().trim();
+          return p === 2 || str === 'partially';
+        });
+
+      case 'pay-pending':
+      case 'inst-pay-pending':
+        return sites.filter((s) => {
+          const p = Number(s.inst_pay_status ?? s.payment_status ?? s.pay_status ?? 0);
+          return p === 0;
+        });
+
+      default:
+        return sites;
+    }
+  }
+}
+
+/** Normalize status string for UP Kusum C */
+export const normalizeKusumCStatus = (raw: string | undefined | null): string => {
+  if (!raw) return 'total';
+  const clean = raw.trim().toLowerCase();
+  if (clean === 'install' || clean === 'installed' || clean === 'installation-complete') return 'complete';
+  if (clean === 'not-install' || clean === 'not-installed') return 'pending';
+  if (clean === 'all') return 'total';
+  if (clean === 'approved' || clean === 'verified') return 'verify-approved';
+  if (clean === 'rejected') return 'verify-reject';
+  if (clean === 'doc-approve') return 'doc-approved';
+  if (clean === 'inst-pay-done') return 'pay-done';
+  if (clean === 'inst-pay-pending') return 'pay-pending';
+  if (clean === 'inst-pay-partially') return 'pay-partially';
+  return clean;
+};
+
+/** Helper to extract array from any API payload structure */
+function extractKusumCSiteList(res: any): any[] {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (Array.isArray(res.data?.sites)) return res.data.sites;
+  if (Array.isArray(res.data?.kusumc)) return res.data.kusumc;
+  if (Array.isArray(res.data?.data)) return res.data.data;
+  if (Array.isArray(res.data?.list)) return res.data.list;
+  if (Array.isArray(res.sites)) return res.sites;
+  if (Array.isArray(res.kusumc)) return res.kusumc;
+  if (Array.isArray(res.list)) return res.list;
+  return [];
 }
 
 export const upInstallationService = new UpInstallationService();

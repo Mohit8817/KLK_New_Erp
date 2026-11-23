@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
@@ -14,14 +14,22 @@ import {
 import {
   jammuAdminSwpService,
   resolveJammuSwpMediaUrl,
-  type JammuSwpInstalledSiteItem,
 } from './jammuSwpAdminService';
 
-/* ───────── Responsive page CSS (Exact Solar ERP reference) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu SRT 70MW reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
-    --asw-primary: #2563eb;
-    --asw-primary-rgb: 37, 99, 235;
+    --asw-primary: #2559bf;
+    --asw-primary-rgb: 37, 89, 191;
+  }
+  .solar-erp-page .ax-btn--primary {
+    background-color: #2559bf !important;
+    border-color: #2559bf !important;
+    color: #ffffff !important;
+  }
+  .solar-erp-page .ax-btn--primary:hover {
+    background-color: #1d4699 !important;
+    border-color: #1d4699 !important;
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -74,14 +82,14 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
-    border-color: #2563eb;
-    color: #2563eb;
+    border-color: #2559bf;
+    color: #2559bf;
   }
   .solar-erp-page .asw-pill-btn.active {
-    background: #2563eb;
+    background: #2559bf;
     color: #ffffff;
-    border-color: #2563eb;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    border-color: #2559bf;
+    box-shadow: 0 2px 4px rgba(37, 89, 191, 0.2);
   }
 
   .solar-erp-page .ax-card__header {
@@ -141,14 +149,12 @@ const PAGE_CSS = `
     min-width: 0;
   }
 
-  .solar-erp-page .ax-table-wrap,
-  .solar-erp-page .ax-table-wrapper {
-    width: 100%;
-    max-width: 100%;
+  /* All table columns fully scrollable horizontally - no sticky/fixed columns */
+  .solar-erp-page .ax-table-wrap {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
-  .solar-erp-page .ax-table { min-width: 1050px; }
 
   @media (max-width: 1100px) {
     .solar-erp-page .ax-export-toolbar__button {
@@ -167,12 +173,6 @@ const PAGE_CSS = `
   }
 
   @media (max-width: 760px) {
-    .solar-erp-page {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
-      box-sizing: border-box;
-    }
     .solar-erp-page .ax-card__header {
       flex-direction: column;
       flex-wrap: nowrap;
@@ -212,25 +212,10 @@ const PAGE_CSS = `
       justify-content: flex-start;
       gap: 6px;
     }
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 12px;
-      gap: 4px;
-      height: 30px;
-      padding: 0 8px !important;
-    }
-  }
-
-  @media (max-width: 490px) {
-    .solar-erp-page .ax-export-toolbar__button {
-      font-size: 11px;
-      height: 28px;
-      padding: 0 6px !important;
-    }
-    .solar-erp-page .ax-export-toolbar { gap: 4px; }
   }
 `;
 
-/* ───────── Overlay CSS (modals & lightbox) ───────── */
+/* ───────── Overlay CSS (modals) ───────── */
 const OVERLAY_CSS = `
   .ax-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -270,15 +255,6 @@ const OVERLAY_CSS = `
     padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
   }
-
-  .asw-lightbox-overlay {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 10000; padding: 20px; cursor: zoom-out;
-  }
-  .asw-lightbox-img {
-    max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px;
-  }
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -300,6 +276,64 @@ const X_ICON = (
   </svg>
 );
 
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#fff', border: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex' }}>{icon}</span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Modal Dialog Component ───────── */
 function Modal({
   open,
   onClose,
@@ -307,7 +341,7 @@ function Modal({
   subtitle,
   children,
   footer,
-  maxWidth = 640,
+  maxWidth = 580,
 }: {
   open: boolean;
   onClose: () => void;
@@ -334,23 +368,17 @@ function Modal({
   return createPortal(
     <div className="ax-modal" role="dialog" aria-modal="true">
       <div className="ax-modal__backdrop" onClick={onClose} />
-      <div
-        ref={dialogRef}
-        className="ax-modal__dialog"
-        style={{ maxWidth, width: '92%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-      >
+      <div ref={dialogRef} className="ax-modal__dialog" style={{ maxWidth }} tabIndex={-1}>
         <div className="ax-modal__header">
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--ax-text-strong)' }}>{title}</h3>
-            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--ax-text-muted)' }}>{subtitle}</p>}
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '4px 0 0 0', fontSize: 12.5, color: '#64748b' }}>{subtitle}</p>}
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
           </button>
         </div>
-        <div className="ax-modal__body">
-          {children}
-        </div>
+        <div className="ax-modal__body">{children}</div>
         {footer && <div className="ax-modal__footer">{footer}</div>}
       </div>
     </div>,
@@ -358,92 +386,199 @@ function Modal({
   );
 }
 
-/* ───────── Top KPI Card Component ───────── */
-type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'red';
-
-const TONE: Record<KpiTone, { bg: string; fg: string }> = {
-  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
-  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
-  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
-  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
-  red: { bg: 'color-mix(in oklab, var(--ax-viz-red, #ef4444) 14%, transparent)', fg: '#dc2626' },
-};
-
-function KpiCard({
-  icon,
-  tone,
-  label,
-  value,
-  sub,
+/* ───────── Image & Document Lightbox Modal ───────── */
+function LightboxModal({
+  open,
+  onClose,
+  url,
+  title,
 }: {
-  icon: ReactNode;
-  tone: KpiTone;
-  label: string;
-  value: ReactNode;
-  sub: string;
+  open: boolean;
+  onClose: () => void;
+  url: string;
+  title: string;
 }) {
-  const t = TONE[tone];
-  return (
-    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0, background: '#ffffff', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: t.bg,
-            color: t.fg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ax-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {label}
-        </span>
+  const isPdf = /\.pdf($|\?)/i.test(url);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="ax-modal" role="dialog" aria-modal="true" style={{ zIndex: 10000 }}>
+      <div className="ax-modal__backdrop" onClick={onClose} />
+      <div
+        className="ax-modal__dialog"
+        style={{
+          maxWidth: isPdf ? 1000 : 800,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div className="ax-modal__header">
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            <span style={{ fontSize: 11.5, color: '#64748b' }}>Media Inspection</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              style={{ fontSize: 12 }}
+            >
+              Open Original ↗
+            </a>
+            <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close">
+              {X_ICON}
+            </button>
+          </div>
+        </div>
+        <div className="ax-modal__body" style={{ padding: 12, display: 'flex', justifyContent: 'center', background: '#0b1120', minHeight: 460 }}>
+          {isPdf ? (
+            <iframe src={url} title={title} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: 8, background: '#fff' }} />
+          ) : (
+            <img src={url} alt={title} style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain', borderRadius: 8 }} />
+          )}
+        </div>
       </div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--ax-text-strong)', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--ax-text-muted)', marginTop: 2 }}>{sub}</div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
+export interface JammuSwpVerifyInstallationItem {
+  id: number;
+  state: string;
+  vendorName: string;
+  district: string;
+  tehsil: string;
+  block: string;
+  village: string;
+  applicantName: string;
+  vfdNo: string;
+  motorNo: string;
+  pumpNo: string;
+  moduleSerialNo: string;
+  farmerWithModuleImage?: string;
+  inverterVfdFarmerImage?: string;
+  runningWaterFarmerImage?: string;
+  poleFarmerImage?: string;
+  instRemarks: string;
+  verifyStatus: 'Pending' | 'Approved' | 'Rejected';
+  rawStatus: number; // 0 = Pending, 1 = Approved, 2 = Rejected
+  verifyFile?: string;
+  verifyRemarks: string;
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export function VerifySwpInstallation() {
-  const [sites, setSites] = useState<JammuSwpInstalledSiteItem[]>([]);
+  const [items, setItems] = useState<JammuSwpVerifyInstallationItem[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    assigned: 0,
+    not_assigned: 0,
+    complete: 0,
+    pending: 0,
+    verify_approved: 0,
+    verify_pending: 0,
+    verify_reject: 0,
+  });
   const [loading, setLoading] = useState<boolean>(true);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'processed'>('all');
+  const [search, setSearch] = useState('');
+  const [districtFilter, setDistrictFilter] = useState('all');
 
-  // Bifurcation & Search
-  const [bifurcation, setBifurcation] = useState<'pending' | 'approved'>('pending');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [districtFilter, setDistrictFilter] = useState<string>('all');
+  // Verify Action Modal
+  const [selectedSiteForAction, setSelectedSiteForAction] = useState<JammuSwpVerifyInstallationItem | null>(null);
+  const [actionStatus, setActionStatus] = useState<string>(''); // '1' = Approved, '2' = Rejected
+  const [actionRemarks, setActionRemarks] = useState('');
+  const [actionFile, setActionFile] = useState<File | null>(null);
+  const [submittingAction, setSubmittingAction] = useState(false);
 
-  // Modals
-  const [auditModalOpen, setAuditModalOpen] = useState<boolean>(false);
-  const [auditingSite, setAuditingSite] = useState<JammuSwpInstalledSiteItem | null>(null);
-  const [auditDecision, setAuditDecision] = useState<number>(1); // 1 = Approved, 2 = Rejected
-  const [auditRemarks, setAuditRemarks] = useState<string>('');
-  const [savingAudit, setSavingAudit] = useState<boolean>(false);
+  // Lightbox
+  const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null);
 
-  const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false);
-  const [detailSite, setDetailSite] = useState<JammuSwpInstalledSiteItem | null>(null);
-
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
-
-  // Fetch installed sites
+  // Load verification data live from backend
   const loadData = useCallback(async () => {
     setLoading(true);
-    setApiError(null);
     try {
-      const res = await jammuAdminSwpService.getInstalledSites();
-      setSites(res.sites || []);
+      const resp = await jammuAdminSwpService.getViewInstallation();
+      if (resp.detail) {
+        setStats({
+          total: Number(resp.detail.total || 0),
+          assigned: Number(resp.detail.assigned || 0),
+          not_assigned: Number(resp.detail.not_assigned || 0),
+          complete: Number(resp.detail.complete || 0),
+          pending: Number(resp.detail.pending || 0),
+          verify_approved: Number(resp.detail.verify_approved || 0),
+          verify_pending: Number(resp.detail.verify_pending || 0),
+          verify_reject: Number(resp.detail.verify_reject || 0),
+        });
+      }
+
+      const mapItem = (item: any, defaultSt: number): JammuSwpVerifyInstallationItem => {
+        const rawStatus = Number(item.inst_verify_status ?? defaultSt);
+        const verifyStatus: 'Pending' | 'Approved' | 'Rejected' =
+          rawStatus === 1 ? 'Approved' : rawStatus === 2 ? 'Rejected' : 'Pending';
+
+        const rawVerifyFile =
+          item.inst_doc ||
+          item.inst_verify_file ||
+          item.verify_file ||
+          item.file ||
+          item.verify_doc ||
+          item.doc_file ||
+          item.document ||
+          item.hoc_photo;
+
+        let moduleSerials = '—';
+        const modArr = item.jammu_modulee || item.jammuModulee || item.modules;
+        if (Array.isArray(modArr) && modArr.length > 0) {
+          moduleSerials = modArr.map((m: any) => m.sr_no || m.module_no || m.serial_no).filter(Boolean).join(', ');
+        } else if (item.module_sr_no) {
+          moduleSerials = String(item.module_sr_no);
+        }
+
+        const rawModuleImg = item.module_image || item.farmer_with_module || item.farmer_module_image || item.image1;
+        const rawVfdImg = item.vfd_image || item.inverter_vfd || item.inverter_vfd_farmer_image || item.inverter_image || item.image2;
+        const rawWaterImg = item.running_water_image || item.running_water || item.running_water_farmer_image || item.image3;
+        const rawPoleImg = item.pole_image || item.pole_farmer_image || item.pole_with_farmer_image || item.hoc_photo || item.image4;
+
+        return {
+          id: item.id,
+          state: 'Jammu',
+          vendorName: item.vendor_name || item.vendor || (item.inst_vendor ? `Vendor #${item.inst_vendor}` : '—'),
+          district: item.district || item.f_district || '—',
+          tehsil: item.tehsil || item.f_tehsil || item.sub_district || '—',
+          block: item.block || item.f_block || '—',
+          village: item.village || item.f_village || '—',
+          applicantName: item.f_farmer_name || item.farmer_name || item.applicant_name || `Farmer #${item.id}`,
+          vfdNo: item.controller_sr_no || item.vfd_no || item.vfd_sr_no || item.controller_no || '—',
+          motorNo: item.motor_sr_no || item.motor_no || '—',
+          pumpNo: item.pump_sr_no || item.pump_no || '—',
+          moduleSerialNo: moduleSerials,
+          farmerWithModuleImage: rawModuleImg ? resolveJammuSwpMediaUrl(rawModuleImg) : undefined,
+          inverterVfdFarmerImage: rawVfdImg ? resolveJammuSwpMediaUrl(rawVfdImg) : undefined,
+          runningWaterFarmerImage: rawWaterImg ? resolveJammuSwpMediaUrl(rawWaterImg) : undefined,
+          poleFarmerImage: rawPoleImg ? resolveJammuSwpMediaUrl(rawPoleImg) : undefined,
+          instRemarks: item.remarks || item.inst_remarks || '—',
+          verifyStatus,
+          rawStatus,
+          verifyFile: rawVerifyFile ? resolveJammuSwpMediaUrl(rawVerifyFile) : undefined,
+          verifyRemarks: item.inst_verify_remarks || item.verify_remarks || '—',
+        };
+      };
+
+      const combined: JammuSwpVerifyInstallationItem[] = [
+        ...(resp.verification || []).map((x: any) => mapItem(x, 0)),
+        ...(resp.verified || []).map((x: any) => mapItem(x, 1)),
+      ];
+      setItems(combined);
     } catch (err: any) {
-      setApiError(err.message || 'Failed to load installation sites.');
+      console.error('Failed to load live Jammu SWP verification data:', err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -453,220 +588,377 @@ export function VerifySwpInstallation() {
     loadData();
   }, [loadData]);
 
-  // Open audit modal
-  const openAuditModal = (site: JammuSwpInstalledSiteItem) => {
-    setAuditingSite(site);
-    setAuditDecision(site.verify_status === 2 ? 2 : 1);
-    setAuditRemarks(site.verify_remarks || '');
-    setAuditModalOpen(true);
+  // Distinct districts
+  const districtOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((r) => {
+      const d = String(r.district || '').trim();
+      if (d && d !== '—') set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [items]);
+
+  // Filter based on bifurcation tabs and search
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (activeTab === 'pending') {
+      result = result.filter((s) => s.verifyStatus === 'Pending');
+    } else if (activeTab === 'processed') {
+      result = result.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected');
+    }
+
+    if (districtFilter !== 'all') {
+      result = result.filter((s) => s.district.toLowerCase() === districtFilter.toLowerCase());
+    }
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.applicantName.toLowerCase().includes(q) ||
+          s.vendorName.toLowerCase().includes(q) ||
+          s.district.toLowerCase().includes(q) ||
+          s.tehsil.toLowerCase().includes(q) ||
+          s.block.toLowerCase().includes(q) ||
+          s.village.toLowerCase().includes(q) ||
+          s.vfdNo.toLowerCase().includes(q) ||
+          s.motorNo.toLowerCase().includes(q) ||
+          s.pumpNo.toLowerCase().includes(q) ||
+          s.moduleSerialNo.toLowerCase().includes(q) ||
+          String(s.id).includes(q)
+      );
+    }
+    return result;
+  }, [items, activeTab, districtFilter, search]);
+
+  const pagination = usePagination(filteredItems, { initialPageSize: 50 });
+
+  useEffect(() => {
+    pagination.setPage(1);
+  }, [activeTab, districtFilter, search]);
+
+  // Export Columns
+  const exportColumns: ExportColumn[] = [
+    { header: 'Sr. No.', accessor: 'id' },
+    { header: 'State', accessor: 'state' },
+    { header: 'Vendor Name', accessor: 'vendorName' },
+    { header: 'District', accessor: 'district' },
+    { header: 'Tehsil', accessor: 'tehsil' },
+    { header: 'Block', accessor: 'block' },
+    { header: 'Village', accessor: 'village' },
+    { header: 'Applicant Name', accessor: 'applicantName' },
+    { header: 'VFD No.', accessor: 'vfdNo' },
+    { header: 'Motor No.', accessor: 'motorNo' },
+    { header: 'Pump No.', accessor: 'pumpNo' },
+    { header: 'Module Serial No.', accessor: 'moduleSerialNo' },
+    { header: 'Farmer With Module Image', accessor: 'farmerWithModuleImage' },
+    { header: 'Inverter and VFD with Farmer Image', accessor: 'inverterVfdFarmerImage' },
+    { header: 'Running Water With Farmer Image', accessor: 'runningWaterFarmerImage' },
+    { header: 'Pole With Farmer Image', accessor: 'poleFarmerImage' },
+    { header: 'Inst. Remarks', accessor: 'instRemarks' },
+    { header: 'Verify Status', accessor: 'verifyStatus' },
+    { header: 'Verify File', accessor: 'verifyFile' },
+    { header: 'Verify Remarks', accessor: 'verifyRemarks' },
+  ];
+
+  const downloadTextFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  // Submit audit decision
-  const handleSaveAudit = async () => {
-    if (!auditingSite) return;
-    setSavingAudit(true);
+  const copyToClipboard = async () => {
+    if (!filteredItems.length) return;
+    const t = [
+      exportColumns.map((c) => c.header).join('\t'),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => String((row as any)[c.accessor as string] || '')).join('\t')
+      ),
+    ].join('\n');
     try {
-      await jammuAdminSwpService.verifyInstallationStatus({
-        id: auditingSite.id,
-        status: auditDecision,
-        remarks: auditRemarks,
-      });
-      setSites((prev) =>
-        prev.map((s) =>
-          s.id === auditingSite.id
-            ? { ...s, verify_status: auditDecision, verify_remarks: auditRemarks }
-            : s
-        )
-      );
-      setAuditModalOpen(false);
-    } catch (err: any) {
-      alert(err.message || 'Audit action failed.');
-    } finally {
-      setSavingAudit(false);
+      await navigator.clipboard.writeText(t);
+      alert('Data copied to clipboard!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = t;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Data copied to clipboard!');
     }
   };
 
-  // Filtered dataset
-  const filteredSites = useMemo(() => {
-    return sites.filter((site) => {
-      const vStatus = Number(site.verify_status ?? 0);
-      if (bifurcation === 'pending') {
-        if (vStatus !== 0) return false;
+  const exportToCSV = () => {
+    if (!filteredItems.length) return;
+    const out = [
+      exportColumns.map((c) => c.header),
+      ...filteredItems.map((row) =>
+        exportColumns.map((c) => `"${String((row as any)[c.accessor as string] || '').replace(/"/g, '""')}"`)
+      ),
+    ];
+    downloadTextFile(`\ufeff${out.map((r) => r.join(',')).join('\r\n')}`, `Jammu_SWP_Verify_${activeTab}.csv`, 'text/csv');
+  };
+
+  const exportToExcel = () => {
+    if (!filteredItems.length) return;
+    const tableHtml = `<table border="1"><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((row) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((row as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    downloadTextFile(`\ufeff<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"/></head><body>${tableHtml}</body></html>`, `Jammu_SWP_Verify_${activeTab}.xls`, 'application/vnd.ms-excel');
+  };
+
+  const exportToPDF = () => {
+    if (!filteredItems.length) return;
+    const w = window.open('', '_blank', 'width=1200,height=800');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="UTF-8"/><title>Jammu SWP Verify Sites</title><style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:24px;color:#222}h1{font-size:20px;margin:0 0 16px}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8dee6;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#f3f5f7;font-weight:700}@media print{body{padding:0}@page{size:landscape;margin:10mm}}
+    </style></head><body><h1>Jammu SWP Installation Verification</h1><table><thead><tr>${exportColumns.map((c) => `<th>${escapeHtml(c.header)}</th>`).join('')}</tr></thead><tbody>${filteredItems.map((r) => `<tr>${exportColumns.map((c) => `<td>${escapeHtml(String((r as any)[c.accessor as string] || ''))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>window.onload=function(){window.print();};</script></body></html>`);
+    w.document.close();
+    w.focus();
+  };
+
+  // Action Submit for verification
+  const handleActionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSiteForAction) return;
+
+    if (!actionStatus) {
+      alert('Please select status.');
+      return;
+    }
+    if (!actionFile && !selectedSiteForAction.verifyFile) {
+      alert('Please choose a file.');
+      return;
+    }
+
+    setSubmittingAction(true);
+    try {
+      const targetStatus = Number(actionStatus);
+      const res = await jammuAdminSwpService.verifyInstallationStatus({
+        id: selectedSiteForAction.id,
+        status: targetStatus,
+        file: actionFile,
+        remarks: actionRemarks,
+        inst_verify_remarks: actionRemarks,
+      });
+
+      if (res.success || res.status) {
+        const newStatusLabel: 'Pending' | 'Approved' | 'Rejected' =
+          targetStatus === 1 ? 'Approved' : targetStatus === 2 ? 'Rejected' : 'Pending';
+
+        const updatedFileUrl = actionFile
+          ? URL.createObjectURL(actionFile)
+          : selectedSiteForAction.verifyFile;
+
+        setItems((prev) =>
+          prev.map((s) =>
+            s.id === selectedSiteForAction.id
+              ? {
+                  ...s,
+                  rawStatus: targetStatus,
+                  verifyStatus: newStatusLabel,
+                  verifyRemarks: actionRemarks || s.verifyRemarks,
+                  verifyFile: updatedFileUrl,
+                }
+              : s
+          )
+        );
+
+        setStats((prev) => ({
+          ...prev,
+          verify_pending: Math.max(0, (prev.verify_pending || 0) - 1),
+          verify_approved: targetStatus === 1 ? (prev.verify_approved || 0) + 1 : prev.verify_approved,
+          verify_reject: targetStatus === 2 ? (prev.verify_reject || 0) + 1 : prev.verify_reject,
+        }));
+
+        setSelectedSiteForAction(null);
+        setActionStatus('');
+        setActionRemarks('');
+        setActionFile(null);
+        alert(res.message || 'Verification status updated successfully.');
       } else {
-        if (vStatus === 0) return false;
+        alert(res.message || 'Failed to update verification status.');
       }
+    } catch (err: any) {
+      alert(err?.message || 'Error updating verification status.');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
-      if (districtFilter !== 'all') {
-        if ((site.district || '').toLowerCase() !== districtFilter.toLowerCase()) return false;
-      }
-
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      return (
-        String(site.id).includes(q) ||
-        (site.f_farmer_name || '').toLowerCase().includes(q) ||
-        (site.f_farmer_id || '').toLowerCase().includes(q) ||
-        (site.contact_no || '').includes(q) ||
-        (site.district || '').toLowerCase().includes(q) ||
-        (site.vendor_name || '').toLowerCase().includes(q) ||
-        (site.pump_sr_no || '').toLowerCase().includes(q) ||
-        (site.controller_sr_no || '').toLowerCase().includes(q)
-      );
-    });
-  }, [sites, bifurcation, districtFilter, searchQuery]);
-
-  // Pagination
-  const pagination = usePagination({
-    totalItems: filteredSites.length,
-    initialPageSize: 10,
-  });
-
-  const pagedSites = useMemo(() => {
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    return filteredSites.slice(start, start + pagination.pageSize);
-  }, [filteredSites, pagination.currentPage, pagination.pageSize]);
-
-  // KPI calculations
-  const totalSites = sites.length;
-  const verifyPendingCount = sites.filter((s) => Number(s.verify_status ?? 0) === 0).length;
-  const verifiedApprovedCount = sites.filter((s) => Number(s.verify_status) === 1).length;
-  const verifiedRejectedCount = sites.filter((s) => Number(s.verify_status) === 2).length;
-
-  const districtOptions = useMemo(
-    () => [...new Set(sites.map((s) => s.district).filter(Boolean))].sort(),
-    [sites]
-  );
-
-  // Export Columns
-  const exportColumns: ExportColumn[] = useMemo(
-    () => [
-      { key: 'id', header: 'Site ID' },
-      { key: 'vendor_name', header: 'Contractor Vendor' },
-      { key: 'f_farmer_name', header: 'Farmer Name' },
-      { key: 'f_farmer_id', header: 'Farmer ID' },
-      { key: 'contact_no', header: 'Contact' },
-      { key: 'district', header: 'District' },
-      { key: 'block', header: 'Block' },
-      { key: 'pump_capacity', header: 'Capacity' },
-      { key: 'pump_sr_no', header: 'Pump Sr No' },
-      { key: 'controller_sr_no', header: 'Controller Sr No' },
-      { key: 'verify_status', header: 'Audit Status' },
-      { key: 'verify_remarks', header: 'Remarks' },
-    ],
-    []
-  );
+  const pendingCount = items.filter((s) => s.verifyStatus === 'Pending').length;
+  const processedCount = items.filter((s) => s.verifyStatus === 'Approved' || s.verifyStatus === 'Rejected').length;
 
   return (
     <div className="solar-erp-page ax-page">
       <style>{PAGE_CSS}</style>
       <style>{OVERLAY_CSS}</style>
 
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <PageHead
-        eyebrow="Super Admin · Vendor Management"
-        title="Jammu SWP Installation Verification"
-        subtitle="Technical audit desk for completed solar water pump installations, photo evidence, and equipment serial numbers in Jammu & Kashmir."
+        title="Jammu SWP Installation - Verify Sites"
+        subtitle="Technical audit desk for solar water pumping installations, VFD controller serials, pump motors, and field verification across Jammu"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu', href: '/vendor-management/jammu' },
+          { label: 'SWP', href: '/vendor-management/jammu/installation/swp/dashboard' },
+          { label: 'Verify Sites' },
+        ]}
+        actions={
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)' }}>
+            <Link
+              to="/vendor-management/jammu/installation/swp/view-assign"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+            >
+              Assigned Sites Register
+            </Link>
+            <Link
+              to="/vendor-management/jammu/installation/swp/assign"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+            >
+              + Assign Sites
+            </Link>
+          </div>
+        }
       />
 
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" style={{ marginBottom: 16 }}>
-        <ol className="ax-breadcrumb" style={{ display: 'flex', gap: 6, listStyle: 'none', padding: 0, margin: 0, fontSize: 13, color: 'var(--ax-text-muted)' }}>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Home</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management" style={{ color: '#2563eb' }}>Vendor Management</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu" style={{ color: '#2563eb' }}>Jammu</Link></li>
-          <li>/</li>
-          <li><Link to="/vendor-management/jammu/installation/swp/dashboard" style={{ color: '#2563eb' }}>SWP Installation</Link></li>
-          <li>/</li>
-          <li style={{ color: 'var(--ax-text-strong)', fontWeight: 600 }}>Verify Installation</li>
-        </ol>
-      </nav>
-
-      {/* Error Alert */}
-      {apiError && (
-        <div className="ax-card" style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 16, color: '#dc2626', fontSize: 13 }}>
-          {apiError}
-        </div>
-      )}
-
-      {/* 5 KPI Cards */}
+      {/* ── Top 5 KPI Metric Cards ── */}
       <div className="asw-cards-row">
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          }
           tone="accent"
-          label="Total Installations"
-          value={totalSites}
-          sub="Reported field completions"
+          label="Total Sites"
+          value={stats.total || items.length}
+          sub={`${stats.assigned} Assigned · ${stats.not_assigned} Unassigned`}
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12" /></svg>}
-          tone="emerald"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          }
+          tone="cyan"
           label="Installed Sites"
-          value={totalSites}
-          sub="Commissioned pumps"
+          value={`${stats.complete} / ${stats.pending}`}
+          sub="Complete / Pending"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
           tone="amber"
           label="Verify Pending"
-          value={verifyPendingCount}
-          sub="In audit review queue"
+          value={stats.verify_pending || pendingCount}
+          sub="Awaiting admin QA review"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
           tone="emerald"
           label="Verified Approved"
-          value={verifiedApprovedCount}
-          sub="Audit passed and certified"
+          value={stats.verify_approved}
+          sub="QA verified & approved"
         />
         <KpiCard
-          icon={<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
-          tone="red"
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+          tone="violet"
           label="Verified Rejected"
-          value={verifiedRejectedCount}
-          sub="Flagged for rectification"
+          value={stats.verify_reject}
+          sub="Requires re-inspection"
         />
       </div>
 
-      {/* Report Wise Bifurcation Pills */}
+      {/* ── Report Wise Bifurcation Pills ── */}
       <div className="asw-bifurcation-row">
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
-          className={`asw-pill-btn ${bifurcation === 'pending' ? 'active' : ''}`}
-          onClick={() => setBifurcation('pending')}
+          onClick={() => setActiveTab('all')}
+          className={`asw-pill-btn ${activeTab === 'all' ? 'active' : ''}`}
         >
-          Verification Pending ({verifyPendingCount})
+          All Sites
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'all' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {items.length}
+          </span>
         </button>
+
         <button
           type="button"
-          className={`asw-pill-btn ${bifurcation === 'approved' ? 'active' : ''}`}
-          onClick={() => setBifurcation('approved')}
+          onClick={() => setActiveTab('pending')}
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
         >
-          Approved / Rejected Data ({verifiedApprovedCount + verifiedRejectedCount})
+          Verification Pending
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {stats.verify_pending || pendingCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('processed')}
+          className={`asw-pill-btn ${activeTab === 'processed' ? 'active' : ''}`}
+        >
+          Approved / Rejected Data
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'processed' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {(stats.verify_approved + stats.verify_reject) || processedCount}
+          </span>
         </button>
       </div>
 
-      {/* Main Table Card */}
-      <div className="ax-card" style={{ borderRadius: 12, background: '#ffffff', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div className="ax-card__header" style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
+      {/* ── Main Data Card ── */}
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
           <div className="ax-card__titles">
-            <h3 className="ax-card__title" style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
-              {bifurcation === 'pending' ? 'Pending Technical Inspection Desk' : 'Verified & Historical Inspection Records'}
-            </h3>
-            <p className="ax-card__subtitle" style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>
-              Showing {filteredSites.length} pump installations in UT Jammu & Kashmir
+            <h2 className="ax-card__title">
+              {activeTab === 'all'
+                ? 'All Jammu SWP Installed Sites'
+                : activeTab === 'pending'
+                ? 'Jammu SWP Installations Pending Verification'
+                : 'Jammu SWP Verified Installations Register'}
+            </h2>
+            <p className="ax-card__subtitle">
+              Showing {filteredItems.length} site{filteredItems.length === 1 ? '' : 's'} with pump equipment barcodes & high-resolution proof photos
             </p>
           </div>
 
           <div className="ax-card__actions">
-            <div className="ax-cluster">
+            <div className="ax-cluster" style={actionsRowStyle}>
               {districtOptions.length > 0 && (
                 <select
                   value={districtFilter}
                   onChange={(e) => setDistrictFilter(e.target.value)}
                   className="ax-form-control"
-                  style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1' }}
+                  style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #cbd5e1', height: 32 }}
                 >
                   <option value="all">All Districts ({districtOptions.length})</option>
                   {districtOptions.map((d) => (
@@ -675,142 +967,360 @@ export function VerifySwpInstallation() {
                 </select>
               )}
 
+              {search.trim() !== '' && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => setSearch('')}
+                  style={{ height: 30, padding: '0 8px', fontSize: 'var(--ax-text-xs)' }}
+                >
+                  Reset
+                </button>
+              )}
               <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search farmer, serial, vendor..."
+                value={search}
+                onChange={setSearch}
+                placeholder="Search vendor, applicant, serial..."
+                size="sm"
               />
-
               <TableExportToolbar
-                data={filteredSites}
-                columns={exportColumns}
-                filename="Jammu_SWP_Verification_Register"
+                onCopy={copyToClipboard}
+                onExportCSV={exportToCSV}
+                onExportExcel={exportToExcel}
+                onExportPDF={exportToPDF}
               />
             </div>
           </div>
         </div>
 
+        {/* ── Horizontally Scrollable Table ── */}
         <div className="ax-table-wrap">
-          <table className="ax-table ax-table--hover" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontWeight: 700, textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px' }}>Site ID</th>
-                <th style={{ padding: '12px 14px' }}>Farmer Details</th>
-                <th style={{ padding: '12px 14px' }}>Location</th>
-                <th style={{ padding: '12px 14px' }}>Pump Specs</th>
-                <th style={{ padding: '12px 14px' }}>Equipment Serials</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Photo Evidence</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Audit Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Actions</th>
+          <table className="ax-table ax-table--hover ula-table--wide" style={{ whiteSpace: 'nowrap', minWidth: activeTab === 'pending' ? 2550 : 2400 }}>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th" style={{ width: 50, textAlign: 'center' }}>Sr. No.</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">Vendor Name</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th">Tehsil</th>
+                <th className="ax-table__th">Block</th>
+                <th className="ax-table__th">Village</th>
+                <th className="ax-table__th">Applicant Name</th>
+                <th className="ax-table__th">VFD No.</th>
+                <th className="ax-table__th">Motor No.</th>
+                <th className="ax-table__th">Pump No.</th>
+                <th className="ax-table__th">Module Serial No.</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Farmer With Module Image</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Inverter and VFD with Farmer Image</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Running Water With Farmer Image</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Pole With Farmer Image</th>
+                <th className="ax-table__th">Inst. Remarks</th>
+                <th className="ax-table__th" style={{ width: 110, textAlign: 'center' }}>Verify Status</th>
+                <th className="ax-table__th" style={{ width: 100, textAlign: 'center' }}>Verify File</th>
+                <th className="ax-table__th">Verify Remarks</th>
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ width: 90, textAlign: 'center' }}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} style={centerCell}>Loading technical audit records...</td>
+                  <td colSpan={activeTab === 'pending' ? 21 : 20} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading installation verification records...</span>
+                    </div>
+                  </td>
                 </tr>
-              ) : pagedSites.length === 0 ? (
+              ) : pagination.paged.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={centerCell}>
-                    <TableEmptyState message="No installation sites found matching criteria." />
+                  <td colSpan={activeTab === 'pending' ? 21 : 20} style={centerCell}>
+                    <TableEmptyState
+                      title="No Verification Records Found"
+                      description={`No records found under "${activeTab === 'pending' ? 'Verification Pending' : 'Approved/Rejected Data'}" matching your criteria.`}
+                    />
                   </td>
                 </tr>
               ) : (
-                pagedSites.map((site) => {
-                  const vStatus = Number(site.verify_status ?? 0);
+                pagination.paged.map((row, idx) => {
+                  const serialNo = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
                   return (
-                    <tr key={site.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#2563eb' }}>
-                        #{site.id}
+                    <tr key={row.id}>
+                      {/* 1. Sr. No. */}
+                      <td className="ax-table__td" style={{ textAlign: 'center', fontWeight: 600 }}>
+                        {serialNo}
                       </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{site.f_farmer_name}</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                          ID: <strong style={{ color: '#2563eb' }}>{site.f_farmer_id || '—'}</strong> · Ph: {site.contact_no || '—'}
-                        </div>
+
+                      {/* 2. State */}
+                      <td className="ax-table__td" style={{ color: '#334155' }}>
+                        {row.state}
                       </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ fontWeight: 600, color: '#334155' }}>{site.district}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{site.block || '—'}, {site.village || '—'}</div>
+
+                      {/* 3. Vendor Name */}
+                      <td className="ax-table__td">
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.vendorName}</div>
                       </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', background: '#ecfdf5', padding: '2px 8px', borderRadius: 4 }}>
-                          {site.pump_capacity || '5.0 HP'}
-                        </span>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                          {site.pump_type || 'AC'} {site.pump_subtype || 'Submersible'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', fontSize: 11 }}>
-                        <div>Pump: <strong style={{ color: '#0f172a' }}>{site.pump_sr_no || '—'}</strong></div>
-                        <div style={{ marginTop: 2 }}>VFD: <strong style={{ color: '#0f172a' }}>{site.controller_sr_no || '—'}</strong></div>
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 6 }}>
-                          {site.farmer_with_module && (
-                            <img
-                              src={resolveJammuSwpMediaUrl(site.farmer_with_module)}
-                              alt="Farmer with Module"
-                              onClick={() => setLightboxImg(resolveJammuSwpMediaUrl(site.farmer_with_module))}
-                              style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
-                              title="Farmer with Module"
-                            />
-                          )}
-                          {site.inverter_vfd && (
-                            <img
-                              src={resolveJammuSwpMediaUrl(site.inverter_vfd)}
-                              alt="Controller / VFD"
-                              onClick={() => setLightboxImg(resolveJammuSwpMediaUrl(site.inverter_vfd))}
-                              style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
-                              title="Controller / VFD"
-                            />
-                          )}
-                          {site.running_water && (
-                            <img
-                              src={resolveJammuSwpMediaUrl(site.running_water)}
-                              alt="Running Water"
-                              onClick={() => setLightboxImg(resolveJammuSwpMediaUrl(site.running_water))}
-                              style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'zoom-in' }}
-                              title="Water Discharge Output"
-                            />
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                        <span
-                          className={`ax-badge ax-badge--soft ax-badge--${vStatus === 1 ? 'success' : vStatus === 2 ? 'danger' : 'warning'}`}
-                          style={{
-                            padding: '3px 10px',
-                            borderRadius: 9999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            background: vStatus === 1 ? '#ecfdf5' : vStatus === 2 ? '#fef2f2' : '#fef3c7',
-                            color: vStatus === 1 ? '#059669' : vStatus === 2 ? '#dc2626' : '#d97706',
-                          }}
-                        >
-                          {vStatus === 1 ? 'Approved' : vStatus === 2 ? 'Rejected' : 'Pending Review'}
+
+                      {/* 4. District */}
+                      <td className="ax-table__td">
+                        <span className="ax-badge ax-badge--subtle" style={{ fontWeight: 600 }}>
+                          {row.district}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 6 }}>
+
+                      {/* 5. Tehsil */}
+                      <td className="ax-table__td">{row.tehsil}</td>
+
+                      {/* 6. Block */}
+                      <td className="ax-table__td">{row.block}</td>
+
+                      {/* 7. Village */}
+                      <td className="ax-table__td">{row.village}</td>
+
+                      {/* 8. Applicant Name */}
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {row.applicantName}
+                      </td>
+
+                      {/* 9. VFD No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                        {row.vfdNo}
+                      </td>
+
+                      {/* 10. Motor No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
+                        {row.motorNo}
+                      </td>
+
+                      {/* 11. Pump No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace' }}>
+                        {row.pumpNo}
+                      </td>
+
+                      {/* 12. Module Serial No. */}
+                      <td className="ax-table__td" style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.moduleSerialNo}>
+                        {row.moduleSerialNo}
+                      </td>
+
+                      {/* 13. Farmer With Module Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.farmerWithModuleImage ? (
                           <button
                             type="button"
-                            className="ax-btn ax-btn--primary ax-btn--sm"
-                            onClick={() => openAuditModal(site)}
-                            style={{ background: '#2563eb', borderColor: '#2563eb', padding: '4px 10px', fontSize: 11 }}
+                            onClick={() => setLightboxUrl({ url: row.farmerWithModuleImage!, title: `Farmer With Module - ${row.applicantName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Farmer With Module Image"
+                          >
+                            <img
+                              src={row.farmerWithModuleImage}
+                              alt="Farmer With Module"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 14. Inverter and VFD with Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.inverterVfdFarmerImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.inverterVfdFarmerImage!, title: `Inverter/VFD with Farmer - ${row.applicantName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Inverter and VFD with Farmer Image"
+                          >
+                            <img
+                              src={row.inverterVfdFarmerImage}
+                              alt="Inverter & VFD"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 15. Running Water With Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.runningWaterFarmerImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.runningWaterFarmerImage!, title: `Running Water With Farmer - ${row.applicantName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Running Water With Farmer Image"
+                          >
+                            <img
+                              src={row.runningWaterFarmerImage}
+                              alt="Running Water"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 16. Pole With Farmer Image */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.poleFarmerImage ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl({ url: row.poleFarmerImage!, title: `Pole With Farmer - ${row.applicantName}` })}
+                            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 2, background: '#fff', cursor: 'pointer', display: 'inline-flex' }}
+                            title="Click to view Pole With Farmer Image"
+                          >
+                            <img
+                              src={row.poleFarmerImage}
+                              alt="Pole With Farmer"
+                              style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                            />
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 17. Inst. Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.instRemarks}>
+                          {row.instRemarks}
+                        </div>
+                      </td>
+
+                      {/* 18. Verify Status */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 10px',
+                            borderRadius: 9999,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            background:
+                              row.verifyStatus === 'Approved'
+                                ? '#ecfdf5'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fef2f2'
+                                : '#fffbeb',
+                            color:
+                              row.verifyStatus === 'Approved'
+                                ? '#059669'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#dc2626'
+                                : '#d97706',
+                            border: `1px solid ${
+                              row.verifyStatus === 'Approved'
+                                ? '#a7f3d0'
+                                : row.verifyStatus === 'Rejected'
+                                ? '#fecaca'
+                                : '#fde68a'
+                            }`,
+                          }}
+                        >
+                          {row.verifyStatus}
+                        </span>
+                      </td>
+
+                      {/* 19. Verify File */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.verifyFile ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(row.verifyFile) ? (
+                              <button
+                                type="button"
+                                onClick={() => setLightboxUrl({ url: row.verifyFile!, title: `Verify File - ${row.applicantName}` })}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: 6,
+                                  padding: 2,
+                                  background: '#fff',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                }}
+                                title="Click to preview Verify File"
+                              >
+                                <img
+                                  src={row.verifyFile}
+                                  alt="Verify File"
+                                  style={{ width: 44, height: 44, borderRadius: 4, objectFit: 'cover' }}
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              </button>
+                            ) : (
+                              <a
+                                href={row.verifyFile}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  padding: '5px 10px',
+                                  borderRadius: 6,
+                                  background: '#eff4fc',
+                                  color: '#2559bf',
+                                  textDecoration: 'none',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  border: '1px solid #bfd3f8',
+                                }}
+                                title="Open / Download Verify File"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>View File</span>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* 20. Verify Remarks */}
+                      <td className="ax-table__td" style={{ maxWidth: 160 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#64748b' }} title={row.verifyRemarks}>
+                          {row.verifyRemarks || '—'}
+                        </div>
+                      </td>
+
+                      {/* 21. Action column (ONLY if Verification Pending tab) */}
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSiteForAction(row);
+                              setActionStatus('');
+                              setActionRemarks(row.verifyRemarks !== '—' ? row.verifyRemarks : '');
+                              setActionFile(null);
+                            }}
+                            style={{
+                              padding: '5px 12px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: '#2559bf',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
                           >
                             Verify
                           </button>
-                          <button
-                            type="button"
-                            className="ax-btn ax-btn--ghost ax-btn--sm"
-                            onClick={() => { setDetailSite(site); setDetailModalOpen(true); }}
-                            style={{ padding: '4px 8px', fontSize: 11, color: '#2563eb' }}
-                          >
-                            Details
-                          </button>
-                        </div>
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -819,152 +1329,150 @@ export function VerifySwpInstallation() {
           </table>
         </div>
 
+        {/* ── Table Footer with Pagination ── */}
         <div className="ax-card__footer" style={footerStyle}>
           <div className="ula-pagination-left">
             <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={pagination.setCurrentPage}
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100, 200]}
             />
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Audit Action Modal */}
+      {/* ── Verify Status Modal (Only triggered from Pending tab) ── */}
       <Modal
-        open={auditModalOpen}
-        onClose={() => setAuditModalOpen(false)}
-        title="Technical Verification Decision"
-        subtitle={auditingSite ? `Site #${auditingSite.id} · ${auditingSite.f_farmer_name} (${auditingSite.district})` : ''}
-        maxWidth={580}
-        footer={
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button type="button" className="ax-btn ax-btn--secondary" onClick={() => setAuditModalOpen(false)}>
+        open={Boolean(selectedSiteForAction)}
+        onClose={() => {
+          if (!submittingAction) {
+            setSelectedSiteForAction(null);
+            setActionStatus('');
+            setActionRemarks('');
+            setActionFile(null);
+          }
+        }}
+        title="Verify Status"
+        subtitle={selectedSiteForAction ? `Site: ${selectedSiteForAction.applicantName} (${selectedSiteForAction.district})` : undefined}
+      >
+        <form onSubmit={handleActionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Status <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <select
+              value={actionStatus}
+              onChange={(e) => setActionStatus(e.target.value)}
+              required
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            >
+              <option value="">-- Select Status --</option>
+              <option value="1">Approve</option>
+              <option value="2">Reject</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              File <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <input
+              type="file"
+              required={!selectedSiteForAction?.verifyFile}
+              onChange={(e) => setActionFile(e.target.files?.[0] || null)}
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '7px 10px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+              }}
+            />
+            {selectedSiteForAction?.verifyFile && !actionFile && (
+              <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
+                Current File: <a href={selectedSiteForAction.verifyFile} target="_blank" rel="noopener noreferrer" style={{ color: '#2559bf' }}>View Existing Upload</a>
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#334155' }}>
+              Remark
+            </label>
+            <textarea
+              rows={3}
+              value={actionRemarks}
+              onChange={(e) => setActionRemarks(e.target.value)}
+              placeholder="Enter technical verification remarks, inspection notes, or rectification directives..."
+              className="ax-form-control"
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                resize: 'vertical',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <button
+              type="button"
+              disabled={submittingAction}
+              onClick={() => {
+                setSelectedSiteForAction(null);
+                setActionStatus('');
+                setActionRemarks('');
+                setActionFile(null);
+              }}
+              className="ax-btn ax-btn--secondary"
+              style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8 }}
+            >
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
+              disabled={submittingAction}
               className="ax-btn ax-btn--primary"
-              disabled={savingAudit}
-              onClick={handleSaveAudit}
-              style={{ background: auditDecision === 1 ? '#10b981' : '#dc2626', borderColor: auditDecision === 1 ? '#10b981' : '#dc2626' }}
+              style={{
+                padding: '8px 20px',
+                fontSize: 13,
+                borderRadius: 8,
+                background: '#2559bf',
+                color: '#fff',
+                fontWeight: 600,
+                border: 'none',
+                cursor: submittingAction ? 'not-allowed' : 'pointer',
+              }}
             >
-              {savingAudit ? 'Saving Decision...' : auditDecision === 1 ? 'Confirm Approval' : 'Confirm Rejection'}
+              {submittingAction ? 'Submitting...' : 'Submit'}
             </button>
           </div>
-        }
-      >
-        {auditingSite && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 8 }}>
-                Audit Verdict:
-              </label>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#16a34a' }}>
-                  <input
-                    type="radio"
-                    name="decision"
-                    checked={auditDecision === 1}
-                    onChange={() => setAuditDecision(1)}
-                  />
-                  Approve Installation
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#dc2626' }}>
-                  <input
-                    type="radio"
-                    name="decision"
-                    checked={auditDecision === 2}
-                    onChange={() => setAuditDecision(2)}
-                  />
-                  Reject Installation
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="auditRemarks" style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
-                Inspector Remarks & Field Notes:
-              </label>
-              <textarea
-                id="auditRemarks"
-                rows={3}
-                value={auditRemarks}
-                onChange={(e) => setAuditRemarks(e.target.value)}
-                placeholder="Water output LPM, grounding resistance, serial verification notes..."
-                className="ax-form-control"
-                style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '1px solid #cbd5e1' }}
-              />
-            </div>
-          </div>
-        )}
+        </form>
       </Modal>
 
-      {/* Details Modal */}
-      <Modal
-        open={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        title="Complete Site & Equipment Information"
-        subtitle={detailSite ? `Site #${detailSite.id} · ${detailSite.f_farmer_name}` : ''}
-        maxWidth={720}
-      >
-        {detailSite && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16 }}>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Farmer Name</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.f_farmer_name}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Farmer ID</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#2563eb' }}>{detailSite.f_farmer_id || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Contact Number</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.contact_no || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Contractor Vendor</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.vendor_name || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>District & Block</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.district}, {detailSite.block || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Pump Rating</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>{detailSite.pump_capacity} ({detailSite.pump_type} {detailSite.pump_subtype})</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Pump Serial No</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.pump_sr_no || '—'}</div>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Controller / VFD Serial No</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{detailSite.controller_sr_no || '—'}</div>
-            </div>
-            <div style={{ gridColumn: 'span 2' }}>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Solar Module Serial Numbers</span>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', marginTop: 2 }}>
-                {detailSite.module_sr_no || '—'}
-              </div>
-            </div>
-            {detailSite.verify_remarks && (
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: 11, color: '#64748b' }}>Audit Inspection Remarks</span>
-                <div style={{ fontSize: 12, color: '#334155', background: '#eff6ff', padding: '8px 12px', borderRadius: 6, border: '1px solid #bfdbfe', marginTop: 2 }}>
-                  {detailSite.verify_remarks}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Lightbox Zoom */}
-      {lightboxImg && (
-        <div className="asw-lightbox-overlay" onClick={() => setLightboxImg(null)}>
-          <img src={lightboxImg} alt="Enlarged view" className="asw-lightbox-img" />
-        </div>
+      {/* ── Media Lightbox Modal ── */}
+      {lightboxUrl && (
+        <LightboxModal
+          open={Boolean(lightboxUrl)}
+          onClose={() => setLightboxUrl(null)}
+          url={lightboxUrl.url}
+          title={lightboxUrl.title}
+        />
       )}
     </div>
   );

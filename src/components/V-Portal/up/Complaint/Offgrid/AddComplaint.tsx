@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ComplaintFormLayout,
   FloatingInput,
@@ -9,9 +9,13 @@ import {
   SectionHeader,
   opts,
   getTodayFormatted,
+  formatDateForInput,
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
   type SectionItem,
 } from '../CommonSharedComplaints';
-import { upComplaintService, type UpOffgridDetails } from '../../up-services';
+import { getMediaUrl, upComplaintService, type UpOffgridDetails } from '../../up-services';
 
 const SECTIONS: SectionItem[] = [
   { id: 'og-sec-1', num: '1', title: 'District & Beneficiary' },
@@ -37,8 +41,14 @@ type FormKey = keyof typeof INITIAL_FORM;
 
 export function UPComplaintOffgridAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = Boolean(editId);
 
   const [form, setForm] = useState(INITIAL_FORM);
+  const [complaintCode, setComplaintCode] = useState('');
+  const [existingFile, setExistingFile] = useState('');
   const [selectedBeneficiary, setSelectedBeneficiary] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
@@ -82,6 +92,72 @@ export function UPComplaintOffgridAdd() {
       active = false;
     };
   }, []);
+
+  // Hydrate form in Edit mode (?edit=<id>)
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+
+    const applyRecord = async (rec: Record<string, any>) => {
+      if (!active || !rec) return;
+      const dist = String(rec.district || '').trim();
+      const bName = String(rec.beneficiary_name || '').trim();
+      const bId = String(rec.ogid || rec.offgrid_id || rec.beneficiary_id || bName || '').trim();
+      const rawSms = String(rec.sms ?? rec.send_sms ?? 'No').trim().toLowerCase();
+
+      if (rec.complaint_id) setComplaintCode(String(rec.complaint_id));
+      setExistingFile(getMediaUrl(rec.document || rec.file || rec.file1) || '');
+      setSelectedBeneficiary(bId);
+      setForm({
+        complaint_date: formatDateForInput(rec.complaint_date || rec.created_date || rec.created_at) || getTodayFormatted(),
+        district: dist,
+        ogid: bId,
+        beneficiary_name: bName,
+        mobile_no: String(rec.mobile_no || rec.contact_no || rec.contact_number || ''),
+        plant_capacity: String(rec.plant_capacity || ''),
+        work_order_no: String(rec.work_order_no || rec.wo_no || ''),
+        work_order_date: formatDateForInput(rec.work_order_date || rec.wo_date),
+        contractor_name: String(rec.contractor_name || ''),
+        complaint: String(rec.complaint || ''),
+        sms: rawSms === 'yes' || rawSms === '1' || rawSms === 'true' ? 'Yes' : 'No',
+      });
+
+      if (dist) {
+        try {
+          const list = await upComplaintService.getOffgridBeneficiaryNames(dist);
+          if (!active) return;
+          const matched = list.find((b) => String(b.id) === bId || b.name === bName);
+          if (matched) {
+            setBeneficiaries(list);
+            setSelectedBeneficiary(String(matched.id));
+            setForm((p) => ({ ...p, beneficiary_name: matched.name }));
+          } else if (bId || bName) {
+            setBeneficiaries([{ id: bId || bName, name: bName || bId }, ...list]);
+          } else {
+            setBeneficiaries(list);
+          }
+        } catch {
+          if (active && (bId || bName)) {
+            setBeneficiaries([{ id: bId || bName, name: bName || bId }]);
+          }
+        }
+      }
+    };
+
+    const stateRow = (location.state as any)?.editComplaint;
+    if (stateRow) applyRecord(stateRow);
+
+    upComplaintService
+      .getOffgridEditComplaint(editId)
+      .then((fresh) => {
+        if (active && fresh) applyRecord({ ...(stateRow || {}), ...fresh });
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [editId, location.state]);
 
   const handleDistrictChange = async (d: string) => {
     setSelectedBeneficiary('');
@@ -133,7 +209,7 @@ export function UPComplaintOffgridAdd() {
 
     setLoadingDetails(true);
     try {
-      const det: UpOffgridDetails | null = await upComplaintService.getOffgridDetails(idOrName);
+      const det: UpOffgridDetails | null = await upComplaintService.getOffgridDetails(idOrName, chosen?.name);
       if (det) {
         const resolvedId = det.id ?? det.ogid ?? det.offgrid_id ?? initialOgid;
         const resolvedMobile = det.mobile_no ?? det.contact_no ?? det.contact_number ?? '';
@@ -173,25 +249,28 @@ export function UPComplaintOffgridAdd() {
     setBeneficiaries([]);
   };
 
-  const validate = () => {
+  const validate = (): Record<string, string> => {
     const errs: Record<string, string> = {};
     if (!form.complaint_date) errs.complaint_date = 'Complaint Date is required.';
     if (!form.district) errs.district = 'District is required.';
     if (!selectedBeneficiary && !form.ogid && !form.beneficiary_name) errs.beneficiary_name = 'Beneficiary Name is required.';
     if (!form.mobile_no.trim()) errs.mobile_no = 'Mobile Number is required.';
     if (!form.complaint.trim()) errs.complaint = 'Complaint description is required.';
-    if (!file) errs.document = 'Document / Photo is required.';
+    if (!isEdit && !file) errs.document = 'Document / Photo is required.';
 
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    return errs;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setToast(null);
 
-    if (!validate()) {
-      setToast({ type: 'error', message: 'Please correct the highlighted errors before submitting.' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setToast({ type: 'error', message: missingMsg });
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -204,10 +283,14 @@ export function UPComplaintOffgridAdd() {
 
       const resolvedId = form.ogid || selectedBeneficiary;
       if (resolvedId) {
-        fd.set('id', String(resolvedId));
         fd.set('ogid', String(resolvedId));
         fd.set('offgrid_id', String(resolvedId));
         fd.set('beneficiary_id', String(resolvedId));
+        if (!isEdit) fd.set('id', String(resolvedId));
+      }
+      if (isEdit && editId) {
+        fd.set('id', String(editId));
+        if (complaintCode) fd.set('complaint_id', complaintCode);
       }
 
       if (form.mobile_no) {
@@ -235,43 +318,47 @@ export function UPComplaintOffgridAdd() {
         fd.set('file', file);
       }
 
-      const res = await upComplaintService.saveOffgridComplaint(fd);
+      const res = isEdit
+        ? await upComplaintService.updateOffgridComplaint(fd)
+        : await upComplaintService.saveOffgridComplaint(fd);
       if (res.status) {
-        setToast({ type: 'success', message: res.message || 'Offgrid Complaint submitted successfully!' });
-        handleReset();
+        setToast({
+          type: 'success',
+          message: res.message || (isEdit ? 'Offgrid Complaint updated successfully!' : 'Offgrid Complaint submitted successfully!'),
+        });
+        if (!isEdit) handleReset();
         setTimeout(() => {
           navigate('/v/complaint/up/offgrid-view-complaint');
-        }, 1500);
+        }, 1200);
       } else {
-        if (res.errors) {
-          const mapped: Record<string, string> = {};
-          Object.entries(res.errors).forEach(([k, v]) => {
-            mapped[k] = Array.isArray(v) ? v[0] : String(v);
-          });
-          if ((mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id) && !mapped.beneficiary_name) {
-            mapped.beneficiary_name = mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id;
-          }
-          if ((mapped.contact_no || mapped.contact_number) && !mapped.mobile_no) {
-            mapped.mobile_no = mapped.contact_no || mapped.contact_number;
-          }
-          if (mapped.wo_no && !mapped.work_order_no) {
-            mapped.work_order_no = mapped.wo_no;
-          }
-          if (mapped.wo_date && !mapped.work_order_date) {
-            mapped.work_order_date = mapped.wo_date;
-          }
-          if (mapped.file && !mapped.document) {
-            mapped.document = mapped.file;
-          }
-          setErrors(mapped);
-          const firstErr = Object.values(mapped)[0];
-          setToast({ type: 'error', message: firstErr || res.message || 'Validation failed.' });
-        } else {
-          setToast({ type: 'error', message: res.message || 'Failed to submit complaint.' });
+        const extracted = extractBackendError(res, isEdit ? 'Failed to update complaint.' : 'Failed to submit complaint.');
+        const mapped = { ...extracted.fieldErrors };
+        if ((mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id) && !mapped.beneficiary_name) {
+          mapped.beneficiary_name = mapped.ogid || mapped.offgrid_id || mapped.beneficiary_id;
         }
+        if ((mapped.contact_no || mapped.contact_number) && !mapped.mobile_no) {
+          mapped.mobile_no = mapped.contact_no || mapped.contact_number;
+        }
+        if (mapped.wo_no && !mapped.work_order_no) {
+          mapped.work_order_no = mapped.wo_no;
+        }
+        if (mapped.wo_date && !mapped.work_order_date) {
+          mapped.work_order_date = mapped.wo_date;
+        }
+        if (mapped.file && !mapped.document) {
+          mapped.document = mapped.file;
+        }
+        setErrors((prev) => ({ ...prev, ...mapped }));
+        setToast({ type: 'error', message: extracted.message });
+        setTimeout(() => scrollToFirstError(), 50);
       }
     } catch (err: any) {
-      setToast({ type: 'error', message: err?.message || 'Error occurred.' });
+      const extracted = extractBackendError(err, 'Error occurred.');
+      setToast({ type: 'error', message: extracted.message });
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      }
     } finally {
       setLoading(false);
     }
@@ -279,21 +366,23 @@ export function UPComplaintOffgridAdd() {
 
   return (
     <ComplaintFormLayout
-      title="Add UP Offgrid Complaint"
-      subtitle="Register standalone offgrid solar home system and power pack breakdown complaints"
+      title={isEdit ? 'Edit UP Offgrid Complaint' : 'Add UP Offgrid Complaint'}
+      subtitle={isEdit ? 'Update standalone offgrid solar home system breakdown complaint' : 'Register standalone offgrid solar home system and power pack breakdown complaints'}
       breadcrumbs={[
         { label: 'Home', href: '/v' },
         { label: 'View Vendor UP Offgrid Complaints', href: '/v/complaint/up/offgrid-view-complaint' },
-        { label: 'Add UP Offgrid Complaint' },
+        { label: isEdit ? 'Edit UP Offgrid Complaint' : 'Add UP Offgrid Complaint' },
       ]}
       viewLink="/v/complaint/up/offgrid-view-complaint"
       eyebrow="Offgrid Solar Power"
-      formTitle="Add UP Offgrid Complaint"
-      formSubtitle="Enter beneficiary location, equipment details, and problem description across 3 sections."
+      formTitle={isEdit ? `Edit UP Offgrid Complaint${complaintCode ? ` #${complaintCode}` : ''}` : 'Add UP Offgrid Complaint'}
+      formSubtitle={isEdit ? 'Update complaint details and save changes.' : 'Enter beneficiary location, equipment details, and problem description across 3 sections.'}
       sections={SECTIONS}
       onSubmit={handleSubmit}
       onReset={handleReset}
       loading={loading}
+      submitLabel={isEdit ? 'Update Complaint' : 'Submit Complaint'}
+      statusLabel={isEdit ? 'Edit Complaint' : 'New Complaint'}
       toast={toast}
     >
       {/* ── Section 1: District & Beneficiary ── */}
@@ -394,8 +483,9 @@ export function UPComplaintOffgridAdd() {
             key={fileKey}
             id="og-file"
             label="Upload Document / Photo"
-            required
+            required={!isEdit}
             file={file}
+            existingUrl={existingFile}
             onChange={(f) => {
               setFile(f);
               if (f) clearErr('document');

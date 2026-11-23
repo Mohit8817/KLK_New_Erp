@@ -59,6 +59,13 @@ const X_ICON = (
   </svg>
 );
 
+const ICON_REFRESH = (
+  <svg className="ax-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+  </svg>
+);
+
 function Modal({
   open,
   onClose,
@@ -585,6 +592,14 @@ export function RescoClaimRequest() {
 
     if (initialSiteId) {
       setSelectedSiteId(String(initialSiteId));
+    } else {
+      setSelectedSiteId('');
+    }
+    setClaimAmount('');
+    setClaimInvoiceFile(null);
+    setClaimRemarks('');
+    if (claimFileRef.current) {
+      claimFileRef.current.value = '';
     }
 
     setRaiseModalOpen(true);
@@ -612,40 +627,22 @@ export function RescoClaimRequest() {
       let approved = rawSites.filter((s: any) => {
         const v = Number(s.inst_verify_status ?? s.verify_status ?? 0);
         const raw = String(s.inst_verify_status ?? s.verify_status ?? '').toLowerCase().trim();
-        return v === 1 || raw === 'approved' || raw === 'complete' || raw === '1';
+        return v === 1 || raw === 'approved' || raw === 'complete' || raw === '1' || !s.inst_verify_status;
       });
 
       if (approved.length === 0) {
         const installSites = await jammuRescoService.getInstallSites();
-        approved = installSites.filter((s: any) => {
-          const v = Number(s.inst_verify_status ?? s.verify_status ?? 0);
-          const raw = String(s.inst_verify_status ?? s.verify_status ?? '').toLowerCase().trim();
-          return v === 1 || raw === 'approved' || raw === 'complete' || raw === '1';
-        });
+        approved = installSites.length > 0 ? installSites : rawSites;
       }
 
-      const cleanApproved = approved.filter(
-        (s: any) =>
-          s &&
-          s.site_name &&
-          !String(s.site_name).toLowerCase().includes('dummy') &&
-          !String(s.site_name).toLowerCase().includes('fake')
-      );
-
-      setSitesDropdown(cleanApproved);
+      setSitesDropdown(approved.length > 0 ? approved : rawSites);
     } catch (err: any) {
       console.error('[Jammu Resco Claims] fetch approved sites error:', err);
       const pool = [
         ...(claimData.pay1 || []),
         ...(claimData.pay2 || []),
         ...(claimData.pay3 || []),
-      ].filter(
-        (s: any) =>
-          s &&
-          s.site_name &&
-          !String(s.site_name).toLowerCase().includes('dummy') &&
-          !String(s.site_name).toLowerCase().includes('fake')
-      );
+      ];
       setSitesDropdown(pool);
     } finally {
       setLoadingSites(false);
@@ -1072,13 +1069,42 @@ export function RescoClaimRequest() {
           { label: 'Claim Request' },
         ]}
         actions={
-          <button
-            type="button"
-            className="ax-btn ax-btn--primary ax-btn--sm"
-            onClick={() => handleOpenRaiseModal(activePayType)}
-          >
-            <span className="ax-btn__label">+ Raise RESCO Installation Claim</span>
-          </button>
+          <div style={{ display: 'inline-flex', gap: 'var(--ax-space-2, 8px)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary ax-btn--sm"
+              onClick={loadClaims}
+              disabled={loading}
+              title="Refresh payment records"
+            >
+              <span className={loading ? 'ax-spinner' : ''}>{ICON_REFRESH}</span>
+              <span className="ax-btn__label">Refresh</span>
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(1)}
+              style={{ fontWeight: 600 }}
+            >
+              <span className="ax-btn__label">+ Payment 40%</span>
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(2)}
+              style={{ fontWeight: 600 }}
+            >
+              <span className="ax-btn__label">+ Payment 30%</span>
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary ax-btn--sm"
+              onClick={() => handleOpenRaiseModal(3)}
+              style={{ fontWeight: 600 }}
+            >
+              <span className="ax-btn__label">+ Payment 30%</span>
+            </button>
+          </div>
         }
       />
 
@@ -1250,18 +1276,6 @@ export function RescoClaimRequest() {
               >
                 {pay30_2List.length}
               </span>
-            </button>
-          </div>
-
-          <div>
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={() => handleOpenRaiseModal(activePayType)}
-              style={{ height: 34, padding: '0 14px', fontWeight: 600 }}
-              title="Raise RESCO Installation Claim for selected milestone"
-            >
-              <span className="ax-btn__label">+ Raise RESCO Installation Claim</span>
             </button>
           </div>
         </div>
@@ -1542,16 +1556,7 @@ export function RescoClaimRequest() {
                               >
                                 + Raise Claim
                               </button>
-                              {invoiceUrl && (
-                                <button
-                                  type="button"
-                                  className="ax-btn ax-btn--ghost ax-btn--xs"
-                                  onClick={() => openPreview(invoiceUrl, `Document - ${row.site_name || row.id}`)}
-                                  style={{ height: 26, fontSize: 11, padding: '0 8px' }}
-                                >
-                                  Inspect
-                                </button>
-                              )}
+                           
                             </>
                           ) : (
                             <>
@@ -1612,16 +1617,16 @@ export function RescoClaimRequest() {
       {preview && <ImagePreviewModal url={preview.url} title={preview.title} onClose={closePreview} />}
 
       {/* ── Raise New Claim Modal (API 12: POST /jk/resco-installation-add-claim) ── */}
-      <Modal open={raiseModalOpen} onClose={closeRaiseModal} labelledBy="raise-resco-claim-title" dialogClass="ax-modal__dialog--md">
+      <Modal open={raiseModalOpen} onClose={closeRaiseModal} labelledBy="raise-resco-claim-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 540 }}>
         <form onSubmit={handleRaiseClaimSubmit}>
           <div className="ax-modal__header">
             <div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ax-accent, #2563eb)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Resco Installation Claim
+              </span>
               <h4 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--ax-text-strong, #0f172a)' }} id="raise-resco-claim-title">
-                Raise RESCO Installation Claim
+                {claimPayType === 1 ? 'Payment 40%' : 'Payment 30%'}
               </h4>
-              <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--ax-text-muted, #64748b)' }}>
-                Upload verified tax invoice and claim eligible milestone payment.
-              </p>
             </div>
             <button
               type="button"
@@ -1630,7 +1635,7 @@ export function RescoClaimRequest() {
               disabled={submittingClaim}
               aria-label="Close dialog"
             >
-              ✕
+              {X_ICON}
             </button>
           </div>
 
@@ -1641,88 +1646,77 @@ export function RescoClaimRequest() {
               </div>
             )}
 
-            {/* Payment Milestone */}
-            <div className="ax-modern-field">
-              <label className="ax-modern-label" htmlFor="claim_pay_type">
-                <span>Payment Milestone</span>
-                <span className="ax-modern-req">*</span>
-              </label>
-              <select
-                id="claim_pay_type"
-                className="ax-input"
-                style={{ width: '100%', height: 42 }}
-                value={claimPayType}
-                onChange={(e) => {
-                  const nextPt = Number(e.target.value);
-                  setClaimPayType(nextPt);
-                  const eligible = getEligibleSitesForPayType(nextPt);
-                  if (eligible.length > 0) {
-                    setSitesDropdown(eligible);
-                    if (!eligible.some((s: any) => String(s.id ?? s.site_id) === selectedSiteId)) {
-                      setSelectedSiteId('');
-                    }
-                  }
-                }}
-                disabled={submittingClaim}
-                required
-              >
-                <option value={1}>Payment 40 % (Milestone 1)</option>
-                <option value={2}>Payment 30 % (Milestone 2)</option>
-                <option value={3}>Payment 30 % (Milestone 3)</option>
-              </select>
-            </div>
-
             {/* Select Site */}
             <div className="ax-modern-field">
               <label className="ax-modern-label" htmlFor="claim_site_select">
-                <span>Select Approved Site (Only Verified & Approved)</span>
+                <span>Select Site</span>
                 <span className="ax-modern-req">*</span>
               </label>
               <select
                 id="claim_site_select"
                 className="ax-input"
-                style={{ width: '100%', height: 42 }}
+                style={{ width: '100%', height: 42, background: '#fff' }}
                 value={selectedSiteId}
                 onChange={(e) => setSelectedSiteId(e.target.value)}
                 disabled={loadingSites || submittingClaim}
                 required
               >
-                <option value="">-- Choose Verified & Approved Site --</option>
+                <option value="">-- Select Site --</option>
                 {sitesDropdown.map((s) => {
                   const sid = String(s.id ?? s.site_id);
+                  const name = s.site_name || s.name || s.contact_person || `site${sid}`;
                   return (
                     <option key={sid} value={sid}>
-                      {s.site_name || `Site ${sid}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
+                      {name}
                     </option>
                   );
                 })}
               </select>
               {loadingSites && (
                 <div style={{ fontSize: 11, color: '#2563eb', marginTop: 2 }}>
-                  <span className="ax-spinner" /> Loading verified & approved sites...
-                </div>
-              )}
-              {!loadingSites && sitesDropdown.length === 0 && (
-                <div style={{ fontSize: 11.5, color: '#b91c1c', marginTop: 4 }}>
-                  ⚠️ Only verified & approved sites from Installation Details can raise claims. No approved sites found.
+                  <span className="ax-spinner" /> Loading available sites...
                 </div>
               )}
             </div>
 
-            {/* Claim Amount */}
+            {/* Invoice */}
+            <div className="ax-modern-field">
+              <label className="ax-modern-label" htmlFor="claim_invoice_file">
+                <span>Invoice</span>
+                <span className="ax-modern-req">*</span>
+              </label>
+              <input
+                ref={claimFileRef}
+                id="claim_invoice_file"
+                type="file"
+                accept=".pdf,image/png,image/jpeg,image/jpg"
+                className="ax-input"
+                style={{ width: '100%', padding: '8px 12px', height: 'auto', background: '#fff' }}
+                onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
+                disabled={submittingClaim}
+                required
+              />
+              {claimInvoiceFile && (
+                <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 4 }}>
+                  Selected: {claimInvoiceFile.name} ({(claimInvoiceFile.size / 1024).toFixed(1)} KB)
+                </div>
+              )}
+            </div>
+
+            {/* Amount */}
             <div className="ax-modern-field">
               <label className="ax-modern-label" htmlFor="claim_amount_input">
-                <span>Claim Amount (₹)</span>
+                <span>Amount</span>
                 <span className="ax-modern-req">*</span>
               </label>
               <input
                 id="claim_amount_input"
                 type="number"
                 min="1"
-                step="0.01"
+                step="any"
                 className="ax-input"
                 style={{ width: '100%', height: 42 }}
-                placeholder="Enter claim amount (e.g. 50000)"
+                placeholder="Enter Amount"
                 value={claimAmount}
                 onChange={(e) => setClaimAmount(e.target.value)}
                 disabled={submittingClaim}
@@ -1730,91 +1724,20 @@ export function RescoClaimRequest() {
               />
             </div>
 
-            {/* Claim Invoice Document Upload */}
-            <div className="ax-modern-field">
-              <label className="ax-modern-label">
-                <span>Milestone Tax Invoice Document</span>
-                <span className="ax-modern-req">*</span>
-              </label>
-              <input
-                ref={claimFileRef}
-                id="claim_invoice_file"
-                type="file"
-                accept=".pdf,image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
-              />
-              {!claimInvoiceFile ? (
-                <div
-                  className="ax-modern-dropzone"
-                  onClick={() => claimFileRef.current?.click()}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="ax-modern-dropzone__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 22, height: 22, color: '#2563eb' }}>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)' }}>
-                      Click to upload signed tax invoice
-                    </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
-                      Allowed: JPG, PNG, WEBP, PDF (Max 5 MB)
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="ax-modern-file-chip">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <span className="ax-modern-file-chip__icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18, color: '#059669' }}>
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                      </svg>
-                    </span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {claimInvoiceFile.name}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: 'var(--ax-text-muted, #64748b)' }}>
-                        {(claimInvoiceFile.size / 1024).toFixed(1)} KB
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--ghost ax-btn--sm"
-                    style={{ padding: '4px 8px', fontSize: 12, color: '#ef4444' }}
-                    onClick={() => {
-                      setClaimInvoiceFile(null);
-                      if (claimFileRef.current) claimFileRef.current.value = '';
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* Remarks */}
             <div className="ax-modern-field">
               <label className="ax-modern-label" htmlFor="claim_remarks">
-                <span>Remarks (Optional)</span>
+                <span>Remarks</span>
               </label>
               <textarea
                 id="claim_remarks"
                 className="ax-input"
-                style={{ width: '100%', padding: '10px 12px', minHeight: 65 }}
+                style={{ width: '100%', padding: '10px 12px' }}
+                placeholder="Remarks"
+                rows={3}
                 value={claimRemarks}
                 onChange={(e) => setClaimRemarks(e.target.value)}
-                placeholder="Enter claim notes or milestone description..."
-                rows={2}
+                disabled={submittingClaim}
               />
             </div>
           </div>

@@ -570,7 +570,7 @@ export function Goa_Installation_SRT_RequestAccept() {
       if (search.trim()) {
         const q = search.toLowerCase();
         const vendorName = (a.vendors?.name || (a as any).vendor_name || String(a.vendor || '')).toLowerCase();
-        const siteNamesStr = Array.isArray(a.site_name) ? a.site_name.join(' ').toLowerCase() : String(a.site_name || '').toLowerCase();
+        const siteNamesStr = getSiteRows(a).map((s) => s.name).join(' ').toLowerCase();
         const dist = (a.district || '').toLowerCase();
         const rem = (a.remarks || '').toLowerCase();
         const idStr = String(a.id);
@@ -603,13 +603,107 @@ export function Goa_Installation_SRT_RequestAccept() {
     setCurrentPage(1);
   };
 
+  const toSafeString = (val: any, fallback = ''): string => {
+    if (val === null || val === undefined) return fallback;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'object') {
+      return val.site_name || val.name || val.title || (val.id ? `Site #${val.id}` : fallback);
+    }
+    return String(val);
+  };
+
   const getSiteCount = (batch: GoaSrtAssignBatchItem): number => {
+    if (Array.isArray(batch.site_names) && batch.site_names.length > 0) return batch.site_names.length;
     if (batch.site_count !== undefined && batch.site_count !== null && batch.site_count !== '') {
       const n = Number(batch.site_count);
       if (!isNaN(n) && n > 0) return n;
     }
+    if (batch.sitecount !== undefined && batch.sitecount !== null && batch.sitecount !== '') {
+      const n = Number(batch.sitecount);
+      if (!isNaN(n) && n > 0) return n;
+    }
     if (Array.isArray(batch.site_name)) return batch.site_name.length;
     return 1;
+  };
+
+  // Helper to get array of site records
+  const getSiteRows = (batch: GoaSrtAssignBatchItem): { id?: number | string; name: string; deadline?: string }[] => {
+    let siteNamesList = batch.site_names;
+    if (typeof siteNamesList === 'string') {
+      try {
+        siteNamesList = JSON.parse(siteNamesList);
+      } catch {
+        siteNamesList = undefined;
+      }
+    }
+
+    if (Array.isArray(siteNamesList) && siteNamesList.length > 0) {
+      return siteNamesList.map((s: any, idx: number) => {
+        if (typeof s === 'object' && s !== null) {
+          return {
+            id: s.id || idx + 1,
+            name: toSafeString(s.site_name || s.name || `Site #${s.id || idx + 1}`),
+            deadline: typeof s.inst_deadline === 'string'
+              ? s.inst_deadline
+              : typeof s.deadline === 'string'
+              ? s.deadline
+              : typeof s.deadline_date === 'string'
+              ? s.deadline_date
+              : typeof (batch as any).inst_deadline === 'string'
+              ? (batch as any).inst_deadline
+              : typeof (batch as any).deadline_date === 'string'
+              ? (batch as any).deadline_date
+              : undefined,
+          };
+        }
+        return {
+          id: idx + 1,
+          name: toSafeString(s),
+          deadline: (batch as any).inst_deadline || (batch as any).deadline_date,
+        };
+      });
+    }
+
+    let siteNameField = batch.site_name;
+    if (typeof siteNameField === 'string' && siteNameField.trim().startsWith('[') && siteNameField.trim().endsWith(']')) {
+      try {
+        const parsed = JSON.parse(siteNameField);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((item: any, idx: number) => ({
+            id: idx + 1,
+            name: toSafeString(item),
+            deadline: (typeof item === 'object' && item !== null ? (item.inst_deadline || item.deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
+          }));
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    if (Array.isArray(batch.site_name) && batch.site_name.length > 0) {
+      return batch.site_name.map((item: any, idx: number) => ({
+        id: idx + 1,
+        name: toSafeString(item),
+        deadline: (typeof item === 'object' && item !== null ? (item.inst_deadline || item.deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
+      }));
+    }
+    if (batch.site_name) {
+      return [
+        {
+          id: batch.id,
+          name: toSafeString(batch.site_name),
+          deadline: (typeof batch.site_name === 'object' && batch.site_name !== null ? ((batch.site_name as any).inst_deadline || (batch.site_name as any).deadline) : undefined) || (batch as any).inst_deadline || (batch as any).deadline_date,
+        },
+      ];
+    }
+    return [
+      {
+        id: batch.id,
+        name: `Site #${batch.id}`,
+        deadline: (batch as any).inst_deadline || (batch as any).deadline_date,
+      },
+    ];
   };
 
   // Cumulative allocated sites
@@ -617,7 +711,7 @@ export function Goa_Installation_SRT_RequestAccept() {
     return assignments.reduce((sum, item) => sum + getSiteCount(item), 0);
   }, [assignments]);
 
-  // Export Columns (Exact match with 12 table headers)
+  // Export Columns (Exact match with 11 table headers)
   const exportCols: ExportColumn<GoaSrtAssignBatchItem>[] = useMemo(
     () => [
       { header: 'Sr. No.', accessor: (r: GoaSrtAssignBatchItem) => String(r.id || DASH) },
@@ -627,13 +721,15 @@ export function Goa_Installation_SRT_RequestAccept() {
       { header: 'District', accessor: (r) => r.district || DASH },
       {
         header: 'Site Name - Deadline',
-        accessor: (r) => (Array.isArray(r.site_name) ? r.site_name.join(', ') : String(r.site_name || DASH)),
+        accessor: (r) => {
+          const rows = getSiteRows(r);
+          return rows.map((s) => `${s.name}${s.deadline || r.deadline_date ? ' - ' + (s.deadline || r.deadline_date) : ''}`).join(', ');
+        },
       },
       {
         header: 'Count',
         accessor: (r) => String(getSiteCount(r)),
       },
-      { header: 'Deadline Date', accessor: (r) => r.deadline_date || DASH },
       { header: 'File', accessor: (r) => r.file || DASH },
       { header: 'Remarks', accessor: (r) => r.remarks || DASH },
       { header: 'Status', accessor: (r) => (r.status === 2 ? 'Accepted' : 'Pending Accept') },
@@ -642,29 +738,52 @@ export function Goa_Installation_SRT_RequestAccept() {
   );
 
   const renderSiteNameSnippet = (batch: GoaSrtAssignBatchItem) => {
-    if (Array.isArray(batch.site_name) && batch.site_name.length > 0) {
-      const first = batch.site_name[0];
-      const count = batch.site_name.length;
+    const list = getSiteRows(batch);
+    if (list.length > 0) {
+      const count = list.length;
+      const displayCount = count <= 2 ? count : 1;
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{first}</span>
-          {count > 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200 }}>
+          {list.slice(0, displayCount).map((st, idx) => {
+            const dl = st.deadline || (batch as any).deadline_date || (batch as any).inst_deadline;
+            return (
+              <div key={st.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{toSafeString(st.name)}</span>
+                {dl ? (
+                  <span style={{ fontSize: 12, color: '#000000', fontWeight: 500 }}>
+                    - {dl}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+          {count > displayCount && (
             <button
               type="button"
               className="ax-btn ax-btn--ghost ax-btn--xs"
               style={{ padding: '0 4px', height: 20, fontSize: 11, alignSelf: 'flex-start', color: 'var(--ax-accent)' }}
               onClick={() => setViewBatch(batch)}
             >
-              + {count - 1} more sites
+              + {count - displayCount} more sites
             </button>
           )}
         </div>
       );
     }
-    return String(batch.site_name || DASH);
+    const fallbackDl = (batch as any).deadline_date || (batch as any).inst_deadline;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{toSafeString(batch.site_name, DASH)}</span>
+        {fallbackDl ? (
+          <span style={{ fontSize: 12, color: '#000000', fontWeight: 500 }}>
+            - {fallbackDl}
+          </span>
+        ) : null}
+      </div>
+    );
   };
 
-  const TOTAL_COLUMNS = 12;
+  const TOTAL_COLUMNS = 11;
   const tableHeaders = [
     'Sr. No.',
     'Vendor',
@@ -673,7 +792,6 @@ export function Goa_Installation_SRT_RequestAccept() {
     'District',
     'Site Name - Deadline',
     'Count',
-    'Deadline Date',
     'File',
     'Remarks',
     'Status',
@@ -943,9 +1061,7 @@ export function Goa_Installation_SRT_RequestAccept() {
                           <div style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
                             {item.vendors?.name || (item as any).vendor_name || `Vendor #${item.vendor}`}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--ax-text-muted)', marginTop: 2 }}>
-                            Assign ID: #{item.id}
-                          </div>
+                        
                         </td>
 
                         {/* 3. Assign Date */}
@@ -993,16 +1109,7 @@ export function Goa_Installation_SRT_RequestAccept() {
                           </button>
                         </td>
 
-                        {/* 8. Deadline Date */}
-                        <td className="ax-table__td" style={{ fontSize: 13 }}>
-                          {item.deadline_date ? (
-                            <span style={{ fontWeight: 500, color: 'var(--ax-text-default)' }}>{item.deadline_date}</span>
-                          ) : (
-                            <span style={{ color: 'var(--ax-text-muted)' }}>{DASH}</span>
-                          )}
-                        </td>
-
-                        {/* 9. File */}
+                        {/* 8. File */}
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           {fileUrl || item.file ? (
                             <InstallationThumbnail
@@ -1150,14 +1257,11 @@ export function Goa_Installation_SRT_RequestAccept() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(Array.isArray(viewBatch.site_name) && viewBatch.site_name.length > 0
-                    ? viewBatch.site_name
-                    : [String(viewBatch.site_name || `Site #${viewBatch.id}`)]
-                  ).map((st, i) => (
-                    <tr key={i} className="ax-table__row">
+                  {getSiteRows(viewBatch).map((st, i) => (
+                    <tr key={st.id || i} className="ax-table__row">
                       <td className="ax-table__td ax-num" style={{ textAlign: 'center', color: 'var(--ax-text-muted)' }}>{i + 1}</td>
-                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{st}</td>
-                      <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>{viewBatch.deadline_date || DASH}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>{st.name}</td>
+                      <td className="ax-table__td" style={{ color: '#000000', fontSize: 13 }}>{st.deadline || viewBatch.deadline_date || DASH}</td>
                       <td className="ax-table__td" style={{ textAlign: 'right' }}>
                         <span
                           className="ax-badge ax-badge--soft ax-badge--success"

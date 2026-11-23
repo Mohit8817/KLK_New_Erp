@@ -504,7 +504,7 @@ function ClaimModal({
   if (!open) return null;
 
   const selectedSite = verifiedSites.find((s) => String(s.id) === selectedSiteId);
-  const siteName = selectedSite ? selectedSite.site_name : selectedSiteId === 'dummy' ? 'Dummy Site' : '';
+  const siteName = selectedSite ? selectedSite.site_name : '';
 
   return (
     <Modal open={open} onClose={onClose} labelledBy="resco-claim-title" dialogClass="ax-modal__dialog--md" dialogStyle={{ maxWidth: 540 }}>
@@ -543,13 +543,16 @@ function ClaimModal({
                   {s.site_name || `Site #${s.id}`} {s.district ? `(${s.district})` : ''} {s.sanction_load ? `[${s.sanction_load} kW]` : ''}
                 </option>
               ))}
-              <option value="dummy">Dummy Site</option>
             </select>
-            {loadingSites && (
+            {loadingSites ? (
               <span style={{ fontSize: 11, color: 'var(--ax-accent, #2563eb)' }}>
                 Loading verified sites…
               </span>
-            )}
+            ) : verifiedSites.length === 0 ? (
+              <span style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+                No verified sites available from server.
+              </span>
+            ) : null}
           </div>
 
           {/* Invoice */}

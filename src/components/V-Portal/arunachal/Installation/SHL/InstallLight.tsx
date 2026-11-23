@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent, type ChangeEvent, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { authService } from '../../../../../services/authService';
@@ -158,6 +158,8 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   placeholder?: string;
   onCameraClick?: () => void;
@@ -170,6 +172,8 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   placeholder,
   onCameraClick,
@@ -189,9 +193,13 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
-        style={onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+        style={{
+          ...(onCameraClick ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
@@ -754,13 +762,13 @@ export function Arunachal_Installation_SHL_InstallLight() {
   };
 
   // Auto-detect GPS Coordinates
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
-    setFeedback(null);
+    if (!silent) setFeedback(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -778,7 +786,9 @@ export function Arunachal_Installation_SHL_InstallLight() {
           },
           (err2) => {
             setGettingLocation(false);
-            alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please enter manually.`);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please enter manually.`);
+            }
           },
           { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
         );
@@ -786,6 +796,10 @@ export function Arunachal_Installation_SHL_InstallLight() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedLightId]);
 
   // Remove uploaded file
   const removeFile = () => {
@@ -1162,7 +1176,7 @@ export function Arunachal_Installation_SHL_InstallLight() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1258,8 +1272,10 @@ export function Arunachal_Installation_SHL_InstallLight() {
                 label="Latitude"
                 name="latitude"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-                placeholder="28.603171541160073"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Latitude"
                 required
               />
 
@@ -1267,8 +1283,10 @@ export function Arunachal_Installation_SHL_InstallLight() {
                 label="Longitude"
                 name="longitude"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                placeholder="77.35741112118423"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Longitude"
                 required
               />
 

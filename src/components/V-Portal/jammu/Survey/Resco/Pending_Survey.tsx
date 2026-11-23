@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent, type ChangeEvent, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import {
@@ -156,6 +156,8 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
+  style?: CSSProperties;
   type?: string;
   placeholder?: string;
   as?: 'input' | 'select' | 'textarea';
@@ -169,6 +171,8 @@ function FloatingInput({
   onChange,
   required,
   disabled,
+  readOnly,
+  style,
   type = 'text',
   placeholder,
   as = 'input',
@@ -235,6 +239,8 @@ function FloatingInput({
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
+        style={style}
         placeholder={placeholder || label}
         className="ax-float__input"
       />
@@ -551,7 +557,7 @@ export function Pending_Survey() {
             .filter((p) => p && p.site_name && !p.site_name.toLowerCase().includes('dummy') && !p.site_name.toLowerCase().includes('fake'))
             .map((p) => ({
               id: p.id,
-              site_name: p.site_name,
+              site_name: String(p.site_name || ''),
               uid: p.uid,
             }))
         );
@@ -565,7 +571,7 @@ export function Pending_Survey() {
             .filter((p) => p && p.site_name && !p.site_name.toLowerCase().includes('dummy') && !p.site_name.toLowerCase().includes('fake'))
             .map((p) => ({
               id: p.id,
-              site_name: p.site_name,
+              site_name: String(p.site_name || ''),
               uid: p.uid,
             }))
         );
@@ -688,13 +694,13 @@ export function Pending_Survey() {
   }, [queryEditId]);
 
   // GPS Auto-detect
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
-    setFeedback(null);
+    if (!silent) setFeedback(null);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -712,7 +718,9 @@ export function Pending_Survey() {
           },
           (err2) => {
             setGettingLocation(false);
-            alert(`Unable to retrieve GPS coordinates (${err2.message}). Please enter manually.`);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message}). Please allow location access in your browser.`);
+            }
           },
           { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
         );
@@ -720,6 +728,10 @@ export function Pending_Survey() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSiteId]);
 
   // Form Submit Handler
   const handleSubmit = async (e: FormEvent) => {
@@ -1119,7 +1131,7 @@ export function Pending_Survey() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1189,8 +1201,10 @@ export function Pending_Survey() {
                 label="Latitude"
                 name="latitude"
                 value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-                placeholder="e.g. 32.7266"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Latitude"
                 required
               />
 
@@ -1198,8 +1212,10 @@ export function Pending_Survey() {
                 label="Longitude"
                 name="longitude"
                 value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                placeholder="e.g. 74.8570"
+                onChange={() => {}}
+                readOnly={true}
+                style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                placeholder="Auto-detected GPS Longitude"
                 required
               />
             </div>

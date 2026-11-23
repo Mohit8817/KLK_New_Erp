@@ -942,13 +942,21 @@ function KpiCard({
 export function Bihar_Installation_SRT_ViewInstallation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const h = location.hash.toLowerCase();
+    const s = searchParams.get('status')?.toLowerCase();
+    if (h === '#pending' || h === '#penidng' || s === 'pending') {
+      navigate('/v/bihar/installation/srt/status-view?status=inst-pending#pending', { replace: true });
+    }
+  }, [location.hash, searchParams, navigate]);
+
   const tab: TabKey = location.hash.toLowerCase() === '#payment' ? 'payment' : 'completed';
   const setTab = (k: TabKey) => {
     const t = TABS.find((x) => x.key === k)!;
     navigate({ pathname: location.pathname, search: location.search, hash: t.hash }, { replace: true });
   };
-
-  const [searchParams] = useSearchParams();
   const [data, setData] = useState<SrtViewInstallSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(() => searchParams.get('district') || searchParams.get('search') || '');

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { biharComplaintService, getMediaUrl, type SslPoleDataResponse } from '../../bihar-services';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // CSS: Unified Single-Card Layout with Floating Labels & Section Dividers (matching Kashmir golden reference design)
 const SINGLE_CARD_FORM_CSS = `
@@ -413,9 +418,9 @@ export function Bihar_Complaint_SSL_AddComplaint() {
   });
 
   // Retrieve the current Latitude / Longitude using browser GPS
-  const fetchLocation = () => {
+  const fetchLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      setErrors((prev) => ({ ...prev, latitude: 'Location services are not supported by this browser. Please enter the coordinates manually.' }));
+      if (!silent) setErrors((prev) => ({ ...prev, latitude: 'Location services are not supported by this browser.' }));
       return;
     }
     setFetchingLoc(true);
@@ -436,19 +441,24 @@ export function Bihar_Complaint_SSL_AddComplaint() {
             ? 'Location permission denied. Please allow location access in your browser.'
             : err.code === 3
             ? 'The location request timed out. Please try again.'
-            : 'Unable to retrieve your location. Please enter the coordinates manually.';
-        setErrors((prev) => ({ ...prev, latitude: msg }));
+            : 'Unable to retrieve your location.';
+        if (!silent) setErrors((prev) => ({ ...prev, latitude: msg }));
         setFetchingLoc(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
+  // Auto-detect GPS coordinates on mount or pole selection
+  useEffect(() => {
+    fetchLocation(true);
+  }, [formData.pole_no]);
+
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const validate = (): boolean => {
+  const validate = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
     if (!formData.district) newErrors.district = 'District is required.';
     if (!formData.block) newErrors.block = 'Block is required.';
@@ -473,7 +483,7 @@ export function Bihar_Complaint_SSL_AddComplaint() {
     if (!isEdit && !file) newErrors.file = 'Defect / Street Light Photo (file) is required.';
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -481,9 +491,11 @@ export function Bihar_Complaint_SSL_AddComplaint() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!validate()) {
-      setErrorMsg('Please resolve all validation errors before submitting.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      const missingMsg = formatMissingRequiredMsg(validationErrors);
+      setErrorMsg(missingMsg);
+      setTimeout(() => scrollToFirstError(), 50);
       return;
     }
 
@@ -535,13 +547,25 @@ export function Bihar_Complaint_SSL_AddComplaint() {
           navigate('/v/complaint/bihar/ssl-view-complaint');
         }, 1500);
       } else {
-        setErrorMsg(resp.message || 'Failed to submit complaint. Please check your data.');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const extracted = extractBackendError(resp, 'Failed to submit complaint. Please check your data.');
+        setErrorMsg(extracted.message);
+        if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+          setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+          setTimeout(() => scrollToFirstError(), 50);
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     } catch (err: any) {
       console.error('Submission error:', err);
-      setErrorMsg(err?.message || 'Server error while submitting complaint.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const extracted = extractBackendError(err, 'Server error while submitting complaint.');
+      setErrorMsg(extracted.message);
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+        setTimeout(() => scrollToFirstError(), 50);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -708,13 +732,13 @@ export function Bihar_Complaint_SSL_AddComplaint() {
                 <FloatingInput id="cs-battery" label="Battery Serial No" placeholder="e.g. BAT123" {...f('battery_serial_no')} />
                 <FloatingInput id="cs-module" label="Module No" placeholder="e.g. MOD123" {...f('module_no')} />
                 <FloatingInput id="cs-sim" label="SIM No" placeholder="e.g. SIM123" {...f('sim_no')} />
-                <FloatingInput id="cs-lat" label="Latitude" required placeholder="25.5941" {...f('latitude')} />
-                <FloatingInput id="cs-lng" label="Longitude" required placeholder="85.1376" {...f('longitude')} />
+                <FloatingInput id="cs-lat" label="Latitude" required readOnly placeholder="Auto-detected GPS Latitude" {...f('latitude')} onChange={() => {}} />
+                <FloatingInput id="cs-lng" label="Longitude" required readOnly placeholder="Auto-detected GPS Longitude" {...f('longitude')} onChange={() => {}} />
                 <div>
                   <button
                     type="button"
                     className="ax-btn ax-btn--secondary"
-                    onClick={fetchLocation}
+                    onClick={() => fetchLocation(false)}
                     disabled={fetchingLoc}
                     style={{ height: 46, width: '100%' }}
                   >

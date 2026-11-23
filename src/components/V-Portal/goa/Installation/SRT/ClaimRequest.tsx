@@ -277,19 +277,7 @@ const PAGE_CSS = `
   }
 `;
 
-const OVERLAY_CSS = `
-  .ax-modal img { border-radius: 0 !important; }
-  .ula-m-stage {
-    position: relative; display: flex; overflow: auto;
-    height: min(66vh, 600px); background: var(--ax-surface-subtle, #f1f5f9);
-  }
-  .ula-m-stage__msg {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-size: 13px; color: var(--ax-text-muted, #64748b); text-align: center; padding: 16px;
-  }
-  .ula-m-zoom { display: inline-flex; align-items: center; gap: 8px; }
-  .ula-m-zoom__val { min-width: 44px; text-align: center; font-size: 12px; color: var(--ax-text-muted, #64748b); }
-`;
+
 
 /* ── Lightbox Zoom Steps ── */
 const ZOOM_STEPS = [1, 1.5, 2, 3];
@@ -386,8 +374,6 @@ export function Goa_Installation_SRT_ClaimRequest() {
   // Modals
   const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  // New Claim Modal State
-  const [newClaimModal, setNewClaimModal] = useState(false);
   const [eligibleSites, setEligibleSites] = useState<GoaSrtSiteDropdownItem[]>([]);
   const [loadingSites, setLoadingSites] = useState(false);
   const [claimSiteId, setClaimSiteId] = useState('');
@@ -442,17 +428,25 @@ export function Goa_Installation_SRT_ClaimRequest() {
   // Submit Claim
   const handleSubmitClaim = async (e: FormEvent) => {
     e.preventDefault();
-    if (!claimSiteId || !claimAmount || !claimInvoiceFile) {
-      alert('Please fill all mandatory fields and upload the invoice file.');
+    const trimmedRemarks = claimRemarks.trim();
+    if (!claimSiteId || !claimAmount || !claimInvoiceFile || !trimmedRemarks) {
+      alert('Please fill all mandatory fields (site, claim amount, claim invoice file, and remarks).');
       return;
     }
     setSubmittingClaim(true);
     try {
       const fd = new FormData();
       fd.append('site_id', claimSiteId);
+      fd.append('srt_id', claimSiteId);
       fd.append('inst_claim_amount', claimAmount);
-      fd.append('inst_claim_remarks', claimRemarks || '');
+      fd.append('claim_amount', claimAmount);
+      fd.append('amount', claimAmount);
+      fd.append('remarks', trimmedRemarks);
+      fd.append('claim_remarks', trimmedRemarks);
+      fd.append('inst_claim_remarks', trimmedRemarks);
       fd.append('inst_claim_invoice', claimInvoiceFile);
+      fd.append('claim_invoice', claimInvoiceFile);
+      fd.append('invoice', claimInvoiceFile);
 
       await goaSrtInstallationService.raiseClaim(fd);
       setFeedback({ type: 'success', text: 'Installation claim submitted successfully!' });
@@ -593,7 +587,7 @@ export function Goa_Installation_SRT_ClaimRequest() {
   return (
     <div className="solar-erp-page">
       <style>{PAGE_CSS}</style>
-      <style>{OVERLAY_CSS}</style>
+    
 
       {/* ── Page Head ── */}
       <PageHead
@@ -608,13 +602,7 @@ export function Goa_Installation_SRT_ClaimRequest() {
         ]}
         actions={
           <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)' }}>
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary ax-btn--sm"
-              onClick={handleOpenClaimModal}
-            >
-              + Raise Claim
-            </button>
+
             <button
               type="button"
               className="ax-btn ax-btn--secondary ax-btn--sm"
@@ -977,132 +965,6 @@ export function Goa_Installation_SRT_ClaimRequest() {
         />
       )}
 
-      {/* ── Raise New Claim Modal ── */}
-      {newClaimModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-          onClick={() => setNewClaimModal(false)}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--ax-surface-solid, #fff)',
-              borderRadius: 14,
-              width: '100%',
-              maxWidth: 540,
-              padding: 24,
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Raise Installation Claim</h3>
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--xs"
-                onClick={() => setNewClaimModal(false)}
-                style={{ fontSize: 16 }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitClaim}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Select Completed Site *
-                </label>
-                <select
-                  className="ax-input"
-                  style={{ width: '100%', height: 38 }}
-                  value={claimSiteId}
-                  onChange={(e) => setClaimSiteId(e.target.value)}
-                  required
-                  disabled={loadingSites}
-                >
-                  <option value="">{loadingSites ? 'Loading sites...' : '-- Select Eligible Site --'}</option>
-                  {eligibleSites.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.site_name || s.farmer_name} (ID #{s.id} - CA: {s.ca_no || DASH})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Claim Amount (₹) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="ax-input"
-                  style={{ width: '100%', height: 38 }}
-                  placeholder="Enter invoice claim amount"
-                  value={claimAmount}
-                  onChange={(e) => setClaimAmount(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Invoice Document (PDF / Image) *
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="ax-input"
-                  style={{ width: '100%', padding: '6px 10px' }}
-                  onChange={(e) => setClaimInvoiceFile(e.target.files?.[0] || null)}
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Remarks (Optional)
-                </label>
-                <textarea
-                  className="ax-input"
-                  style={{ width: '100%', minHeight: 64, padding: 8 }}
-                  placeholder="Enter remarks or invoice details"
-                  value={claimRemarks}
-                  onChange={(e) => setClaimRemarks(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  className="ax-btn ax-btn--secondary"
-                  onClick={() => setNewClaimModal(false)}
-                  disabled={submittingClaim}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ax-btn ax-btn--primary"
-                  disabled={submittingClaim}
-                >
-                  {submittingClaim ? 'Submitting...' : 'Submit Claim'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── Raise 3rd Payment (15%) Modal ── */}
       {pay3Modal && (

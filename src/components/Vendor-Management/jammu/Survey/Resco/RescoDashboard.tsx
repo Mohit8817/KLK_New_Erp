@@ -10,10 +10,13 @@ import {
   type ExportColumn,
 } from '../../../../../common';
 import {
-  jammuRescoSurveyService,
-  type JammuRescoSurveyItem,
-  type JammuRescoAssignedSurveyItem,
-} from '../../../../V-Portal/jammu/jammu-services';
+  jammuSurveyAdminService,
+  type JKRescoSurveyDashboardData,
+  type JKRescoSurveyItem,
+  type JKRescoSurveyDistrictwise,
+  type JKRescoSurveyVendorwise,
+  resolveJammuSurveyMediaUrl,
+} from '../jammuSurveyAdminService';
 
 // Code-split ApexCharts so the Jammu RESCO Survey Dashboard shell renders instantly
 const ApexChart = lazy(() => import('../../../../charts/ApexChart').then((m) => ({ default: m.ApexChart })));
@@ -26,7 +29,7 @@ const LIGHT_AMBER = '#f59e0b';
 const LIGHT_VIOLET = '#7c3aed';
 const LIGHT_RED = '#ef4444';
 
-const num = (x: number) => (x ?? 0).toLocaleString('en-IN');
+const num = (x: number | undefined | null) => (Number(x) || 0).toLocaleString('en-IN');
 const pctOf = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
 const escapeHtml = (s: string) =>
   String(s ?? '')
@@ -47,7 +50,7 @@ const useChartHeight = (desktop: number, mobile: number) => {
   return h;
 };
 
-/* ───────── Responsive page CSS (Exact Solar ERP / Assam / Arunachal pattern) ───────── */
+/* ───────── Responsive page CSS (Exact Solar ERP / Jammu pattern) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: #2563eb;
@@ -266,13 +269,12 @@ const I_DONE = svg(<><path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" 
 const I_X = svg(<><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M10 10l4 4m0 -4l-4 4" /></>);
 const I_SHIELD = svg(<><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3" /><path d="M9 12l2 2l4 -4" /></>);
 const I_DOC = svg(<><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 9l1 0" /><path d="M9 13l6 0" /><path d="M9 17l6 0" /></>);
-const I_CREDIT = svg(<><rect x="3" y="5" width="18" height="14" rx="3" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="7" y1="15" x2="7.01" y2="15" /><line x1="11" y1="15" x2="13" y2="15" /></>);
 const I_USERS = svg(<><path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></>);
 const ICON_FILTER = (
   <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.828 4.828v7.586l-4 -2v-5.586l-4.828 -4.828a2 2 0 0 1 -.586 -1.414v-2.172z" /></svg>
 );
 
-/* ───────── KPI Card Component matching Assam & Arunachal ───────── */
+/* ───────── KPI Card Component ───────── */
 interface KpiProps {
   icon: ReactNode;
   tone: 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'pink' | 'red';
@@ -371,6 +373,8 @@ export interface RescoDistrictWise {
   verify_approved: number;
   verify_pending: number;
   verify_reject: number;
+  assigned?: number;
+  not_assigned?: number;
   bos_cleared: number;
   capacity_kw: number;
 }
@@ -380,15 +384,26 @@ export interface RescoMonthlySurveyItem {
   monthly_surveys: number;
 }
 
+const STATUS_SLUG_MAP: Record<string, string | undefined> = {
+  All: undefined,
+  Complete: 'survey-done',
+  Pending: 'survey-pending',
+  VerifyApproved: 'survey-verify-complete',
+  VerifyPending: 'survey-verify-pending',
+  VerifyReject: 'survey-verify-reject',
+  Assigned: 'assigned',
+  NotAssigned: 'not-assigned',
+};
+
 export function RescoDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [, setUpdatedAt] = useState<Date | null>(null);
 
   // Raw API lists
-  const [surveyList, setSurveyList] = useState<JammuRescoSurveyItem[]>([]);
-  const [assignedList, setAssignedList] = useState<JammuRescoAssignedSurveyItem[]>([]);
+  const [dashboardData, setDashboardData] = useState<JKRescoSurveyDashboardData | null>(null);
+  const [surveyList, setSurveyList] = useState<JKRescoSurveyItem[]>([]);
 
   // Filter states
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
@@ -397,34 +412,29 @@ export function RescoDashboard() {
   const [surveyQuery, setSurveyQuery] = useState<string>('');
 
   // Selected site for modal preview
-  const [selectedSiteModal, setSelectedSiteModal] = useState<JammuRescoSurveyItem | null>(null);
+  const [selectedSiteModal, setSelectedSiteModal] = useState<JKRescoSurveyItem | null>(null);
 
   // Chart heights
   const chartH = useChartHeight(320, 260);
   const donutH = useChartHeight(230, 210);
 
-  // 1. Fetch live data with graceful fallbacks
-  const loadDashboardData = useCallback(async () => {
+  // 1. Fetch live data from official JK RESCO survey endpoints
+  const loadDashboardData = useCallback(async (statusFilter: string = 'All') => {
     setLoading(true);
     setApiError(null);
     try {
-      const [viewRes, assignedRes] = await Promise.allSettled([
-        jammuRescoSurveyService.viewSurveys(),
-        jammuRescoSurveyService.getAssignedSurveys(),
+      const statusSlug = STATUS_SLUG_MAP[statusFilter];
+      const [dashRes, viewRes] = await Promise.allSettled([
+        jammuSurveyAdminService.getRescoSurveyDashboard(),
+        jammuSurveyAdminService.getRescoSurveyViewDashboard(statusSlug),
       ]);
 
-      let rescoItems: JammuRescoSurveyItem[] = [];
-      let assignedItems: JammuRescoAssignedSurveyItem[] = [];
-
-      if (viewRes.status === 'fulfilled' && viewRes.value?.resco) {
-        rescoItems = Array.isArray(viewRes.value.resco) ? viewRes.value.resco : [];
+      if (dashRes.status === 'fulfilled') {
+        setDashboardData(dashRes.value || {});
       }
-      if (assignedRes.status === 'fulfilled' && Array.isArray(assignedRes.value)) {
-        assignedItems = assignedRes.value;
+      if (viewRes.status === 'fulfilled') {
+        setSurveyList(Array.isArray(viewRes.value) ? viewRes.value : []);
       }
-
-      setSurveyList(rescoItems);
-      setAssignedList(assignedItems);
       setUpdatedAt(new Date());
     } catch (err: any) {
       console.error('Jammu RESCO Dashboard fetch error:', err);
@@ -435,55 +445,33 @@ export function RescoDashboard() {
   }, []);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+    loadDashboardData(selectedStatus);
+  }, [selectedStatus, loadDashboardData]);
 
-  // Fallback demo dataset of real J&K districts when database is pristine or sparsely populated
-  const DEFAULT_DISTRICTS: RescoDistrictWise[] = useMemo(() => [
-    { district: 'Jammu', total_sites: 28, complete: 24, pending: 4, verify_approved: 20, verify_pending: 3, verify_reject: 1, bos_cleared: 18, capacity_kw: 1450 },
-    { district: 'Srinagar', total_sites: 24, complete: 20, pending: 4, verify_approved: 17, verify_pending: 2, verify_reject: 1, bos_cleared: 15, capacity_kw: 1220 },
-    { district: 'Udhampur', total_sites: 16, complete: 14, pending: 2, verify_approved: 12, verify_pending: 1, verify_reject: 1, bos_cleared: 10, capacity_kw: 850 },
-    { district: 'Anantnag', total_sites: 15, complete: 12, pending: 3, verify_approved: 10, verify_pending: 2, verify_reject: 0, bos_cleared: 9, capacity_kw: 740 },
-    { district: 'Baramulla', total_sites: 14, complete: 11, pending: 3, verify_approved: 9, verify_pending: 2, verify_reject: 0, bos_cleared: 8, capacity_kw: 690 },
-    { district: 'Kathua', total_sites: 12, complete: 10, pending: 2, verify_approved: 9, verify_pending: 1, verify_reject: 0, bos_cleared: 7, capacity_kw: 580 },
-    { district: 'Rajouri', total_sites: 10, complete: 8, pending: 2, verify_approved: 7, verify_pending: 1, verify_reject: 0, bos_cleared: 6, capacity_kw: 490 },
-    { district: 'Pulwama', total_sites: 9, complete: 7, pending: 2, verify_approved: 6, verify_pending: 1, verify_reject: 0, bos_cleared: 5, capacity_kw: 430 },
-    { district: 'Samba', total_sites: 8, complete: 7, pending: 1, verify_approved: 6, verify_pending: 1, verify_reject: 0, bos_cleared: 5, capacity_kw: 390 },
-    { district: 'Kupwara', total_sites: 7, complete: 5, pending: 2, verify_approved: 4, verify_pending: 1, verify_reject: 0, bos_cleared: 3, capacity_kw: 310 },
-    { district: 'Budgam', total_sites: 6, complete: 5, pending: 1, verify_approved: 4, verify_pending: 1, verify_reject: 0, bos_cleared: 3, capacity_kw: 280 },
-    { district: 'Reasi', total_sites: 5, complete: 4, pending: 1, verify_approved: 3, verify_pending: 1, verify_reject: 0, bos_cleared: 2, capacity_kw: 220 },
-  ], []);
-
-  // Compute District-Wise Breakdown from live surveyList & assignedList
+  // Compute District-Wise Breakdown from live API response or fallback aggregation
   const districtwise: RescoDistrictWise[] = useMemo(() => {
-    if (!surveyList.length && !assignedList.length) {
-      return DEFAULT_DISTRICTS;
+    if (dashboardData?.districtwise && dashboardData.districtwise.length > 0) {
+      return dashboardData.districtwise.map((d: JKRescoSurveyDistrictwise) => ({
+        district: String(d.district || 'Jammu').trim(),
+        total_sites: Number(d.total || 0),
+        complete: Number(d.survey_done || 0),
+        pending: Number(d.survey_pending || 0),
+        verify_approved: Number(d.survey_verify_complete || 0),
+        verify_pending: Number(d.survey_verify_pending || 0),
+        verify_reject: Number(d.survey_verify_reject || 0),
+        assigned: Number(d.assigned || 0),
+        not_assigned: Number(d.not_assigned || 0),
+        bos_cleared: 0,
+        capacity_kw: 0,
+      }));
+    }
+
+    if (!surveyList.length) {
+      return [];
     }
 
     const distMap: Record<string, RescoDistrictWise> = {};
 
-    // Seed from assigned list
-    assignedList.forEach((item) => {
-      const d = String(item.district || 'Unassigned').trim();
-      if (!d || d === '-' || d.toLowerCase() === 'select') return;
-      if (!distMap[d]) {
-        distMap[d] = {
-          district: d,
-          total_sites: 0,
-          complete: 0,
-          pending: 0,
-          verify_approved: 0,
-          verify_pending: 0,
-          verify_reject: 0,
-          bos_cleared: 0,
-          capacity_kw: 0,
-        };
-      }
-      distMap[d].total_sites += 1;
-      distMap[d].pending += 1;
-    });
-
-    // Compute from surveyed list
     surveyList.forEach((item) => {
       const d = String(item.district || 'Jammu').trim();
       if (!d || d === '-' || d.toLowerCase() === 'select') return;
@@ -496,40 +484,57 @@ export function RescoDashboard() {
           verify_approved: 0,
           verify_pending: 0,
           verify_reject: 0,
+          assigned: 0,
+          not_assigned: 0,
           bos_cleared: 0,
           capacity_kw: 0,
         };
       }
-      distMap[d].complete += 1;
-      if (distMap[d].pending > 0) distMap[d].pending -= 1;
-      else distMap[d].total_sites += 1;
+      distMap[d].total_sites += 1;
 
-      const vStatus = String(item.verify_status ?? '0').toLowerCase();
-      if (vStatus === '1' || vStatus === 'approved') {
-        distMap[d].verify_approved += 1;
-      } else if (vStatus === '2' || vStatus === 'rejected') {
-        distMap[d].verify_reject += 1;
+      const sDone = Number(item.survey_status) === 1;
+      if (sDone) {
+        distMap[d].complete += 1;
       } else {
+        distMap[d].pending += 1;
+      }
+
+      if (item.survey_vendor && item.survey_vendor !== '0' && item.survey_vendor !== 'NA') {
+        distMap[d].assigned = (distMap[d].assigned || 0) + 1;
+      } else {
+        distMap[d].not_assigned = (distMap[d].not_assigned || 0) + 1;
+      }
+
+      const vStatus = Number(item.survey_verify_status ?? item.verify_status ?? 0);
+      if (vStatus === 1) {
+        distMap[d].verify_approved += 1;
+      } else if (vStatus === 2) {
+        distMap[d].verify_reject += 1;
+      } else if (sDone) {
         distMap[d].verify_pending += 1;
       }
 
-      if (item.bos_file || item.bos_status === '1' || item.bos_status === 1) {
+      if (Number(item.bos_verify_status) === 1 || item.bos_file) {
         distMap[d].bos_cleared += 1;
       }
 
-      const cap = Number(item.capacity || item.proposed_capacity || item.sanction_load || 0);
+      const cap = Number(item.sanction_load || item.connected_load || item.capacity || 0);
       if (!isNaN(cap)) distMap[d].capacity_kw += cap;
     });
 
-    const result = Object.values(distMap);
-    return result.length > 0 ? result : DEFAULT_DISTRICTS;
-  }, [surveyList, assignedList, DEFAULT_DISTRICTS]);
+    return Object.values(distMap);
+  }, [dashboardData, surveyList]);
 
   // District options
   const districtOptions = useMemo(
     () => [...new Set(districtwise.map((d) => d.district).filter(Boolean))].sort(),
     [districtwise]
   );
+
+  // Vendorwise records from live API
+  const vendorwise: JKRescoSurveyVendorwise[] = useMemo(() => {
+    return dashboardData?.vendor_wises || [];
+  }, [dashboardData]);
 
   // Filtered district rows based on selectedDistrict and selectedStatus
   const filteredDistricts = useMemo(() => {
@@ -541,13 +546,42 @@ export function RescoDashboard() {
       else if (selectedStatus === 'VerifyApproved') matchStatus = (d.verify_approved || 0) > 0;
       else if (selectedStatus === 'VerifyPending') matchStatus = (d.verify_pending || 0) > 0;
       else if (selectedStatus === 'VerifyReject') matchStatus = (d.verify_reject || 0) > 0;
-      else if (selectedStatus === 'BosCleared') matchStatus = (d.bos_cleared || 0) > 0;
+      else if (selectedStatus === 'Assigned') matchStatus = (d.assigned || 0) > 0;
+      else if (selectedStatus === 'NotAssigned') matchStatus = (d.not_assigned || 0) > 0;
       return matchDistrict && matchStatus;
     });
   }, [districtwise, selectedDistrict, selectedStatus]);
 
-  // Aggregated totals
+  // Aggregated totals directly from dashboardData or filtered list
   const stats = useMemo(() => {
+    const detail = dashboardData?.survey_detail;
+    if (selectedDistrict === 'All' && detail) {
+      const totalSites = Number(detail.total ?? detail.totalsite ?? 0);
+      const complete = Number(detail.survey_done ?? detail.complete_survey ?? 0);
+      const pending = Number(detail.survey_pending ?? detail.pending_survey ?? 0);
+      const verifyApproved = Number(detail.survey_verify_complete ?? 0);
+      const verifyPending = Number(detail.survey_verify_pending ?? detail.survey_verify ?? 0);
+      const verifyReject = Number(detail.survey_verify_reject ?? 0);
+      const assigned = Number(detail.assigned ?? detail.assignsite ?? 0);
+      const notAssigned = Number(detail.not_assigned ?? detail.not_assign ?? 0);
+
+      const cap = surveyList.reduce((sum, s) => sum + Number(s.sanction_load || s.connected_load || s.capacity || 0), 0);
+      const bos = surveyList.filter((s) => Number(s.bos_verify_status) === 1 || s.bos_file).length;
+
+      return {
+        total_sites: totalSites,
+        complete,
+        pending,
+        verify_approved: verifyApproved,
+        verify_pending: verifyPending,
+        verify_reject: verifyReject,
+        assigned,
+        not_assigned: notAssigned,
+        bos_cleared: bos,
+        capacity_kw: cap,
+      };
+    }
+
     return filteredDistricts.reduce(
       (acc, d) => ({
         total_sites: acc.total_sites + (d.total_sites || 0),
@@ -556,6 +590,8 @@ export function RescoDashboard() {
         verify_approved: acc.verify_approved + (d.verify_approved || 0),
         verify_pending: acc.verify_pending + (d.verify_pending || 0),
         verify_reject: acc.verify_reject + (d.verify_reject || 0),
+        assigned: acc.assigned + (d.assigned || 0),
+        not_assigned: acc.not_assigned + (d.not_assigned || 0),
         bos_cleared: acc.bos_cleared + (d.bos_cleared || 0),
         capacity_kw: acc.capacity_kw + (d.capacity_kw || 0),
       }),
@@ -566,11 +602,13 @@ export function RescoDashboard() {
         verify_approved: 0,
         verify_pending: 0,
         verify_reject: 0,
+        assigned: 0,
+        not_assigned: 0,
         bos_cleared: 0,
         capacity_kw: 0,
       }
     );
-  }, [filteredDistricts]);
+  }, [dashboardData, selectedDistrict, filteredDistricts, surveyList]);
 
   const filtersActive = selectedDistrict !== 'All' || selectedStatus !== 'All';
 
@@ -600,15 +638,24 @@ export function RescoDashboard() {
     [filteredDistricts]
   );
 
-  // Monthly trend series
-  const monthlyTimeline: RescoMonthlySurveyItem[] = useMemo(() => [
-    { month_year: 'Apr 2026', monthly_surveys: 12 },
-    { month_year: 'May 2026', monthly_surveys: 24 },
-    { month_year: 'Jun 2026', monthly_surveys: 35 },
-    { month_year: 'Jul 2026', monthly_surveys: 42 },
-    { month_year: 'Aug 2026', monthly_surveys: 48 },
-    { month_year: 'Sep 2026', monthly_surveys: 54 },
-  ], []);
+  // Monthly timeline derived dynamically from real survey logs
+  const monthlyTimeline: RescoMonthlySurveyItem[] = useMemo(() => {
+    if (!surveyList.length) return [];
+    const map: Record<string, number> = {};
+    surveyList.forEach((s) => {
+      const dateStr = s.survey_date || s.created_at;
+      if (dateStr) {
+        try {
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) {
+            const key = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            map[key] = (map[key] || 0) + 1;
+          }
+        } catch {}
+      }
+    });
+    return Object.entries(map).map(([month_year, monthly_surveys]) => ({ month_year, monthly_surveys }));
+  }, [surveyList]);
 
   // Sparklines datasets derived from real data
   const siteSpark = filteredDistricts.length > 1 ? filteredDistricts.slice(0, 10).map((d) => d.total_sites || 0) : undefined;
@@ -655,7 +702,8 @@ export function RescoDashboard() {
       const matchDist = String(s.district || '').toLowerCase().includes(q);
       const matchVendor = String(s.vendor_name || s.vendor || '').toLowerCase().includes(q);
       const matchDept = String(s.dept_name || '').toLowerCase().includes(q);
-      return matchName || matchDist || matchVendor || matchDept;
+      const matchCa = String(s.ca_no || '').toLowerCase().includes(q);
+      return matchName || matchDist || matchVendor || matchDept || matchCa;
     });
   }, [surveyList, selectedDistrict, deferredSurveyQuery]);
 
@@ -681,19 +729,23 @@ export function RescoDashboard() {
     { header: 'Verify Approved', accessor: 'verify_approved' },
     { header: 'Verify Pending', accessor: 'verify_pending' },
     { header: 'Verify Rejected', accessor: 'verify_reject' },
+    { header: 'Assigned', accessor: (r) => r.assigned ?? 0 },
+    { header: 'Unassigned', accessor: (r) => r.not_assigned ?? 0 },
     { header: 'BOS Cleared', accessor: 'bos_cleared' },
     { header: 'Capacity (KW)', accessor: 'capacity_kw' },
   ], []);
 
   // Export Columns definition for Survey Register Table
-  const surveyCols: ExportColumn<JammuRescoSurveyItem>[] = useMemo(() => [
+  const surveyCols: ExportColumn<JKRescoSurveyItem>[] = useMemo(() => [
     { header: 'ID', accessor: 'id' },
     { header: 'Site Name', accessor: 'site_name' },
+    { header: 'Vendor Name', accessor: (r) => r.vendor_name || r.vendor || 'N/A' },
     { header: 'District', accessor: 'district' },
     { header: 'Department', accessor: 'dept_name' },
     { header: 'Proposed Cap (KW)', accessor: (r) => r.proposed_capacity || r.capacity || r.sanction_load || '-' },
-    { header: 'Verify Status', accessor: (r) => String(r.verify_status) === '1' ? 'Approved' : String(r.verify_status) === '2' ? 'Rejected' : 'Pending' },
-    { header: 'BOS Status', accessor: (r) => (r.bos_file || r.bos_status === 1) ? 'Cleared' : 'Pending' },
+    { header: 'Survey Status', accessor: (r) => Number(r.survey_status) === 1 ? 'Conducted' : 'Pending' },
+    { header: 'Verify Status', accessor: (r) => Number(r.survey_verify_status ?? r.verify_status) === 1 ? 'Approved' : Number(r.survey_verify_status ?? r.verify_status) === 2 ? 'Rejected' : 'In Review' },
+    { header: 'BOS Status', accessor: (r) => (r.bos_file || Number(r.bos_verify_status) === 1) ? 'Cleared' : 'Pending' },
   ], []);
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -782,7 +834,7 @@ export function RescoDashboard() {
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
             Rooftop Solar (RESCO) Feasibility Surveys, District Bifurcation & Field Audit Throughput
-            {updatedAt ? ` · Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
+           
           </span>
         }
         breadcrumbs={[
@@ -798,11 +850,22 @@ export function RescoDashboard() {
             <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill" style={{ fontWeight: 600, paddingInline: 'var(--ax-space-3)' }}>
               <span className="ax-badge__dot" /> State: Jammu & Kashmir
             </span>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--sm"
+              onClick={() => loadDashboardData(selectedStatus)}
+              disabled={loading}
+            >
+              {loading ? 'Refreshing…' : '↻ Refresh'}
+            </button>
+            <Link to="/vendor-management/jammu/survey/resco/status-view" className="ax-btn ax-btn--secondary ax-btn--sm">
+              Status Drill-down
+            </Link>
             <Link to="/vendor-management/jammu/survey/resco/assign-survey" className="ax-btn ax-btn--primary ax-btn--sm">
               <span className="ax-btn__label">+ Assign Survey</span>
             </Link>
-            <Link to="/vendor-management/jammu/survey/resco/view-survey" className="ax-btn ax-btn--secondary ax-btn--sm">
-              Assigned Surveys
+            <Link to="/vendor-management/jammu/survey/resco/view-assign" className="ax-btn ax-btn--secondary ax-btn--sm">
+              Batch Assignments
             </Link>
             <Link to="/vendor-management/jammu/survey/resco/verify-survey" className="ax-btn ax-btn--secondary ax-btn--sm">
               Verify Survey Desk
@@ -871,7 +934,8 @@ export function RescoDashboard() {
                   <option value="VerifyApproved">Verify Approved</option>
                   <option value="VerifyPending">In Audit Review</option>
                   <option value="VerifyReject">Audit Rejected</option>
-                  <option value="BosCleared">BOS Cleared</option>
+                  <option value="Assigned">Assigned Sites</option>
+                  <option value="NotAssigned">Not Assigned</option>
                 </select>
               </div>
 
@@ -903,7 +967,9 @@ export function RescoDashboard() {
               { key: 'Pending', label: 'Pending Survey' },
               { key: 'VerifyApproved', label: 'Verify Approved' },
               { key: 'VerifyPending', label: 'In Audit Review' },
-              { key: 'BosCleared', label: 'BOS Cleared' },
+              { key: 'VerifyReject', label: 'Audit Rejected' },
+              { key: 'Assigned', label: 'Assigned Sites' },
+              { key: 'NotAssigned', label: 'Not Assigned' },
             ].map((p) => {
               const isActive = selectedStatus === p.key;
               return (
@@ -986,7 +1052,7 @@ export function RescoDashboard() {
           unit="Sites"
           sub="Allocated rooftop survey targets"
           spark={siteSpark}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/view-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=total')}
         />
 
         <KpiCard
@@ -998,7 +1064,7 @@ export function RescoDashboard() {
           sub="Technical data & photos logged"
           badge={`${pctComplete}%`}
           spark={completeSpark}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/verify-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=survey-done')}
         />
 
         <KpiCard
@@ -1010,7 +1076,7 @@ export function RescoDashboard() {
           sub="Awaiting field investigation"
           badge={`${pctPending}%`}
           spark={pendingSpark}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/pending-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=survey-pending')}
         />
 
         <KpiCard
@@ -1022,7 +1088,7 @@ export function RescoDashboard() {
           sub={`${num(stats.verify_pending)} Audit in progress`}
           badge={`${pctVerified}%`}
           spark={verifySpark}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/verify-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=survey-verify-complete')}
         />
 
         <KpiCard
@@ -1032,7 +1098,7 @@ export function RescoDashboard() {
           value={num(stats.verify_pending)}
           unit="Sites"
           sub="Field audit pending Super Admin"
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/verify-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=survey-verify-pending')}
         />
 
         <KpiCard
@@ -1042,7 +1108,7 @@ export function RescoDashboard() {
           value={num(stats.verify_reject)}
           unit="Sites"
           sub="Requires vendor re-survey"
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/verify-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=survey-verify-reject')}
         />
 
         <KpiCard
@@ -1053,7 +1119,7 @@ export function RescoDashboard() {
           unit="Sites"
           sub="Bill of Materials & specs approved"
           badge={`${pctBos}%`}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/verify-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=total')}
         />
 
         <KpiCard
@@ -1065,7 +1131,7 @@ export function RescoDashboard() {
           sub="Assessed feasible rooftop load"
           badge="Feasible"
           spark={capSpark}
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/view-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/status-view?status=total')}
         />
 
         {/* 5. Operational Highlights & Quality Performance */}
@@ -1121,10 +1187,10 @@ export function RescoDashboard() {
           icon={I_USERS}
           tone="accent"
           label="Assigned Vendors"
-          value={num(assignedList.length || 6)}
+          value={num(vendorwise.length)}
           unit="Vendors"
           sub="Contracted survey execution teams"
-          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/view-survey')}
+          onClick={() => openDrillDown('/vendor-management/jammu/survey/resco/view-assign')}
         />
 
         {/* State Operations Executive Card */}
@@ -1274,10 +1340,10 @@ export function RescoDashboard() {
             </Suspense>
             <ul className="ax-list ax-list--compact" style={{ marginTop: 'var(--ax-space-3)' }}>
               {[
-                { label: 'Verify Approved', sub: 'Audit cleared', v: stats.verify_approved, p: pctVerified, color: LIGHT_GREEN, route: '/vendor-management/jammu/survey/resco/verify-survey' },
-                { label: 'In Audit Review', sub: 'Pending admin approval', v: stats.verify_pending, p: pctOf(stats.verify_pending, stats.total_sites), color: LIGHT_AMBER, route: '/vendor-management/jammu/survey/resco/verify-survey' },
-                { label: 'Rejected / Rework', sub: 'Deficiencies found', v: stats.verify_reject, p: pctOf(stats.verify_reject, stats.total_sites), color: LIGHT_RED, route: '/vendor-management/jammu/survey/resco/verify-survey' },
-                { label: 'Pending Survey', sub: 'Field survey scheduled', v: stats.pending, p: pctPending, color: LIGHT_BLUE, route: '/vendor-management/jammu/survey/resco/pending-survey' },
+                { label: 'Verify Approved', sub: 'Audit cleared', v: stats.verify_approved, p: pctVerified, color: LIGHT_GREEN, route: '/vendor-management/jammu/survey/resco/status-view?status=survey-verify-complete' },
+                { label: 'In Audit Review', sub: 'Pending admin approval', v: stats.verify_pending, p: pctOf(stats.verify_pending, stats.total_sites), color: LIGHT_AMBER, route: '/vendor-management/jammu/survey/resco/status-view?status=survey-verify-pending' },
+                { label: 'Rejected / Rework', sub: 'Deficiencies found', v: stats.verify_reject, p: pctOf(stats.verify_reject, stats.total_sites), color: LIGHT_RED, route: '/vendor-management/jammu/survey/resco/status-view?status=survey-verify-reject' },
+                { label: 'Pending Survey', sub: 'Field survey scheduled', v: stats.pending, p: pctPending, color: LIGHT_BLUE, route: '/vendor-management/jammu/survey/resco/status-view?status=survey-pending' },
               ].map((s) => (
                 <li
                   key={s.label}
@@ -1303,7 +1369,7 @@ export function RescoDashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Survey Timeline</span>
               <h2 className="ax-card__title">Monthly Survey Trend</h2>
-              <p className="ax-card__subtitle">Feasibility execution throughput across recent months</p>
+              <p className="ax-card__subtitle">Feasibility execution throughput logged over time</p>
             </div>
             <div className="ax-card__actions">
               <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">
@@ -1312,34 +1378,40 @@ export function RescoDashboard() {
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
-            <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
-              <ApexChart
-                key={`monthly-${chartH}-${monthlyTimeline.map((m) => `${m.month_year}-${m.monthly_surveys}`).join('-')}`}
-                type="area"
-                height={chartH}
-                legend="top"
-                ariaLabel="Monthly surveys area chart"
-                series={[
-                  {
-                    name: 'Monthly Completed Surveys',
-                    data: monthlyTimeline.map((m) => m.monthly_surveys),
-                  },
-                ]}
-                apex={{
-                  colors: [LIGHT_BLUE],
-                  stroke: { curve: 'smooth', width: 2 },
-                  fill: {
-                    type: 'gradient',
-                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
-                  },
-                  markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
-                  xaxis: {
-                    categories: monthlyTimeline.map((m) => m.month_year),
-                  },
-                  yaxis: { title: { text: 'Surveys (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
-                }}
-              />
-            </Suspense>
+            {monthlyTimeline.length > 0 ? (
+              <Suspense fallback={<div className="ax-skeleton" style={{ height: chartH }} />}>
+                <ApexChart
+                  key={`monthly-${chartH}-${monthlyTimeline.map((m) => `${m.month_year}-${m.monthly_surveys}`).join('-')}`}
+                  type="area"
+                  height={chartH}
+                  legend="top"
+                  ariaLabel="Monthly surveys area chart"
+                  series={[
+                    {
+                      name: 'Monthly Completed Surveys',
+                      data: monthlyTimeline.map((m) => m.monthly_surveys),
+                    },
+                  ]}
+                  apex={{
+                    colors: [LIGHT_BLUE],
+                    stroke: { curve: 'smooth', width: 2 },
+                    fill: {
+                      type: 'gradient',
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] },
+                    },
+                    markers: { size: 4, strokeWidth: 0, hover: { size: 6 } },
+                    xaxis: {
+                      categories: monthlyTimeline.map((m) => m.month_year),
+                    },
+                    yaxis: { title: { text: 'Surveys (Nos.)', style: { color: 'var(--ax-text-muted)' } } },
+                  }}
+                />
+              </Suspense>
+            ) : (
+              <div style={{ height: chartH, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--ax-text-muted)', gap: 8 }}>
+                <span style={{ fontSize: 'var(--ax-text-sm)', fontWeight: 500 }}>No monthly timeline logs recorded yet.</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1372,7 +1444,89 @@ export function RescoDashboard() {
           </div>
         </section>
 
-        {/* 8. Table 1: District Wise Detailed Summary */}
+        {/* 8. Vendorwise Performance Breakdown (from official dashboard response) */}
+        {vendorwise.length > 0 && (
+          <section className="ax-card ax-col--12" role="region" aria-label="Vendor wise performance table">
+            <div className="ax-card__header">
+              <div className="ax-card__titles">
+                <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>Vendor Bifurcation</span>
+                <h2 className="ax-card__title">Contracted Vendor Survey Performance</h2>
+                <p className="ax-card__subtitle">Field throughput, audit status and workload per assigned survey partner</p>
+              </div>
+            </div>
+            <div className="ax-table-wrap">
+              <table className="ax-table ax-table--hover">
+                <thead className="ax-table__head">
+                  <tr>
+                    <th className="ax-table__th" scope="col">Vendor Name</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Allocated Sites</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Survey Conducted</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Survey Pending</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">In Audit</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Audit Rejected</th>
+                    <th className="ax-table__th ax-table__th--num" scope="col">Completion Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendorwise.map((v, i) => {
+                    const total = Number(v.total || 0);
+                    const done = Number(v.survey_done || 0);
+                    const pending = Number(v.survey_pending || 0);
+                    const approved = Number(v.survey_verify_complete || 0);
+                    const inAudit = Number(v.survey_verify_pending || 0);
+                    const rejected = Number(v.survey_verify_reject || 0);
+                    const rate = pctOf(done, total);
+
+                    return (
+                      <tr
+                        key={v.vendor_name || i}
+                        className="ax-table__row"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() =>
+                          openDrillDown(
+                            `/vendor-management/jammu/survey/resco/status-view?status=total&mode=vendor&value=${encodeURIComponent(
+                              v.vendor_name || v.survey_vendor || ''
+                            )}`
+                          )
+                        }
+                      >
+                        <td className="ax-table__td" style={{ fontWeight: 600, color: 'var(--ax-text-strong)' }}>
+                          {v.vendor_name || 'Vendor Partner'}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                          {num(total)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                          {num(done)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
+                          {num(pending)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                          {num(approved)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
+                          {num(inAudit)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #ef4444)' }}>
+                          {num(rejected)}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num ax-num">
+                          <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontWeight: 600 }}>
+                            {rate}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* 9. Table 1: District Wise Detailed Summary */}
         <section className="ax-card ax-col--12" role="region" aria-label="District wise summary table">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -1409,57 +1563,65 @@ export function RescoDashboard() {
                   <th className="ax-table__th ax-table__th--num" scope="col">Verify Approved</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">In Audit</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Audit Rejected</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">BOS Cleared</th>
-                  <th className="ax-table__th ax-table__th--num" scope="col">Capacity (KW)</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Assigned</th>
+                  <th className="ax-table__th ax-table__th--num" scope="col">Unassigned</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {pagedDistricts.map((d) => (
-                  <tr
-                    key={d.district}
-                    className="ax-table__row"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setSelectedDistrict(d.district)}
-                  >
-                    <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
-                      <b>{d.district}</b>
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
-                      {num(d.total_sites)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
-                      {num(d.complete)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
-                      {num(d.pending)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
-                      {num(d.verify_approved)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
-                      {num(d.verify_pending)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #ef4444)' }}>
-                      {num(d.verify_reject)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-violet, #7c3aed)' }}>
-                      {num(d.bos_cleared)}
-                    </td>
-                    <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
-                      {num(d.capacity_kw)} KW
-                    </td>
-                    <td className="ax-table__td" style={{ textAlign: 'center' }}>
-                      <Link
-                        to="/vendor-management/jammu/survey/resco/verify-survey"
-                        className="ax-btn ax-btn--xs ax-btn--secondary"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Inspect Desk
-                      </Link>
+                {pagedDistricts.length > 0 ? (
+                  pagedDistricts.map((d) => (
+                    <tr
+                      key={d.district}
+                      className="ax-table__row"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedDistrict(d.district)}
+                    >
+                      <td className="ax-table__td" style={{ fontWeight: 'var(--ax-weight-semibold)', color: 'var(--ax-text-strong)' }}>
+                        <b>{d.district}</b>
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
+                        {num(d.total_sites)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)', fontWeight: 600 }}>
+                        {num(d.complete)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
+                        {num(d.pending)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-emerald, #10b981)' }}>
+                        {num(d.verify_approved)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-amber, #f59e0b)' }}>
+                        {num(d.verify_pending)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-viz-red, #ef4444)' }}>
+                        {num(d.verify_reject)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--asw-primary)' }}>
+                        {num(d.assigned ?? 0)}
+                      </td>
+                      <td className="ax-table__td ax-table__td--num ax-num" style={{ color: 'var(--ax-text-muted)' }}>
+                        {num(d.not_assigned ?? 0)}
+                      </td>
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <Link
+                          to={`/vendor-management/jammu/survey/resco/status-view?status=total&mode=district&value=${encodeURIComponent(d.district)}`}
+                          className="ax-btn ax-btn--xs ax-btn--secondary"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Status Drill-down
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--ax-text-muted)' }}>
+                      No district data available.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -1478,7 +1640,7 @@ export function RescoDashboard() {
           </div>
         </section>
 
-        {/* 9. Table 2: Recent Feasibility Surveys & Audit Register */}
+        {/* 10. Table 2: Recent Feasibility Surveys & Audit Register */}
         <section className="ax-card ax-col--12" role="region" aria-label="Survey site audit register">
           <div className="ax-card__header">
             <div className="ax-card__titles">
@@ -1514,6 +1676,7 @@ export function RescoDashboard() {
                   <th className="ax-table__th" scope="col">District</th>
                   <th className="ax-table__th" scope="col">Department</th>
                   <th className="ax-table__th ax-table__th--num" scope="col">Proposed Cap (KW)</th>
+                  <th className="ax-table__th" scope="col">Survey Status</th>
                   <th className="ax-table__th" scope="col">Audit Status</th>
                   <th className="ax-table__th" scope="col">BOS Status</th>
                   <th className="ax-table__th" scope="col" style={{ textAlign: 'center' }}>Quick View</th>
@@ -1522,9 +1685,11 @@ export function RescoDashboard() {
               <tbody>
                 {pagedSurveys.length > 0 ? (
                   pagedSurveys.map((s) => {
-                    const vStatus = String(s.verify_status ?? '0').toLowerCase();
-                    const isApproved = vStatus === '1' || vStatus === 'approved';
-                    const isRejected = vStatus === '2' || vStatus === 'rejected';
+                    const isSurveyDone = Number(s.survey_status) === 1;
+                    const vStatus = Number(s.survey_verify_status ?? s.verify_status ?? 0);
+                    const isApproved = vStatus === 1;
+                    const isRejected = vStatus === 2;
+                    const isBosCleared = Number(s.bos_verify_status) === 1 || Boolean(s.bos_file);
 
                     return (
                       <tr
@@ -1540,7 +1705,7 @@ export function RescoDashboard() {
                           {s.site_name || `Site #${s.id}`}
                         </td>
                         <td className="ax-table__td" style={{ color: 'var(--ax-text-muted)' }}>
-                          {s.vendor_name || s.vendor || 'Assigned Vendor'}
+                          {s.vendor_name || s.vendor || 'Unassigned'}
                         </td>
                         <td className="ax-table__td" style={{ fontWeight: 500 }}>
                           {s.district || 'Jammu'}
@@ -1549,7 +1714,14 @@ export function RescoDashboard() {
                           {s.dept_name || 'Government / Public'}
                         </td>
                         <td className="ax-table__td ax-table__td--num ax-num" style={{ fontWeight: 600 }}>
-                          {s.proposed_capacity || s.capacity || s.sanction_load || '-'} KW
+                          {s.sanction_load || s.connected_load || s.proposed_capacity || s.capacity || '-'} KW
+                        </td>
+                        <td className="ax-table__td">
+                          {isSurveyDone ? (
+                            <span className="ax-badge ax-badge--soft ax-badge--success ax-badge--pill">Done</span>
+                          ) : (
+                            <span className="ax-badge ax-badge--soft ax-badge--warning ax-badge--pill">Pending</span>
+                          )}
                         </td>
                         <td className="ax-table__td">
                           {isApproved ? (
@@ -1561,7 +1733,7 @@ export function RescoDashboard() {
                           )}
                         </td>
                         <td className="ax-table__td">
-                          {s.bos_file || s.bos_status === 1 ? (
+                          {isBosCleared ? (
                             <span className="ax-badge ax-badge--soft ax-badge--info ax-badge--pill">Cleared</span>
                           ) : (
                             <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill">Pending</span>
@@ -1584,7 +1756,7 @@ export function RescoDashboard() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--ax-text-muted)' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--ax-text-muted)' }}>
                       No survey records match the current filter criteria.
                     </td>
                   </tr>
@@ -1611,32 +1783,84 @@ export function RescoDashboard() {
       {/* Quick Audit Site Preview Modal */}
       {selectedSiteModal && (
         <Modal
-          isOpen={true}
-          title={`Technical Survey Feasibility: ${selectedSiteModal.site_name || `Site #${selectedSiteModal.id}`}`}
+          open={true}
+          labelledBy="site-preview-modal-title"
           onClose={() => setSelectedSiteModal(null)}
-          size="lg"
         >
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ax-border, #e2e8f0)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 id="site-preview-modal-title" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+              Technical Survey Feasibility: {selectedSiteModal.site_name || `Site #${selectedSiteModal.id}`}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setSelectedSiteModal(null)}
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 18, color: '#64748b' }}
+            >
+              ✕
+            </button>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="ax-grid ax-grid--2" style={{ gap: 12 }}>
               <div style={{ padding: 12, background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-                <small style={{ color: 'var(--ax-text-muted)', fontSize: 11 }}>Site & Location Details</small>
-                <div style={{ marginTop: 4, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <small style={{ color: 'var(--ax-text-muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Site & Location Details</small>
+                <div style={{ marginTop: 6, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div><b>District:</b> {selectedSiteModal.district || 'Jammu'}</div>
                   <div><b>Department:</b> {selectedSiteModal.dept_name || 'N/A'}</div>
+                  <div><b>WO No:</b> {selectedSiteModal.wo_no || 'N/A'}</div>
                   <div><b>CA No:</b> {selectedSiteModal.ca_no || 'N/A'}</div>
-                  <div><b>Latitude/Longitude:</b> {selectedSiteModal.latitude || '—'}, {selectedSiteModal.longitude || '—'}</div>
+                  <div><b>Address:</b> {selectedSiteModal.address || selectedSiteModal.site_address || 'N/A'}</div>
+                  <div><b>Contact:</b> {selectedSiteModal.contact_person || '—'} ({selectedSiteModal.contact_number || '—'})</div>
+                  <div><b>Coordinates:</b> {selectedSiteModal.latitude || '—'}, {selectedSiteModal.longitude || '—'}</div>
                 </div>
               </div>
 
               <div style={{ padding: 12, background: 'var(--ax-surface-subtle, #f8fafc)', borderRadius: 8 }}>
-                <small style={{ color: 'var(--ax-text-muted)', fontSize: 11 }}>Electrical & Rooftop Feasibility</small>
-                <div style={{ marginTop: 4, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <small style={{ color: 'var(--ax-text-muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Electrical & Rooftop Feasibility</small>
+                <div style={{ marginTop: 6, fontSize: 13, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div><b>Sanction Load:</b> {selectedSiteModal.sanction_load || '-'} KW</div>
-                  <div><b>Proposed Capacity:</b> {selectedSiteModal.proposed_capacity || selectedSiteModal.capacity || '-'} KW</div>
+                  <div><b>Connected Load:</b> {selectedSiteModal.connected_load || '-'} KW</div>
                   <div><b>Connection Phase:</b> {selectedSiteModal.connection_phase || '3 Phase'}</div>
                   <div><b>Roof Condition:</b> {selectedSiteModal.roof_condition || 'RCC / Flat'}</div>
+                  <div><b>Roof Access:</b> {selectedSiteModal.roof_access || 'Yes'}</div>
                   <div><b>Available Roof Space:</b> {selectedSiteModal.free_space_solar || selectedSiteModal.area_roof || '-'} Sq. Ft.</div>
+                  <div><b>Site Feasible:</b> {selectedSiteModal.site_feasible || 'Yes'}</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Media Gallery / Dossier Photos */}
+            <div>
+              <small style={{ color: 'var(--ax-text-muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Site Dossier Images</small>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginTop: 8 }}>
+                {[
+                  { label: 'Building Front', src: selectedSiteModal.building_image || selectedSiteModal.image1 },
+                  { label: 'Roof Overview', src: selectedSiteModal.roof_image || selectedSiteModal.image2 },
+                  { label: 'Control Room / LTDB', src: selectedSiteModal.control_room_image || selectedSiteModal.image3 },
+                  { label: 'Other Image', src: selectedSiteModal.image4 || selectedSiteModal.other_image },
+                ].map((m, idx) => {
+                  const resolved = resolveJammuSurveyMediaUrl(m.src);
+                  return (
+                    <div key={idx} style={{ border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 6, overflow: 'hidden', background: '#fff' }}>
+                      <div style={{ height: 80, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {resolved ? (
+                          <img
+                            src={resolved}
+                            alt={m.label}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: 10, color: 'var(--ax-text-muted)' }}>No Image</span>
+                        )}
+                      </div>
+                      <div style={{ padding: '4px 6px', fontSize: 11, textAlign: 'center', background: '#fafafa', borderTop: '1px solid #f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {m.label}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1645,7 +1869,11 @@ export function RescoDashboard() {
                 <span style={{ fontSize: 12, color: 'var(--ax-text-muted)' }}>
                   Audit Status:{' '}
                   <b>
-                    {String(selectedSiteModal.verify_status) === '1' ? 'Approved' : String(selectedSiteModal.verify_status) === '2' ? 'Rejected' : 'In Review'}
+                    {Number(selectedSiteModal.survey_verify_status ?? selectedSiteModal.verify_status) === 1
+                      ? 'Approved'
+                      : Number(selectedSiteModal.survey_verify_status ?? selectedSiteModal.verify_status) === 2
+                      ? 'Rejected'
+                      : 'In Review'}
                   </b>
                 </span>
               </div>

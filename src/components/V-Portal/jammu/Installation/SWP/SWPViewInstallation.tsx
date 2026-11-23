@@ -777,6 +777,52 @@ export function SWPViewInstallation() {
     }
   };
 
+  const [detectingGps, setDetectingGps] = useState(false);
+  const detectEditLocation = (silent = false) => {
+    if (!navigator.geolocation) {
+      if (!silent) alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditForm((prev) => ({
+          ...prev,
+          inst_latitude: pos.coords.latitude.toFixed(6),
+          inst_longitude: pos.coords.longitude.toFixed(6),
+        }));
+        setDetectingGps(false);
+      },
+      (err) => {
+        console.warn('Geolocation high accuracy failed, retrying standard...', err);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setEditForm((prev) => ({
+              ...prev,
+              inst_latitude: pos.coords.latitude.toFixed(6),
+              inst_longitude: pos.coords.longitude.toFixed(6),
+            }));
+            setDetectingGps(false);
+          },
+          (err2) => {
+            setDetectingGps(false);
+            if (!silent) {
+              alert(`Unable to retrieve GPS coordinates (${err2.message || 'Permission denied'}). Please allow location access in your browser.`);
+            }
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (editingId) {
+      detectEditLocation(true);
+    }
+  }, [editingId]);
+
   // Save Edit Form (API 8: POST jammu/swp/installation-update-site-store)
   const handleSaveEdit = async (e: FormEvent) => {
     e.preventDefault();
@@ -1450,6 +1496,18 @@ export function SWPViewInstallation() {
                 </div>
 
                 {/* Geolocation & Remarks */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ax-text-subtle, #64748b)' }}>GPS Coordinates</span>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--secondary ax-btn--xs"
+                    onClick={() => detectEditLocation(false)}
+                    disabled={detectingGps}
+                  >
+                    {detectingGps ? 'Detecting...' : '📍 Auto-detect GPS'}
+                  </button>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                   <div className="ax-modern-field">
                     <label className="ax-modern-label">
@@ -1460,7 +1518,10 @@ export function SWPViewInstallation() {
                       type="text"
                       className="ax-input"
                       value={editForm.inst_latitude}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, inst_latitude: e.target.value }))}
+                      onChange={() => {}}
+                      readOnly={true}
+                      style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                      placeholder="Auto-detected GPS Latitude"
                       required
                     />
                   </div>
@@ -1474,7 +1535,10 @@ export function SWPViewInstallation() {
                       type="text"
                       className="ax-input"
                       value={editForm.inst_longitude}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, inst_longitude: e.target.value }))}
+                      onChange={() => {}}
+                      readOnly={true}
+                      style={{ cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' }}
+                      placeholder="Auto-detected GPS Longitude"
                       required
                     />
                   </div>

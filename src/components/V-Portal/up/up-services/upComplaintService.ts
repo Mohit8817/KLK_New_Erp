@@ -1,5 +1,6 @@
 import { API_BASE_URL, authService } from '../../../../services/authService';
 import { UP_COMPLAINT_API } from '../../V_Portal_APIS/UP_Complaint_API';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 /**
  * Universal token getter for Vendor session
@@ -67,59 +68,127 @@ export const getCompanyId = (): string => {
   return String(candidate).trim();
 };
 
-const BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
+const RAW_BACKEND_BASE = (API_BASE_URL || 'https://klkerp.com/api')
   .replace(/\/api\/?$/, '')
   .replace(/\/+$/, '');
+const BACKEND_BASE = /^https?:\/\//i.test(RAW_BACKEND_BASE) ? RAW_BACKEND_BASE : 'https://klkerp.com';
 
-const R2_BASE = ((import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ?? '').replace(/\/+$/, '');
+const R2_BASE = (
+  (import.meta.env.VITE_R2_PUBLIC_URL as string | undefined) ||
+  'https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev'
+).replace(/\/+$/, '');
 
 export function getUpMediaCandidates(path?: string | null): string[] {
   if (!path) return [];
-  const trimmed = String(path).trim();
-  if (!trimmed) return [];
+  const trimmed = String(path).trim().replace(/\\/g, '/');
+  if (!trimmed || /^(null|undefined|na|n\/a)$/i.test(trimmed)) return [];
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return [trimmed];
 
   const normalized = trimmed.replace(/^\/+/, '');
   const filename = normalized.split('/').pop() || normalized;
   const candidates: string[] = [];
 
-  if (normalized.startsWith('uploads/')) {
+  // If path already starts with uploads/, storage/, or public/
+  if (normalized.startsWith('uploads/') || normalized.startsWith('storage/') || normalized.startsWith('public/')) {
     candidates.push(`${BACKEND_BASE}/${normalized}`);
-  } else if (normalized.startsWith('storage/')) {
-    candidates.push(`${BACKEND_BASE}/${normalized}`);
+    if (!normalized.startsWith('public/')) {
+      candidates.push(`${BACKEND_BASE}/public/${normalized}`);
+    }
+    if (R2_BASE) {
+      candidates.push(`${R2_BASE}/${normalized}`);
+    }
   }
 
-  // File prefix specific folders
-  if (/^sslcomp|^ssl/i.test(filename)) {
-    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
-  }
-  if (/^kusumb/i.test(filename)) {
-    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/kusumb/${filename}`);
-  }
-  if (/^resco/i.test(filename)) {
+  // RESCO complaints (e.g. rescocomp_file1_..., rescocomp_r_file1_..., resco_...)
+  if (/^rescocomp|^resco/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/resco/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/resco/${filename}`);
     candidates.push(`${BACKEND_BASE}/uploads/up/complaint/resco/${filename}`);
-  }
-  if (/^ongrid/i.test(filename)) {
-    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ongrid/${filename}`);
-  }
-  if (/^swp/i.test(filename)) {
-    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/swp/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+    if (R2_BASE) {
+      candidates.push(`${R2_BASE}/uploads/complaint/resco/${filename}`);
+      candidates.push(`${R2_BASE}/uploads/up/complaint/resco/${filename}`);
+    }
   }
 
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/swp/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/kusumb/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ongrid/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/resco/${filename}`);
-  candidates.push(`${BACKEND_BASE}/uploads/up/complaint/${filename}`);
+  // SSL complaints (e.g. sslcomp..., ssl...)
+  if (/^sslcomp|^ssl/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/ssl/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/ssl/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/image/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ssl/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+    if (R2_BASE) {
+      candidates.push(`${R2_BASE}/uploads/complaint/ssl/${filename}`);
+      candidates.push(`${R2_BASE}/uploads/image/${filename}`);
+    }
+  }
+
+  // KUSUM B complaints
+  if (/^kusumb/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/kusumb/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/kusumbcomplaint/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/kusumb/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/kusumb/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+    if (R2_BASE) {
+      candidates.push(`${R2_BASE}/uploads/complaint/kusumb/${filename}`);
+      candidates.push(`${R2_BASE}/uploads/kusumbcomplaint/${filename}`);
+    }
+  }
+
+  // ONGRID complaints
+  if (/^ongrid/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/ongrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/ongrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/ongrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+  }
+
+  // OFFGRID complaints
+  if (/^offgrid/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/offgrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/offgrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/offgrid/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+  }
+
+  // POWERPACK complaints
+  if (/^powerpack/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/powerpack/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/powerpack/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/powerpack/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+  }
+
+  // SWP / SRLMSRT complaints
+  if (/^swp|^srlm/i.test(filename)) {
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/swp/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/complaint/srlmsrt/${filename}`);
+    candidates.push(`${BACKEND_BASE}/public/uploads/complaint/swp/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/up/complaint/swp/${filename}`);
+    candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+  }
+
+  // General fallbacks
+  candidates.push(`${BACKEND_BASE}/uploads/complaint/resco/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/complaint/ssl/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/complaint/${filename}`);
+  candidates.push(`${BACKEND_BASE}/uploads/image/${filename}`);
+  candidates.push(`${BACKEND_BASE}/public/uploads/image/${filename}`);
   candidates.push(`${BACKEND_BASE}/uploads/${filename}`);
   candidates.push(`${BACKEND_BASE}/${normalized}`);
+  candidates.push(`${BACKEND_BASE}/public/${normalized}`);
 
   if (R2_BASE) {
-    candidates.push(`${R2_BASE}/uploads/up/complaint/${filename}`);
+    candidates.push(`${R2_BASE}/${normalized}`);
+    candidates.push(`${R2_BASE}/uploads/complaint/resco/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/complaint/ssl/${filename}`);
+    candidates.push(`${R2_BASE}/uploads/image/${filename}`);
     candidates.push(`${R2_BASE}/${filename}`);
   }
-  candidates.push(`https://pub-21d2019fecbe4a96a88c93b2f091317a.r2.dev/${filename}`);
 
   return Array.from(new Set(candidates));
 }
@@ -419,6 +488,7 @@ export interface UpKusumBComplaintItem {
   category?: string | null;
   aadhar_status?: string | null;
   installation_date?: string | null;
+  sys_installed?: string | null;
   sys_installed_date?: string | null;
   pump_type?: string | null;
   required_pump?: string | null;
@@ -428,6 +498,8 @@ export interface UpKusumBComplaintItem {
   spv_capacity?: string | null;
   total_pump_cost?: string | number | null;
   total_pumb_cost?: string | number | null;
+  vendor_name?: string | null;
+  created_date?: string | null;
   document?: string | null;
   file?: string | null;
   assigned_date?: string | null;
@@ -457,9 +529,11 @@ export interface UpKusumBDetails {
   module_make?: string;
   spv_capacity?: string;
   installation_date?: string;
+  sys_installed?: string;
   sys_installed_date?: string;
   total_pump_cost?: string | number;
   total_pumb_cost?: string | number;
+  vendor_name?: string;
   district?: string;
   village?: string;
   [key: string]: any;
@@ -718,7 +792,7 @@ export interface UpAssignedDataResponse<T> {
 async function apiRequest<T = any>(
   url: string,
   options: RequestInit = {}
-): Promise<{ status: boolean; message?: string; data?: T; errors?: Record<string, string[]> }> {
+): Promise<{ status: boolean; httpStatus?: number; message?: string; data?: T; errors?: Record<string, string[]> }> {
   const token = getAuthToken();
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -742,22 +816,46 @@ async function apiRequest<T = any>(
 
     const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
+    if (!res.ok || json?.status === false || json?.success === false || json?.errors) {
+      const extracted = extractBackendError(json, `Request failed with status ${res.status}`);
       return {
         status: false,
-        message: json?.message || `Request failed with status ${res.status}`,
-        errors: json?.errors || undefined,
+        httpStatus: res.status,
+        message: extracted.message,
+        errors: json?.errors || extracted.rawErrors,
         data: json?.data,
       };
     }
 
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      if (json.status === undefined && json.success !== undefined) {
+        return { ...json, status: Boolean(json.success) };
+      }
+      return json;
+    }
+
     return json || { status: true };
   } catch (err: any) {
+    const extracted = extractBackendError(err, err?.message || 'Network error occurred. Please check connection.');
     return {
       status: false,
-      message: err?.message || 'Network error occurred. Please check connection.',
+      message: extracted.message,
     };
   }
+}
+
+async function deleteRequest(url: string): Promise<{ status: boolean; message: string }> {
+  let res = await apiRequest(url);
+  if (!res.status && (res as any).httpStatus === 405) {
+    res = await apiRequest(url, { method: 'DELETE' });
+  }
+  if (!res.status && (res as any).httpStatus === 405) {
+    res = await apiRequest(url, { method: 'POST' });
+  }
+  return {
+    status: !!res.status,
+    message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+  };
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -769,7 +867,7 @@ async function apiRequest<T = any>(
    - Filtering empty entries and deduplication
    ───────────────────────────────────────────────────────────── */
 export function extractStringList(res: any, preferredKeys: string[] = []): string[] {
-  if (!res) return [];
+  if (!res || res.status === false) return [];
 
   const checkKeys = Array.from(
     new Set([
@@ -883,7 +981,7 @@ export function extractNamedItems(
   res: any,
   preferredKeys: string[] = []
 ): { id: string | number; name: string; site_name?: string; [key: string]: any }[] {
-  if (!res) return [];
+  if (!res || res.status === false) return [];
 
   const checkKeys = Array.from(
     new Set([
@@ -956,6 +1054,10 @@ export function extractNamedItems(
               '';
             const id =
               item.id ??
+              item.kbid ??
+              item.kb_id ??
+              item.kcid ??
+              item.kc_id ??
               item.beneficiary_id ??
               item.farmer_id ??
               item.f_id ??
@@ -991,7 +1093,7 @@ export function extractNamedItems(
 }
 
 export function extractDetailObject<T = any>(res: any, preferredKeys: string[] = []): T | null {
-  if (!res) return null;
+  if (!res || res.status === false) return null;
 
   const checkKeys = Array.from(
     new Set([
@@ -1038,13 +1140,255 @@ export function extractDetailObject<T = any>(res: any, preferredKeys: string[] =
   }
 
   if (typeof res === 'object') {
-    const keys = Object.keys(res).filter((k) => k !== 'status' && k !== 'message' && k !== 'success');
+    const keys = Object.keys(res).filter(
+      (k) => k !== 'status' && k !== 'message' && k !== 'success' && k !== 'errors'
+    );
     if (keys.length > 0) {
       return res as T;
     }
   }
 
   return null;
+}
+
+function extractComplaintList<T>(res: any): T[] {
+  if (!res) return [];
+  if (res.status === false) {
+    throw new Error(res.message || 'Failed to load complaints from server.');
+  }
+  if (Array.isArray(res)) return res as T[];
+  if (Array.isArray(res.data)) return res.data as T[];
+  if (res.data && typeof res.data === 'object') {
+    if (
+      Array.isArray(res.data.open_complaints) ||
+      Array.isArray(res.data.closed_complaints) ||
+      Array.isArray(res.data.approved_complaints)
+    ) {
+      return [
+        ...(Array.isArray(res.data.open_complaints) ? res.data.open_complaints : []),
+        ...(Array.isArray(res.data.approved_complaints) ? res.data.approved_complaints : []),
+        ...(Array.isArray(res.data.closed_complaints) ? res.data.closed_complaints : []),
+      ] as T[];
+    }
+    if (Array.isArray(res.data.data)) return res.data.data as T[];
+    if (Array.isArray(res.data.complaints)) return res.data.complaints as T[];
+    if (Array.isArray(res.data.complaint)) return res.data.complaint as T[];
+    if (Array.isArray(res.data.ssl)) return res.data.ssl as T[];
+    if (Array.isArray(res.data.report)) return res.data.report as T[];
+    if (Array.isArray(res.data.reports)) return res.data.reports as T[];
+    if (Array.isArray(res.data.list)) return res.data.list as T[];
+    if (Array.isArray(res.data.rows)) return res.data.rows as T[];
+  }
+  if (Array.isArray(res.complaints)) return res.complaints as T[];
+  if (Array.isArray(res.ssl)) return res.ssl as T[];
+  return [];
+}
+
+function extractAssignedResponse<T extends Record<string, any>>(res: any): UpAssignedDataResponse<T> {
+  if (res && (res.status === false || res.success === false)) {
+    throw new Error(res.message || 'Failed to load assigned complaints from server.');
+  }
+  const empty: UpAssignedDataResponse<T> = {
+    open: [],
+    approved: [],
+    close: [],
+    total_complaint: 0,
+    open_complaint: 0,
+    approved_complaint: 0,
+    close_complaint: 0,
+  };
+  if (!res) return empty;
+
+  // 1. Check if response has an object with bucketed complaint arrays (e.g. open_complaints, closed_complaints, open, data, etc.)
+  const rawObj =
+    res.data && typeof res.data === 'object' && !Array.isArray(res.data)
+      ? res.data
+      : typeof res === 'object' && !Array.isArray(res)
+      ? res
+      : null;
+
+  if (rawObj) {
+    const hasBucketKey =
+      'open_complaints' in rawObj ||
+      'open' in rawObj ||
+      'openComplaints' in rawObj ||
+      'open_complaint' in rawObj ||
+      'closed_complaints' in rawObj ||
+      'close_complaints' in rawObj ||
+      'close' in rawObj ||
+      'closed' in rawObj ||
+      'closeds' in rawObj ||
+      'closedComplaints' in rawObj ||
+      'closeComplaints' in rawObj ||
+      'approved_complaints' in rawObj ||
+      'approved' in rawObj ||
+      'approveds' in rawObj ||
+      'approvedComplaints' in rawObj ||
+      'approved_complaint' in rawObj;
+
+    if (hasBucketKey) {
+      let open: T[] = Array.isArray(rawObj.open_complaints)
+        ? rawObj.open_complaints
+        : Array.isArray(rawObj.open)
+        ? rawObj.open
+        : Array.isArray(rawObj.openComplaints)
+        ? rawObj.openComplaints
+        : Array.isArray(rawObj.open_complaint)
+        ? rawObj.open_complaint
+        : [];
+
+      let approved: T[] = Array.isArray(rawObj.approved_complaints)
+        ? rawObj.approved_complaints
+        : Array.isArray(rawObj.approved)
+        ? rawObj.approved
+        : Array.isArray(rawObj.approveds)
+        ? rawObj.approveds
+        : Array.isArray(rawObj.approvedComplaints)
+        ? rawObj.approvedComplaints
+        : Array.isArray(rawObj.approved_complaint)
+        ? rawObj.approved_complaint
+        : [];
+
+      let close: T[] = Array.isArray(rawObj.closed_complaints)
+        ? rawObj.closed_complaints
+        : Array.isArray(rawObj.close_complaints)
+        ? rawObj.close_complaints
+        : Array.isArray(rawObj.close)
+        ? rawObj.close
+        : Array.isArray(rawObj.closed)
+        ? rawObj.closed
+        : Array.isArray(rawObj.closeds)
+        ? rawObj.closeds
+        : Array.isArray(rawObj.closedComplaints)
+        ? rawObj.closedComplaints
+        : Array.isArray(rawObj.closeComplaints)
+        ? rawObj.closeComplaints
+        : Array.isArray(rawObj.close_complaint)
+        ? rawObj.close_complaint
+        : Array.isArray(rawObj.closed_complaint)
+        ? rawObj.closed_complaint
+        : [];
+
+      // If rawObj.data is an array (e.g. in UP RESCO where rawObj.open holds open complaints, and rawObj.data holds closed complaints)
+      if (Array.isArray(rawObj.data)) {
+        if (close.length === 0 && open.length > 0) {
+          close = rawObj.data;
+        } else if (open.length === 0 && close.length === 0) {
+          const isClosed = (r: T) =>
+            Number(r.status) === 2 ||
+            Number(r.close_status) === 1 ||
+            Number(r.close_status) === 2 ||
+            String(r.complaint_status || '').toLowerCase() === 'closed' ||
+            String(r.complaint_status || '').toLowerCase() === 'resolved' ||
+            Boolean(
+              (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
+              (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
+              (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
+            );
+          const isAppr = (r: T) =>
+            !isClosed(r) && (Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
+          const isOpn = (r: T) => !isClosed(r) && !isAppr(r);
+
+          open = rawObj.data.filter(isOpn);
+          if (approved.length === 0) approved = rawObj.data.filter(isAppr);
+          close = rawObj.data.filter(isClosed);
+        }
+      }
+
+      const counts = res.counts || rawObj.counts || {};
+      const total_complaint = Number(
+        counts.total_complaint ??
+        counts.total ??
+        rawObj.total_complaint ??
+        (open.length + approved.length + close.length)
+      );
+      const open_complaint = Number(
+        counts.open_complaint ??
+        counts.open ??
+        rawObj.open_complaint ??
+        open.length
+      );
+      const approved_complaint = Number(
+        counts.approved_complaint ??
+        counts.approved ??
+        rawObj.approved_complaint ??
+        approved.length
+      );
+      const close_complaint = Number(
+        counts.close_complaint ??
+        counts.closed_complaint ??
+        counts.close ??
+        counts.closed ??
+        rawObj.close_complaint ??
+        close.length
+      );
+
+      return {
+        open,
+        approved,
+        close,
+        total_complaint,
+        open_complaint,
+        approved_complaint,
+        close_complaint,
+      };
+    }
+  }
+
+  // 2. Single flat list that needs filtering by status
+  const arr: T[] | null = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res)
+    ? res
+    : Array.isArray(res.data?.data)
+    ? res.data.data
+    : Array.isArray(res.data?.complaints)
+    ? res.data.complaints
+    : Array.isArray(res.complaints)
+    ? res.complaints
+    : Array.isArray(res.data?.rows)
+    ? res.data.rows
+    : Array.isArray(res.rows)
+    ? res.rows
+    : Array.isArray(res.data?.assigned)
+    ? res.data.assigned
+    : Array.isArray(res.assigned)
+    ? res.assigned
+    : null;
+
+  if (arr) {
+    const isClosed = (r: T) =>
+      Number(r.status) === 2 ||
+      Number(r.close_status) === 1 ||
+      Number(r.close_status) === 2 ||
+      String(r.complaint_status || '').toLowerCase() === 'closed' ||
+      String(r.complaint_status || '').toLowerCase() === 'resolved' ||
+      Boolean(
+        (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
+        (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
+        (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
+      );
+    const isApproved = (r: T) =>
+      !isClosed(r) && (Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
+    const isOpen = (r: T) => !isClosed(r) && !isApproved(r);
+
+    const open = arr.filter(isOpen);
+    const approved = arr.filter(isApproved);
+    const close = arr.filter(isClosed);
+
+    const counts = res.counts || res.data?.counts || {};
+    return {
+      open,
+      approved,
+      close,
+      total_complaint: Number(counts.total_complaint ?? counts.total ?? arr.length),
+      open_complaint: Number(counts.open_complaint ?? counts.open ?? open.length),
+      approved_complaint: Number(counts.approved_complaint ?? counts.approved ?? approved.length),
+      close_complaint: Number(counts.close_complaint ?? counts.closed ?? close.length),
+    };
+  }
+
+  return empty;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1071,8 +1415,12 @@ export const upComplaintService = {
     }));
   },
 
-  async getRescoSiteDetails(siteIdOrName: string | number): Promise<UpRescoSiteDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.RESCO.GET_SITE_DETAILS(siteIdOrName));
+  async getRescoSiteDetails(
+    siteIdOrName: string | number,
+    siteName?: string,
+    district?: string
+  ): Promise<UpRescoSiteDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.RESCO.GET_SITE_DETAILS(siteIdOrName, siteName, district));
     return extractDetailObject<UpRescoSiteDetails>(res, ['site', 'details', 'detail']);
   },
 
@@ -1090,63 +1438,12 @@ export const upComplaintService = {
 
   async getRescoViewComplaints(): Promise<UpRescoComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.VIEW_COMPLAINTS);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) {
-        return res.data as UpRescoComplaintItem[];
-      }
-      if (Array.isArray((res.data as any).complaints)) {
-        return (res.data as any).complaints;
-      }
-    }
-    return [];
+    return extractComplaintList<UpRescoComplaintItem>(res);
   },
 
   async getRescoAssignedComplaints(): Promise<UpAssignedDataResponse<UpRescoComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.RESCO.ASSIGNED_COMPLAINTS);
-    const fallback: UpAssignedDataResponse<UpRescoComplaintItem> = {
-      open: [],
-      approved: [],
-      close: [],
-      total_complaint: 0,
-      open_complaint: 0,
-      approved_complaint: 0,
-      close_complaint: 0,
-    };
-
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open,
-          approved,
-          close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpRescoComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return {
-          open,
-          approved,
-          close,
-          total_complaint: arr.length,
-          open_complaint: open.length,
-          approved_complaint: approved.length,
-          close_complaint: close.length,
-        };
-      }
-    }
-
-    return fallback;
+    return extractAssignedResponse<UpRescoComplaintItem>(res);
   },
 
   async closeRescoComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1161,18 +1458,35 @@ export const upComplaintService = {
     };
   },
 
-  async deleteRescoComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.RESCO.DELETE_COMPLAINT(id));
+  async getRescoEditComplaint(id: number | string): Promise<UpRescoComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.RESCO.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpRescoComplaintItem>(res, ['complaint', 'resco', 'data']);
+  },
+
+  async updateRescoComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.RESCO.UPDATE_COMPLAINT, {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
   },
 
+  async deleteRescoComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.RESCO.DELETE_COMPLAINT(id));
+  },
+
   /* ------------------- SSL APIS ------------------- */
-  async getSslAddData(): Promise<{ status: boolean; districts: string[]; data?: any }> {
-    const districts = await this.getSslDistricts();
-    return { status: true, districts, data: districts };
+  async getSslAddData(type?: string): Promise<{ status: boolean; districts: string[]; data?: any }> {
+    const url = type
+      ? `${UP_COMPLAINT_API.SSL.GET_DISTRICTS}?type=${encodeURIComponent(type)}`
+      : UP_COMPLAINT_API.SSL.GET_DISTRICTS;
+    const res = await apiRequest(url);
+    const districts = extractStringList(res, ['districts', 'district']);
+    return { status: !!res.status || districts.length > 0, districts, data: res.data ?? districts };
   },
 
   async getSslDistricts(type?: string): Promise<string[]> {
@@ -1183,23 +1497,23 @@ export const upComplaintService = {
     return extractStringList(res, ['districts', 'district']);
   },
 
-  async getSslBlocks(district: string): Promise<string[]> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BLOCKS(district));
+  async getSslBlocks(district: string, type?: string): Promise<string[]> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BLOCKS(district, type));
     return extractStringList(res, ['blocks', 'block']);
   },
 
-  async getSslPanchayats(district: string, block: string): Promise<string[]> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_PANCHAYATS(district, block));
+  async getSslPanchayats(district: string, block: string, type?: string): Promise<string[]> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_PANCHAYATS(district, block, type));
     return extractStringList(res, ['panchayats', 'panchyats', 'panchayat', 'panchyat']);
   },
 
-  async getSslBeneficiaryNames(district: string, block: string, panchayat: string): Promise<{ id: string | number; name: string }[]> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_NAMES(district, block, panchayat));
+  async getSslBeneficiaryNames(district: string, block: string, panchayat: string, type?: string): Promise<{ id: string | number; name: string }[]> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_NAMES(district, block, panchayat, type));
     return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'sites', 'site']);
   },
 
-  async getSslBeneficiaryDetails(idOrName: string | number): Promise<UpSslBeneficiaryDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_DETAILS(idOrName));
+  async getSslBeneficiaryDetails(idOrName: string | number, name?: string, type?: string): Promise<UpSslBeneficiaryDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.GET_BENEFICIARY_DETAILS(idOrName, name, type));
     return extractDetailObject<UpSslBeneficiaryDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
@@ -1221,65 +1535,12 @@ export const upComplaintService = {
 
   async getSslViewComplaints(): Promise<UpSslComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.VIEW_DATA);
-    if (!res) return [];
-    if (Array.isArray(res)) return res as UpSslComplaintItem[];
-    if (res.data) {
-      if (Array.isArray(res.data)) return res.data as UpSslComplaintItem[];
-      if (Array.isArray((res.data as any).data)) return (res.data as any).data as UpSslComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-      if (Array.isArray((res.data as any).ssl)) return (res.data as any).ssl;
-    }
-    if (Array.isArray((res as any).complaints)) return (res as any).complaints;
-    if (Array.isArray((res as any).ssl)) return (res as any).ssl;
-    return [];
+    return extractComplaintList<UpSslComplaintItem>(res);
   },
 
   async getSslAssignedComplaints(): Promise<UpAssignedDataResponse<UpSslComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.SSL.ASSIGNED_COMPLAINTS);
-    const fallback: UpAssignedDataResponse<UpSslComplaintItem> = {
-      open: [],
-      approved: [],
-      close: [],
-      total_complaint: 0,
-      open_complaint: 0,
-      approved_complaint: 0,
-      close_complaint: 0,
-    };
-
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open,
-          approved,
-          close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpSslComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return {
-          open,
-          approved,
-          close,
-          total_complaint: arr.length,
-          open_complaint: open.length,
-          approved_complaint: approved.length,
-          close_complaint: close.length,
-        };
-      }
-    }
-
-    return fallback;
+    return extractAssignedResponse<UpSslComplaintItem>(res);
   },
 
   async closeSslComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1294,12 +1555,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteSslComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.SSL.DELETE_COMPLAINT(id));
+  async getSslEditComplaint(id: number | string): Promise<UpSslComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpSslComplaintItem>(res, ['complaint', 'ssl', 'data']);
+  },
+
+  async updateSslComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.SSL.UPDATE_COMPLAINT, {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'SSL Complaint deleted successfully.' : 'Failed to delete SSL complaint.'),
+      message: res.message || (res.status ? 'SSL Complaint updated successfully!' : 'Failed to update SSL complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteSslComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.SSL.DELETE_COMPLAINT(id));
   },
 
   /* ------------------- KUSUM C (SWP) APIS ------------------- */
@@ -1324,8 +1598,8 @@ export const upComplaintService = {
     return extractNamedItems(res, ['farmers', 'farmer', 'beneficiaries', 'beneficiary']);
   },
 
-  async getKusumCDetails(farmerIdOrName: string | number): Promise<UpKusumCDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_BENEFICIARY_DETAILS(farmerIdOrName));
+  async getKusumCDetails(farmerIdOrName: string | number, name?: string): Promise<UpKusumCDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.GET_BENEFICIARY_DETAILS(farmerIdOrName, name));
     return extractDetailObject<UpKusumCDetails>(res, ['farmer', 'details', 'detail', 'beneficiary', 'vendor', 'data']);
   },
 
@@ -1347,41 +1621,12 @@ export const upComplaintService = {
 
   async getKusumCViewComplaints(): Promise<UpKusumCComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpKusumCComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpKusumCComplaintItem>(res);
   },
 
   async getKusumCAssignedComplaints(): Promise<UpAssignedDataResponse<UpKusumCComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpKusumCComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpKusumCComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpKusumCComplaintItem>(res);
   },
 
   async closeKusumCComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1396,12 +1641,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteKusumCComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.DELETE_COMPLAINT(id));
+  async getKusumCEditComplaint(id: number | string): Promise<UpKusumCComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpKusumCComplaintItem>(res, ['complaint', 'swp', 'kusumc', 'data']);
+  },
+
+  async updateKusumCComplaint(id: number | string, formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_C.UPDATE_COMPLAINT(id), {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'Kusum C Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteKusumCComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.KUSUM_C.DELETE_COMPLAINT(id));
   },
 
   /* ------------------- KUSUM B APIS ------------------- */
@@ -1421,8 +1679,8 @@ export const upComplaintService = {
     return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'farmers', 'farmer']);
   },
 
-  async getKusumBDetails(beneficiaryIdOrName: string | number): Promise<UpKusumBDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
+  async getKusumBDetails(beneficiaryIdOrName: string | number, name?: string): Promise<UpKusumBDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName, name));
     return extractDetailObject<UpKusumBDetails>(res, ['beneficiary', 'details', 'detail', 'farmer']);
   },
 
@@ -1444,41 +1702,12 @@ export const upComplaintService = {
 
   async getKusumBViewComplaints(): Promise<UpKusumBComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpKusumBComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpKusumBComplaintItem>(res);
   },
 
   async getKusumBAssignedComplaints(): Promise<UpAssignedDataResponse<UpKusumBComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpKusumBComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpKusumBComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpKusumBComplaintItem>(res);
   },
 
   async closeKusumBComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1493,12 +1722,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteKusumBComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.DELETE_COMPLAINT(id));
+  async getKusumBEditComplaint(id: number | string): Promise<UpKusumBComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpKusumBComplaintItem>(res, ['complaint', 'kusumb', 'data']);
+  },
+
+  async updateKusumBComplaint(id: number | string, formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.KUSUM_B.UPDATE_COMPLAINT(id), {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'Kusum B Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteKusumBComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.KUSUM_B.DELETE_COMPLAINT(id));
   },
 
   /* ------------------- ONGRID APIS ------------------- */
@@ -1513,8 +1755,8 @@ export const upComplaintService = {
     return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
-  async getOngridDetails(beneficiaryIdOrName: string | number): Promise<UpOngridDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.ONGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
+  async getOngridDetails(beneficiaryIdOrName: string | number, name?: string): Promise<UpOngridDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.ONGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName, name));
     return extractDetailObject<UpOngridDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
@@ -1532,57 +1774,12 @@ export const upComplaintService = {
 
   async getOngridViewComplaints(): Promise<UpOngridComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.ONGRID.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpOngridComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpOngridComplaintItem>(res);
   },
 
   async getOngridAssignedComplaints(): Promise<UpAssignedDataResponse<UpOngridComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.ONGRID.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpOngridComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpOngridComplaintItem[];
-        const isClosed = (r: UpOngridComplaintItem) =>
-          Number(r.status) === 2 ||
-          Number(r.close_status) === 1 ||
-          Number(r.close_status) === 2 ||
-          String(r.complaint_status || '').toLowerCase() === 'closed' ||
-          String(r.complaint_status || '').toLowerCase() === 'resolved' ||
-          Boolean(
-            (r.close_date && String(r.close_date).trim() !== '' && String(r.close_date).trim() !== 'null') ||
-            (r.manual_close_date && String(r.manual_close_date).trim() !== '' && String(r.manual_close_date).trim() !== 'null') ||
-            (r.close_complaint_date && String(r.close_complaint_date).trim() !== '' && String(r.close_complaint_date).trim() !== 'null')
-          );
-        const isApproved = (r: UpOngridComplaintItem) =>
-          !isClosed(r) &&
-          (Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const isOpen = (r: UpOngridComplaintItem) => !isClosed(r) && !isApproved(r);
-
-        const open = arr.filter(isOpen);
-        const approved = arr.filter(isApproved);
-        const close = arr.filter(isClosed);
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpOngridComplaintItem>(res);
   },
 
   async closeOngridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1597,12 +1794,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteOngridComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.ONGRID.DELETE_COMPLAINT(id));
+  async getOngridEditComplaint(id: number | string): Promise<UpOngridComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.ONGRID.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpOngridComplaintItem>(res, ['complaint', 'ongrid', 'data']);
+  },
+
+  async updateOngridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.ONGRID.UPDATE_COMPLAINT, {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'On Grid Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteOngridComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.ONGRID.DELETE_COMPLAINT(id));
   },
 
   /* ------------------- OFFGRID APIS ------------------- */
@@ -1617,8 +1827,8 @@ export const upComplaintService = {
     return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
-  async getOffgridDetails(beneficiaryIdOrName: string | number): Promise<UpOffgridDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName));
+  async getOffgridDetails(beneficiaryIdOrName: string | number, name?: string): Promise<UpOffgridDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.GET_BENEFICIARY_DETAILS(beneficiaryIdOrName, name));
     return extractDetailObject<UpOffgridDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
@@ -1640,41 +1850,12 @@ export const upComplaintService = {
 
   async getOffgridViewComplaints(): Promise<UpOffgridComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpOffgridComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpOffgridComplaintItem>(res);
   },
 
   async getOffgridAssignedComplaints(): Promise<UpAssignedDataResponse<UpOffgridComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpOffgridComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpOffgridComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpOffgridComplaintItem>(res);
   },
 
   async closeOffgridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1689,12 +1870,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteOffgridComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.DELETE(id));
+  async getOffgridEditComplaint(id: number | string): Promise<UpOffgridComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.EDIT(id));
+    return extractDetailObject<UpOffgridComplaintItem>(res, ['complaint', 'offgrid', 'data']);
+  },
+
+  async updateOffgridComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.OFFGRID.UPDATE, {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'Off Grid Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteOffgridComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.OFFGRID.DELETE(id));
   },
 
   /* ------------------- POWERPACK APIS ------------------- */
@@ -1719,8 +1913,8 @@ export const upComplaintService = {
     return extractNamedItems(res, ['beneficiaries', 'beneficiary', 'beneficiary_names']);
   },
 
-  async getPowerpackDetails(idOrName: string | number): Promise<UpPowerpackDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_BENEFICIARY_DETAILS(idOrName));
+  async getPowerpackDetails(idOrName: string | number, name?: string): Promise<UpPowerpackDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.GET_BENEFICIARY_DETAILS(idOrName, name));
     return extractDetailObject<UpPowerpackDetails>(res, ['beneficiary', 'details', 'detail']);
   },
 
@@ -1738,41 +1932,12 @@ export const upComplaintService = {
 
   async getPowerpackViewComplaints(): Promise<UpPowerpackComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpPowerpackComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpPowerpackComplaintItem>(res);
   },
 
   async getPowerpackAssignedComplaints(): Promise<UpAssignedDataResponse<UpPowerpackComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpPowerpackComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpPowerpackComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpPowerpackComplaintItem>(res);
   },
 
   async closePowerpackComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1787,12 +1952,25 @@ export const upComplaintService = {
     };
   },
 
-  async deletePowerpackComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.DELETE_COMPLAINT(id));
+  async getPowerpackEditComplaint(id: number | string): Promise<UpPowerpackComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.EDIT(id));
+    return extractDetailObject<UpPowerpackComplaintItem>(res, ['complaint', 'powerpack', 'data']);
+  },
+
+  async updatePowerpackComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.POWERPACK.UPDATE, {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'Power Pack Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deletePowerpackComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.POWERPACK.DELETE_COMPLAINT(id));
   },
 
   /* ------------------- SRLMSRT APIS ------------------- */
@@ -1816,8 +1994,8 @@ export const upComplaintService = {
     }));
   },
 
-  async getSrlmsrtSiteDetails(idOrName: string | number): Promise<UpSrlmsrtDetails | null> {
-    const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.GET_SITE_DETAILS(idOrName));
+  async getSrlmsrtSiteDetails(idOrName: string | number, name?: string): Promise<UpSrlmsrtDetails | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.GET_SITE_DETAILS(idOrName, name));
     return extractDetailObject<UpSrlmsrtDetails>(res, ['site', 'details', 'detail']);
   },
 
@@ -1835,41 +2013,12 @@ export const upComplaintService = {
 
   async getSrlmsrtViewComplaints(): Promise<UpSrlmsrtComplaintItem[]> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.VIEW_COMPLAINT);
-    if (res.status && res.data) {
-      if (Array.isArray(res.data)) return res.data as UpSrlmsrtComplaintItem[];
-      if (Array.isArray((res.data as any).complaints)) return (res.data as any).complaints;
-    }
-    return [];
+    return extractComplaintList<UpSrlmsrtComplaintItem>(res);
   },
 
   async getSrlmsrtAssignedComplaints(): Promise<UpAssignedDataResponse<UpSrlmsrtComplaintItem>> {
     const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.ASSIGN_COMPLAINT);
-    const fallback: UpAssignedDataResponse<UpSrlmsrtComplaintItem> = {
-      open: [], approved: [], close: [], total_complaint: 0, open_complaint: 0, approved_complaint: 0, close_complaint: 0,
-    };
-    if (res.status && res.data) {
-      if (typeof res.data === 'object' && ('open' in res.data || 'close' in res.data || 'approved' in res.data)) {
-        const d = res.data as any;
-        const open = Array.isArray(d.open) ? d.open : [];
-        const approved = Array.isArray(d.approved) ? d.approved : [];
-        const close = Array.isArray(d.close) ? d.close : [];
-        return {
-          open, approved, close,
-          total_complaint: Number(d.total_complaint ?? (open.length + approved.length + close.length)),
-          open_complaint: Number(d.open_complaint ?? open.length),
-          approved_complaint: Number(d.approved_complaint ?? approved.length),
-          close_complaint: Number(d.close_complaint ?? close.length),
-        };
-      }
-      if (Array.isArray(res.data)) {
-        const arr = res.data as UpSrlmsrtComplaintItem[];
-        const open = arr.filter((r) => !r.status || Number(r.status) === 0 || String(r.complaint_status || '').toLowerCase() === 'open');
-        const approved = arr.filter((r) => Number(r.status) === 1 || String(r.complaint_status || '').toLowerCase() === 'approved');
-        const close = arr.filter((r) => Number(r.status) === 2 || String(r.complaint_status || '').toLowerCase() === 'closed');
-        return { open, approved, close, total_complaint: arr.length, open_complaint: open.length, approved_complaint: approved.length, close_complaint: close.length };
-      }
-    }
-    return fallback;
+    return extractAssignedResponse<UpSrlmsrtComplaintItem>(res);
   },
 
   async closeSrlmsrtComplaint(formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
@@ -1884,12 +2033,25 @@ export const upComplaintService = {
     };
   },
 
-  async deleteSrlmsrtComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
-    const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.DELETE_COMPLAINT(id));
+  async getSrlmsrtEditComplaint(id: number | string): Promise<UpSrlmsrtComplaintItem | null> {
+    const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.EDIT_COMPLAINT(id));
+    return extractDetailObject<UpSrlmsrtComplaintItem>(res, ['complaint', 'srlmsrt', 'data']);
+  },
+
+  async updateSrlmsrtComplaint(id: number | string, formData: FormData): Promise<{ status: boolean; message: string; errors?: Record<string, string[]> }> {
+    const res = await apiRequest(UP_COMPLAINT_API.SRLMSRT.UPDATE_COMPLAINT(id), {
+      method: 'POST',
+      body: formData,
+    });
     return {
       status: !!res.status,
-      message: res.message || (res.status ? 'Complaint deleted successfully.' : 'Failed to delete complaint.'),
+      message: res.message || (res.status ? 'SRLMSRT Complaint updated successfully!' : 'Failed to update complaint.'),
+      errors: res.errors,
     };
+  },
+
+  async deleteSrlmsrtComplaint(id: number | string): Promise<{ status: boolean; message: string }> {
+    return deleteRequest(UP_COMPLAINT_API.SRLMSRT.DELETE_COMPLAINT(id));
   },
 };
 

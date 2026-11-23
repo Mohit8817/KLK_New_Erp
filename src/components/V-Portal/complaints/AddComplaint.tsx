@@ -5,6 +5,11 @@ import {
   vendorCommonService,
   type VendorComplaintWoItem,
 } from '../common-services/vendorCommonService';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../common-services/vPortalFormUtils';
 
 /* ───────── Unified Single-Card Layout matching Reference Design ───────── */
 const SINGLE_CARD_FORM_CSS = `
@@ -154,6 +159,7 @@ interface FloatingInputProps {
   disabled?: boolean;
   type?: string;
   placeholder?: string;
+  error?: string;
 }
 
 function FloatingInput({
@@ -165,6 +171,7 @@ function FloatingInput({
   disabled,
   type = 'text',
   placeholder,
+  error,
 }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
@@ -182,11 +189,18 @@ function FloatingInput({
         required={required}
         disabled={disabled}
         placeholder={placeholder || label}
-        className="ax-float__input"
+        className={`ax-float__input ${error ? 'is-invalid' : ''}`}
+        aria-invalid={error ? 'true' : 'false'}
+        style={error ? { borderColor: 'var(--ax-danger, #ef4444)' } : undefined}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
       </label>
+      {error && (
+        <span className="ax-field-feedback--error" style={{ color: 'var(--ax-danger, #ef4444)', fontSize: '11px', marginTop: '3px', display: 'block' }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -387,7 +401,7 @@ function UploadDropzone({
       </div>
 
       {error && (
-        <span style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 2 }}>
+        <span className="ax-field-feedback--error" style={{ fontSize: 11, color: 'var(--ax-danger-500, #ef4444)', marginTop: 4, display: 'block' }}>
           {error}
         </span>
       )}
@@ -421,6 +435,7 @@ export function AddComplaint() {
   // Status & Feedback
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Section Refs for Scrolling
   const sec1 = useRef<HTMLDivElement>(null);
@@ -454,59 +469,55 @@ export function AddComplaint() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFeedback(null);
+    const missing: Record<string, string> = {};
 
     if (!workorder.trim()) {
-      setFeedback({ type: 'danger', text: 'Please select a Work Order.' });
-      scrollTo(sec1);
-      return;
+      missing.workorder = 'Work Order is required';
     }
 
     if (!complaintText.trim()) {
-      setFeedback({ type: 'danger', text: 'Complaint issue description is required.' });
-      scrollTo(sec1);
-      return;
+      missing.complaint = 'Complaint description is required';
     }
 
     if (!complainantName.trim()) {
-      setFeedback({ type: 'danger', text: 'Complainant Name is required.' });
-      scrollTo(sec2);
-      return;
+      missing.name = 'Complainant Name is required';
     }
 
     const cleanMobile = mobileVal.replace(/\D/g, '').trim();
-    if (!cleanMobile || cleanMobile.length < 10) {
-      setFeedback({ type: 'danger', text: 'Please enter a valid 10-digit mobile number.' });
-      scrollTo(sec2);
-      return;
+    if (!cleanMobile) {
+      missing.mobile = 'Mobile Number is required';
+    } else if (cleanMobile.length < 10) {
+      missing.mobile = 'Mobile number digit less (10 digits required)';
     }
 
     if (!stateVal.trim()) {
-      setFeedback({ type: 'danger', text: 'State is required.' });
-      scrollTo(sec2);
-      return;
+      missing.state = 'State is required';
     }
 
     if (!districtVal.trim()) {
-      setFeedback({ type: 'danger', text: 'District is required.' });
-      scrollTo(sec2);
-      return;
+      missing.district = 'District is required';
     }
 
     if (!locationVal.trim()) {
-      setFeedback({ type: 'danger', text: 'Location is required.' });
-      scrollTo(sec2);
-      return;
+      missing.location = 'Location is required';
     }
 
     if (!remarks.trim()) {
-      setFeedback({ type: 'danger', text: 'Remarks are required.' });
-      scrollTo(sec3);
+      missing.remarks = 'Remarks are required';
+    }
+
+    if (Object.keys(missing).length > 0) {
+      setFieldErrors(missing);
+      const msg = formatMissingRequiredMsg(missing);
+      setFeedback({ type: 'danger', text: msg });
+      scrollToFirstError();
       return;
     }
 
     try {
       setSubmitting(true);
       setFeedback(null);
+      setFieldErrors({});
 
       const formData = new FormData();
       formData.append('workorder', workorder.trim());
@@ -540,10 +551,13 @@ export function AddComplaint() {
       }, 1500);
     } catch (err: any) {
       console.error('[AddComplaint] submit error:', err);
+      const extracted = extractBackendError(err, 'Failed to register complaint. Please verify required fields.');
+      setFieldErrors(extracted.fieldErrors);
       setFeedback({
         type: 'danger',
-        text: err?.message || 'Failed to register complaint. Please verify required fields.',
+        text: extracted.message,
       });
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -634,9 +648,17 @@ export function AddComplaint() {
               <div className="ax-float">
                 <select
                   id="complaint_select_wo"
-                  className="ax-float__input"
+                  className={`ax-float__input ${fieldErrors.workorder ? 'is-invalid' : ''}`}
+                  aria-invalid={fieldErrors.workorder ? 'true' : 'false'}
                   value={workorder}
-                  onChange={(e) => setWorkorder(e.target.value)}
+                  onChange={(e) => {
+                    setWorkorder(e.target.value);
+                    setFieldErrors((prev) => {
+                      const n = { ...prev };
+                      delete n.workorder;
+                      return n;
+                    });
+                  }}
                   disabled={loadingWo || submitting}
                   required
                 >
@@ -650,13 +672,27 @@ export function AddComplaint() {
                 <label htmlFor="complaint_select_wo" className="ax-float__label floating">
                   Assigned Work Order <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>
                 </label>
+                {fieldErrors.workorder && (
+                  <span className="ax-field-feedback--error" style={{ color: 'var(--ax-danger, #ef4444)', fontSize: '11px', marginTop: '3px', display: 'block' }}>
+                    {fieldErrors.workorder}
+                  </span>
+                )}
               </div>
 
               <FloatingInput
                 label="Complaint Summary / Issue Description"
                 name="complaint"
                 value={complaintText}
-                onChange={(e) => setComplaintText(e.target.value)}
+                onChange={(e) => {
+                  setComplaintText(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.complaint;
+                    delete n.complaint_text;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.complaint || fieldErrors.complaint_text}
                 placeholder="e.g. Light not turning on at night / inverter error"
                 required
               />
@@ -681,7 +717,16 @@ export function AddComplaint() {
                 label="Complainant Name"
                 name="name"
                 value={complainantName}
-                onChange={(e) => setComplainantName(e.target.value)}
+                onChange={(e) => {
+                  setComplainantName(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.name;
+                    delete n.complainantName;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.name || fieldErrors.complainantName}
                 placeholder="e.g. Ramesh Kumar"
                 required
               />
@@ -691,7 +736,16 @@ export function AddComplaint() {
                 name="mobile"
                 type="tel"
                 value={mobileVal}
-                onChange={(e) => setMobileVal(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                onChange={(e) => {
+                  setMobileVal(e.target.value.replace(/\D/g, '').slice(0, 15));
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.mobile;
+                    delete n.mobileVal;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.mobile || fieldErrors.mobileVal}
                 placeholder="e.g. 9876543210"
                 required
               />
@@ -700,7 +754,16 @@ export function AddComplaint() {
                 label="State"
                 name="state"
                 value={stateVal}
-                onChange={(e) => setStateVal(e.target.value)}
+                onChange={(e) => {
+                  setStateVal(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.state;
+                    delete n.stateVal;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.state || fieldErrors.stateVal}
                 placeholder="e.g. Uttar Pradesh"
                 required
               />
@@ -709,7 +772,16 @@ export function AddComplaint() {
                 label="District"
                 name="district"
                 value={districtVal}
-                onChange={(e) => setDistrictVal(e.target.value)}
+                onChange={(e) => {
+                  setDistrictVal(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.district;
+                    delete n.districtVal;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.district || fieldErrors.districtVal}
                 placeholder="e.g. Lucknow"
                 required
               />
@@ -718,7 +790,16 @@ export function AddComplaint() {
                 label="Location / Village"
                 name="location"
                 value={locationVal}
-                onChange={(e) => setLocationVal(e.target.value)}
+                onChange={(e) => {
+                  setLocationVal(e.target.value);
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.location;
+                    delete n.locationVal;
+                    return n;
+                  });
+                }}
+                error={fieldErrors.location || fieldErrors.locationVal}
                 placeholder="e.g. Kakori / Main Market"
                 required
               />
@@ -760,7 +841,15 @@ export function AddComplaint() {
                   label="Detailed Remarks"
                   name="remarks"
                   value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
+                  onChange={(e) => {
+                    setRemarks(e.target.value);
+                    setFieldErrors((prev) => {
+                      const n = { ...prev };
+                      delete n.remarks;
+                      return n;
+                    });
+                  }}
+                  error={fieldErrors.remarks}
                   placeholder="Enter detailed technical observations, cause of breakdown, or instructions..."
                   required
                 />
@@ -782,9 +871,15 @@ export function AddComplaint() {
                   label="Complaint Photo"
                   file={imageFile}
                   preview={imagePreview}
+                  error={fieldErrors.image}
                   onSelect={(f) => {
                     setImageFile(f);
                     setImagePreview(URL.createObjectURL(f));
+                    setFieldErrors((prev) => {
+                      const n = { ...prev };
+                      delete n.image;
+                      return n;
+                    });
                   }}
                   onRemove={() => {
                     setImageFile(null);

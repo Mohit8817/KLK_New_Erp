@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../../../../services/authService';
 import { getAuthToken, resolveUpMediaUrl } from './upComplaintService';
+import { extractBackendError } from '../../common-services/vPortalFormUtils';
 
 const getBaseUrl = (): string => {
   return (API_BASE_URL || 'https://klkerp.com/api').replace(/\/+$/, '');
@@ -70,23 +71,15 @@ async function apiRequest<T = any>(
       return { status: true, data: json as unknown as T };
     }
 
-    if (!res.ok) {
-      const msg =
-        json?.message ||
-        (json?.errors ? Object.values(json.errors).flat().join(' ') : null) ||
-        `Request failed with status ${res.status}`;
+    if (!res.ok || json?.status === false || json?.success === false || json?.error === true || json?.errors) {
+      const extracted = extractBackendError(json, `Request failed with status ${res.status}`);
       return {
         status: false,
-        message: msg,
-        errors: json?.errors,
+        message: extracted.message,
+        errors: json?.errors || extracted.rawErrors,
         data: json?.data,
         raw: json,
       };
-    }
-
-    // Some APIs return `{ error: true, message: ... }`
-    if (json?.error === true) {
-      return { status: false, message: json.message || 'Error occurred', ...json };
     }
 
     // Some APIs return `{ success: true }` instead of `{ status: true }`
@@ -99,9 +92,10 @@ async function apiRequest<T = any>(
     return json;
   } catch (err: any) {
     console.error(`[upAmcService] API error on ${url}:`, err);
+    const extracted = extractBackendError(err, err?.message || 'Network error occurred.');
     return {
       status: false,
-      message: err?.message || 'Network error occurred.',
+      message: extracted.message,
     };
   }
 }

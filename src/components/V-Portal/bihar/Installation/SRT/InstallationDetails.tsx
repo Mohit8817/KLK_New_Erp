@@ -7,6 +7,11 @@ import {
   type SrtSiteDropdownItem,
   type SrtSiteDetailItem,
 } from '../../bihar-services/biharSrtInstallationService';
+import {
+  extractBackendError,
+  formatMissingRequiredMsg,
+  scrollToFirstError,
+} from '../../../common-services/vPortalFormUtils';
 
 // Unified Single-Card Layout with Floating Labels & Section Dividers
 const SINGLE_CARD_FORM_CSS = `
@@ -193,11 +198,14 @@ interface FloatingInputProps {
   onChange: (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   type?: string;
   placeholder?: string;
+  style?: React.CSSProperties;
+  error?: string;
 }
 
-function FloatingInput({ label, name, value, onChange, required, disabled, type = 'text', placeholder }: FloatingInputProps) {
+function FloatingInput({ label, name, value, onChange, required, disabled, readOnly, type = 'text', placeholder, style, error }: FloatingInputProps) {
   const [focused, setFocused] = useState(false);
   const hasVal = Boolean(value && String(value).length > 0);
 
@@ -213,12 +221,23 @@ function FloatingInput({ label, name, value, onChange, required, disabled, type 
         onBlur={() => setFocused(false)}
         required={required}
         disabled={disabled}
+        readOnly={readOnly}
         placeholder={placeholder || label}
         className="ax-float__input"
+        style={{
+          ...(readOnly ? { cursor: 'not-allowed', backgroundColor: 'var(--ax-surface-subtle, #f8fafc)' } : {}),
+          ...(error ? { borderColor: 'var(--ax-danger, #ef4444)' } : {}),
+          ...style,
+        }}
       />
       <label htmlFor={name} className={`ax-float__label ${focused ? 'floating' : hasVal ? 'has-val' : ''}`}>
         {label} {required && <span style={{ color: 'var(--ax-danger, #ef4444)' }}>*</span>}
       </label>
+      {error && (
+        <span style={{ fontSize: '11px', color: 'var(--ax-danger, #ef4444)', marginTop: '2px', display: 'block' }}>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -581,6 +600,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
   }>({});
 
   // UI state
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
   const [gettingLocation, setGettingLocation] = useState(false);
@@ -729,6 +749,13 @@ export function Bihar_Installation_SRT_InstallationDetails() {
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const removeFile = (field: keyof typeof files) => {
@@ -739,12 +766,19 @@ export function Bihar_Installation_SRT_InstallationDetails() {
     }
     // Also clear existing photo when user clicks clear
     setExistingPhotos((prev) => ({ ...prev, [field]: '' }));
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   // Geolocation
-  const detectLocation = () => {
+  const detectLocation = (silent = false) => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      if (!silent) alert('Geolocation is not supported by your browser.');
       return;
     }
     setGettingLocation(true);
@@ -755,25 +789,42 @@ export function Bihar_Installation_SRT_InstallationDetails() {
           inst_latitude: String(pos.coords.latitude.toFixed(6)),
           inst_longitude: String(pos.coords.longitude.toFixed(6)),
         }));
+        setFieldErrors((prev) => {
+          const n = { ...prev };
+          delete n.inst_latitude;
+          delete n.inst_longitude;
+          return n;
+        });
         setGettingLocation(false);
       },
       (err) => {
         console.warn('Geolocation error:', err);
-        alert('Could not retrieve GPS coordinates. Please enter manually.');
+        if (!silent) alert('Could not retrieve GPS coordinates. Please check location permissions.');
         setGettingLocation(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
+  // Auto-detect GPS coordinates on site select or load
+  useEffect(() => {
+    detectLocation(true);
+  }, [selectedSiteId]);
+
   // Form Submit
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const missing: Record<string, string> = {};
+
     if (!selectedSiteId) {
-      setFeedback({ type: 'danger', text: 'Please select a site first.' });
-      scrollTo(sec1);
-      return;
+      missing.selectedSiteId = 'Please select a site first.';
     }
+
+    if (!formData.contact_person.trim()) missing.contact_person = 'Contact Person is required';
+    if (!formData.contact_number.trim()) missing.contact_number = 'Contact Number is required';
+    if (!formData.inverter_no.trim()) missing.inverter_no = 'Inverter Number is required';
+    if (!formData.inst_latitude.trim()) missing.inst_latitude = 'Installation Latitude is required';
+    if (!formData.inst_longitude.trim()) missing.inst_longitude = 'Installation Longitude is required';
 
     const hasPanel = Boolean(files.panel_image || existingPhotos.panel_image);
     const hasSystem = Boolean(files.system_image || existingPhotos.system_image);
@@ -781,15 +832,23 @@ export function Bihar_Installation_SRT_InstallationDetails() {
     const hasNmSm = Boolean(files.nm_sm_image || existingPhotos.nm_sm_image);
     const hasLoger = Boolean(files.loger_image || existingPhotos.loger_image);
 
-    if (!hasPanel || !hasSystem || !hasInverter || !hasNmSm || !hasLoger) {
-      setFeedback({ type: 'danger', text: 'All 5 installation photos are required. Please upload the missing photos.' });
-      scrollTo(sec6);
+    if (!hasPanel) missing.panel_image = 'Solar Panel Photo is required';
+    if (!hasSystem) missing.system_image = 'Complete System Photo is required';
+    if (!hasInverter) missing.inverter_image = 'Inverter Photo is required';
+    if (!hasNmSm) missing.nm_sm_image = 'Net Meter / Smart Meter Photo is required';
+    if (!hasLoger) missing.loger_image = 'RMS Logger Photo is required';
+
+    if (Object.keys(missing).length > 0) {
+      setFieldErrors(missing);
+      setFeedback({ type: 'danger', text: formatMissingRequiredMsg(missing) });
+      scrollToFirstError();
       return;
     }
 
     try {
       setSubmitting(true);
       setFeedback(null);
+      setFieldErrors({});
 
       const fd = new FormData();
       fd.append('id', String(selectedSiteId));
@@ -826,10 +885,15 @@ export function Bihar_Installation_SRT_InstallationDetails() {
       }, 1500);
     } catch (err: any) {
       console.error('[SRT Installation] submit error:', err);
+      const extracted = extractBackendError(err, isEditMode ? 'Failed to update installation.' : 'Failed to submit SRT installation.');
+      if (extracted.fieldErrors && Object.keys(extracted.fieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...extracted.fieldErrors }));
+      }
       setFeedback({
         type: 'danger',
-        text: err?.message || (isEditMode ? 'Failed to update installation.' : 'Failed to submit SRT installation.'),
+        text: extracted.message,
       });
+      scrollToFirstError();
     } finally {
       setSubmitting(false);
     }
@@ -1010,6 +1074,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="contact_person"
                 value={formData.contact_person}
                 onChange={handleInputChange}
+                error={fieldErrors.contact_person}
                 required
               />
               <FloatingInput
@@ -1017,6 +1082,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="contact_number"
                 value={formData.contact_number}
                 onChange={handleInputChange}
+                error={fieldErrors.contact_number}
                 required
               />
               <FloatingInput
@@ -1024,6 +1090,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="ca_no"
                 value={formData.ca_no}
                 onChange={handleInputChange}
+                error={fieldErrors.ca_no}
                 required
               />
             </div>
@@ -1048,6 +1115,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="solarmeter_no"
                 value={formData.solarmeter_no}
                 onChange={handleInputChange}
+                error={fieldErrors.solarmeter_no}
                 required
               />
               <FloatingInput
@@ -1055,6 +1123,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="nm_sm_no"
                 value={formData.nm_sm_no}
                 onChange={handleInputChange}
+                error={fieldErrors.nm_sm_no}
                 required
               />
               <FloatingInput
@@ -1062,6 +1131,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="inverter_no"
                 value={formData.inverter_no}
                 onChange={handleInputChange}
+                error={fieldErrors.inverter_no}
                 required
               />
               <FloatingInput
@@ -1069,6 +1139,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="loger_no"
                 value={formData.loger_no}
                 onChange={handleInputChange}
+                error={fieldErrors.loger_no}
                 required
               />
             </div>
@@ -1088,7 +1159,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
               <button
                 type="button"
                 className="ax-btn ax-btn--secondary ax-btn--sm"
-                onClick={detectLocation}
+                onClick={() => detectLocation(false)}
                 disabled={gettingLocation}
               >
                 {gettingLocation ? 'Detecting GPS...' : '📍 Auto-detect GPS'}
@@ -1100,14 +1171,20 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 label="Latitude"
                 name="inst_latitude"
                 value={formData.inst_latitude}
-                onChange={handleInputChange}
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Latitude"
+                error={fieldErrors.inst_latitude}
                 required
               />
               <FloatingInput
                 label="Longitude"
                 name="inst_longitude"
                 value={formData.inst_longitude}
-                onChange={handleInputChange}
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-detected GPS Longitude"
+                error={fieldErrors.inst_longitude}
                 required
               />
               <FloatingInput
@@ -1115,6 +1192,7 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                 name="inst_remarks"
                 value={formData.inst_remarks}
                 onChange={handleInputChange}
+                error={fieldErrors.inst_remarks}
               />
             </div>
           </div>
@@ -1140,9 +1218,17 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   file={files.panel_image}
                   preview={previews.panel_image}
                   existingUrl={existingPhotos.panel_image}
+                  error={fieldErrors.panel_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, panel_image: f }));
                     setPreviews((prev) => ({ ...prev, panel_image: URL.createObjectURL(f) }));
+                    if (fieldErrors.panel_image) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.panel_image;
+                        return next;
+                      });
+                    }
                   }}
                   onRemove={() => removeFile('panel_image')}
                 />
@@ -1153,9 +1239,17 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   file={files.system_image}
                   preview={previews.system_image}
                   existingUrl={existingPhotos.system_image}
+                  error={fieldErrors.system_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, system_image: f }));
                     setPreviews((prev) => ({ ...prev, system_image: URL.createObjectURL(f) }));
+                    if (fieldErrors.system_image) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.system_image;
+                        return next;
+                      });
+                    }
                   }}
                   onRemove={() => removeFile('system_image')}
                 />
@@ -1166,9 +1260,17 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   file={files.inverter_image}
                   preview={previews.inverter_image}
                   existingUrl={existingPhotos.inverter_image}
+                  error={fieldErrors.inverter_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, inverter_image: f }));
                     setPreviews((prev) => ({ ...prev, inverter_image: URL.createObjectURL(f) }));
+                    if (fieldErrors.inverter_image) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.inverter_image;
+                        return next;
+                      });
+                    }
                   }}
                   onRemove={() => removeFile('inverter_image')}
                 />
@@ -1179,9 +1281,17 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   file={files.nm_sm_image}
                   preview={previews.nm_sm_image}
                   existingUrl={existingPhotos.nm_sm_image}
+                  error={fieldErrors.nm_sm_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, nm_sm_image: f }));
                     setPreviews((prev) => ({ ...prev, nm_sm_image: URL.createObjectURL(f) }));
+                    if (fieldErrors.nm_sm_image) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.nm_sm_image;
+                        return next;
+                      });
+                    }
                   }}
                   onRemove={() => removeFile('nm_sm_image')}
                 />
@@ -1192,9 +1302,17 @@ export function Bihar_Installation_SRT_InstallationDetails() {
                   file={files.loger_image}
                   preview={previews.loger_image}
                   existingUrl={existingPhotos.loger_image}
+                  error={fieldErrors.loger_image}
                   onSelect={(f) => {
                     setFiles((prev) => ({ ...prev, loger_image: f }));
                     setPreviews((prev) => ({ ...prev, loger_image: URL.createObjectURL(f) }));
+                    if (fieldErrors.loger_image) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.loger_image;
+                        return next;
+                      });
+                    }
                   }}
                   onRemove={() => removeFile('loger_image')}
                 />

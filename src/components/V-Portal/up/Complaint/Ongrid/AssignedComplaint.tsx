@@ -117,6 +117,7 @@ export function UPComplaintOngridAssigned() {
           const fd = new FormData();
           fd.append('id', String(item.id || ''));
           if (item.complaint_id) fd.append('complaint_id', String(item.complaint_id));
+          fd.append('resolved_by', v.resolvedBy);
           fd.append('remarks', v.remarks);
           fd.append('closing_date', v.date);
           fd.append('document', v.file);
