@@ -22,7 +22,15 @@ import {
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: var(--ax-accent, #2563eb);
+<<<<<<< HEAD
     --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+=======
+<<<<<<< HEAD
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+=======
+    --asw-primary-rgb: 37, 99, 235;
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1173,6 +1181,11 @@ export function ViewAssignInstallation() {
         footer={
           <button
             type="button"
+<<<<<<< HEAD
+=======
+            className="ax-btn ax-btn--primary"
+            onClick={() => setSelectedAssignForSites(null)}
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
             className="ax-btn ax-btn--primary"
             onClick={() => setSelectedAssignForSites(null)}
             style={{

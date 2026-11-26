@@ -468,6 +468,7 @@ export function AssignLights() {
             });
           }
 
+<<<<<<< HEAD
           const vol = cleanStr(assignObj.volume) || cleanStr(recordFromView?.volume) || '2';
           const rawDist = assignObj.district ?? recordFromView?.district;
           const rawBlk = assignObj.block ?? recordFromView?.block;
@@ -481,6 +482,11 @@ export function AssignLights() {
             : (!Array.isArray(rawBlk) && rawBlk && typeof rawBlk === 'object'
                 ? cleanStr(rawBlk.block || rawBlk.block_name || rawBlk.name)
                 : cleanStr(recordFromView?.block));
+=======
+          const vol = cleanStr(assignObj.volume) || '2';
+          const dist = cleanStr(assignObj.district);
+          const blk = cleanStr(assignObj.block);
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
           if (vol && !volSet.has(vol)) {
             combinedVolumes.push({ volume: vol });
@@ -799,12 +805,17 @@ export function AssignLights() {
 
   const filteredPanchayats = useMemo(() => {
     const q = panchayatFilterQuery.trim().toLowerCase();
+<<<<<<< HEAD
     const valid = panchayats.filter((p) => {
       const name = cleanStr(p.panchayat);
       return Boolean(name && name !== '[object Object]');
     });
     if (!q) return valid;
     return valid.filter((p) => cleanStr(p.panchayat).toLowerCase().includes(q));
+=======
+    if (!q) return panchayats;
+    return panchayats.filter((p) => cleanStr(p.panchayat).toLowerCase().includes(q));
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   }, [panchayats, panchayatFilterQuery]);
 
   const selectedLightsTally = useMemo(() => {
@@ -1567,6 +1578,7 @@ export function AssignLights() {
                       }}
                       disabled={submitting || isAcceptedLocked}
                     >
+<<<<<<< HEAD
                       <option value="">-- Quick Select Panchayat from List ({filteredPanchayats.length}) --</option>
                       {filteredPanchayats.map((p, idx) => {
                         const pName = cleanStr(p.panchayat);
@@ -1574,6 +1586,14 @@ export function AssignLights() {
                         return (
                           <option key={idx} value={pName}>
                             {isChecked ? '✓ ' : ''}{pName}{p.light_count !== undefined ? ` (${p.light_count} lights available)` : ''}
+=======
+                      <option value="">-- Quick Select Panchayat from List ({panchayats.length}) --</option>
+                      {panchayats.map((p, idx) => {
+                        const isChecked = selectedPanchayats.includes(cleanStr(p.panchayat));
+                        return (
+                          <option key={idx} value={cleanStr(p.panchayat)}>
+                            {isChecked ? '✓ ' : ''}{cleanStr(p.panchayat)}{p.light_count !== undefined ? ` (${p.light_count} lights available)` : ''}
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                           </option>
                         );
                       })}

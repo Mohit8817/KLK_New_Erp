@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { lazy, Suspense, useEffect, useMemo, useState, useDeferredValue } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
+=======
+﻿import { lazy, Suspense, useEffect, useMemo, useState, useDeferredValue } from 'react';
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 import { useNavigate, Link } from 'react-router-dom';
 import { PageHead } from '../shell/PageHead';
 import { Pagination, usePagination, TableExportToolbar, TableEmptyState, type ExportColumn } from '../../common';
@@ -478,6 +482,7 @@ const STATE_SUMMARIES: StateOverview[] = [
   { state: 'Punjab', totalSites: 860, activeInstallations: 430, surveysDone: 210, amcUnits: 160, complaints: 8 },
   { state: 'Jammu & Kashmir', totalSites: 980, activeInstallations: 520, surveysDone: 310, amcUnits: 190, complaints: 14 },
   { state: 'Assam', totalSites: 745, activeInstallations: 320, surveysDone: 242, amcUnits: 103, complaints: 6 },
+  { state: 'Karnataka', totalSites: 685, activeInstallations: 290, surveysDone: 195, amcUnits: 88, complaints: 4 },
 ];
 
 const STATUS_BADGE: Record<WorkOrder['status'], string> = {
@@ -604,6 +609,7 @@ export function VPortalDashboard() {
                   <option value="Uttar Pradesh">Uttar Pradesh (UP)</option>
                   <option value="Jammu & Kashmir">Jammu &amp; Kashmir (J&amp;K)</option>
                   <option value="Assam">Assam</option>
+                  <option value="Karnataka">Karnataka</option>
                 </select>
               </div>
 
@@ -671,9 +677,158 @@ export function VPortalDashboard() {
         <KpiCard icon={I_PIN} tone="violet" label="Contractor Districts" value="24" sub="Active execution zones"
           spark={[10, 14, 18, 20, 22, 24]} />
 
+<<<<<<< HEAD
         {/* State chart (8) + status donut (4) */}
         <section className="ax-card ax-card--chart ax-col--8" role="region" aria-label="State wise work order distribution">
           <div className="ax-card__header">
+=======
+        <KpiCard
+          icon={I_DONE}
+          tone="cyan"
+          label="Field Surveys Done"
+          value={verifiedSurveys.toLocaleString('en-IN')}
+          unit="Surveys"
+          sub="Verified survey records"
+          badge="94% Rate"
+          spark={[80, 190, 340, 560, 780, 892]}
+          onClick={() => setSelectedModule('Survey')}
+        />
+
+        <KpiCard
+          icon={I_CLOCK}
+          tone="amber"
+          label="AMC Maintenance"
+          value={amcTotal.toLocaleString('en-IN')}
+          unit="Lights"
+          sub="Active maintenance SLA"
+          badge="100% SLA"
+          spark={[40, 90, 180, 290, 410, 533]}
+          onClick={() => setSelectedModule('AMC')}
+        />
+
+        <KpiCard
+          icon={I_LIST}
+          tone="accent"
+          label="Today Dispatched"
+          value="28"
+          unit="Orders"
+          sub="New work orders today"
+          spark={[4, 8, 12, 18, 22, 28]}
+        />
+
+        <KpiCard
+          icon={I_X}
+          tone="red"
+          label="Open Complaints"
+          value={openComplaints.toLocaleString('en-IN')}
+          unit="Issues"
+          sub="Pending field claims"
+          badge="-6 Resolved"
+          spark={[65, 58, 54, 50, 48]}
+          onClick={() => setSelectedModule('Complaints')}
+        />
+
+        <KpiCard
+          icon={I_PIN}
+          tone="violet"
+          label="Contractor Districts"
+          value="24"
+          sub="Active execution zones"
+          spark={[10, 14, 18, 20, 22, 24]}
+        />
+
+        {/* 5. Integrated Regional Operations & State Portals Section */}
+        <div className="ax-col--12" style={{ marginTop: 'var(--ax-space-3)', marginBottom: 'var(--ax-space-1)' }}>
+          <div className="ax-cluster" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--ax-space-2)' }}>
+            <div>
+              <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                Integrated Regional Operations & State Portals
+              </span>
+              <h2 className="ax-card__title" style={{ fontSize: 'var(--ax-text-lg)', margin: 0 }}>
+                State-Wise Operations & Project Workflows
+              </h2>
+            </div>
+            <span className="ax-badge ax-badge--soft ax-badge--neutral ax-badge--pill" style={{ fontSize: 'var(--ax-text-xs)' }}>
+              Contractor Mode: <b>Direct State Access</b>
+            </span>
+          </div>
+        </div>
+
+        {/* State Operation Workflow Cards (Exact DLE Card Layout) */}
+        {STATE_SUMMARIES.map((st) => (
+          <div key={st.state} className="ax-card ax-col--4" style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}>
+            <div className="ax-card__header" style={{ padding: '14px 16px 10px 16px', borderBottom: '1px solid var(--ax-border-subtle)' }}>
+              <div className="ax-card__titles">
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Regional Operations
+                </span>
+                <h3 className="ax-card__title" style={{ fontSize: '15px', margin: 0 }}>
+                  {st.state}
+                </h3>
+              </div>
+              <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill" style={{ fontSize: '11px', fontWeight: 700 }}>
+                {st.totalSites.toLocaleString('en-IN')} Sites
+              </span>
+            </div>
+
+            <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Active Installations:</span>
+                <strong style={{ color: 'var(--ax-viz-emerald)' }}>{st.activeInstallations}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Verified Surveys:</span>
+                <strong style={{ color: 'var(--ax-viz-cyan)' }}>{st.surveysDone}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>AMC Maintenance:</span>
+                <strong style={{ color: 'var(--ax-viz-amber)' }}>{st.amcUnits}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px' }}>
+                <span style={{ color: 'var(--ax-text-muted)' }}>Open Complaints:</span>
+                <strong style={{ color: 'var(--ax-viz-red)' }}>{st.complaints}</strong>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ marginTop: '4px' }}>
+                <div style={{ height: '6px', background: 'var(--ax-border-subtle)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.round((st.activeInstallations / st.totalSites) * 100)}%`,
+                    height: '100%',
+                    background: 'var(--ax-accent)',
+                    borderRadius: '3px',
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--ax-text-subtle)', marginTop: '4px' }}>
+                  <span>Execution Progress</span>
+                  <span>{Math.round((st.activeInstallations / st.totalSites) * 100)}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="ax-card__footer" style={{ padding: '10px 16px', borderTop: '1px solid var(--ax-border-subtle)', background: '#f8fafc' }}>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--sm"
+                style={{ width: '100%', justifyContent: 'center', fontWeight: 600, fontSize: '12px', color: 'var(--ax-accent)' }}
+                onClick={() => {
+                  setSelectedState(st.state);
+                  if (st.state === 'Uttar Pradesh') navigate('/up/survey/ssl/view-data');
+                  else if (st.state === 'Punjab') navigate('/v/punjab/ssl/installation/dashboard');
+                  else if (st.state === 'Jammu & Kashmir') navigate('/jammu/installation/srt-70mw/dashboard');
+                  else navigate('/assam/swp/dashboard');
+                }}
+              >
+                Open {st.state} Modules →
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* 6. Charts Section: State Distribution & Status Donut */}
+        <div className="ax-card ax-col--6" style={{ borderRadius: 'var(--ax-radius-lg)', background: 'var(--ax-bg-surface)' }}>
+          <div className="ax-card__header" style={{ padding: '14px 18px', borderBottom: '1px solid var(--ax-border-subtle)' }}>
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Distribution Analytics</span>
               <h2 className="ax-card__title">State-Wise Work Order Distribution</h2>

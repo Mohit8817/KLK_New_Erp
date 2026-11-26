@@ -5,6 +5,7 @@ import { CustomizerProvider } from './context/CustomizerContext';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './pages/auth/ProtectedRoute';
 import { DocumentTitle } from './hooks/useDocumentTitle';
+<<<<<<< HEAD
 import {
   standaloneRoutes,
   appShellRoutes,
@@ -14,6 +15,1794 @@ import {
   templateRoutes,
   notFoundRoute,
 } from './routes';
+=======
+import { DashboardSkeleton } from './common/skeletons';
+
+
+
+type PageComponent = ReturnType<typeof lazy>;
+
+
+const SolarLogin = lazy(() => import('./pages/auth/Login'));
+const Error401 = lazy(() => import('./pages/error/Error401'));
+const Error403 = lazy(() => import('./pages/error/Error403'));
+const Error404 = lazy(() => import('./pages/error/Error404'));
+const Error500 = lazy(() => import('./pages/error/Error500'));
+const Error503 = lazy(() => import('./pages/error/Error503'));
+const PagesComingSoon = lazy(() => import('./pages/pages/ComingSoon'));
+const PagesLanding = lazy(() => import('./pages/pages/Landing'));
+const PagesLogout = lazy(() => import('./pages/pages/Logout'));
+const AppsCalendar = lazy(() => import('./pages/apps/Calendar'));
+const AppsChat = lazy(() => import('./pages/apps/Chat'));
+const AppsContacts = lazy(() => import('./pages/apps/Contacts'));
+const AppsEmail = lazy(() => import('./pages/apps/Email'));
+const AppsEmailCompose = lazy(() => import('./pages/apps/EmailCompose'));
+const AppsEmailSettings = lazy(() => import('./pages/apps/EmailSettings'));
+const AppsFileManager = lazy(() => import('./pages/apps/FileManager'));
+const AppsGallery = lazy(() => import('./pages/apps/Gallery'));
+const AppsKanban = lazy(() => import('./pages/apps/Kanban'));
+const AppsMediaPlayer = lazy(() => import('./pages/apps/MediaPlayer'));
+const AppsNotes = lazy(() => import('./pages/apps/Notes'));
+const AppsTasks = lazy(() => import('./pages/apps/Tasks'));
+const AppsTodo = lazy(() => import('./pages/apps/Todo'));
+// const BlogBlogDetails = lazy(() => import('./pages/blog/BlogDetails'));
+// const BlogCreate = lazy(() => import('./pages/blog/Create'));
+// const BlogList = lazy(() => import('./pages/blog/List'));
+// const ChartsApexArea = lazy(() => import('./pages/charts/ApexArea'));
+// const ChartsApexBar = lazy(() => import('./pages/charts/ApexBar'));
+// const ChartsApexFinancial = lazy(() => import('./pages/charts/ApexFinancial'));
+// const ChartsApexLine = lazy(() => import('./pages/charts/ApexLine'));
+// const ChartsApexMixed = lazy(() => import('./pages/charts/ApexMixed'));
+// const ChartsApexPie = lazy(() => import('./pages/charts/ApexPie'));
+// const ChartsChartjs = lazy(() => import('./pages/charts/ChartJs'));
+// const ChartsEcharts = lazy(() => import('./pages/charts/ECharts'));
+// const ChartsSparklines = lazy(() => import('./pages/charts/Sparklines'));
+// const CrmCompanies = lazy(() => import('./pages/crm/Companies'));
+// const CrmContacts = lazy(() => import('./pages/crm/Contacts'));
+// const CrmDeals = lazy(() => import('./pages/crm/Deals'));
+// const CrmLeads = lazy(() => import('./pages/crm/Leads'));
+// const CryptoBuySell = lazy(() => import('./pages/crypto/BuySell'));
+// const CryptoExchange = lazy(() => import('./pages/crypto/Exchange'));
+// const CryptoMarketcap = lazy(() => import('./pages/crypto/Marketcap'));
+// const CryptoTransactions = lazy(() => import('./pages/crypto/Transactions'));
+// const CryptoWallet = lazy(() => import('./pages/crypto/Wallet'));
+
+const DLEDashboard = lazy(() => import('./components/DLE/DLEDashboard'));
+const BiharAMCSSLAssignLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLAssignLight'));
+const BiharAMCSSLViewAssignLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewAssignLight'));
+const BiharAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLViewSurveyLight'));
+const BiharAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/Bihar/AMC/SSL/BiharAMCSSLSurveyLightDetails'));
+const BiharULAInstallationDashboard = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationDashboard'));
+const BiharULAInstallationViewData = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewData'));
+const BiharULAInstallationViewDataDetails = lazy(() => import('./components/DLE/Bihar/Installation/ULA/BiharULAInstallationViewDataDetails'));
+
+const UPAMCSSLDashboard = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLDashboard'));
+const UPAMCSSLAssignLights = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLAssignLights'));
+const UPAMCSSLViewAssignLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewAssignLight'));
+const UPAMCSSLViewSurveyLight = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLViewSurveyLight'));
+const UPAMCSSLSurveyLightDetails = lazy(() => import('./components/DLE/UP/AMC/SSL/UPAMCSSLSurveyLightDetails'));
+const UPAMCKusumCDashboard = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCDashboard'));
+const UPAMCKusumCAssignPumps = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCAssignPumps'));
+const UPAMCKusumCViewAssign = lazy(() => import('./components/DLE/UP/AMC/KUSUM-C/UPAMCKusumCViewAssign'));
+const DLEManagementViewData = lazy(() => import('./components/DLE/Management/DLEManagementViewData'));
+const DleUserDetail = lazy(() => import('./components/DLE/Management/DleUserDetail'));
+const DLEAttendanceViewData = lazy(() => import('./components/DLE/Attendance/DLEAttendanceViewData'));
+const DLEAttendanceDetail = lazy(() => import('./components/DLE/Attendance/DLEAttendanceDetail'));
+
+const ErpMainDashboard = lazy(() => import('./pages/dashboards/ErpMainDashboard'));
+const ModulePlaceholder = lazy(() => import('./pages/dashboards/ModulePlaceholder'));
+const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
+const MapsLeaflet = lazy(() => import('./pages/maps/Leaflet'));
+const VPortalDashboard = lazy(() => import('./components/V-Portal/VPortalDashboard'));
+
+const AssamDashboard = lazy(() => import('./components/V-Portal/assam/Installation/Swp/AssamDashboard'));
+const AssamInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/Installation'));
+const AssamInstallationRequest = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationRequest'));
+const AssamInstallationSite = lazy(() => import('./components/V-Portal/assam/Installation/Swp/InstallationSite'));
+const AssamViewInstallation = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewInstallation'));
+const AssamViewPayment = lazy(() => import('./components/V-Portal/assam/Installation/Swp/ViewPayment'));
+const AssamStatusView = lazy(() => import('./components/V-Portal/assam/Installation/Swp/StatusView'));
+<<<<<<< HEAD
+
+// ── V-PORTAL: KARNATAKA ──
+const KarnatakaDashboard = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/KarnatakaDashboard'));
+const KarnatakaInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/Installation'));
+const KarnatakaInstallationRequest = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationRequest'));
+const KarnatakaInstallationSite = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationSite'));
+const KarnatakaViewInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewInstallation'));
+const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/AddPayment'));
+const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
+const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
+const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+
+const JammuDashboard = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/JammuDashboard'));
+const JammuAddSRT70MWSingleCard = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/AddJammuSRT70MWSingleCard'));
+
+// ── Uttar Pradesh: Survey ──
+const UPSurveySRTAdd = lazy(() => import('./components/V-Portal/up/Survey/SRT/AddSurvey'));
+const UPSurveySRTView = lazy(() => import('./components/V-Portal/up/Survey/SRT/ViewSurvey'));
+const UPSurveyRescoAssignedSurvey = lazy(() => import('./components/V-Portal/up/Survey/Resco/AssignedSurvey'));
+const UPSurveyRescoAddResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/AddResco'));
+const UPSurveyRescoViewResco = lazy(() => import('./components/V-Portal/up/Survey/Resco/ViewResco'));
+const UPSurveySSLSurvey = lazy(() => import('./components/V-Portal/up/Survey/SSL/Survey'));
+const UPSurveySSLViewData = lazy(() => import('./components/V-Portal/up/Survey/SSL/ViewData'));
+
+// ── Uttar Pradesh: Installation ──
+const UPInstRescoDb = lazy(() => import('./components/V-Portal/up/Installation/Resco/Dashboard'));
+const UPInstRescoAssigned = lazy(() => import('./components/V-Portal/up/Installation/Resco/AssignedSites'));
+const UPInstRescoInstall = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallSite'));
+const UPInstRescoDetail = lazy(() => import('./components/V-Portal/up/Installation/Resco/InstallationDetail'));
+const UPInstRescoClaim = lazy(() => import('./components/V-Portal/up/Installation/Resco/ClaimRequest'));
+const UPInstRescoBill = lazy(() => import('./components/V-Portal/up/Installation/Resco/MonthlyBill'));
+const UPInstSSLDb = lazy(() => import('./components/V-Portal/up/Installation/SSL/Dashboard'));
+const UPInstSSLAssigned = lazy(() => import('./components/V-Portal/up/Installation/SSL/AssignedLights'));
+const UPInstSSLInstall = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallLight'));
+const UPInstSSLDetail = lazy(() => import('./components/V-Portal/up/Installation/SSL/InstallationDetail'));
+const UPInstSSLClaim = lazy(() => import('./components/V-Portal/up/Installation/SSL/ClaimRequest'));
+const UPInstSSLStatusView = lazy(() => import('./components/V-Portal/up/Installation/SSL/StatusView'));
+const UPInstKCDb = lazy(() => import('./components/V-Portal/up/Installation/KusumC/Dashboard'));
+const UPInstKCReq = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallationRequest'));
+const UPInstKCInstall = lazy(() => import('./components/V-Portal/up/Installation/KusumC/InstallSite'));
+const UPInstKCView = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewInstallation'));
+const UPInstKCPay = lazy(() => import('./components/V-Portal/up/Installation/KusumC/ViewPayment'));
+
+// ── Uttar Pradesh: AMC ──
+const UPAMCRescoViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Resco/ViewAssignSite'));
+const UPAMCRescoPending = lazy(() => import('./components/V-Portal/up/AMC/Resco/PendingAMC'));
+const UPAMCRescoCompleted = lazy(() => import('./components/V-Portal/up/AMC/Resco/CompletedAMC'));
+const UPAMCRescoPay = lazy(() => import('./components/V-Portal/up/AMC/Resco/Payment'));
+const UPAMCKCViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumC/ViewAssignAMC'));
+const UPAMCKCPending = lazy(() => import('./components/V-Portal/up/AMC/KusumC/PendingAMC'));
+const UPAMCKCCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumC/CompletedAMC'));
+const UPAMCKBViewAssign = lazy(() => import('./components/V-Portal/up/AMC/KusumB/ViewAssignAMC'));
+const UPAMCKBPending = lazy(() => import('./components/V-Portal/up/AMC/KusumB/PendingAMC'));
+const UPAMCKBCompleted = lazy(() => import('./components/V-Portal/up/AMC/KusumB/CompletedAMC'));
+const UPAMCPPViewAssign = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/ViewAssignAMC'));
+const UPAMCPPPending = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/PendingAMC'));
+const UPAMCPPCompleted = lazy(() => import('./components/V-Portal/up/AMC/PowerPack/CompletedAMC'));
+const UPAMCOngridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/ViewAssignAMC'));
+const UPAMCOngridPending = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/PendingAMC'));
+const UPAMCOngridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Ongrid/CompletedAMC'));
+const UPAMCOffgridViewAssign = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/ViewAssignAMC'));
+const UPAMCOffgridPending = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/PendingAMC'));
+const UPAMCOffgridCompleted = lazy(() => import('./components/V-Portal/up/AMC/Offgrid/CompletedAMC'));
+const UPAMCSSLViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL/ViewAssignLight'));
+const UPAMCSSLPending = lazy(() => import('./components/V-Portal/up/AMC/SSL/PendingAMC'));
+const UPAMCSSLCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL/CompletedAMC'));
+const UPAMCSSLPay = lazy(() => import('./components/V-Portal/up/AMC/SSL/Payment'));
+const UPAMCSSL18WViewAssign = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/ViewAssignLight'));
+const UPAMCSSL18WPending = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/PendingAMC'));
+const UPAMCSSL18WCompleted = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/CompletedAMC'));
+const UPAMCSSL18WPay = lazy(() => import('./components/V-Portal/up/AMC/SSL18W/Payment'));
+
+
+
+
+// ── Uttar Pradesh: Complaint ──
+const UPComplaintRescoAdd = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AddComplaint'));
+const UPComplaintRescoView = lazy(() => import('./components/V-Portal/up/Complaint/Resco/ViewComplaint'));
+const UPComplaintRescoAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Resco/AssignedComplaint'));
+const UPComplaintSSLAdd = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AddComplaint'));
+const UPComplaintSSLView = lazy(() => import('./components/V-Portal/up/Complaint/SSL/ViewComplaint'));
+const UPComplaintSSLAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SSL/AssignedComplaint'));
+const UPComplaintKCAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AddComplaint'));
+const UPComplaintKCView = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/ViewComplaint'));
+const UPComplaintKCAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumC/AssignedComplaint'));
+const UPComplaintKBAdd = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AddComplaint'));
+const UPComplaintKBView = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/ViewComplaint'));
+const UPComplaintKBAssigned = lazy(() => import('./components/V-Portal/up/Complaint/KusumB/AssignedComplaint'));
+const UPComplaintOngridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AddComplaint'));
+const UPComplaintOngridView = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/ViewComplaint'));
+const UPComplaintOngridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Ongrid/AssignedComplaint'));
+const UPComplaintOffgridAdd = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AddComplaint'));
+const UPComplaintOffgridView = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/ViewComplaint'));
+const UPComplaintOffgridAssigned = lazy(() => import('./components/V-Portal/up/Complaint/Offgrid/AssignedComplaint'));
+const UPComplaintPPAdd = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AddComplaint'));
+const UPComplaintPPView = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/ViewComplaint'));
+const UPComplaintPPAssigned = lazy(() => import('./components/V-Portal/up/Complaint/PowerPack/AssignedComplaint'));
+const UPComplaintSRLMAdd = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AddComplaint'));
+const UPComplaintSRLMView = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/ViewComplaint'));
+const UPComplaintSRLMAssigned = lazy(() => import('./components/V-Portal/up/Complaint/SRLMSRT/AssignedComplaint'));
+
+// ── Jammu ──
+
+const JMSurveyRescoAssign = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Assign_Survey'));
+const JMSurveyRescoPending = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/Pending_Survey'));
+const JMSurveyRescoView = lazy(() => import('./components/V-Portal/jammu/Survey/Resco/View_Survey'));
+const JMSurveySRTView = lazy(() => import('./components/V-Portal/jammu/Survey/SRT_70MW/ViewData'));
+
+const JMInstRescoDb = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoDashboard'));
+const JMInstRescoAssigned = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoAssignedSites'));
+const JMInstRescoInstall = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallSite'));
+const JMInstRescoDetail = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoInstallationDetails'));
+const JMInstRescoClaim = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoClaimRequest'));
+const JMInstRescoStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/Resco/RescoStatusView'));
+
+const JMInstSRTAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/AssignSite'));
+const JMInstSRTInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallSites'));
+const JMInstSRTDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/InstallationDetails'));
+const JMInstSRTClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/ClaimRequest'));
+const JMInstSRTStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SRT_70MW/StatusView'));
+
+const JMInstSSLDb = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLDashboard'));
+const JMInstSSLAssign = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/AssignLights'));
+const JMInstSSLInstall = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/InstallLights'));
+const JMInstSSLDetail = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLInstallationDetails'));
+const JMInstSSLClaim = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLClaimRequest'));
+const JMInstSSLStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SSL/SSLStatusView'));
+
+const JMInstSWPDb = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPDashboard'));
+const JMInstSWPReq = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationRequest'));
+const JMInstSWPSite = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPInstallationSite'));
+const JMInstSWPView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewInstallation'));
+const JMInstSWPPay = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPViewPayment'));
+const JMInstSWPStatusView = lazy(() => import('./components/V-Portal/jammu/Installation/SWP/SWPStatusView'));
+
+const JMExpRequest = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/RequestExpenses'));
+const JMExpView = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewExpenses'));
+const JMExpPay = lazy(() => import('./components/V-Portal/jammu/InstallationExpenses/SRT_70MW/ViewPayments'));
+
+const JMAMCRescoAssign = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoAssignSurvey'));
+const JMAMCRescoPending = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoPendingSurvey'));
+const JMAMCRescoView = lazy(() => import('./components/V-Portal/jammu/AMC/Resco/AMCRescoViewSurvey'));
+const JMAMCSSLViewAssign = lazy(() => import('./components/V-Portal/jammu/AMC/SSL/ViewAssignAMC'));
+
+// ── Bihar: Survey ──
+const BiharSurveySRT200MWAdd = lazy(() => import('./components/V-Portal/bihar/Survey/SRT200MW/AddData'));
+const BiharSurveySRT200MWView = lazy(() => import('./components/V-Portal/bihar/Survey/SRT200MW/ViewData'));
+const BiharSurveyULAAdd = lazy(() => import('./components/V-Portal/bihar/Survey/ULA/AddData'));
+const BiharSurveyULAView = lazy(() => import('./components/V-Portal/bihar/Survey/ULA/ViewData'));
+
+// ── Bihar: Installation ──
+const BiharInstSSLDb = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/Dashboard'));
+const BiharInstSSLAssign = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/AssignedLights'));
+const BiharInstSSLInstall = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallLight'));
+const BiharInstSSLDetail = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallationDetail'));
+const BiharInstSSLClaim = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/ClaimRequest'));
+const BiharInstSSLSupplyInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/SupplyInspection'));
+const BiharInstSSLInstallInspect = lazy(() => import('./components/V-Portal/bihar/Installation/SSL/InstallationInspection'));
+
+// ── Punjab: Installation ──
+const PunjabInstSSLDb = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/Dashboard'));
+const PunjabInstSSLAssign = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/AssignedLights'));
+const PunjabInstSSLInstall = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallLight'));
+const PunjabInstSSLDetail = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/InstallationDetail'));
+const PunjabInstSSLStatusView = lazy(() => import('./components/V-Portal/punjab/Installation/SSL/StatusView'));
+
+// ── Arunachal Pradesh: Installation (SHL) ──
+const ArunachalInstSHLDb = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/Dashboard'));
+const ArunachalInstSHLAssign = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/AssignedLights'));
+const ArunachalInstSHLInstall = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/InstallLight'));
+const ArunachalInstSHLDetail = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/InstallationDetail'));
+const ArunachalInstSHLStatusView = lazy(() => import('./components/V-Portal/arunachal/Installation/SHL/StatusView'));
+
+const BiharInstSRTDb = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/Dashboard'));
+const BiharInstSRTRequest = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/RequestAccept'));
+const BiharInstSRTDetails = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/InstallationDetails'));
+const BiharInstSRTView = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/ViewInstallation'));
+const BiharInstSRTClaim = lazy(() => import('./components/V-Portal/bihar/Installation/SRT/ClaimRequest'));
+
+const BiharInstULADb = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/Dashboard'));
+const BiharInstULARequest = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/RequestAccept'));
+const BiharInstULAAssignDetail = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/AssignSiteDetail'));
+const BiharInstULADetails = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/InstallationDetails'));
+const BiharInstULAView = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/ViewInstallation'));
+const BiharInstULAAddPay = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/AddPayment'));
+const BiharInstULAPay = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/Payment'));
+
+// ── Bihar: AMC ──
+const BiharAMCSSLAdd = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/AddData'));
+const BiharAMCSSLView = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/ViewData'));
+const BiharAMCSSLComplaint = lazy(() => import('./components/V-Portal/bihar/AMC/SSL/ComplaintRaised'));
+const BiharAMCSRTAdd = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/AddData'));
+const BiharAMCSRTView = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/ViewData'));
+const BiharAMCSRTComplaint = lazy(() => import('./components/V-Portal/bihar/AMC/SRT/ComplaintRaised'));
+
+// ── Bihar: Complaints ──
+const BiharComplaintSSLAdd = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/AddComplaint'));
+const BiharComplaintSSLView = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/ViewComplaint'));
+const BiharComplaintSSLAssign = lazy(() => import('./components/V-Portal/bihar/Complaints/SSL/AssignedComplaint'));
+const BiharComplaintSRTAdd = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AddComplaint'));
+const BiharComplaintSRTView = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/ViewComplaint'));
+const BiharComplaintSRTAssign = lazy(() => import('./components/V-Portal/bihar/Complaints/SRT/AssignedComplaint'));
+
+const Bihar_Installation_ULA_PendingInstallation  = lazy(() => import('./components/V-Portal/bihar/Installation/ULA/PenidngInstallation'));
+
+// ── Goa: Installation (SRT) ──
+const GoaInstSRTDb = lazy(() => import('./components/V-Portal/goa/Installation/SRT/Dashboard'));
+const GoaInstSRTRequest = lazy(() => import('./components/V-Portal/goa/Installation/SRT/RequestAccept'));
+const GoaInstSRTDetails = lazy(() => import('./components/V-Portal/goa/Installation/SRT/InstallationDetails'));
+const GoaInstSRTView = lazy(() => import('./components/V-Portal/goa/Installation/SRT/ViewInstallation'));
+const GoaInstSRTClaim = lazy(() => import('./components/V-Portal/goa/Installation/SRT/ClaimRequest'));
+const GoaInstSRTStatusView = lazy(() => import('./components/V-Portal/goa/Installation/SRT/StatusView'));
+
+// ── Goa: Survey (SRT) ──
+const GoaSurveySRTAdd = lazy(() => import('./components/V-Portal/goa/Survey/SRT/AddData'));
+const GoaSurveySRTView = lazy(() => import('./components/V-Portal/goa/Survey/SRT/ViewData'));
+
+// ── Goa: AMC (SRT) ──
+const GoaAmcSRTAdd = lazy(() => import('./components/V-Portal/goa/AMC/SRT/AddData'));
+const GoaAmcSRTView = lazy(() => import('./components/V-Portal/goa/AMC/SRT/ViewData'));
+const GoaAmcSRTComplaint = lazy(() => import('./components/V-Portal/goa/AMC/SRT/ComplaintRaised'));
+
+
+
+
+// ── V-PORTAL: KARNATAKA ──
+const KarnatakaDashboard = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/KarnatakaDashboard'));
+const KarnatakaInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/Installation'));
+const KarnatakaInstallationRequest = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationRequest'));
+const KarnatakaInstallationSite = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/InstallationSite'));
+const KarnatakaViewInstallation = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewInstallation'));
+const KarnatakaAddPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/AddPayment'));
+const KarnatakaViewPayment = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/ViewPayment'));
+const KarnatakaMaterialDetails = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/MaterialDetails'));
+const KarnatakaStatusView = lazy(() => import('./components/V-Portal/karnataka/Installation/Swp/StatusView'));
+
+// ── V-PORTAL: KASHMIR ──
+const KashmirSurveySRT70MWAdd = lazy(() => import('./components/V-Portal/kashmir/Survey/SRT_70MW/AddData'));
+const KashmirSurveySRT70MWView = lazy(() => import('./components/V-Portal/kashmir/Survey/SRT_70MW/ViewData'));
+const KashmirInstSRT70MWDb = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/Dashboard'));
+const KashmirInstSRT70MWStatus = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/StatusView'));
+const KashmirInstSRT70MWAssign = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/AssignSite'));
+const KashmirInstSRT70MWInstall = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/InstallSites'));
+const KashmirInstSRT70MWDetail = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/InstallationDetails'));
+const KashmirInstSRT70MWClaim = lazy(() => import('./components/V-Portal/kashmir/Installation/SRT_70MW/ClaimRequest'));
+const KashmirExpensesRequest = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/RequestExpenses'));
+const KashmirExpensesView = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewExpenses'));
+const KashmirExpensesPayment = lazy(() => import('./components/V-Portal/kashmir/InstallationExpenses/SRT_70MW/ViewPayments'));
+
+// ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
+const VendorDailyReport = lazy(() => import('./components/V-Portal/reports/DailyReport'));
+const VendorAddReport = lazy(() => import('./components/V-Portal/reports/AddReport'));
+const VendorViewReport = lazy(() => import('./components/V-Portal/reports/ViewReport'));
+
+const VendorComplaintDashboard = lazy(() => import('./components/V-Portal/complaints/VendorComplaintDashboard'));
+const VendorAddComplaint = lazy(() => import('./components/V-Portal/complaints/AddComplaint'));
+const VendorViewComplaint = lazy(() => import('./components/V-Portal/complaints/ViewComplaint'));
+
+const VendorUsersDashboard = lazy(() => import('./components/V-Portal/users/UsersDashboard'));
+const VendorAddUser = lazy(() => import('./components/V-Portal/users/AddUser'));
+const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers'));
+
+
+// ── V-PORTAL: COMMON MODULES (Reports, Complaints, Users) ──
+const VendorDailyReport = lazy(() => import('./components/V-Portal/reports/DailyReport'));
+const VendorAddReport = lazy(() => import('./components/V-Portal/reports/AddReport'));
+const VendorViewReport = lazy(() => import('./components/V-Portal/reports/ViewReport'));
+
+const VendorComplaintDashboard = lazy(() => import('./components/V-Portal/complaints/VendorComplaintDashboard'));
+const VendorAddComplaint = lazy(() => import('./components/V-Portal/complaints/AddComplaint'));
+const VendorViewComplaint = lazy(() => import('./components/V-Portal/complaints/ViewComplaint'));
+
+const VendorUsersDashboard = lazy(() => import('./components/V-Portal/users/UsersDashboard'));
+const VendorAddUser = lazy(() => import('./components/V-Portal/users/AddUser'));
+const VendorViewUsers = lazy(() => import('./components/V-Portal/users/ViewUsers'));
+
+
+
+
+// ── SUPER ADMIN: VENDOR MANAGEMENT ──
+const VendorManagementDashboard = lazy(() => import('./components/Vendor-Management/VendorManagementDashboard'));
+const AdminVendorUsersDashboard = lazy(() => import('./components/Vendor-Management/users/AdminVendorUsersDashboard'));
+
+// ── SUPER ADMIN: ASSAM SWP ──
+const AssamSwpDashboard = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/AssamSwpDashboard'));
+const AssignInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/AssignInstallation'));
+const ViewAssignInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewAssignInstallation'));
+const VerifyInstallation = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyInstallation'));
+const VerifyDocument = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyDocument'));
+const VerifyClaim = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/VerifyClaim'));
+const ViewPayment = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/ViewPayment'));
+const StatusView = lazy(() => import('./components/Vendor-Management/assam/Installation/Swp/StatusView'));
+
+<<<<<<< HEAD
+
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+// ── SUPER ADMIN: ARUNACHAL SHL ──
+const ArunachalShlDashboard = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ArunachalShlDashboard'));
+const ArunachalAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/AssignLights'));
+const ArunachalViewAssignLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/ViewAssignLights'));
+const ArunachalVerifyLights = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/VerifyLights'));
+const ArunachalShlStatusView = lazy(() => import('./components/Vendor-Management/arunachal/Installation/SHL/StatusView'));
+
+<<<<<<< HEAD
+// ── SUPER ADMIN: PUNJAB SSL ──
+const PunjabSslDashboard = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/PunjabSslDashboard'));
+const PunjabAssignLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/AssignLights'));
+const PunjabViewAssignLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/ViewAssignLights'));
+const PunjabVerifyLights = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/VerifyLights'));
+const PunjabSslStatusView = lazy(() => import('./components/Vendor-Management/punjab/Installation/SSL/StatusView'));
+
+// ── SUPER ADMIN: KARNATAKA ──
+
+
+
+
+
+// ── SUPER ADMIN: JAMMU SURVEY ──
+const JammuVerifySrt70MWSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/SRT_70MW/VerifySrt70MWSurvey'));
+const JammuRescoDashboard = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/RescoDashboard'));
+const JammuAssignRescoSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignRescoSurvey'));
+const JammuAssignViewSurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignViewSurvey'));
+const JammuAssignedSurveyVendor = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/AssignedSurveyVendor'));
+const JammuVerifySurvey = lazy(() => import('./components/Vendor-Management/jammu/Survey/Resco/VerifySurvey'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SRT ──
+const JammuSrtDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/SrtDashboard'));
+const JammuAssignSrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/AssignSrtSites'));
+const JammuViewAssignSrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewAssignSrtSites'));
+const JammuVerifySrtSites = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/VerifySrtSites'));
+const JammuViewSrtClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewSrtClaim'));
+const JammuViewSrtPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/SRT_70MW/ViewSrtPayment'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SSL ──
+const JammuSslDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslDashboard'));
+const JammuAssignSslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/AssignSslLights'));
+const JammuViewAssignSslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/ViewAssignSslLights'));
+const JammuVerifySslLights = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/VerifySslLights'));
+const JammuSslClaimRequest = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslClaimRequest'));
+const JammuSslPaymentRequest = lazy(() => import('./components/Vendor-Management/jammu/Installation/SSL/SslPaymentRequest'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - SWP ──
+const JammuSwpDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/SwpDashboard'));
+const JammuAssignSwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/AssignSwpInstallation'));
+const JammuViewAssignSwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/ViewAssignSwpInstallation'));
+const JammuVerifySwpInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpInstallation'));
+const JammuVerifySwpDocument = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpDocument'));
+const JammuVerifySwpClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/VerifySwpClaim'));
+const JammuViewSwpPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/ViewSwpPayment'));
+const JammuSwpStatusView = lazy(() => import('./components/Vendor-Management/jammu/Installation/SWP/StatusView'));
+
+// ── SUPER ADMIN: JAMMU INSTALLATION - RESCO ──
+const JammuRescoInstDashboard = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/RescoDashboard'));
+const JammuAssignRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/AssignRescoInstallation'));
+const JammuViewAssignRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewAssignRescoInstallation'));
+const JammuViewAssignVendorInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewAssignVendorInstallation'));
+const JammuVerifyRescoInstallation = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/VerifyRescoInstallation'));
+const JammuVerifyRescoDocument = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/VerifyRescoDocument'));
+const JammuViewRescoClaim = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoClaim'));
+const JammuViewRescoPayment = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoPayment'));
+const JammuViewRescoBills = lazy(() => import('./components/Vendor-Management/jammu/Installation/Resco/ViewRescoBills'));
+
+// ── SUPER ADMIN: JAMMU EXPENSES - SRT ──
+const JammuSrtExpenseClaimRequests = lazy(() => import('./components/Vendor-Management/jammu/Expenses/SRT_70MW/SrtExpenseClaimRequests'));
+const JammuSrtExpenseViewPayments = lazy(() => import('./components/Vendor-Management/jammu/Expenses/SRT_70MW/SrtExpenseViewPayments'));
+
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+// const DashboardsAnalytics = lazy(() => import('./pages/dashboards/Analytics'));
+// const DashboardsCrm = lazy(() => import('./pages/dashboards/Crm'));
+// const DashboardsCrypto = lazy(() => import('./pages/dashboards/Crypto'));
+// const DashboardsEcommerce = lazy(() => import('./pages/dashboards/Ecommerce'));
+// const DashboardsFinance = lazy(() => import('./pages/dashboards/Finance'));
+// const DashboardsHealthcare = lazy(() => import('./pages/dashboards/Healthcare'));
+// const DashboardsHr = lazy(() => import('./pages/dashboards/Hr'));
+// const DashboardsJobs = lazy(() => import('./pages/dashboards/Jobs'));
+// const DashboardsLms = lazy(() => import('./pages/dashboards/Lms'));
+// const DashboardsNft = lazy(() => import('./pages/dashboards/Nft'));
+// const DashboardsPodcast = lazy(() => import('./pages/dashboards/Podcast'));
+// const DashboardsPos = lazy(() => import('./pages/dashboards/Pos'));
+// const DashboardsProjects = lazy(() => import('./pages/dashboards/Projects'));
+// const DashboardsSchool = lazy(() => import('./pages/dashboards/School'));
+// const DashboardsSocial = lazy(() => import('./pages/dashboards/Social'));
+// const DashboardsStocks = lazy(() => import('./pages/dashboards/Stocks'));
+// const DocsIndex = lazy(() => import('./pages/docs/Index'));
+// const EcommerceAddProduct = lazy(() => import('./pages/ecommerce/AddProduct'));
+// const EcommerceCart = lazy(() => import('./pages/ecommerce/Cart'));
+// const EcommerceCheckout = lazy(() => import('./pages/ecommerce/Checkout'));
+// const EcommerceCreateInvoice = lazy(() => import('./pages/ecommerce/CreateInvoice'));
+// const EcommerceCustomerDetails = lazy(() => import('./pages/ecommerce/CustomerDetails'));
+// const EcommerceCustomers = lazy(() => import('./pages/ecommerce/Customers'));
+// const EcommerceEditProduct = lazy(() => import('./pages/ecommerce/EditProduct'));
+// const EcommerceInvoiceDetails = lazy(() => import('./pages/ecommerce/InvoiceDetails'));
+// const EcommerceInvoices = lazy(() => import('./pages/ecommerce/Invoices'));
+// const EcommerceOrderDetails = lazy(() => import('./pages/ecommerce/OrderDetails'));
+// const EcommerceOrderSuccess = lazy(() => import('./pages/ecommerce/OrderSuccess'));
+// const EcommerceOrders = lazy(() => import('./pages/ecommerce/Orders'));
+// const EcommerceProductDetails = lazy(() => import('./pages/ecommerce/ProductDetails'));
+// const EcommerceProducts = lazy(() => import('./pages/ecommerce/Products'));
+// const EcommerceSellers = lazy(() => import('./pages/ecommerce/Sellers'));
+// const FormsAdvanced = lazy(() => import('./pages/forms/Advanced'));
+// const FormsEditor = lazy(() => import('./pages/forms/Editor'));
+// const FormsElements = lazy(() => import('./pages/forms/Elements'));
+// const FormsFileUpload = lazy(() => import('./pages/forms/FileUpload'));
+// const FormsFloatingLabels = lazy(() => import('./pages/forms/FloatingLabels'));
+// const FormsInputMasks = lazy(() => import('./pages/forms/InputMasks'));
+// const FormsLayouts = lazy(() => import('./pages/forms/Layouts'));
+// const FormsPickers = lazy(() => import('./pages/forms/Pickers'));
+// const FormsSelect = lazy(() => import('./pages/forms/Select'));
+// const FormsValidation = lazy(() => import('./pages/forms/Validation'));
+// const FormsWizard = lazy(() => import('./pages/forms/Wizard'));
+// const IconsBrands = lazy(() => import('./pages/icons/Brands'));
+// const IconsLine = lazy(() => import('./pages/icons/Line'));
+// const IconsSolid = lazy(() => import('./pages/icons/Solid'));
+// const IconsTabler = lazy(() => import('./pages/icons/Tabler'));
+// const JobsCandidateDetails = lazy(() => import('./pages/jobs/CandidateDetails'));
+// const JobsJobDetails = lazy(() => import('./pages/jobs/JobDetails'));
+// const JobsJobPost = lazy(() => import('./pages/jobs/JobPost'));
+// const JobsList = lazy(() => import('./pages/jobs/List'));
+// const JobsSearchCandidate = lazy(() => import('./pages/jobs/SearchCandidate'));
+// const JobsSearchCompany = lazy(() => import('./pages/jobs/SearchCompany'));
+// const JobsSearchJobs = lazy(() => import('./pages/jobs/SearchJobs'));
+// const MapsGoogle = lazy(() => import('./pages/maps/Google'));
+// const MapsLeaflet = lazy(() => import('./pages/maps/Leaflet'));
+// const NftCreateNft = lazy(() => import('./pages/nft/CreateNft'));
+// const NftLiveAuction = lazy(() => import('./pages/nft/LiveAuction'));
+// const NftMarketplace = lazy(() => import('./pages/nft/Marketplace'));
+// const NftNftDetails = lazy(() => import('./pages/nft/NftDetails'));
+// const NftWallet = lazy(() => import('./pages/nft/Wallet'));
+// const PagesActivityLog = lazy(() => import('./pages/pages/ActivityLog'));
+// const PagesBilling = lazy(() => import('./pages/pages/Billing'));
+// const PagesEvents = lazy(() => import('./pages/pages/Events'));
+// const PagesFaq = lazy(() => import('./pages/pages/Faq'));
+// const PagesNestedMenu = lazy(() => import('./pages/pages/NestedMenu'));
+// const PagesNotifications = lazy(() => import('./pages/pages/Notifications'));
+// const PagesPricing = lazy(() => import('./pages/pages/Pricing'));
+// const PagesPrivacy = lazy(() => import('./pages/pages/Privacy'));
+// const PagesProfile = lazy(() => import('./pages/pages/Profile'));
+// const PagesProfileSettings = lazy(() => import('./pages/pages/ProfileSettings'));
+// const PagesSearchResults = lazy(() => import('./pages/pages/SearchResults'));
+// const PagesStarter = lazy(() => import('./pages/pages/Starter'));
+// const PagesSupport = lazy(() => import('./pages/pages/Support'));
+// const PagesSweetAlerts = lazy(() => import('./pages/pages/SweetAlerts'));
+// const PagesTeam = lazy(() => import('./pages/pages/Team'));
+// const PagesTerms = lazy(() => import('./pages/pages/Terms'));
+// const PagesTestimonials = lazy(() => import('./pages/pages/Testimonials'));
+// const PagesTimeline = lazy(() => import('./pages/pages/Timeline'));
+// const PagesTour = lazy(() => import('./pages/pages/Tour'));
+// const ProjectsCreate = lazy(() => import('./pages/projects/Create'));
+// const ProjectsList = lazy(() => import('./pages/projects/List'));
+// const ProjectsOverview = lazy(() => import('./pages/projects/Overview'));
+// const TablesBasic = lazy(() => import('./pages/tables/Basic'));
+// const TablesDataTables = lazy(() => import('./pages/tables/DataTables'));
+// const TablesEditable = lazy(() => import('./pages/tables/Editable'));
+// const TablesGridjs = lazy(() => import('./pages/tables/Gridjs'));
+// const UiAccordions = lazy(() => import('./pages/ui/Accordions'));
+// const UiAlerts = lazy(() => import('./pages/ui/Alerts'));
+// const UiAvatars = lazy(() => import('./pages/ui/Avatars'));
+// const UiBadges = lazy(() => import('./pages/ui/Badges'));
+// const UiBreadcrumb = lazy(() => import('./pages/ui/Breadcrumb'));
+// const UiButtonGroup = lazy(() => import('./pages/ui/ButtonGroup'));
+// const UiButtons = lazy(() => import('./pages/ui/Buttons'));
+// const UiCards = lazy(() => import('./pages/ui/Cards'));
+// const UiCarousel = lazy(() => import('./pages/ui/Carousel'));
+// const UiDraggableCards = lazy(() => import('./pages/ui/DraggableCards'));
+// const UiDropdowns = lazy(() => import('./pages/ui/Dropdowns'));
+// const UiImages = lazy(() => import('./pages/ui/Images'));
+// const UiLinks = lazy(() => import('./pages/ui/Links'));
+// const UiListGroup = lazy(() => import('./pages/ui/ListGroup'));
+// const UiModals = lazy(() => import('./pages/ui/Modals'));
+// const UiNavbar = lazy(() => import('./pages/ui/Navbar'));
+// const UiNotifications = lazy(() => import('./pages/ui/Notifications'));
+// const UiOffcanvas = lazy(() => import('./pages/ui/Offcanvas'));
+// const UiPagination = lazy(() => import('./pages/ui/Pagination'));
+// const UiPopovers = lazy(() => import('./pages/ui/Popovers'));
+// const UiProgress = lazy(() => import('./pages/ui/Progress'));
+// const UiRatings = lazy(() => import('./pages/ui/Ratings'));
+// const UiRibbons = lazy(() => import('./pages/ui/Ribbons'));
+// const UiScrollspy = lazy(() => import('./pages/ui/Scrollspy'));
+// const UiSkeletons = lazy(() => import('./pages/ui/Skeletons'));
+// const UiSortable = lazy(() => import('./pages/ui/Sortable'));
+// const UiSpinners = lazy(() => import('./pages/ui/Spinners'));
+// const UiSwiper = lazy(() => import('./pages/ui/Swiper'));
+// const UiTabs = lazy(() => import('./pages/ui/Tabs'));
+// const UiToasts = lazy(() => import('./pages/ui/Toasts'));
+// const UiTooltips = lazy(() => import('./pages/ui/Tooltips'));
+// const UiTour = lazy(() => import('./pages/ui/Tour'));
+// const UiTypography = lazy(() => import('./pages/ui/Typography'));
+// const UtilitiesBorders = lazy(() => import('./pages/utilities/Borders'));
+// const UtilitiesBreakpoints = lazy(() => import('./pages/utilities/Breakpoints'));
+// const UtilitiesColors = lazy(() => import('./pages/utilities/Colors'));
+// const UtilitiesFlexGrid = lazy(() => import('./pages/utilities/FlexGrid'));
+// const UtilitiesHelpers = lazy(() => import('./pages/utilities/Helpers'));
+// const UtilitiesPosition = lazy(() => import('./pages/utilities/Position'));
+// const UtilitiesSpacing = lazy(() => import('./pages/utilities/Spacing'));
+// const Widgets = lazy(() => import('./pages/Widgets'));
+
+// Standalone pages — rendered OUTSIDE the app shell (own full-viewport chrome).
+const standalone: Record<string, PageComponent> = {
+  'login': SolarLogin,
+  'pages/login': SolarLogin,
+  'auth/login': SolarLogin,
+  'auth/solar-login': SolarLogin,
+  'auth/sign-in-basic': SolarLogin,
+  'auth/sign-in-cover': SolarLogin,
+  'auth/coming-soon': PagesComingSoon,
+  'auth/create-password-basic': SolarLogin,
+  'auth/create-password-cover': SolarLogin,
+  'auth/lock-screen-basic': SolarLogin,
+  'auth/lock-screen-cover': SolarLogin,
+  'auth/maintenance': PagesComingSoon,
+  'auth/reset-password-basic': SolarLogin,
+  'auth/reset-password-cover': SolarLogin,
+  'auth/sign-up-basic': SolarLogin,
+  'auth/sign-up-cover': SolarLogin,
+  'auth/two-step-basic': SolarLogin,
+  'auth/two-step-cover': SolarLogin,
+  'error/401': Error401,
+  'error/403': Error403,
+  'error/404': Error404,
+  'error/500': Error500,
+  'error/503': Error503,
+  'pages/coming-soon': PagesComingSoon,
+  'pages/landing': PagesLanding,
+  'pages/logout': PagesLogout,
+};
+
+// The 13 app routes — rendered as children of <AppLayout> (full-screen app shell:
+// slim app bar only, no sidebar/header/footer/breadcrumb).
+const appShell: Record<string, PageComponent> = {
+  'apps/calendar': AppsCalendar,
+  'apps/chat': AppsChat,
+  'apps/contacts': AppsContacts,
+  'apps/email': AppsEmail,
+  'apps/email-compose': AppsEmailCompose,
+  'apps/email-settings': AppsEmailSettings,
+  'apps/file-manager': AppsFileManager,
+  'apps/gallery': AppsGallery,
+  'apps/kanban': AppsKanban,
+  'apps/media-player': AppsMediaPlayer,
+  'apps/notes': AppsNotes,
+  'apps/tasks': AppsTasks,
+  'apps/todo': AppsTodo,
+};
+
+// Content pages — rendered as children of <Layout>.
+const shell: Record<string, PageComponent> = {
+  // 'blog/blog-details': BlogBlogDetails,
+  // 'blog/create': BlogCreate,
+  // 'blog/list': BlogList,
+  // 'charts/apex-area': ChartsApexArea,
+  // 'charts/apex-bar': ChartsApexBar,
+  // 'charts/apex-financial': ChartsApexFinancial,
+  // 'charts/apex-line': ChartsApexLine,
+  // 'charts/apex-mixed': ChartsApexMixed,
+  // 'charts/apex-pie': ChartsApexPie,
+  // 'charts/chartjs': ChartsChartjs,
+  // 'charts/echarts': ChartsEcharts,
+  // 'charts/sparklines': ChartsSparklines,
+  // 'crm/companies': CrmCompanies,
+  // 'crm/contacts': CrmContacts,
+  // 'crm/deals': CrmDeals,
+  // 'crm/leads': CrmLeads,
+  // 'crypto/buy-sell': CryptoBuySell,
+  // 'crypto/exchange': CryptoExchange,
+  // 'crypto/marketcap': CryptoMarketcap,
+  // 'crypto/transactions': CryptoTransactions,
+  // 'crypto/wallet': CryptoWallet,
+  // 'jammu/dashboard': JammuDashboard,
+  // 'jammu/add-srt-new': JammuAddSRT70MWSingleCard,
+
+  
+  'dle/dashboard': DLEDashboard,
+  'dle/bihar/ssl/amc/create-assign-light': BiharAMCSSLAssignLight,
+  'dle/bihar/ssl/amc/view-assign-light': BiharAMCSSLViewAssignLight,
+  'dle/bihar/ssl/amc/view-verify-light': BiharAMCSSLViewSurveyLight,
+  'dle/bihar/ssl/amc/view-verify-light/:id': BiharAMCSSLSurveyLightDetails,
+  'dle/bihar/ula/installation/dashboard': BiharULAInstallationDashboard,
+  'dle/bihar/ula/installation/view': BiharULAInstallationViewData,
+  'dle/bihar/ula/installation/view/:id': BiharULAInstallationViewDataDetails,
+  'dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
+  '/dle/up/ssl/amc/dashboard': UPAMCSSLDashboard,
+  'dle/up/ssl/amc/create-assign-light': UPAMCSSLAssignLights,
+  'dle/up/ssl/amc/view-assign-light': UPAMCSSLViewAssignLight,
+  'dle/up/ssl/amc/view-verify-light': UPAMCSSLViewSurveyLight,
+  'dle/up/ssl/amc/view-verify-light/:id': UPAMCSSLSurveyLightDetails,
+  'dle/up/kusumc/amc/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/dashboard': UPAMCKusumCDashboard,
+  'up/amc/kusum-c/dashboard': UPAMCKusumCDashboard,
+  'dle/up/kusumc/amc/create-assign': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-pump': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/create-assign-light': UPAMCKusumCAssignPumps,
+  'dle/up/kusumc/amc/view-assign': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-pump': UPAMCKusumCViewAssign,
+  'dle/up/kusumc/amc/view-assign-light': UPAMCKusumCViewAssign,
+  'dle/users': DLEManagementViewData,
+  'dle/users/:id': DleUserDetail,
+  'dle/attendance': DLEAttendanceViewData,
+  'dle/attendance/:id': DLEAttendanceDetail,
+  'attendance': DLEAttendanceViewData,
+  'attendance/:id': DLEAttendanceDetail,
+  'v-dashboard': VPortalDashboard,
+  'v-portal': VPortalDashboard,
+  'vendor/dashboard': VPortalDashboard,
+
+<<<<<<< HEAD
+
+=======
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
+  // ══════════════ V-PORTAL: COMMON MODULES ══════════════
+  // Reports
+  'v/reports': VendorDailyReport,
+  'v/reports/daily-report': VendorDailyReport,
+  'v/reports/add-report': VendorAddReport,
+  'v/reports/view-report': VendorViewReport,
+  'v/vendor-daily-view-progress': VendorDailyReport,
+  'v/vendor-add-progress': VendorAddReport,
+  'v/vendor-view-progress': VendorViewReport,
+
+  // Complaints
+  'v/complaints': VendorComplaintDashboard,
+  'v/complaints/vendor-complaint': VendorComplaintDashboard,
+  'v/complaints/add-complaint': VendorAddComplaint,
+  'v/complaints/view-complaint': VendorViewComplaint,
+  'v/vendor-add-complaint': VendorAddComplaint,
+  'v/vendor-view-complaint': VendorViewComplaint,
+
+  // Users
+  'v/users': VendorUsersDashboard,
+  'v/users/overview': VendorUsersDashboard,
+  'v/users/add-user': VendorAddUser,
+  'v/users/view-users': VendorViewUsers,
+  'v/vendor-add-user': VendorAddUser,
+  'v/vendor-view-user': VendorViewUsers,
+
+  // ══════════════ V-PORTAL: ASSAM ══════════════
+  'v/assam/installation/swp/dashboard': AssamDashboard,
+  'v/assam/installation/swp/request': AssamInstallationRequest,
+  'v/assam/installation/swp/site': AssamInstallationSite,
+  'v/assam/installation/swp/view': AssamViewInstallation,
+  'v/assam/installation/swp/payment': AssamViewPayment,
+  'v/assam/installation/swp/status-view': AssamStatusView,
+  'v/assam/installation/swp/status': AssamStatusView,
+  'assam': AssamDashboard,
+  'assam/dashboard': AssamDashboard,
+  'assam/installation': AssamInstallation,
+  'assam/swp': AssamDashboard,
+  'assam/swp/dashboard': AssamDashboard,
+  'assam/swp/installation-request': AssamInstallationRequest,
+  'assam/installation-request': AssamInstallationRequest,
+  'assam/swp/installation-site': AssamInstallationSite,
+  'assam/installation-site': AssamInstallationSite,
+  'assam/swp/add-installation': AssamInstallationSite,
+  'assam/add-installation': AssamInstallationSite,
+  'assam/swp/view-installation': AssamViewInstallation,
+  'assam/view-installation': AssamViewInstallation,
+  'assam/swp/view-payment': AssamViewPayment,
+  'assam/view-payment': AssamViewPayment,
+  'assam/swp/status-view': AssamStatusView,
+  'assam/status-view': AssamStatusView,
+<<<<<<< HEAD
+
+  // ── V-PORTAL: KARNATAKA ──
+  'v/karnataka/installation/swp/dashboard': KarnatakaDashboard,
+  'v/karnataka/installation/swp/request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/installation-request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/installation-site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/view': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/view-installation': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/add-payment': KarnatakaAddPayment,
+  'v/karnataka/installation/swp/payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/view-payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/material-details': KarnatakaMaterialDetails,
+  'v/karnataka/installation/swp/status-view': KarnatakaStatusView,
+  'v/karnataka/installation/swp/status': KarnatakaStatusView,
+  'karnataka': KarnatakaDashboard,
+  'karnataka/dashboard': KarnatakaDashboard,
+  'karnataka/installation': KarnatakaInstallation,
+  'karnataka/swp': KarnatakaDashboard,
+  'karnataka/swp/dashboard': KarnatakaDashboard,
+  'karnataka/swp/installation-request': KarnatakaInstallationRequest,
+  'karnataka/installation-request': KarnatakaInstallationRequest,
+  'karnataka/swp/installation-site': KarnatakaInstallationSite,
+  'karnataka/installation-site': KarnatakaInstallationSite,
+  'karnataka/swp/add-installation': KarnatakaInstallationSite,
+  'karnataka/add-installation': KarnatakaInstallationSite,
+  'karnataka/swp/view-installation': KarnatakaViewInstallation,
+  'karnataka/view-installation': KarnatakaViewInstallation,
+  'karnataka/swp/add-payment': KarnatakaAddPayment,
+  'karnataka/add-payment': KarnatakaAddPayment,
+  'karnataka/swp/view-payment': KarnatakaViewPayment,
+  'karnataka/view-payment': KarnatakaViewPayment,
+  'karnataka/swp/material-details': KarnatakaMaterialDetails,
+  'karnataka/material-details': KarnatakaMaterialDetails,
+  'karnataka/swp/status-view': KarnatakaStatusView,
+  'karnataka/status-view': KarnatakaStatusView,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+
+  // ══════════════ V-PORTAL: UTTAR PRADESH: SURVEY ══════════════
+  'v/up/srt-surveys/create': UPSurveySRTAdd,
+  'v/up/srt-surveys/view': UPSurveySRTView,
+  'up/srt-surveys/create': UPSurveySRTAdd,
+  'up/srt-surveys/view': UPSurveySRTView,
+  'v/up/view-assigned-resco-survey': UPSurveyRescoAssignedSurvey,
+  'v/up/resco-survey': UPSurveyRescoAddResco,
+  'v/up/view-resco-survey': UPSurveyRescoViewResco,
+  'up/view-assigned-resco-survey': UPSurveyRescoAssignedSurvey,
+  'up/resco-survey': UPSurveyRescoAddResco,
+  'up/view-resco-survey': UPSurveyRescoViewResco,
+  'up/survey/resco/assigned-survey': UPSurveyRescoAssignedSurvey,
+  'up/survey/resco/add-resco': UPSurveyRescoAddResco,
+  'up/survey/resco/view-resco': UPSurveyRescoViewResco,
+  'v/edit-ssl': UPSurveySSLSurvey,
+  'v/view-upssl': UPSurveySSLViewData,
+  'edit-ssl': UPSurveySSLSurvey,
+  'view-upssl': UPSurveySSLViewData,
+  'up/survey/ssl/survey': UPSurveySSLSurvey,
+  'up/survey/ssl/view-data': UPSurveySSLViewData,
+
+  // ══════════════ V-PORTAL: UTTAR PRADESH: INSTALLATION ══════════════
+  'v/up/resco-installation-dashboard': UPInstRescoDb,
+  'v/up/resco-view-assign-installation-sites': UPInstRescoAssigned,
+  'v/up/resco-install-site': UPInstRescoInstall,
+  'v/up/resco-view-install-site': UPInstRescoDetail,
+  'v/up/resco-installation-claim': UPInstRescoClaim,
+  'v/up/resco-view-install': UPInstRescoBill,
+  'up/resco-installation-dashboard': UPInstRescoDb,
+  'up/resco-view-assign-installation-sites': UPInstRescoAssigned,
+  'up/resco-install-site': UPInstRescoInstall,
+  'up/resco-view-install-site': UPInstRescoDetail,
+  'up/resco-installation-claim': UPInstRescoClaim,
+  'up/resco-view-install': UPInstRescoBill,
+  'up/installation/resco/dashboard': UPInstRescoDb,
+  'up/installation/resco/assigned-sites': UPInstRescoAssigned,
+  'up/installation/resco/install-site': UPInstRescoInstall,
+  'up/installation/resco/installation-detail': UPInstRescoDetail,
+  'up/installation/resco/claim-request': UPInstRescoClaim,
+  'up/installation/resco/monthly-bill': UPInstRescoBill,
+
+  'v/up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'v/up/ssl-18w-installation-dashboard-status': UPInstSSLStatusView,
+  'v/up/ssl-installation-status-view': UPInstSSLStatusView,
+  'v/up/view-18w-assign-installation-sites': UPInstSSLAssigned,
+  'v/up/ssl-install-18w-light': UPInstSSLInstall,
+  'v/up/ssl-view-installed-18w-light': UPInstSSLDetail,
+  'v/up/ssl-view-installation-18w-claim': UPInstSSLClaim,
+  'up/ssl-18w-installation-dashboard': UPInstSSLDb,
+  'up/ssl-18w-installation-dashboard-status': UPInstSSLStatusView,
+  'up/ssl-installation-status-view': UPInstSSLStatusView,
+  'up/view-18w-assign-installation-sites': UPInstSSLAssigned,
+  'up/ssl-install-18w-light': UPInstSSLInstall,
+  'up/ssl-view-installed-18w-light': UPInstSSLDetail,
+  'up/ssl-view-installation-18w-claim': UPInstSSLClaim,
+  'up/installation/ssl/dashboard': UPInstSSLDb,
+  'up/installation/ssl/status-view': UPInstSSLStatusView,
+  'up/installation/ssl/assigned-lights': UPInstSSLAssigned,
+  'up/installation/ssl/install-light': UPInstSSLInstall,
+  'up/installation/ssl/installation-detail': UPInstSSLDetail,
+  'up/installation/ssl/claim-request': UPInstSSLClaim,
+
+  'v/up/kusum-c-installation-dashboard': UPInstKCDb,
+  'v/up/view-kusum-c-assign-installation-sites': UPInstKCReq,
+  'v/up/install-kusum-c-site': UPInstKCInstall,
+  'v/up/view-kusum-c-install-site': UPInstKCView,
+  'v/up/kusum-c-installation-claim': UPInstKCPay,
+  'up/kusum-c-installation-dashboard': UPInstKCDb,
+  'up/view-kusum-c-assign-installation-sites': UPInstKCReq,
+  'up/install-kusum-c-site': UPInstKCInstall,
+  'up/view-kusum-c-install-site': UPInstKCView,
+  'up/kusum-c-installation-claim': UPInstKCPay,
+  'up/installation/kusum-c/dashboard': UPInstKCDb,
+  'up/installation/kusum-c/installation-request': UPInstKCReq,
+  'up/installation/kusum-c/install-site': UPInstKCInstall,
+  'up/installation/kusum-c/view-installation': UPInstKCView,
+  'up/installation/kusum-c/view-payment': UPInstKCPay,
+
+  // ══════════════ V-PORTAL: UTTAR PRADESH: AMC ══════════════
+  'v/up-resco-amc-view-assign-site': UPAMCRescoViewAssign,
+  'v/up-resco-amc-create-site': UPAMCRescoPending,
+  'v/up-resco-amc-view-site': UPAMCRescoCompleted,
+  'v/up-resco-amc-claim-site': UPAMCRescoPay,
+  'up-resco-amc-view-assign-site': UPAMCRescoViewAssign,
+  'up-resco-amc-create-site': UPAMCRescoPending,
+  'up-resco-amc-view-site': UPAMCRescoCompleted,
+  'up-resco-amc-claim-site': UPAMCRescoPay,
+  'up/amc/resco/view-assign-site': UPAMCRescoViewAssign,
+  'up/amc/resco/pending-amc': UPAMCRescoPending,
+  'up/amc/resco/completed-amc': UPAMCRescoCompleted,
+  'up/amc/resco/payment': UPAMCRescoPay,
+
+  'v/up/kusumc/amc/fetch-view-assign-site': UPAMCKCViewAssign,
+  'v/up/kusumc/amc/assign-site': UPAMCKCPending,
+  'v/up/kusumc/amc/completed-details': UPAMCKCCompleted,
+  'up/kusumc/amc/fetch-view-assign-site': UPAMCKCViewAssign,
+  'up/kusumc/amc/assign-site': UPAMCKCPending,
+  'up/kusumc/amc/completed-details': UPAMCKCCompleted,
+  'up/amc/kusum-c/view-assign-amc': UPAMCKCViewAssign,
+  'up/amc/kusum-c/pending-amc': UPAMCKCPending,
+  'up/amc/kusum-c/completed-amc': UPAMCKCCompleted,
+
+  'v/up/kusumb/amc/amc/fetch-view-assign-site': UPAMCKBViewAssign,
+  'v/up/kusumb/amc/assign-site': UPAMCKBPending,
+  'v/up/kusumb/amc/completed-details': UPAMCKBCompleted,
+  'up/kusumb/amc/amc/fetch-view-assign-site': UPAMCKBViewAssign,
+  'up/kusumb/amc/assign-site': UPAMCKBPending,
+  'up/kusumb/amc/completed-details': UPAMCKBCompleted,
+  'up/amc/kusum-b/view-assign-amc': UPAMCKBViewAssign,
+  'up/amc/kusum-b/pending-amc': UPAMCKBPending,
+  'up/amc/kusum-b/completed-amc': UPAMCKBCompleted,
+
+  'v/up/powerpack/amc/amc/fetch-view-assign-site': UPAMCPPViewAssign,
+  'v/up/powerpack/amc/assign-site': UPAMCPPPending,
+  'v/up/powerpack/amc/completed-details': UPAMCPPCompleted,
+  'up/powerpack/amc/amc/fetch-view-assign-site': UPAMCPPViewAssign,
+  'up/powerpack/amc/assign-site': UPAMCPPPending,
+  'up/powerpack/amc/completed-details': UPAMCPPCompleted,
+  'up/amc/powerpack/view-assign-amc': UPAMCPPViewAssign,
+  'up/amc/powerpack/pending-amc': UPAMCPPPending,
+  'up/amc/powerpack/completed-amc': UPAMCPPCompleted,
+
+  'v/up/ongrid/amc/amc/fetch-view-assign-site': UPAMCOngridViewAssign,
+  'v/up/ongrid/amc/assign-site': UPAMCOngridPending,
+  'v/up/ongrid/amc/completed-details': UPAMCOngridCompleted,
+  'up/ongrid/amc/amc/fetch-view-assign-site': UPAMCOngridViewAssign,
+  'up/ongrid/amc/assign-site': UPAMCOngridPending,
+  'up/ongrid/amc/completed-details': UPAMCOngridCompleted,
+  'up/amc/ongrid/view-assign-amc': UPAMCOngridViewAssign,
+  'up/amc/ongrid/pending-amc': UPAMCOngridPending,
+  'up/amc/ongrid/completed-amc': UPAMCOngridCompleted,
+
+  'v/up/offgrid/amc/amc/fetch-view-assign-site': UPAMCOffgridViewAssign,
+  'v/up/offgrid/amc/assign-site': UPAMCOffgridPending,
+  'v/up/offgrid/amc/completed-details': UPAMCOffgridCompleted,
+  'up/offgrid/amc/amc/fetch-view-assign-site': UPAMCOffgridViewAssign,
+  'up/offgrid/amc/assign-site': UPAMCOffgridPending,
+  'up/offgrid/amc/completed-details': UPAMCOffgridCompleted,
+  'up/amc/offgrid/view-assign-amc': UPAMCOffgridViewAssign,
+  'up/amc/offgrid/pending-amc': UPAMCOffgridPending,
+  'up/amc/offgrid/completed-amc': UPAMCOffgridCompleted,
+
+  'v/up-ssl-amc-view-assign-light': UPAMCSSLViewAssign,
+  'v/up-ssl-amc-create-light': UPAMCSSLPending,
+  'v/up-ssl-amc-view-light': UPAMCSSLCompleted,
+  'v/up-ssl-amc-claim-light': UPAMCSSLPay,
+  'up-ssl-amc-view-assign-light': UPAMCSSLViewAssign,
+  'up-ssl-amc-create-light': UPAMCSSLPending,
+  'up-ssl-amc-view-light': UPAMCSSLCompleted,
+  'up-ssl-amc-claim-light': UPAMCSSLPay,
+  'up/amc/ssl/view-assign-light': UPAMCSSLViewAssign,
+  'up/amc/ssl/pending-amc': UPAMCSSLPending,
+  'up/amc/ssl/completed-amc': UPAMCSSLCompleted,
+  'up/amc/ssl/payment': UPAMCSSLPay,
+
+  'v/up-ssl18w-amc-view-assign-light': UPAMCSSL18WViewAssign,
+  'v/up-ssl18w-amc-create-light': UPAMCSSL18WPending,
+  'v/up-ssl18w-amc-view-light': UPAMCSSL18WCompleted,
+  'v/up-ssl18w-amc-claim-light': UPAMCSSL18WPay,
+  'up-ssl18w-amc-view-assign-light': UPAMCSSL18WViewAssign,
+  'up-ssl18w-amc-create-light': UPAMCSSL18WPending,
+  'up-ssl18w-amc-view-light': UPAMCSSL18WCompleted,
+  'up-ssl18w-amc-claim-light': UPAMCSSL18WPay,
+  'up/amc/ssl-18w/view-assign-light': UPAMCSSL18WViewAssign,
+  'up/amc/ssl-18w/pending-amc': UPAMCSSL18WPending,
+  'up/amc/ssl-18w/completed-amc': UPAMCSSL18WCompleted,
+  'up/amc/ssl-18w/payment': UPAMCSSL18WPay,
+
+  // ══════════════ V-PORTAL: UTTAR PRADESH: COMPLAINT ══════════════
+  'v/complaint/up/resco-add-complaint': UPComplaintRescoAdd,
+  'v/complaint/up/resco-view-complaint': UPComplaintRescoView,
+  'v/complaint/up/resco-assign-complaint': UPComplaintRescoAssigned,
+  'complaint/up/resco-add-complaint': UPComplaintRescoAdd,
+  'complaint/up/resco-view-complaint': UPComplaintRescoView,
+  'complaint/up/resco-assign-complaint': UPComplaintRescoAssigned,
+  'up/complaint/resco/add-complaint': UPComplaintRescoAdd,
+  'up/complaint/resco/view-complaint': UPComplaintRescoView,
+  'up/complaint/resco/assigned-complaint': UPComplaintRescoAssigned,
+
+  'v/complaint/up/ssl-add-complaint': UPComplaintSSLAdd,
+  'v/complaint/up/ssl-view-complaint': UPComplaintSSLView,
+  'v/complaint/up/ssl-assign-complaint': UPComplaintSSLAssigned,
+  'complaint/up/ssl-add-complaint': UPComplaintSSLAdd,
+  'complaint/up/ssl-view-complaint': UPComplaintSSLView,
+  'complaint/up/ssl-assign-complaint': UPComplaintSSLAssigned,
+  'up/complaint/ssl/add-complaint': UPComplaintSSLAdd,
+  'up/complaint/ssl/view-complaint': UPComplaintSSLView,
+  'up/complaint/ssl/assigned-complaint': UPComplaintSSLAssigned,
+
+  'v/complaint/up/swp-add-complaint': UPComplaintKCAdd,
+  'v/complaint/up/swp-view-complaint': UPComplaintKCView,
+  'v/complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
+  'v/complaint/up/kusumc-add-complaint': UPComplaintKCAdd,
+  'v/complaint/up/kusumc-view-complaint': UPComplaintKCView,
+  'v/complaint/up/kusumc-assign-complaint': UPComplaintKCAssigned,
+  'complaint/up/kusumc-add-complaint': UPComplaintKCAdd,
+  'complaint/up/kusumc-view-complaint': UPComplaintKCView,
+  'complaint/up/kusumc-assign-complaint': UPComplaintKCAssigned,
+  'complaint/up/swp-add-complaint': UPComplaintKCAdd,
+  'complaint/up/swp-view-complaint': UPComplaintKCView,
+  'complaint/up/swp-assign-complaint': UPComplaintKCAssigned,
+  'up/complaint/kusum-c/add-complaint': UPComplaintKCAdd,
+  'up/complaint/kusum-c/view-complaint': UPComplaintKCView,
+  'up/complaint/kusum-c/assigned-complaint': UPComplaintKCAssigned,
+
+  'v/complaint/up/kusumb-add-complaint': UPComplaintKBAdd,
+  'v/complaint/up/kusumb-view-complaint': UPComplaintKBView,
+  'v/complaint/up/kusumb-assign-complaint': UPComplaintKBAssigned,
+  'complaint/up/kusumb-add-complaint': UPComplaintKBAdd,
+  'complaint/up/kusumb-view-complaint': UPComplaintKBView,
+  'complaint/up/kusumb-assign-complaint': UPComplaintKBAssigned,
+  'up/complaint/kusum-b/add-complaint': UPComplaintKBAdd,
+  'up/complaint/kusum-b/view-complaint': UPComplaintKBView,
+  'up/complaint/kusum-b/assigned-complaint': UPComplaintKBAssigned,
+
+  'v/complaint/up/ongrid-add-complaint': UPComplaintOngridAdd,
+  'v/complaint/up/ongrid-view-complaint': UPComplaintOngridView,
+  'v/complaint/up/ongrid-assign-complaint': UPComplaintOngridAssigned,
+  'complaint/up/ongrid-add-complaint': UPComplaintOngridAdd,
+  'complaint/up/ongrid-view-complaint': UPComplaintOngridView,
+  'complaint/up/ongrid-assign-complaint': UPComplaintOngridAssigned,
+  'up/complaint/ongrid/add-complaint': UPComplaintOngridAdd,
+  'up/complaint/ongrid/view-complaint': UPComplaintOngridView,
+  'up/complaint/ongrid/assigned-complaint': UPComplaintOngridAssigned,
+
+  'v/complaint/up/offgrid-add-complaint': UPComplaintOffgridAdd,
+  'v/complaint/up/offgrid-view-complaint': UPComplaintOffgridView,
+  'v/complaint/up/offgrid-assign-complaint': UPComplaintOffgridAssigned,
+  'complaint/up/offgrid-add-complaint': UPComplaintOffgridAdd,
+  'complaint/up/offgrid-view-complaint': UPComplaintOffgridView,
+  'complaint/up/offgrid-assign-complaint': UPComplaintOffgridAssigned,
+  'up/complaint/offgrid/add-complaint': UPComplaintOffgridAdd,
+  'up/complaint/offgrid/view-complaint': UPComplaintOffgridView,
+  'up/complaint/offgrid/assigned-complaint': UPComplaintOffgridAssigned,
+
+  'v/complaint/up/powerpack/add-complaint': UPComplaintPPAdd,
+  'v/complaint/up/powerpack-view-complaint': UPComplaintPPView,
+  'v/complaint/up/powerpack-assign-complaint': UPComplaintPPAssigned,
+  'complaint/up/powerpack/add-complaint': UPComplaintPPAdd,
+  'complaint/up/powerpack-view-complaint': UPComplaintPPView,
+  'complaint/up/powerpack-assign-complaint': UPComplaintPPAssigned,
+  'up/complaint/powerpack/add-complaint': UPComplaintPPAdd,
+  'up/complaint/powerpack/view-complaint': UPComplaintPPView,
+  'up/complaint/powerpack/assigned-complaint': UPComplaintPPAssigned,
+
+  'v/complaint/up/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'v/complaint/up/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'v/complaint/up/srlmsrt/assign-complaint': UPComplaintSRLMAssigned,
+  'complaint/up/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'complaint/up/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'complaint/up/srlmsrt/assign-complaint': UPComplaintSRLMAssigned,
+  'up/complaint/srlmsrt/add-complaint': UPComplaintSRLMAdd,
+  'up/complaint/srlmsrt/view-complaint': UPComplaintSRLMView,
+  'up/complaint/srlmsrt/assigned-complaint': UPComplaintSRLMAssigned,
+
+
+
+
+  // ══════════════ V-PORTAL: JAMMU  ══════════════
+  'v/jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
+  'v/jammu/survey/resco/pending-survey': JMSurveyRescoPending,
+  'v/jammu/survey/resco/view-survey': JMSurveyRescoView,
+  'v/jammu/survey/srt-70mw/add-srt': JammuAddSRT70MWSingleCard,
+  'v/jammu/survey/srt-70mw/view-data': JMSurveySRTView,
+  'jammu/survey/resco/assign-survey': JMSurveyRescoAssign,
+  'jammu/survey/resco/pending-survey': JMSurveyRescoPending,
+  'jammu/survey/resco/view-survey': JMSurveyRescoView,
+  'jammu/survey/srt-70mw/add-srt': JammuAddSRT70MWSingleCard,
+  'jammu/survey/srt-70mw/view-data': JMSurveySRTView,
+
+  'v/jammu/installation/resco/dashboard': JMInstRescoDb,
+  'v/jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
+  'v/jammu/installation/resco/install-site': JMInstRescoInstall,
+  'v/jammu/installation/resco/installation-details': JMInstRescoDetail,
+  'v/jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'v/jammu/installation/resco/status-view': JMInstRescoStatusView,
+  'v/jammu/installation/resco/view-bills': JammuViewRescoBills,
+  'v/jammu/installation/resco/monthly-bill': JammuViewRescoBills,
+  'jammu/installation/resco/dashboard': JMInstRescoDb,
+  'jammu/installation/resco/assigned-sites': JMInstRescoAssigned,
+  'jammu/installation/resco/install-site': JMInstRescoInstall,
+  'jammu/installation/resco/installation-details': JMInstRescoDetail,
+  'jammu/installation/resco/claim-request': JMInstRescoClaim,
+  'jammu/installation/resco/status-view': JMInstRescoStatusView,
+  'jammu/installation/resco/view-bills': JammuViewRescoBills,
+  'jammu/installation/resco/monthly-bill': JammuViewRescoBills,
+
+  'v/jammu/installation/srt-70mw/dashboard': JammuDashboard,
+  'v/jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
+  'v/jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
+  'v/jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
+  'v/jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'v/jammu/installation/srt-70mw/status-view': JMInstSRTStatusView,
+  'jammu/installation/srt-70mw/dashboard': JammuDashboard,
+  'jammu/installation/srt-70mw/assign-site': JMInstSRTAssign,
+  'jammu/installation/srt-70mw/install-sites': JMInstSRTInstall,
+  'jammu/installation/srt-70mw/installation-details': JMInstSRTDetail,
+  'jammu/installation/srt-70mw/claim-request': JMInstSRTClaim,
+  'jammu/installation/srt-70mw/status-view': JMInstSRTStatusView,
+  'jammu/dashboard': JammuDashboard,
+
+  'v/jammu/installation/ssl/dashboard': JMInstSSLDb,
+  'v/jammu/installation/ssl/assign-lights': JMInstSSLAssign,
+  'v/jammu/installation/ssl/install-lights': JMInstSSLInstall,
+  'v/jammu/installation/ssl/installation-details': JMInstSSLDetail,
+  'v/jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'v/jammu/installation/ssl/status-view': JMInstSSLStatusView,
+  'jammu/installation/ssl/dashboard': JMInstSSLDb,
+  'jammu/installation/ssl/assign-lights': JMInstSSLAssign,
+  'jammu/installation/ssl/install-lights': JMInstSSLInstall,
+  'jammu/installation/ssl/installation-details': JMInstSSLDetail,
+  'jammu/installation/ssl/claim-request': JMInstSSLClaim,
+  'jammu/installation/ssl/status-view': JMInstSSLStatusView,
+
+  'v/jammu/installation/swp/dashboard': JMInstSWPDb,
+  'v/jammu/installation/swp/installation-request': JMInstSWPReq,
+  'v/jammu/installation/swp/installation-site': JMInstSWPSite,
+  'v/jammu/installation/swp/view-installation': JMInstSWPView,
+  'v/jammu/installation/swp/view-payment': JMInstSWPPay,
+  'v/jammu/installation/swp/status-view': JMInstSWPStatusView,
+  'v/jammu/installation/swp/status': JMInstSWPStatusView,
+  'v/jammu-install-swp-site': JMInstSWPSite,
+  'jammu-install-swp-site': JMInstSWPSite,
+  'jammu/installation/swp/dashboard': JMInstSWPDb,
+  'jammu/installation/swp/installation-request': JMInstSWPReq,
+  'jammu/installation/swp/installation-site': JMInstSWPSite,
+  'jammu/installation/swp/view-installation': JMInstSWPView,
+  'jammu/installation/swp/view-payment': JMInstSWPPay,
+  'jammu/installation/swp/status-view': JMInstSWPStatusView,
+  'jammu/installation/swp/status': JMInstSWPStatusView,
+
+  'v/jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
+  'v/jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
+  'v/jammu/installation-expenses/srt-70mw/view-payments': JMExpPay,
+  'jammu/installation-expenses/srt-70mw/request-expenses': JMExpRequest,
+  'jammu/installation-expenses/srt-70mw/view-expenses': JMExpView,
+  'jammu/installation-expenses/srt-70mw/view-payments': JMExpPay,
+
+  'v/jammu/amc/resco/assign-survey': JMAMCRescoAssign,
+  'v/jammu/amc/resco/pending-survey': JMAMCRescoPending,
+  'v/jammu/amc/resco/view-survey': JMAMCRescoView,
+  'v/jammu/amc/ssl/view-assign-amc': JMAMCSSLViewAssign,
+  'jammu/amc/resco/assign-survey': JMAMCRescoAssign,
+  'jammu/amc/resco/pending-survey': JMAMCRescoPending,
+  'jammu/amc/resco/view-survey': JMAMCRescoView,
+  'jammu/amc/ssl/view-assign-amc': JMAMCSSLViewAssign,
+
+  // ══════════════ V-PORTAL: BIHAR ══════════════
+  // Survey
+  'v/bihar/srt200mw-survey': BiharSurveySRT200MWAdd,
+  'bihar/srt200mw-survey': BiharSurveySRT200MWAdd,
+  'v/bihar/view-srt200mw-survey': BiharSurveySRT200MWView,
+  'bihar/view-srt200mw-survey': BiharSurveySRT200MWView,
+  'v/bihar/ula-surveys/create': BiharSurveyULAAdd,
+  'bihar/ula-surveys/create': BiharSurveyULAAdd,
+  'v/bihar/ula-surveys/view': BiharSurveyULAView,
+  'bihar/ula-surveys/view': BiharSurveyULAView,
+
+  // Installation - SSL
+  'v/ssl/installation-dashboard': BiharInstSSLDb,
+  'ssl/installation-dashboard': BiharInstSSLDb,
+  'v/bihar/ssl/installation-dashboard': BiharInstSSLDb,
+  'bihar/ssl/installation-dashboard': BiharInstSSLDb,
+
+  // Assigned Lights
+  'v/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'v/bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'bihar/ssl/view-assigned-ssl-site': BiharInstSSLAssign,
+  'v/ssl/assigned-lights': BiharInstSSLAssign,
+  'ssl/assigned-lights': BiharInstSSLAssign,
+  'v/bihar/ssl/assigned-lights': BiharInstSSLAssign,
+  'bihar/ssl/assigned-lights': BiharInstSSLAssign,
+
+  // Install Light
+  'v/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-deatils': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-deatils/:id': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-details': BiharInstSSLInstall,
+  'v/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'bihar/ssl/update-ssl-site-details/:id': BiharInstSSLInstall,
+  'v/ssl/install-light': BiharInstSSLInstall,
+  'ssl/install-light': BiharInstSSLInstall,
+  'v/ssl/install-lights': BiharInstSSLInstall,
+  'ssl/install-lights': BiharInstSSLInstall,
+  'v/ssl/install-light/:id': BiharInstSSLInstall,
+  'ssl/install-light/:id': BiharInstSSLInstall,
+  'v/bihar/ssl/install-light': BiharInstSSLInstall,
+  'bihar/ssl/install-light': BiharInstSSLInstall,
+  'v/bihar/ssl/install-light/:id': BiharInstSSLInstall,
+  'bihar/ssl/install-light/:id': BiharInstSSLInstall,
+
+  // Installation Detail
+  'v/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'v/bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'bihar/ssl/view-ssl-complete-site': BiharInstSSLDetail,
+  'v/ssl/installation-detail': BiharInstSSLDetail,
+  'ssl/installation-detail': BiharInstSSLDetail,
+  'v/ssl/installation-details': BiharInstSSLDetail,
+  'ssl/installation-details': BiharInstSSLDetail,
+  'v/bihar/ssl/installation-detail': BiharInstSSLDetail,
+  'bihar/ssl/installation-detail': BiharInstSSLDetail,
+  'v/bihar/ssl/installation-details': BiharInstSSLDetail,
+  'bihar/ssl/installation-details': BiharInstSSLDetail,
+
+  // Claim Request
+  'v/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'v/bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'bihar/ssl/view-claim-request-deatils': BiharInstSSLClaim,
+  'v/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'ssl/view-claim-request-details': BiharInstSSLClaim,
+  'v/bihar/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'bihar/ssl/view-claim-request-details': BiharInstSSLClaim,
+  'v/ssl/claim-request': BiharInstSSLClaim,
+  'ssl/claim-request': BiharInstSSLClaim,
+  'v/bihar/ssl/claim-request': BiharInstSSLClaim,
+  'bihar/ssl/claim-request': BiharInstSSLClaim,
+
+  // Supply Inspection
+  'v/bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'bihar/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl-light-supply-inspection': BiharInstSSLSupplyInspect,
+  'v/bihar/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'bihar/ssl/supply-inspection': BiharInstSSLSupplyInspect,
+  'v/ssl/view-ssl-supply-inspection': BiharInstSSLSupplyInspect,
+  'ssl/view-ssl-supply-inspection': BiharInstSSLSupplyInspect,
+
+  // Installation Inspection
+  'v/bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'bihar/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'ssl-light-installation-inspection': BiharInstSSLInstallInspect,
+  'v/bihar/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'bihar/ssl/installation-inspection': BiharInstSSLInstallInspect,
+  'v/ssl/view-ssl-installation-inspection': BiharInstSSLInstallInspect,
+  'ssl/view-ssl-installation-inspection': BiharInstSSLInstallInspect,
+
+  // Punjab Installation - SSL
+  'v/punjab/ssl/installation/dashboard': PunjabInstSSLDb,
+  'punjab/ssl/installation/dashboard': PunjabInstSSLDb,
+  'v/punjab/ssl/installation/view-assigned-light': PunjabInstSSLAssign,
+  'punjab/ssl/installation/view-assigned-light': PunjabInstSSLAssign,
+  'v/punjab/ssl/installation/update-light-deatils': PunjabInstSSLInstall,
+  'punjab/ssl/installation/update-light-deatils': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/install-light': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+  'punjab/ssl/installation/complete-light': PunjabInstSSLDetail,
+<<<<<<< HEAD
+  'v/punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/status-view': PunjabInstSSLStatusView,
+  'v/punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/dashboard-status': PunjabInstSSLStatusView,
+  'v/punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
+  'punjab/ssl/installation/view-dashboard': PunjabInstSSLStatusView,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+  'punjab/ssl/installation/install-light': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/site': PunjabInstSSLInstall,
+  'v/punjab/ssl/installation/view': PunjabInstSSLDetail,
+  'punjab/ssl': PunjabInstSSLDb,
+  'punjab': PunjabInstSSLDb,
+<<<<<<< HEAD
+
+  // Arunachal Pradesh Installation - SHL
+  'v/arunachal/shl/installation/dashboard': ArunachalInstSHLDb,
+  'arunachal/shl/installation/dashboard': ArunachalInstSHLDb,
+  'v/arunachal/shl/installation/view-assigned-light': ArunachalInstSHLAssign,
+  'arunachal/shl/installation/view-assigned-light': ArunachalInstSHLAssign,
+  'v/arunachal/shl/installation/install-light': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/install-light': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/install': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/install': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/update': ArunachalInstSHLInstall,
+  'arunachal/shl/installation/update': ArunachalInstSHLInstall,
+  'v/arunachal/shl/installation/view-installation': ArunachalInstSHLDetail,
+  'arunachal/shl/installation/view-installation': ArunachalInstSHLDetail,
+  'v/arunachal/shl/installation/complete-light': ArunachalInstSHLDetail,
+  'arunachal/shl/installation/complete-light': ArunachalInstSHLDetail,
+  'v/arunachal/shl/installation/status-view': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/status-view': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/dashboard-status': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/dashboard-status': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/view-dashboard/:status': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/view-dashboard/:status': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/view-dashboard': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/view-dashboard': ArunachalInstSHLStatusView,
+  'v/arunachal/shl/installation/districtwise-data/:status/:district': ArunachalInstSHLStatusView,
+  'arunachal/shl/installation/districtwise-data/:status/:district': ArunachalInstSHLStatusView,
+  'arunachal/shl': ArunachalInstSHLDb,
+  'arunachal': ArunachalInstSHLDb,
+=======
+>>>>>>> 8be1db7d031b24c01d566bfdbc9e881ffbd01328
+
+  // Installation - SRT
+  'v/bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'v/bihar/srt-installation-dashboard': BiharInstSRTDb,
+  'bihar/srt-installation-dashboard': BiharInstSRTDb,
+  'v/bihar/srt-installation-view-site': BiharInstSRTView,
+  'bihar/srt-installation-view-site': BiharInstSRTView,
+  'v/bihar/srt-installation-site': BiharInstSRTDetails,
+  'bihar/srt-installation-site': BiharInstSRTDetails,
+  'v/bihar/srt-installation-view-assign-site': BiharInstSRTRequest,
+  'bihar/srt-installation-view-assign-site': BiharInstSRTRequest,
+  'bihar/vendor-srt-installation-dashboard': BiharInstSRTDb,
+  'v/srt/viewassignsite': BiharInstSRTRequest,
+  'srt/viewassignsite': BiharInstSRTRequest,
+  'v/bihar/srt/viewassignsite': BiharInstSRTRequest,
+  'bihar/srt/viewassignsite': BiharInstSRTRequest,
+  'v/srt/installationsite': BiharInstSRTDetails,
+  'srt/installationsite': BiharInstSRTDetails,
+  'v/bihar/srt/installationsite': BiharInstSRTDetails,
+  'bihar/srt/installationsite': BiharInstSRTDetails,
+  'v/srt/allassignsite': BiharInstSRTView,
+  'srt/allassignsite': BiharInstSRTView,
+  'v/bihar/srt/allassignsite': BiharInstSRTView,
+  'bihar/srt/allassignsite': BiharInstSRTView,
+  'v/srt/paymentsrtVendor': BiharInstSRTClaim,
+  'srt/paymentsrtVendor': BiharInstSRTClaim,
+  'v/bihar/srt/paymentsrtVendor': BiharInstSRTClaim,
+  'bihar/srt/paymentsrtVendor': BiharInstSRTClaim,
+
+  // Installation - ULA
+  'v/bihar/ula-installation-dashboard': BiharInstULADb,
+  'bihar/ula-installation-dashboard': BiharInstULADb,
+  'v/bihar/ula-installation-view-assign-site': BiharInstULARequest,
+  'bihar/ula-installation-view-assign-site': BiharInstULARequest,
+  'v/bihar/ula-installation-view-assign-site-detail': BiharInstULAAssignDetail,
+  'bihar/ula-installation-view-assign-site-detail': BiharInstULAAssignDetail,
+  'v/bihar/ula-installation-pending-structure-site': BiharInstULADetails,
+  'bihar/ula-installation-pending-structure-site': BiharInstULADetails,
+  'v/bihar/ula-installation-structure-edit-site/:id': BiharInstULADetails,
+  'bihar/ula-installation-structure-edit-site/:id': BiharInstULADetails,
+  'v/bihar/ula-installation-structure-edit-site': BiharInstULADetails,
+  'bihar/ula-installation-structure-edit-site': BiharInstULADetails,
+  'v/bihar/ula-installation-pending-site/:id': BiharInstULADetails,
+  'bihar/ula-installation-pending-site/:id': BiharInstULADetails,
+  'v/bihar/ula-installation-pending-site': BiharInstULADetails,
+  'bihar/ula-installation-pending-site': BiharInstULADetails,
+  'v/bihar/ula-installation-view-site': BiharInstULAView,
+  'bihar/ula-installation-view-site': BiharInstULAView,
+  'v/bihar/ula-installation-claim': BiharInstULAAddPay,
+  'bihar/ula-installation-claim': BiharInstULAAddPay,
+  'v/bihar/ula-installation-view-payment': BiharInstULAPay,
+  '/v/bihar/ula-installation-pending':Bihar_Installation_ULA_PendingInstallation,
+  'bihar/ula-installation-view-payment': BiharInstULAPay,
+  
+
+  // AMC - SSL
+  'v/edit-biharssl': BiharAMCSSLAdd,
+  'v/edit-bihar-ssl': BiharAMCSSLAdd,
+  'edit-bihar-ssl': BiharAMCSSLAdd,
+  'v/bihar-edit-ssl': BiharAMCSSLAdd,
+  'bihar-edit-ssl': BiharAMCSSLAdd,
+  'v/bihar-add-ssl-amc': BiharAMCSSLAdd,
+  'bihar-add-ssl-amc': BiharAMCSSLAdd,
+  'v/bihar/add-ssl-amc': BiharAMCSSLAdd,
+  'bihar/add-ssl-amc': BiharAMCSSLAdd,
+  'v/bihar/amc/ssl/add': BiharAMCSSLAdd,
+  'bihar/amc/ssl/add': BiharAMCSSLAdd,
+  'v/bihar/ssl/amc/add': BiharAMCSSLAdd,
+  'bihar/ssl/amc/add': BiharAMCSSLAdd,
+  'edit-biharssl': BiharAMCSSLAdd,
+  'v/bihar/edit-ssl': BiharAMCSSLAdd,
+  'bihar/edit-ssl': BiharAMCSSLAdd,
+  'v/view-biharssl': BiharAMCSSLView,
+  'v/view-bihar-ssl': BiharAMCSSLView,
+  'view-bihar-ssl': BiharAMCSSLView,
+  'v/bihar-view-ssl': BiharAMCSSLView,
+  'bihar-view-ssl': BiharAMCSSLView,
+  'v/bihar-view-ssl-amc': BiharAMCSSLView,
+  'bihar-view-ssl-amc': BiharAMCSSLView,
+  'v/bihar/view-ssl-amc': BiharAMCSSLView,
+  'bihar/view-ssl-amc': BiharAMCSSLView,
+  'v/bihar/amc/ssl/view': BiharAMCSSLView,
+  'bihar/amc/ssl/view': BiharAMCSSLView,
+  'v/bihar/ssl/amc/view': BiharAMCSSLView,
+  'bihar/ssl/amc/view': BiharAMCSSLView,
+  'view-biharssl': BiharAMCSSLView,
+  'v/bihar/view-ssl': BiharAMCSSLView,
+  'bihar/view-ssl': BiharAMCSSLView,
+  'v/ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar-view-ssl-complaint': BiharAMCSSLComplaint,
+  'bihar-view-ssl-complaint': BiharAMCSSLComplaint,
+  'v/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar-view-ssl-amc-complaint': BiharAMCSSLComplaint,
+  'bihar-view-ssl-amc-complaint': BiharAMCSSLComplaint,
+  'v/bihar/amc/ssl/complaint': BiharAMCSSLComplaint,
+  'bihar/amc/ssl/complaint': BiharAMCSSLComplaint,
+  'v/bihar/ssl/amc/complaint': BiharAMCSSLComplaint,
+  'bihar/ssl/amc/complaint': BiharAMCSSLComplaint,
+  'ssl/view-bihar-ssl-complaint': BiharAMCSSLComplaint,
+  'v/bihar/ssl/view-complaint': BiharAMCSSLComplaint,
+  'bihar/ssl/view-complaint': BiharAMCSSLComplaint,
+
+  // AMC - SRT
+  'v/bihar-add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar/amc/srt/add': BiharAMCSRTAdd,
+  'bihar/amc/srt/add': BiharAMCSRTAdd,
+  'v/bihar/srt/amc/add': BiharAMCSRTAdd,
+  'bihar/srt/amc/add': BiharAMCSRTAdd,
+  'bihar-add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar/add-srt-amc': BiharAMCSRTAdd,
+  'bihar/add-srt-amc': BiharAMCSRTAdd,
+  'v/bihar-view-srt-amc': BiharAMCSRTView,
+  'v/bihar/amc/srt/view': BiharAMCSRTView,
+  'bihar/amc/srt/view': BiharAMCSRTView,
+  'v/bihar/srt/amc/view': BiharAMCSRTView,
+  'bihar/srt/amc/view': BiharAMCSRTView,
+  'bihar-view-srt-amc': BiharAMCSRTView,
+  'v/bihar/view-srt-amc': BiharAMCSRTView,
+  'bihar/view-srt-amc': BiharAMCSRTView,
+  'v/bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'v/bihar/amc/srt/complaint': BiharAMCSRTComplaint,
+  'bihar/amc/srt/complaint': BiharAMCSRTComplaint,
+  'v/bihar/srt/amc/complaint': BiharAMCSRTComplaint,
+  'bihar/srt/amc/complaint': BiharAMCSRTComplaint,
+  'bihar-view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'v/bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
+  'bihar/view-srt-amc-complaint': BiharAMCSRTComplaint,
+
+  // Complaints - SSL
+  'v/complaint/bihar/ssl-add-complaint': BiharComplaintSSLAdd,
+  'complaint/bihar/ssl-add-complaint': BiharComplaintSSLAdd,
+  'v/complaint/bihar/ssl-view-complaint': BiharComplaintSSLView,
+  'complaint/bihar/ssl-view-complaint': BiharComplaintSSLView,
+  'v/complaint/bihar/ssl-assign-complaint': BiharComplaintSSLAssign,
+  'complaint/bihar/ssl-assign-complaint': BiharComplaintSSLAssign,
+
+  // Complaints - SRT
+  'v/complaint/bihar/srt-add-complaint': BiharComplaintSRTAdd,
+  'complaint/bihar/srt-add-complaint': BiharComplaintSRTAdd,
+  'v/complaint/bihar/srt-view-complaint': BiharComplaintSRTView,
+  'complaint/bihar/srt-view-complaint': BiharComplaintSRTView,
+  'v/complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
+  'complaint/bihar/srt-assign-complaint': BiharComplaintSRTAssign,
+
+  // ══════════════ V-PORTAL: GOA: INSTALLATION (SRT) ══════════════
+  'v/goa/vendor-srt-installation-dashboard': GoaInstSRTDb,
+  'goa/vendor-srt-installation-dashboard': GoaInstSRTDb,
+  'v/goa/srt/installation/dashboard': GoaInstSRTDb,
+  'goa/srt/installation/dashboard': GoaInstSRTDb,
+  'v/goa/srt-installation-dashboard': GoaInstSRTDb,
+  'goa/srt-installation-dashboard': GoaInstSRTDb,
+  'v/goa/srt/dashboard': GoaInstSRTDb,
+  'goa/srt/dashboard': GoaInstSRTDb,
+  'v/goa/installation/srt/dashboard': GoaInstSRTDb,
+  'goa/installation/srt/dashboard': GoaInstSRTDb,
+  'v/goa': GoaInstSRTDb,
+  'goa': GoaInstSRTDb,
+
+  // Request Accept / View Assigned Sites / Installation Request
+  'v/goa/srt/viewassignsite': GoaInstSRTRequest,
+  'goa/srt/viewassignsite': GoaInstSRTRequest,
+  'v/goa/srt/installation-request': GoaInstSRTRequest,
+  'goa/srt/installation-request': GoaInstSRTRequest,
+  'v/goa/srt/view-assign-site': GoaInstSRTRequest,
+  'goa/srt/view-assign-site': GoaInstSRTRequest,
+  'v/goa/srt/view': GoaInstSRTRequest,
+  'goa/srt/view': GoaInstSRTRequest,
+  'v/goa/srt/installation/view-assign-site': GoaInstSRTRequest,
+  'goa/srt/installation/view-assign-site': GoaInstSRTRequest,
+  'v/goa/srt/assign-srt': GoaInstSRTRequest,
+  'goa/srt/assign-srt': GoaInstSRTRequest,
+
+  // Fill Site Details / Installation Details
+  'v/goa/srt/installationsite': GoaInstSRTDetails,
+  'goa/srt/installationsite': GoaInstSRTDetails,
+  'v/goa/srt/installation-details': GoaInstSRTDetails,
+  'goa/srt/installation-details': GoaInstSRTDetails,
+  'v/goa/srt/installation-site': GoaInstSRTDetails,
+  'goa/srt/installation-site': GoaInstSRTDetails,
+  'v/goa/srt/installation/install-site': GoaInstSRTDetails,
+  'goa/srt/installation/install-site': GoaInstSRTDetails,
+  'v/goa/srt/installation/installationsite': GoaInstSRTDetails,
+  'goa/srt/installation/installationsite': GoaInstSRTDetails,
+
+  // View Installation
+  'v/goa/srt/allassignsite': GoaInstSRTView,
+  'goa/srt/allassignsite': GoaInstSRTView,
+  'v/goa/srt/view-installation': GoaInstSRTView,
+  'goa/srt/view-installation': GoaInstSRTView,
+  'v/goa/srt/installation/allassignsite': GoaInstSRTView,
+  'goa/srt/installation/allassignsite': GoaInstSRTView,
+  'v/goa/srt/installation/view-installation': GoaInstSRTView,
+  'goa/srt/installation/view-installation': GoaInstSRTView,
+  'v/goa/srt/verificationsite': GoaInstSRTView,
+  'goa/srt/verificationsite': GoaInstSRTView,
+
+  // Claim Request & Payment
+  'v/goa/srt/paymentsrtVendor': GoaInstSRTClaim,
+  'goa/srt/paymentsrtVendor': GoaInstSRTClaim,
+  'v/goa/srt/paymentsrtvendor': GoaInstSRTClaim,
+  'goa/srt/paymentsrtvendor': GoaInstSRTClaim,
+  'v/goa/srt/claimsite': GoaInstSRTClaim,
+  'goa/srt/claimsite': GoaInstSRTClaim,
+  'v/goa/srt/claim-request': GoaInstSRTClaim,
+  'goa/srt/claim-request': GoaInstSRTClaim,
+  'v/goa/srt/assignsrtpayment': GoaInstSRTClaim,
+  'goa/srt/assignsrtpayment': GoaInstSRTClaim,
+  'v/goa/srt/view-claim': GoaInstSRTClaim,
+  'goa/srt/view-claim': GoaInstSRTClaim,
+  'v/goa/srt/installation/claimsite': GoaInstSRTClaim,
+  'goa/srt/installation/claimsite': GoaInstSRTClaim,
+  'v/goa/srt/installation/view-payment': GoaInstSRTClaim,
+  'goa/srt/installation/view-payment': GoaInstSRTClaim,
+
+  // Status Drilldown
+  'v/goa/srt/installation/status-view': GoaInstSRTStatusView,
+  'goa/srt/installation/status-view': GoaInstSRTStatusView,
+  'v/goa/srt/status-view': GoaInstSRTStatusView,
+  'goa/srt/status-view': GoaInstSRTStatusView,
+  'v/goa/srt/installation/dashboard/view-data/:status': GoaInstSRTStatusView,
+  'goa/srt/installation/dashboard/view-data/:status': GoaInstSRTStatusView,
+  'v/goa/srt/installation/dashboard/districtwise/:status/:district': GoaInstSRTStatusView,
+  'goa/srt/installation/dashboard/districtwise/:status/:district': GoaInstSRTStatusView,
+
+  // ── V-PORTAL: GOA: SURVEY (SRT) ──
+  'v/goa/srt-survey': GoaSurveySRTAdd,
+  'goa/srt-survey': GoaSurveySRTAdd,
+  'v/goa/srt/survey': GoaSurveySRTAdd,
+  'goa/srt/survey': GoaSurveySRTAdd,
+  'v/goa/survey/srt/add': GoaSurveySRTAdd,
+  'goa/survey/srt/add': GoaSurveySRTAdd,
+  'v/goa/view-survey': GoaSurveySRTView,
+  'goa/view-survey': GoaSurveySRTView,
+  'v/goa/srt/view-survey': GoaSurveySRTView,
+  'goa/srt/view-survey': GoaSurveySRTView,
+  'v/goa/survey/srt/view': GoaSurveySRTView,
+  'goa/survey/srt/view': GoaSurveySRTView,
+
+  // ── V-PORTAL: GOA: AMC (SRT) ──
+  'v/goa-add-srt-amc': GoaAmcSRTAdd,
+  'goa-add-srt-amc': GoaAmcSRTAdd,
+  'v/goa/add-srt-amc': GoaAmcSRTAdd,
+  'goa/add-srt-amc': GoaAmcSRTAdd,
+  'v/goa/srt/amc/add': GoaAmcSRTAdd,
+  'goa/srt/amc/add': GoaAmcSRTAdd,
+  'v/goa-view-srt-amc': GoaAmcSRTView,
+  'goa-view-srt-amc': GoaAmcSRTView,
+  'v/goa/view-srt-amc': GoaAmcSRTView,
+  'goa/view-srt-amc': GoaAmcSRTView,
+  'v/goa/srt/amc/view': GoaAmcSRTView,
+  'goa/srt/amc/view': GoaAmcSRTView,
+  'v/goa-view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'goa-view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'v/goa/view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'goa/view-srt-amc-complaint': GoaAmcSRTComplaint,
+  'v/goa/srt/amc/complaint': GoaAmcSRTComplaint,
+  'goa/srt/amc/complaint': GoaAmcSRTComplaint,
+
+
+
+
+  // ── V-PORTAL: KARNATAKA ──
+  'v/karnataka/installation/swp/dashboard': KarnatakaDashboard,
+  'v/karnataka/installation/swp/request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/installation-request': KarnatakaInstallationRequest,
+  'v/karnataka/installation/swp/site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/installation-site': KarnatakaInstallationSite,
+  'v/karnataka/installation/swp/view': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/view-installation': KarnatakaViewInstallation,
+  'v/karnataka/installation/swp/add-payment': KarnatakaAddPayment,
+  'v/karnataka/installation/swp/payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/view-payment': KarnatakaViewPayment,
+  'v/karnataka/installation/swp/material-details': KarnatakaMaterialDetails,
+  'v/karnataka/installation/swp/status-view': KarnatakaStatusView,
+  'v/karnataka/installation/swp/status': KarnatakaStatusView,
+  'karnataka': KarnatakaDashboard,
+  'karnataka/dashboard': KarnatakaDashboard,
+  'karnataka/installation': KarnatakaInstallation,
+  'karnataka/swp': KarnatakaDashboard,
+  'karnataka/swp/dashboard': KarnatakaDashboard,
+  'karnataka/swp/installation-request': KarnatakaInstallationRequest,
+  'karnataka/installation-request': KarnatakaInstallationRequest,
+  'karnataka/swp/installation-site': KarnatakaInstallationSite,
+  'karnataka/installation-site': KarnatakaInstallationSite,
+  'karnataka/swp/add-installation': KarnatakaInstallationSite,
+  'karnataka/add-installation': KarnatakaInstallationSite,
+  'karnataka/swp/view-installation': KarnatakaViewInstallation,
+  'karnataka/view-installation': KarnatakaViewInstallation,
+  'karnataka/swp/add-payment': KarnatakaAddPayment,
+  'karnataka/add-payment': KarnatakaAddPayment,
+  'karnataka/swp/view-payment': KarnatakaViewPayment,
+  'karnataka/view-payment': KarnatakaViewPayment,
+  'karnataka/swp/material-details': KarnatakaMaterialDetails,
+  'karnataka/material-details': KarnatakaMaterialDetails,
+  'karnataka/swp/status-view': KarnatakaStatusView,
+  'karnataka/status-view': KarnatakaStatusView,
+
+  // ══════════════ V-PORTAL: KASHMIR ══════════════
+  // Survey (SRT 70MW)
+  'v/kashmir/srt70mw/survey-add': KashmirSurveySRT70MWAdd,
+  'kashmir/srt70mw/survey-add': KashmirSurveySRT70MWAdd,
+  'v/kashmir/srt70mw/survey-view': KashmirSurveySRT70MWView,
+  'kashmir/srt70mw/survey-view': KashmirSurveySRT70MWView,
+  'v/kashmir/srt70mw/survey-edit/:id': KashmirSurveySRT70MWAdd,
+  'kashmir/srt70mw/survey-edit/:id': KashmirSurveySRT70MWAdd,
+
+  // Installation (SRT 70MW)
+  'v/kashmir/srt/70mw/installation/dashboard': KashmirInstSRT70MWDb,
+  'kashmir/srt/70mw/installation/dashboard': KashmirInstSRT70MWDb,
+  'v/kashmir/srt/70mw/installation/status-view': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw/installation/status-view': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw-installation-view-dashboard/:status': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw-installation-view-dashboard/:status': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw-installation-districtwise/:status/:district': KashmirInstSRT70MWStatus,
+  'kashmir/srt/70mw-installation-districtwise/:status/:district': KashmirInstSRT70MWStatus,
+  'v/kashmir/srt/70mw/installation/assign-site': KashmirInstSRT70MWAssign,
+  'kashmir/srt/70mw/installation/assign-site': KashmirInstSRT70MWAssign,
+  'v/kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/installation/site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/installation/install-site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/installation/install-site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/install-site': KashmirInstSRT70MWInstall,
+  'kashmir/srt/70mw/install-site': KashmirInstSRT70MWInstall,
+  'v/kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
+  'kashmir/srt/70mw/view-install-sites': KashmirInstSRT70MWDetail,
+  'v/kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
+  'kashmir/srt70mw/view-claim-request': KashmirInstSRT70MWClaim,
+
+  // Installation Expenses (SRT 70MW)
+  'v/kashmir/srt70mw/installation-expenses-create': KashmirExpensesRequest,
+  'kashmir/srt70mw/installation-expenses-create': KashmirExpensesRequest,
+  'v/kashmir/srt70mw/installation-expenses': KashmirExpensesView,
+  'kashmir/srt70mw/installation-expenses': KashmirExpensesView,
+  'v/kashmir/srt70mw/installation-expenses-view-payment': KashmirExpensesPayment,
+  'kashmir/srt70mw/installation-expenses-view-payment': KashmirExpensesPayment,
+
+
+  
+  // 'dashboards/solar-erp': JammuDashboard,
+  // 'dashboards/erp': JammuDashboard,
+  // 'dashboards/analytics': DashboardsAnalytics,
+  // 'dashboards/crm': DashboardsCrm,
+  // 'dashboards/crypto': DashboardsCrypto,
+  // 'dashboards/ecommerce': DashboardsEcommerce,
+  // 'dashboards/finance': DashboardsFinance,
+  // 'dashboards/healthcare': DashboardsHealthcare,
+  // 'dashboards/hr': DashboardsHr,
+  // 'dashboards/jobs': DashboardsJobs,
+  // 'dashboards/lms': DashboardsLms,
+  // 'dashboards/nft': DashboardsNft,
+  // 'dashboards/podcast': DashboardsPodcast,
+  // 'dashboards/pos': DashboardsPos,
+  // 'dashboards/projects': DashboardsProjects,
+  // 'dashboards/school': DashboardsSchool,
+  // 'dashboards/social': DashboardsSocial,
+  // 'dashboards/stocks': DashboardsStocks,
+  // 'docs/index': DocsIndex,
+  // 'ecommerce/add-product': EcommerceAddProduct,
+  // 'ecommerce/cart': EcommerceCart,
+  // 'ecommerce/checkout': EcommerceCheckout,
+  // 'ecommerce/create-invoice': EcommerceCreateInvoice,
+  // 'ecommerce/customer-details': EcommerceCustomerDetails,
+  // 'ecommerce/customers': EcommerceCustomers,
+  // 'ecommerce/edit-product': EcommerceEditProduct,
+  // 'ecommerce/invoice-details': EcommerceInvoiceDetails,
+  // 'ecommerce/invoices': EcommerceInvoices,
+  // 'ecommerce/order-details': EcommerceOrderDetails,
+  // 'ecommerce/order-success': EcommerceOrderSuccess,
+  // 'ecommerce/orders': EcommerceOrders,
+  // 'ecommerce/product-details': EcommerceProductDetails,
+  // 'ecommerce/products': EcommerceProducts,
+  // 'ecommerce/sellers': EcommerceSellers,
+  // 'forms/advanced': FormsAdvanced,
+  // 'forms/editor': FormsEditor,
+  // 'forms/elements': FormsElements,
+  // 'forms/file-upload': FormsFileUpload,
+  // 'forms/floating-labels': FormsFloatingLabels,
+  // 'forms/input-masks': FormsInputMasks,
+  // 'forms/layouts': FormsLayouts,
+  // 'forms/pickers': FormsPickers,
+  // 'forms/select': FormsSelect,
+  // 'forms/validation': FormsValidation,
+  // 'forms/wizard': FormsWizard,
+  // 'icons/brands': IconsBrands,
+  // 'icons/line': IconsLine,
+  // 'icons/solid': IconsSolid,
+  // 'icons/tabler': IconsTabler,
+  // 'jobs/candidate-details': JobsCandidateDetails,
+  // 'jobs/job-details': JobsJobDetails,
+  // 'jobs/job-post': JobsJobPost,
+  // 'jobs/list': JobsList,
+  // 'jobs/search-candidate': JobsSearchCandidate,
+  // 'jobs/search-company': JobsSearchCompany,
+  // 'jobs/search-jobs': JobsSearchJobs,
+  // 'maps/google': MapsGoogle,
+  // 'maps/leaflet': MapsLeaflet,
+  // 'nft/create-nft': NftCreateNft,
+  // 'nft/live-auction': NftLiveAuction,
+  // 'nft/marketplace': NftMarketplace,
+  // 'nft/nft-details': NftNftDetails,
+  // 'nft/wallet': NftWallet,
+  // 'pages/activity-log': PagesActivityLog,
+  // 'pages/billing': PagesBilling,
+  // 'pages/events': PagesEvents,
+  // 'pages/faq': PagesFaq,
+  // 'pages/nested-menu': PagesNestedMenu,
+  // 'pages/notifications': PagesNotifications,
+  // 'pages/pricing': PagesPricing,
+  // 'pages/privacy': PagesPrivacy,
+  // 'pages/profile': PagesProfile,
+  // 'pages/profile-settings': PagesProfileSettings,
+  // 'pages/search-results': PagesSearchResults,
+  // 'pages/starter': PagesStarter,
+  // 'pages/support': PagesSupport,
+  // 'pages/sweet-alerts': PagesSweetAlerts,
+  // 'pages/team': PagesTeam,
+  // 'pages/terms': PagesTerms,
+  // 'pages/testimonials': PagesTestimonials,
+  // 'pages/timeline': PagesTimeline,
+  // 'pages/tour': PagesTour,
+  // 'projects/create': ProjectsCreate,
+  // 'projects/list': ProjectsList,
+  // 'projects/overview': ProjectsOverview,
+  // 'tables/basic': TablesBasic,
+  // 'tables/data-tables': TablesDataTables,
+  // 'tables/editable': TablesEditable,
+  // 'tables/gridjs': TablesGridjs,
+  // 'ui/accordions': UiAccordions,
+  // 'ui/alerts': UiAlerts,
+  // 'ui/avatars': UiAvatars,
+  // 'ui/badges': UiBadges,
+  // 'ui/breadcrumb': UiBreadcrumb,
+  // 'ui/button-group': UiButtonGroup,
+  // 'ui/buttons': UiButtons,
+  // 'ui/cards': UiCards,
+  // 'ui/carousel': UiCarousel,
+  // 'ui/draggable-cards': UiDraggableCards,
+  // 'ui/dropdowns': UiDropdowns,
+  // 'ui/images': UiImages,
+  // 'ui/links': UiLinks,
+  // 'ui/list-group': UiListGroup,
+  // 'ui/modals': UiModals,
+  // 'ui/navbar': UiNavbar,
+  // 'ui/notifications': UiNotifications,
+  // 'ui/offcanvas': UiOffcanvas,
+  // 'ui/pagination': UiPagination,
+  // 'ui/popovers': UiPopovers,
+  // 'ui/progress': UiProgress,
+  // 'ui/ratings': UiRatings,
+  // 'ui/ribbons': UiRibbons,
+  // 'ui/scrollspy': UiScrollspy,
+  // 'ui/skeletons': UiSkeletons,
+  // 'ui/sortable': UiSortable,
+  // 'ui/spinners': UiSpinners,
+  // 'ui/swiper': UiSwiper,
+  // 'ui/tabs': UiTabs,
+  // 'ui/toasts': UiToasts,
+  // 'ui/tooltips': UiTooltips,
+  // 'ui/tour': UiTour,
+  // 'ui/typography': UiTypography,
+  // 'utilities/borders': UtilitiesBorders,
+  // 'utilities/breakpoints': UtilitiesBreakpoints,
+  // 'utilities/colors': UtilitiesColors,
+  // 'utilities/flex-grid': UtilitiesFlexGrid,
+  // 'utilities/helpers': UtilitiesHelpers,
+  // 'utilities/position': UtilitiesPosition,
+  // 'utilities/spacing': UtilitiesSpacing,
+  // 'widgets': Widgets,
+};
+
+// Suspense boundary per route: shows DashboardSkeleton loading placeholders
+// matching the theme shapes (cards, lists, tables, charts) instead of a spinner.
+const wrap = (C: PageComponent): ReactElement => (
+  <Suspense fallback={<DashboardSkeleton />}>
+    <C />
+  </Suspense>
+);
+
+function RequireAccess({ slug, children }: { slug: string; children: ReactElement }) {
+  if (!canAccessSlug(slug)) return <Navigate to="/dle/dashboard" replace />;
+  return children;
+}
+
+const guarded = (slug: string, C: PageComponent): ReactElement => (
+  <RequireAccess slug={slug}>{wrap(C)}</RequireAccess>
+);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
 export function App() {
   return (
@@ -36,6 +1825,7 @@ export function App() {
               {appShellRoutes}
             </Route>
 
+<<<<<<< HEAD
             {/* Main Shell (ERP Portal, DLE Portal, V-Portal, Super Admin Vendor Management, Templates) */}
             <Route
               element={
@@ -48,6 +1838,221 @@ export function App() {
               {vPortalRoutes}
               {vendorManagementRoutes}
               {templateRoutes}
+=======
+{/* supper  admin */}
+              <Route path="vendor-management" element={wrap(VendorManagementDashboard)} />
+              <Route path="vendor-management/users" element={wrap(AdminVendorUsersDashboard)} />
+              <Route path="vendor-management/assam/swp/dashboard" element={wrap(AssamSwpDashboard)} />
+              <Route path="vendor-management/assam/swp/assign-installation" element={wrap(AssignInstallation)} />
+              <Route path="vendor-management/assam/swp/view-assign-installation" element={wrap(ViewAssignInstallation)} />
+              <Route path="vendor-management/assam/swp/verify-installation" element={wrap(VerifyInstallation)} />
+              <Route path="vendor-management/assam/swp/verify-document" element={wrap(VerifyDocument)} />
+              <Route path="vendor-management/assam/swp/verify-claim" element={wrap(VerifyClaim)} />
+              <Route path="vendor-management/assam/swp/view-payment" element={wrap(ViewPayment)} />
+              <Route path="vendor-management/assam/swp/status-view" element={wrap(StatusView)} />
+              <Route path="vendor-management/assam/swp/request" element={wrap(ViewAssignInstallation)} />
+              <Route path="vendor-management/assam/swp/site" element={wrap(AssignInstallation)} />
+              <Route path="vendor-management/assam/swp/view" element={wrap(VerifyInstallation)} />
+              <Route path="vendor-management/assam/swp/payment" element={wrap(ViewPayment)} />
+
+              {/* Super Admin: Arunachal SHL Routes */}
+              <Route path="vendor-management/arunachal/shl/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/status-view" element={wrap(ArunachalShlStatusView)} />
+              {/* Route aliases for compatibility */}
+              <Route path="arunachal/shl/installation/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="arunachal/shl/installation/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/assign/view" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/installation" element={wrap(ArunachalShlDashboard)} />
+
+
+
+  
+
+        {/* Super Admin: Arunachal SHL Routes */}
+              <Route path="vendor-management/arunachal/shl/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl/assign-installation" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign-installation" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-installation" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-document" element={wrap(ArunachalVerifyLights)} />
+              <Route path="vendor-management/arunachal/shl/verify-claim" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/shl/view-payment" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/shl/status-view" element={wrap(ArunachalShlStatusView)} />
+              <Route path="vendor-management/arunachal/installation" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal/shl" element={wrap(ArunachalShlDashboard)} />
+              <Route path="vendor-management/arunachal" element={wrap(ArunachalShlDashboard)} />
+              {/* Route aliases for compatibility */}
+              <Route path="arunachal/shl/installation/dashboard" element={wrap(ArunachalShlDashboard)} />
+              <Route path="arunachal/shl/installation/assign-installation" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/assign-light" element={wrap(ArunachalAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign-installation" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/view-assign" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/assign/view" element={wrap(ArunachalViewAssignLights)} />
+              <Route path="arunachal/shl/installation/verify-installation" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify-document" element={wrap(ArunachalVerifyLights)} />
+              <Route path="arunachal/shl/installation/verify-claim" element={wrap(ArunachalShlStatusView)} />
+              <Route path="arunachal/shl/installation/view-payment" element={wrap(ArunachalShlStatusView)} />
+              <Route path="arunachal/shl/installation/status-view" element={wrap(ArunachalShlStatusView)} />
+
+        {/* Super Admin: Punjab SSL Routes */}
+              <Route path="vendor-management/punjab/ssl/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/ssl/assign-installation" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/assign-lights" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/assign-light" element={wrap(PunjabAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign-installation" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign-lights" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/view-assign" element={wrap(PunjabViewAssignLights)} />
+              <Route path="vendor-management/punjab/ssl/verify-installation" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/verify-lights" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/verify" element={wrap(PunjabVerifyLights)} />
+              <Route path="vendor-management/punjab/ssl/status-view" element={wrap(PunjabSslStatusView)} />
+              <Route path="vendor-management/punjab/installation" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab/ssl" element={wrap(PunjabSslDashboard)} />
+              <Route path="vendor-management/punjab" element={wrap(PunjabSslDashboard)} />
+
+              {/* Direct Compatibility Aliases matching user request URLs */}
+              <Route path="punjab/ssl/installation/assign-lights" element={wrap(PunjabAssignLights)} />
+              <Route path="punjab/ssl/installation/assign-installation" element={wrap(PunjabAssignLights)} />
+              <Route path="punjab/ssl/installation/view-assign-lights" element={wrap(PunjabViewAssignLights)} />
+              <Route path="punjab/ssl/installation/view-assign" element={wrap(PunjabViewAssignLights)} />
+              <Route path="punjab/ssl/installation/verify-lights" element={wrap(PunjabVerifyLights)} />
+              <Route path="punjab/ssl/installation/verify-installation" element={wrap(PunjabVerifyLights)} />
+              <Route path="punjab/ssl/installation/dashboard" element={wrap(PunjabSslDashboard)} />
+              <Route path="punjab/ssl/installation/status-view" element={wrap(PunjabSslStatusView)} />
+              <Route path="punjab/ssl/installation/view-dashboard/:status" element={wrap(PunjabSslStatusView)} />
+              <Route path="punjab/ssl/installation/districtwise-data/:status/:district" element={wrap(PunjabSslStatusView)} />
+
+        {/* Super Admin: Jammu Survey Routes */}
+              <Route path="vendor-management/jammu/survey/srt-70mw/verify" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="vendor-management/jammu/survey/srt-70mw" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/dashboard" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu/survey/resco/assign" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/assign-survey" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/view-assign" element={wrap(JammuAssignViewSurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/assigned-vendor" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="vendor-management/jammu/survey/resco/pending-survey" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="vendor-management/jammu/survey/resco/verify" element={wrap(JammuVerifySurvey)} />
+              <Route path="vendor-management/jammu/survey/resco/view-survey" element={wrap(JammuVerifySurvey)} />
+              <Route path="vendor-management/jammu/survey/resco" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu/survey" element={wrap(JammuRescoDashboard)} />
+              <Route path="vendor-management/jammu" element={wrap(JammuRescoDashboard)} />
+
+              {/* Jammu Survey Direct Compatibility Aliases */}
+              <Route path="jammu/srt70mw-survey-verify" element={wrap(JammuVerifySrt70MWSurvey)} />
+              <Route path="jk/resco-survey-assign" element={wrap(JammuAssignRescoSurvey)} />
+              <Route path="jk/resco-survey-assign-view" element={wrap(JammuAssignViewSurvey)} />
+              <Route path="jk/resco-survey-assign-vendor" element={wrap(JammuAssignedSurveyVendor)} />
+              <Route path="jk/resco-survey-verify" element={wrap(JammuVerifySurvey)} />
+
+        {/* Super Admin: Jammu Installation Routes - SRT 70MW */}
+              <Route path="vendor-management/jammu/installation/srt-70mw/dashboard" element={wrap(JammuSrtDashboard)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/assign-sites" element={wrap(JammuAssignSrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/verify-sites" element={wrap(JammuVerifySrtSites)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-claim" element={wrap(JammuViewSrtClaim)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw/view-payment" element={wrap(JammuViewSrtPayment)} />
+              <Route path="vendor-management/jammu/installation/srt-70mw" element={wrap(JammuSrtDashboard)} />
+
+              {/* Jammu SRT 70MW Direct & Compatibility Aliases */}
+              <Route path="vendor-management/jammu/srt/dashboard" element={wrap(JammuSrtDashboard)} />
+              <Route path="vendor-management/jammu/srt/assign-sites" element={wrap(JammuAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-assign" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="vendor-management/jammu/srt/verify-sites" element={wrap(JammuVerifySrtSites)} />
+              <Route path="vendor-management/jammu/srt/view-claim" element={wrap(JammuViewSrtClaim)} />
+              <Route path="vendor-management/jammu/srt/view-payment" element={wrap(JammuViewSrtPayment)} />
+              <Route path="vendor-management/jammu/srt" element={wrap(JammuSrtDashboard)} />
+              <Route path="jammu/assign-installation-srt70mw" element={wrap(JammuAssignSrtSites)} />
+              <Route path="jammu/view-assign-installation-srt70mw" element={wrap(JammuViewAssignSrtSites)} />
+              <Route path="jammu/verify-srt70mw-installation" element={wrap(JammuVerifySrtSites)} />
+              <Route path="jammu/claim-srt70mw-installation" element={wrap(JammuViewSrtClaim)} />
+              <Route path="jammu/view-claim-srt70mw" element={wrap(JammuViewSrtClaim)} />
+              <Route path="jammu/payment-srt70mw-installation" element={wrap(JammuViewSrtPayment)} />
+              <Route path="jammu/view-payment-srt70mw" element={wrap(JammuViewSrtPayment)} />
+
+        {/* Super Admin: Jammu Installation Routes - SSL */}
+              <Route path="vendor-management/jammu/installation/ssl/dashboard" element={wrap(JammuSslDashboard)} />
+              <Route path="vendor-management/jammu/installation/ssl/assign-lights" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/view-assign-lights" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/installation/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />
+              <Route path="vendor-management/jammu/installation/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />
+              <Route path="vendor-management/jammu/installation/ssl" element={wrap(JammuSslDashboard)} />
+              {/* Jammu SSL Shorthand Aliases */}
+              <Route path="vendor-management/jammu/ssl/dashboard" element={wrap(JammuSslDashboard)} />
+              <Route path="vendor-management/jammu/ssl/assign-light" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/assign-lights" element={wrap(JammuAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assign" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assigned" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/view-assign-lights" element={wrap(JammuViewAssignSslLights)} />
+              <Route path="vendor-management/jammu/ssl/verify" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />
+              <Route path="vendor-management/jammu/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />
+              <Route path="vendor-management/jammu/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />
+              <Route path="vendor-management/jammu/ssl" element={wrap(JammuSslDashboard)} />
+
+        {/* Super Admin: Jammu Installation Routes - SWP */}
+              <Route path="vendor-management/jammu/installation/swp/dashboard" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/installation/swp/assign-installation" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/assign" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/view-assign-installation" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/view-assign" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-installation" element={wrap(JammuVerifySwpInstallation)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-document" element={wrap(JammuVerifySwpDocument)} />
+              <Route path="vendor-management/jammu/installation/swp/verify-claim" element={wrap(JammuVerifySwpClaim)} />
+              <Route path="vendor-management/jammu/installation/swp/view-payment" element={wrap(JammuViewSwpPayment)} />
+              <Route path="vendor-management/jammu/installation/swp/status-view" element={wrap(JammuSwpStatusView)} />
+              <Route path="vendor-management/jammu/installation/swp" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/swp/dashboard" element={wrap(JammuSwpDashboard)} />
+              <Route path="vendor-management/jammu/swp/assign-installation" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/assign" element={wrap(JammuAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/view-assign-installation" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/view-assign" element={wrap(JammuViewAssignSwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/verify-installation" element={wrap(JammuVerifySwpInstallation)} />
+              <Route path="vendor-management/jammu/swp/verify-document" element={wrap(JammuVerifySwpDocument)} />
+              <Route path="vendor-management/jammu/swp/verify-claim" element={wrap(JammuVerifySwpClaim)} />
+              <Route path="vendor-management/jammu/swp/view-payment" element={wrap(JammuViewSwpPayment)} />
+              <Route path="vendor-management/jammu/swp/status-view" element={wrap(JammuSwpStatusView)} />
+              <Route path="vendor-management/jammu/swp" element={wrap(JammuSwpDashboard)} />
+
+        {/* Super Admin: Jammu Installation Routes - RESCO */}
+              <Route path="vendor-management/jammu/installation/resco/dashboard" element={wrap(JammuRescoInstDashboard)} />
+              <Route path="vendor-management/jammu/installation/resco/assign-installation" element={wrap(JammuAssignRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/view-assign-installation" element={wrap(JammuViewAssignRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/view-assign-vendor-installation" element={wrap(JammuViewAssignVendorInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/verify-installation" element={wrap(JammuVerifyRescoInstallation)} />
+              <Route path="vendor-management/jammu/installation/resco/verify-document" element={wrap(JammuVerifyRescoDocument)} />
+              <Route path="vendor-management/jammu/installation/resco/view-claim" element={wrap(JammuViewRescoClaim)} />
+              <Route path="vendor-management/jammu/installation/resco/view-payment" element={wrap(JammuViewRescoPayment)} />
+              <Route path="vendor-management/jammu/installation/resco/view-bills" element={wrap(JammuViewRescoBills)} />
+              <Route path="vendor-management/jammu/installation/resco" element={wrap(JammuRescoInstDashboard)} />
+              <Route path="vendor-management/jammu/installation" element={wrap(JammuSrtDashboard)} />
+
+        {/* Super Admin: Jammu Expenses Routes - SRT 70MW */}
+              <Route path="vendor-management/jammu/expenses/srt-70mw/claim-requests" element={wrap(JammuSrtExpenseClaimRequests)} />
+              <Route path="vendor-management/jammu/expenses/srt-70mw/view-payments" element={wrap(JammuSrtExpenseViewPayments)} />
+              <Route path="vendor-management/jammu/expenses/srt-70mw" element={wrap(JammuSrtExpenseClaimRequests)} />
+              <Route path="vendor-management/jammu/expenses" element={wrap(JammuSrtExpenseClaimRequests)} />
+
+              <Route path="gallery" element={wrap(AppsGallery)} />
+              <Route path="complaints" element={wrap(ModulePlaceholder)} />
+              <Route path="reports/analytics" element={wrap(DashboardsAnalytics)} />
+              <Route path="reports/geo-reports" element={wrap(MapsLeaflet)} />
+              <Route path="settings" element={wrap(ModulePlaceholder)} />
+              {Object.entries(shell).map(([slug, C]) => (
+                <Route key={slug} path={slug} element={guarded(slug, C)} />
+              ))}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
             </Route>
 
             {/* Catch-all 404 Route */}

@@ -482,11 +482,11 @@ export function Arunachal_Installation_SHL_Dashboard() {
     totalItems,
     setPage,
     setPageSize,
-  } = usePagination({ data: tableDistricts, initialPageSize: 100 });
+  } = usePagination({ data: tableDistricts, initialPageSize: 10 });
 
   useEffect(() => {
     setPage(1);
-  }, [tableQuery, selectedDistrict, selectedStatus, setPage]);
+  }, [tableQuery, selectedDistrict, selectedStatus]);
 
   // Percentages & Rates
   const pctComplete = pctOf(shl.complete, shl.site_count);
@@ -557,7 +557,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
       columns.map((c) => c.header),
       ...list.map((row) => columns.map((c) => escapeExportValue(getExportValue(row, c)))),
     ];
-    const csv = out.map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = out.map((r) => r.map((v) => `"${(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
     downloadTextFile(`\ufeff${csv}`, `${filename}.csv`, 'text/csv');
   };
 
@@ -613,7 +613,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
         title="Arunachal Pradesh SHL Dashboard"
         subtitle={
           <span style={{ display: 'inline-block', fontSize: 'var(--ax-text-sm)', color: 'var(--ax-text-muted)' }}>
-            Solar Home Light (SHL) Operations, District Analysis & Execution Throughput
+            Solar Street Light (SHL) Operations, District Analysis & Execution Throughput
             {updatedAt ? ` · Last updated ${updatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : ''}
           </span>
         }
@@ -727,14 +727,14 @@ export function Arunachal_Installation_SHL_Dashboard() {
           </div>
         </section>
 
-        {/* 3. Executive Welcome Banner (matching Assam & DLE Dashboard) */}
+        {/* 3. Executive Welcome Banner */}
         <section className="ax-card ax-welcome ax-col--12" role="region" aria-label="Arunachal SHL Operations Overview">
           <div className="ax-welcome__body">
             <div className="ax-welcome__text">
-              <p className="ax-welcome__eyebrow">Arunachal Pradesh Solar Home Light System</p>
+              <p className="ax-welcome__eyebrow">Arunachal Pradesh Solar Street Light System</p>
               <h2 className="ax-card__title">Welcome to Arunachal Pradesh SHL Operations Dashboard</h2>
               <p className="ax-welcome__lede">
-                Arunachal Pradesh SHL execution overview: <b>{num(shl.site_count)} solar home lights</b> allocated across <b>{districtOptions.length} districts</b>.
+                Arunachal Pradesh SHL execution overview: <b>{num(shl.site_count)} solar street lights</b> allocated across <b>{districtOptions.length} districts</b>.
                 <b> {num(shl.complete)} ({pctComplete}%)</b> installed, with <b>{num(shl.verify_approved)}</b> verified approved, <b>{num(shl.claim_applicable)}</b> claim eligible, and <b>{num(shl.inst_pay_done)}</b> payment settlements.
               </p>
             </div>
@@ -771,7 +771,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
           label="Total Allocated Sites"
           value={num(shl.site_count)}
           unit="Lights"
-          sub="Allocated solar home lights"
+          sub="Allocated solar street lights"
           spark={siteSpark}
           onClick={() => openDrillDown('total', 'Total Allocated Lights')}
         />
@@ -918,8 +918,8 @@ export function Arunachal_Installation_SHL_Dashboard() {
           <div className="ax-card__header">
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow" style={{ color: 'var(--asw-primary)' }}>State Operations</span>
-              <h3 className="ax-card__title">Arunachal Pradesh · Solar Home Light (SHL) Operations</h3>
-              <p className="ax-card__subtitle">{num(shl.complete)} solar home lights installed across {districtOptions.length} districts in Arunachal Pradesh</p>
+              <h3 className="ax-card__title">Arunachal Pradesh · Solar Street Light (SHL) Operations</h3>
+              <p className="ax-card__subtitle">{num(shl.complete)} solar street lights installed across {districtOptions.length} districts in Arunachal Pradesh</p>
             </div>
             <Link to="/v/arunachal/shl/installation/view-installation" className="ax-btn ax-btn--sm ax-btn--primary">
               View Installation Register →
@@ -1020,7 +1020,7 @@ export function Arunachal_Installation_SHL_Dashboard() {
             <div className="ax-card__titles">
               <span className="ax-card__eyebrow">Execution Distribution</span>
               <h2 className="ax-card__title">Status Breakdown</h2>
-              <p className="ax-card__subtitle">Total {num(shl.site_count)} Solar Home Lights</p>
+              <p className="ax-card__subtitle">Total {num(shl.site_count)} Solar Street Lights</p>
             </div>
           </div>
           <div className="ax-card__body" style={{ paddingTop: 0 }}>
@@ -1313,11 +1313,14 @@ export function Arunachal_Installation_SHL_Dashboard() {
             <div className="ula-pagination-left">
               <Pagination
                 currentPage={currentPage}
+                curPage={currentPage}
                 totalItems={totalItems}
+                total={totalItems}
                 pageSize={pageSize}
                 onPageChange={setPage}
+                setPage={setPage}
                 onPageSizeChange={setPageSize}
-                pageSizeOptions={[10, 25, 50, 100]}
+                pageSizeOptions={[10, 25, 50, 100, 200]}
               />
             </div>
           </div>

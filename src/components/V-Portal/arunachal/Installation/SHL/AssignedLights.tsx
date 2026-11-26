@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { PageHead } from '../../../../shell/PageHead';
 import { useFocusTrap } from '../../../../../hooks/useFocusTrap';
 import {
@@ -337,7 +337,6 @@ const X_ICON = (
 );
 
 export function Arunachal_Installation_SHL_AssignedLights() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<ArunachalAssignedLightItem[]>([]);
   const [search, setSearch] = useState('');
@@ -477,7 +476,7 @@ export function Arunachal_Installation_SHL_AssignedLights() {
       {/* ── Page Head ── */}
       <PageHead
         title="Assigned Lights"
-        subtitle="Review allocated Arunachal Pradesh Solar Home Light (SHL) batches, district assignments, and accept ready site tasks"
+        subtitle="Review allocated Arunachal Pradesh Solar Street Light (SHL) batches, district assignments, and accept ready site tasks"
         breadcrumbs={[
           { label: 'Home', href: '/v-dashboard' },
           { label: 'Arunachal Pradesh' },

@@ -402,9 +402,12 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.kc.vpay2" path="vendor-management/up/view-kusum-c-installation-payment" element={wrap(UPKusumCViewPayment)} />,
       <Route key="vm.up.kc.vpay3" path="up/view-kusum-c-installation-payment" element={wrap(UPKusumCViewPayment)} />,
 
+<<<<<<< HEAD
       <Route key="vm.up.kc.status" path="vendor-management/up/kusumc/installation/status-view" element={wrap(UPKusumCStatusView)} />,
       <Route key="vm.up.kc.status2" path="up/kusumc/installation/status-view" element={wrap(UPKusumCStatusView)} />,
 
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       // UP Installation: Resco
       <Route key="vm.up.resco.db" path="vendor-management/up/resco/installation/dashboard" element={wrap(UPRescoInstallationDashboard)} />,
       <Route key="vm.up.resco.db2" path="vendor-management/up/resco-installation-dashboard" element={wrap(UPRescoInstallationDashboard)} />,
@@ -423,7 +426,10 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.resco.verify3" path="up/resco-verify-installation" element={wrap(UPRescoVerifyInstallation)} />,
 
       <Route key="vm.up.resco.vdoc" path="vendor-management/up/resco/installation/verify-doc" element={wrap(UPRescoVerifyDocument)} />,
+<<<<<<< HEAD
       <Route key="vm.up.resco.vdoc_full" path="vendor-management/up/resco/installation/verify-document" element={wrap(UPRescoVerifyDocument)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route key="vm.up.resco.vdoc2" path="vendor-management/up/resco-verify-doc" element={wrap(UPRescoVerifyDocument)} />,
       <Route key="vm.up.resco.vdoc3" path="up/resco-verify-doc" element={wrap(UPRescoVerifyDocument)} />,
 
@@ -442,6 +448,7 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.resco.vav" path="vendor-management/up/resco/installation/view-assign-vendor" element={wrap(UPRescoViewAssignVendorInstallation)} />,
       <Route key="vm.up.resco.vav2" path="vendor-management/up/resco-view-assign-v-installation" element={wrap(UPRescoViewAssignVendorInstallation)} />,
       <Route key="vm.up.resco.vav3" path="up/resco-view-assign-v-installation" element={wrap(UPRescoViewAssignVendorInstallation)} />,
+<<<<<<< HEAD
       <Route key="vm.up.resco.vav4" path="vendor-management/up/resco/installation/vendor-installation-desk" element={wrap(UPRescoViewAssignVendorInstallation)} />,
       <Route key="vm.up.resco.vav5" path="up/resco-vendor-installation-desk" element={wrap(UPRescoViewAssignVendorInstallation)} />,
 
@@ -449,6 +456,8 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.resco.status_short" path="vendor-management/up/resco/installation/status" element={wrap(UPRescoStatusView)} />,
       <Route key="vm.up.resco.status2" path="up/resco/installation/status-view" element={wrap(UPRescoStatusView)} />,
       <Route key="vm.up.resco.status2_short" path="up/resco/installation/status" element={wrap(UPRescoStatusView)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
       // UP Installation: SSL 18W
       <Route key="vm.up.ssl18.db" path="vendor-management/up/ssl18w/installation/dashboard" element={wrap(UPSSL18WInstallationDashboard)} />,
@@ -467,9 +476,12 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.ssl18.verify2" path="vendor-management/up/ssl-18w-installation" element={wrap(UPSSL18WVerifyInstallation)} />,
       <Route key="vm.up.ssl18.verify3" path="up/ssl-18w-installation" element={wrap(UPSSL18WVerifyInstallation)} />,
 
+<<<<<<< HEAD
       <Route key="vm.up.ssl18.status" path="vendor-management/up/ssl18w/installation/status-view" element={wrap(UPSSL18WStatusView)} />,
       <Route key="vm.up.ssl18.status2" path="up/ssl18w/installation/status-view" element={wrap(UPSSL18WStatusView)} />,
 
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
 
 
@@ -533,6 +545,7 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="punjab/ssl/installation/view-dashboard/:status" element={wrap(PunjabSslStatusView)} />,
       <Route path="punjab/ssl/installation/districtwise-data/:status/:district" element={wrap(PunjabSslStatusView)} />,
 
+<<<<<<< HEAD
       /*  Super Admin: Jammu Survey Routes - SRT 70MW  */
       <Route path="vendor-management/jammu/survey/srt-70mw/dashboard" element={wrap(JammuSrt70MWSurveyDashboard)} />,
       <Route path="vendor-management/jammu/survey/srt-70mw/assign" element={wrap(JammuAssignSrt70MWSurvey)} />,
@@ -553,10 +566,16 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="jammu/survey/srt-70mw/status-view" element={wrap(JammuSrt70MWSurveyStatusView)} />,
 
       /*  Super Admin: Jammu Survey Routes - RESCO  */
+=======
+      /*  Super Admin: Jammu Survey Routes  */
+      <Route path="vendor-management/jammu/survey/srt-70mw/verify" element={wrap(JammuVerifySrt70MWSurvey)} />,
+      <Route path="vendor-management/jammu/survey/srt-70mw" element={wrap(JammuVerifySrt70MWSurvey)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/survey/resco/dashboard" element={wrap(JammuRescoDashboard)} />,
       <Route path="vendor-management/jammu/survey/resco/assign" element={wrap(JammuAssignRescoSurvey)} />,
       <Route path="vendor-management/jammu/survey/resco/assign-survey" element={wrap(JammuAssignRescoSurvey)} />,
       <Route path="vendor-management/jammu/survey/resco/view-assign" element={wrap(JammuAssignViewSurvey)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/survey/resco/assign-view" element={wrap(JammuAssignViewSurvey)} />,
       <Route path="vendor-management/jammu/survey/resco/assigned-vendor" element={wrap(JammuAssignedSurveyVendor)} />,
       <Route path="vendor-management/jammu/survey/resco/assign-vendor" element={wrap(JammuAssignedSurveyVendor)} />,
@@ -566,12 +585,18 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="vendor-management/jammu/survey/resco/status" element={wrap(JammuRescoSurveyStatusView)} />,
       <Route path="vendor-management/jammu/survey/resco/verify" element={wrap(JammuVerifySurvey)} />,
       <Route path="vendor-management/jammu/survey/resco/verify-survey" element={wrap(JammuVerifySurvey)} />,
+=======
+      <Route path="vendor-management/jammu/survey/resco/assigned-vendor" element={wrap(JammuAssignedSurveyVendor)} />,
+      <Route path="vendor-management/jammu/survey/resco/pending-survey" element={wrap(JammuAssignedSurveyVendor)} />,
+      <Route path="vendor-management/jammu/survey/resco/verify" element={wrap(JammuVerifySurvey)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/survey/resco/view-survey" element={wrap(JammuVerifySurvey)} />,
       <Route path="vendor-management/jammu/survey/resco" element={wrap(JammuRescoDashboard)} />,
       <Route path="vendor-management/jammu/survey" element={wrap(JammuRescoDashboard)} />,
       <Route path="vendor-management/jammu" element={wrap(JammuRescoDashboard)} />,
 
       /*  Jammu Survey Direct Compatibility Aliases  */
+<<<<<<< HEAD
       <Route path="jammu/survey/resco/dashboard" element={wrap(JammuRescoDashboard)} />,
       <Route path="jammu/survey/resco/assign" element={wrap(JammuAssignRescoSurvey)} />,
       <Route path="jammu/survey/resco/assign-survey" element={wrap(JammuAssignRescoSurvey)} />,
@@ -590,6 +615,9 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="jammu/srt70mw-survey-verify" element={wrap(JammuVerifySrt70MWSurvey)} />,
       <Route path="jk/resco-survey-dashboard" element={wrap(JammuRescoDashboard)} />,
       <Route path="jk/resco-survey-status-view" element={wrap(JammuRescoSurveyStatusView)} />,
+=======
+      <Route path="jammu/srt70mw-survey-verify" element={wrap(JammuVerifySrt70MWSurvey)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="jk/resco-survey-assign" element={wrap(JammuAssignRescoSurvey)} />,
       <Route path="jk/resco-survey-assign-view" element={wrap(JammuAssignViewSurvey)} />,
       <Route path="jk/resco-survey-assign-vendor" element={wrap(JammuAssignedSurveyVendor)} />,
@@ -597,6 +625,7 @@ export const vendorManagementRoutes: ReactElement[] = [
 
       /*  Super Admin: Jammu Installation Routes - SRT 70MW  */
       <Route path="vendor-management/jammu/installation/srt-70mw/dashboard" element={wrap(JammuSrtDashboard)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/installation/srt-70mw/status-view" element={wrap(JammuSrtStatusView)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/view-dashboard" element={wrap(JammuSrtStatusView)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/assign" element={wrap(JammuAssignSrtSites)} />,
@@ -604,6 +633,10 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="vendor-management/jammu/installation/srt-70mw/view-assign" element={wrap(JammuViewAssignSrtSites)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/verify-installation" element={wrap(JammuVerifySrtSites)} />,
+=======
+      <Route path="vendor-management/jammu/installation/srt-70mw/assign-sites" element={wrap(JammuAssignSrtSites)} />,
+      <Route path="vendor-management/jammu/installation/srt-70mw/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/installation/srt-70mw/verify-sites" element={wrap(JammuVerifySrtSites)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/view-claim" element={wrap(JammuViewSrtClaim)} />,
       <Route path="vendor-management/jammu/installation/srt-70mw/view-payment" element={wrap(JammuViewSrtPayment)} />,
@@ -611,17 +644,26 @@ export const vendorManagementRoutes: ReactElement[] = [
 
       /*  Jammu SRT 70MW Direct & Compatibility Aliases  */
       <Route path="vendor-management/jammu/srt/dashboard" element={wrap(JammuSrtDashboard)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/srt/status-view" element={wrap(JammuSrtStatusView)} />,
       <Route path="vendor-management/jammu/srt/assign" element={wrap(JammuAssignSrtSites)} />,
       <Route path="vendor-management/jammu/srt/assign-sites" element={wrap(JammuAssignSrtSites)} />,
       <Route path="vendor-management/jammu/srt/view-assign" element={wrap(JammuViewAssignSrtSites)} />,
       <Route path="vendor-management/jammu/srt/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />,
       <Route path="vendor-management/jammu/srt/verify-installation" element={wrap(JammuVerifySrtSites)} />,
+=======
+      <Route path="vendor-management/jammu/srt/assign-sites" element={wrap(JammuAssignSrtSites)} />,
+      <Route path="vendor-management/jammu/srt/view-assign" element={wrap(JammuViewAssignSrtSites)} />,
+      <Route path="vendor-management/jammu/srt/view-assign-sites" element={wrap(JammuViewAssignSrtSites)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/srt/verify-sites" element={wrap(JammuVerifySrtSites)} />,
       <Route path="vendor-management/jammu/srt/view-claim" element={wrap(JammuViewSrtClaim)} />,
       <Route path="vendor-management/jammu/srt/view-payment" element={wrap(JammuViewSrtPayment)} />,
       <Route path="vendor-management/jammu/srt" element={wrap(JammuSrtDashboard)} />,
+<<<<<<< HEAD
       <Route path="jammu/srt70mw/status-view" element={wrap(JammuSrtStatusView)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="jammu/assign-installation-srt70mw" element={wrap(JammuAssignSrtSites)} />,
       <Route path="jammu/view-assign-installation-srt70mw" element={wrap(JammuViewAssignSrtSites)} />,
       <Route path="jammu/verify-srt70mw-installation" element={wrap(JammuVerifySrtSites)} />,
@@ -637,7 +679,10 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="vendor-management/jammu/installation/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />,
       <Route path="vendor-management/jammu/installation/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />,
       <Route path="vendor-management/jammu/installation/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/installation/ssl/view-payment" element={wrap(JammuSslPaymentRequest)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/installation/ssl" element={wrap(JammuSslDashboard)} />,
       /*  Jammu SSL Shorthand Aliases  */
       <Route path="vendor-management/jammu/ssl/dashboard" element={wrap(JammuSslDashboard)} />,
@@ -650,11 +695,14 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="vendor-management/jammu/ssl/verify-lights" element={wrap(JammuVerifySslLights)} />,
       <Route path="vendor-management/jammu/ssl/claim-request" element={wrap(JammuSslClaimRequest)} />,
       <Route path="vendor-management/jammu/ssl/payment-request" element={wrap(JammuSslPaymentRequest)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/ssl/view-payment" element={wrap(JammuSslPaymentRequest)} />,
       <Route path="vendor-management/jammu/installation/ssl/status-view" element={wrap(JammuSslStatusView)} />,
       <Route path="vendor-management/jammu/ssl/status-view" element={wrap(JammuSslStatusView)} />,
       <Route path="jammu/installation/ssl/status-view" element={wrap(JammuSslStatusView)} />,
       <Route path="jammu/ssl/status-view" element={wrap(JammuSslStatusView)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/ssl" element={wrap(JammuSslDashboard)} />,
 
       /*  Super Admin: Jammu Installation Routes - SWP  */
@@ -713,16 +761,24 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="jammu/resco-verify-doc" element={wrap(JammuVerifyRescoDocument)} />,
 
       <Route path="vendor-management/jammu/installation/resco/view-claim" element={wrap(JammuViewRescoClaim)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/installation/resco/view-claims" element={wrap(JammuViewRescoClaim)} />,
       <Route path="vendor-management/jammu/resco/installation/view-claim" element={wrap(JammuViewRescoClaim)} />,
       <Route path="vendor-management/jammu/resco/installation/view-claims" element={wrap(JammuViewRescoClaim)} />,
+=======
+      <Route path="vendor-management/jammu/resco/installation/view-claim" element={wrap(JammuViewRescoClaim)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/resco-view-installation-claim" element={wrap(JammuViewRescoClaim)} />,
       <Route path="jammu/resco-view-installation-claim" element={wrap(JammuViewRescoClaim)} />,
 
       <Route path="vendor-management/jammu/installation/resco/view-payment" element={wrap(JammuViewRescoPayment)} />,
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/installation/resco/view-payments" element={wrap(JammuViewRescoPayment)} />,
       <Route path="vendor-management/jammu/resco/installation/view-payment" element={wrap(JammuViewRescoPayment)} />,
       <Route path="vendor-management/jammu/resco/installation/view-payments" element={wrap(JammuViewRescoPayment)} />,
+=======
+      <Route path="vendor-management/jammu/resco/installation/view-payment" element={wrap(JammuViewRescoPayment)} />,
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/resco-view-installation-payment" element={wrap(JammuViewRescoPayment)} />,
       <Route path="jammu/resco-view-installation-payment" element={wrap(JammuViewRescoPayment)} />,
 
@@ -731,12 +787,15 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route path="vendor-management/jammu/resco-installation-view-create-bill" element={wrap(JammuViewRescoBills)} />,
       <Route path="jammu/resco-installation-view-create-bill" element={wrap(JammuViewRescoBills)} />,
 
+<<<<<<< HEAD
       <Route path="vendor-management/jammu/installation/resco/status-view" element={wrap(JammuRescoStatusView)} />,
       <Route path="vendor-management/jammu/resco/installation/status-view" element={wrap(JammuRescoStatusView)} />,
       <Route path="vendor-management/jammu/resco/status-view" element={wrap(JammuRescoStatusView)} />,
       <Route path="jammu/resco/installation/status-view" element={wrap(JammuRescoStatusView)} />,
       <Route path="jammu/resco-status-view" element={wrap(JammuRescoStatusView)} />,
 
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route path="vendor-management/jammu/installation/resco" element={wrap(JammuRescoInstDashboard)} />,
       <Route path="vendor-management/jammu/installation" element={wrap(JammuSrtDashboard)} />,
 
@@ -749,8 +808,11 @@ export const vendorManagementRoutes: ReactElement[] = [
       /* Jammu Expense Aliases matching ERP links */
       <Route key="vm.jammu.exp.alias.pay1" path="vendor-management/jammu/installation-view-expenses-payment" element={wrap(JammuSrtExpenseViewPayments)} />,
       <Route key="vm.jammu.exp.alias.pay2" path="jammu/installation-view-expenses-payment" element={wrap(JammuSrtExpenseViewPayments)} />,
+<<<<<<< HEAD
       <Route key="vm.jammu.exp.alias.pay3" path="vendor-management/jammu/installation-expenses-payment-details/:id" element={wrap(JammuSrtExpenseViewPayments)} />,
       <Route key="vm.jammu.exp.alias.pay4" path="jammu/installation-expenses-payment-details/:id" element={wrap(JammuSrtExpenseViewPayments)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route key="vm.jammu.exp.alias.claim1" path="vendor-management/jammu/installation-view-expenses-claim" element={wrap(JammuSrtExpenseClaimRequests)} />,
       <Route key="vm.jammu.exp.alias.claim2" path="jammu/installation-view-expenses-claim" element={wrap(JammuSrtExpenseClaimRequests)} />,
       <Route key="vm.jammu.exp.alias.claim3" path="vendor-management/jammu/installation-expense-claims" element={wrap(JammuSrtExpenseClaimRequests)} />,
@@ -832,6 +894,7 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.up.amc.kc.vassign2" path="up/kusumc/amc/view-assign-site" element={wrap(UPKusumCAMCViewAssignSite)} />,
       <Route key="vm.up.amc.kc.verify" path="vendor-management/up/kusumc/amc/verify-site" element={wrap(UPKusumCAMCVerifySite)} />,
       <Route key="vm.up.amc.kc.verify2" path="up/kusumc/amc/verify-site" element={wrap(UPKusumCAMCVerifySite)} />,
+<<<<<<< HEAD
 
       <Route key="vm.up.amc.pp.assign" path="vendor-management/up/powerpack/amc/assign-site" element={wrap(UPPowerPackAMCAssignSite)} />,
       <Route key="vm.up.amc.pp.assign2" path="up/powerpack/amc/assign-site" element={wrap(UPPowerPackAMCAssignSite)} />,
@@ -1092,6 +1155,262 @@ export const vendorManagementRoutes: ReactElement[] = [
       <Route key="vm.kashmir.exp.claim2" path="vendor-management/kashmir/srt-installation-claim-expense" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,
       <Route key="vm.kashmir.exp.claim3" path="kashmir/srt-installation-claim-expense" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,
 
+=======
+
+      <Route key="vm.up.amc.pp.assign" path="vendor-management/up/powerpack/amc/assign-site" element={wrap(UPPowerPackAMCAssignSite)} />,
+      <Route key="vm.up.amc.pp.assign2" path="up/powerpack/amc/assign-site" element={wrap(UPPowerPackAMCAssignSite)} />,
+      <Route key="vm.up.amc.pp.vassign" path="vendor-management/up/powerpack/amc/view-assign-site" element={wrap(UPPowerPackAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.pp.vassign2" path="up/powerpack/amc/view-assigne-site" element={wrap(UPPowerPackAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.pp.vassign3" path="up/powerpack/amc/view-assign-site" element={wrap(UPPowerPackAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.pp.verify" path="vendor-management/up/powerpack/amc/verify-site" element={wrap(UPPowerPackAMCVerifySite)} />,
+      <Route key="vm.up.amc.pp.verify2" path="up/powerpack/amc/verify-site" element={wrap(UPPowerPackAMCVerifySite)} />,
+
+      <Route key="vm.up.amc.ongrid.assign" path="vendor-management/up/ongrid/amc/assign-site" element={wrap(UPOngridAMCAssignSite)} />,
+      <Route key="vm.up.amc.ongrid.assign2" path="up/ongrid/amc/assign-site" element={wrap(UPOngridAMCAssignSite)} />,
+      <Route key="vm.up.amc.ongrid.vassign" path="vendor-management/up/ongrid/amc/view-assign-site" element={wrap(UPOngridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.ongrid.vassign2" path="up/ongrid/amc/view-assigne-site" element={wrap(UPOngridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.ongrid.vassign3" path="up/ongrid/amc/view-assign-site" element={wrap(UPOngridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.ongrid.verify" path="vendor-management/up/ongrid/amc/verify-site" element={wrap(UPOngridAMCVerifySite)} />,
+      <Route key="vm.up.amc.ongrid.verify2" path="up/ongrid/amc/verify-site" element={wrap(UPOngridAMCVerifySite)} />,
+
+      <Route key="vm.up.amc.offgrid.assign" path="vendor-management/up/offgrid/amc/assign-site" element={wrap(UPOffgridAMCAssignSite)} />,
+      <Route key="vm.up.amc.offgrid.assign2" path="up/offgrid/amc/assign-site" element={wrap(UPOffgridAMCAssignSite)} />,
+      <Route key="vm.up.amc.offgrid.vassign" path="vendor-management/up/offgrid/amc/view-assign-site" element={wrap(UPOffgridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.offgrid.vassign2" path="up/offgrid/amc/view-assigne-site" element={wrap(UPOffgridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.offgrid.vassign3" path="up/offgrid/amc/view-assign-site" element={wrap(UPOffgridAMCViewAssignSite)} />,
+      <Route key="vm.up.amc.offgrid.verify" path="vendor-management/up/offgrid/amc/verify-site" element={wrap(UPOffgridAMCVerifySite)} />,
+      <Route key="vm.up.amc.offgrid.verify2" path="up/offgrid/amc/verify-site" element={wrap(UPOffgridAMCVerifySite)} />,
+
+      // UP Survey: Resco Survey
+      <Route key="vm.up.survey.resco.db" path="vendor-management/up/resco/survey/dashboard" element={wrap(UPRescoSurveyDashboard)} />,
+      <Route key="vm.up.survey.resco.db2" path="vendor-management/up/resco-survey-dashboard" element={wrap(UPRescoSurveyDashboard)} />,
+      <Route key="vm.up.survey.resco.db3" path="up/resco-survey-dashboard" element={wrap(UPRescoSurveyDashboard)} />,
+
+      <Route key="vm.up.survey.resco.assign" path="vendor-management/up/resco/survey/assign" element={wrap(UPRescoSurveyAssign)} />,
+      <Route key="vm.up.survey.resco.assign2" path="vendor-management/up/resco-survey-assign" element={wrap(UPRescoSurveyAssign)} />,
+      <Route key="vm.up.survey.resco.assign3" path="up/resco-survey-assign" element={wrap(UPRescoSurveyAssign)} />,
+
+      <Route key="vm.up.survey.resco.vassign" path="vendor-management/up/resco/survey/assign-view" element={wrap(UPRescoSurveyAssignView)} />,
+      <Route key="vm.up.survey.resco.vassign2" path="vendor-management/up/resco-survey-assign-view" element={wrap(UPRescoSurveyAssignView)} />,
+      <Route key="vm.up.survey.resco.vassign3" path="up/resco-survey-assign-view" element={wrap(UPRescoSurveyAssignView)} />,
+
+      <Route key="vm.up.survey.resco.verify" path="vendor-management/up/resco/survey/verify" element={wrap(UPRescoSurveyVerify)} />,
+      <Route key="vm.up.survey.resco.verify2" path="vendor-management/up/resco-survey-verify" element={wrap(UPRescoSurveyVerify)} />,
+      <Route key="vm.up.survey.resco.verify3" path="up/resco-survey-verify" element={wrap(UPRescoSurveyVerify)} />,
+
+      <Route key="vm.up.survey.resco.av" path="vendor-management/up/resco/survey/assign-vendor" element={wrap(UPRescoSurveyAssignVendor)} />,
+      <Route key="vm.up.survey.resco.av2" path="vendor-management/up/resco-survey-assign-vendor" element={wrap(UPRescoSurveyAssignVendor)} />,
+      <Route key="vm.up.survey.resco.av3" path="up/resco-survey-assign-vendor" element={wrap(UPRescoSurveyAssignVendor)} />,
+
+      // ── SUPER ADMIN: BIHAR ──
+      <Route key="vm.bihar.root" path="vendor-management/bihar" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+      <Route key="vm.bihar.inst" path="vendor-management/bihar/installation" element={wrap(BiharSSLInstallationDashboard)} />,
+
+      // Bihar Survey: SRT 200MW
+      <Route key="vm.bihar.srt200.db" path="vendor-management/bihar/srt200mw/survey/dashboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+      <Route key="vm.bihar.srt200.db2" path="vendor-management/bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+      <Route key="vm.bihar.srt200.db3" path="bihar/srt200mw-survey-dashbboard" element={wrap(BiharSRT200MWSurveyDashboard)} />,
+
+      <Route key="vm.bihar.srt200.status" path="vendor-management/bihar/srt200mw/survey/status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+      <Route key="vm.bihar.srt200.status2" path="vendor-management/bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+      <Route key="vm.bihar.srt200.status3" path="bihar/srt200mw/survey/status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+      <Route key="vm.bihar.srt200.status4" path="bihar/srt200mw-survey-status-view" element={wrap(BiharSRT200MWSurveyStatusView)} />,
+
+      <Route key="vm.bihar.srt200.assign" path="vendor-management/bihar/srt200mw/survey/assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
+      <Route key="vm.bihar.srt200.assign2" path="vendor-management/bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
+      <Route key="vm.bihar.srt200.assign3" path="bihar/srt200mw-survey-assign" element={wrap(BiharSRT200MWSurveyAssign)} />,
+
+      <Route key="vm.bihar.srt200.vassign" path="vendor-management/bihar/srt200mw/survey/assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+      <Route key="vm.bihar.srt200.vassign2" path="vendor-management/bihar/srt200mw-survey-assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+      <Route key="vm.bihar.srt200.vassign3" path="bihar/srt200mw-survey-assign-view" element={wrap(BiharSRT200MWSurveyAssignView)} />,
+
+      <Route key="vm.bihar.srt200.verify" path="vendor-management/bihar/srt200mw/survey/verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
+      <Route key="vm.bihar.srt200.verify2" path="vendor-management/bihar/srt200mw-survey-verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
+      <Route key="vm.bihar.srt200.verify3" path="bihar/srt200mw-survey-verify" element={wrap(BiharSRT200MWSurveyVerify)} />,
+
+      // Bihar Survey: ULA
+      <Route key="vm.bihar.ula.survey.view" path="vendor-management/bihar/ula/survey/view" element={wrap(BiharULASurveyViewData)} />,
+      <Route key="vm.bihar.ula.survey.view2" path="bihar/ula/survey/view" element={wrap(BiharULASurveyViewData)} />,
+
+      // Bihar Installation: SSL
+      <Route key="vm.bihar.ssl.inst.db" path="vendor-management/bihar/ssl/installation/dashboard" element={wrap(BiharSSLInstallationDashboard)} />,
+      <Route key="vm.bihar.ssl.inst.db2" path="vendor-management/bihar/ssl-installation-dashboard" element={wrap(BiharSSLInstallationDashboard)} />,
+      <Route key="vm.bihar.ssl.inst.db3" path="bihar/ssl-installation-dashboard" element={wrap(BiharSSLInstallationDashboard)} />,
+
+      <Route key="vm.bihar.ssl.inst.assign" path="vendor-management/bihar/ssl/installation/assign" element={wrap(BiharSSLInstallationAssignLight)} />,
+      <Route key="vm.bihar.ssl.inst.assign2" path="vendor-management/vendor/assign-ssl-sites" element={wrap(BiharSSLInstallationAssignLight)} />,
+      <Route key="vm.bihar.ssl.inst.assign3" path="vendor/assign-ssl-sites" element={wrap(BiharSSLInstallationAssignLight)} />,
+
+      <Route key="vm.bihar.ssl.inst.vassign" path="vendor-management/bihar/ssl/installation/view-assign" element={wrap(BiharSSLInstallationViewAssignLight)} />,
+      <Route key="vm.bihar.ssl.inst.vassign2" path="vendor-management/vendor/view-assign-ssl-sites" element={wrap(BiharSSLInstallationViewAssignLight)} />,
+      <Route key="vm.bihar.ssl.inst.vassign3" path="vendor/view-assign-ssl-sites" element={wrap(BiharSSLInstallationViewAssignLight)} />,
+
+      <Route key="vm.bihar.ssl.inst.verify" path="vendor-management/bihar/ssl/installation/verify" element={wrap(BiharSSLInstallationVerifyLight)} />,
+      <Route key="vm.bihar.ssl.inst.verify2" path="vendor-management/ssl/view-bihar-all-complete-ssl-site" element={wrap(BiharSSLInstallationVerifyLight)} />,
+      <Route key="vm.bihar.ssl.inst.verify3" path="ssl/view-bihar-all-complete-ssl-site" element={wrap(BiharSSLInstallationVerifyLight)} />,
+
+      <Route key="vm.bihar.ssl.inst.claim" path="vendor-management/bihar/ssl/installation/claim-request" element={wrap(BiharSSLInstallationClaimRequest)} />,
+      <Route key="vm.bihar.ssl.inst.claim2" path="vendor-management/bihar/ssl-installation-claim-request" element={wrap(BiharSSLInstallationClaimRequest)} />,
+      <Route key="vm.bihar.ssl.inst.claim3" path="bihar/ssl-installation-claim-request" element={wrap(BiharSSLInstallationClaimRequest)} />,
+
+      <Route key="vm.bihar.ssl.inst.pay" path="vendor-management/bihar/ssl/installation/payment-request" element={wrap(BiharSSLInstallationPaymentRequest)} />,
+      <Route key="vm.bihar.ssl.inst.pay2" path="vendor-management/bihar/view-ssl-payment-request" element={wrap(BiharSSLInstallationPaymentRequest)} />,
+      <Route key="vm.bihar.ssl.inst.pay3" path="bihar/view-ssl-payment-request" element={wrap(BiharSSLInstallationPaymentRequest)} />,
+
+      <Route key="vm.bihar.ssl.inst.supinsp" path="vendor-management/bihar/ssl/installation/supply-inspection" element={wrap(BiharSSLInstallationSupplyInspection)} />,
+      <Route key="vm.bihar.ssl.inst.supinsp2" path="vendor-management/bihar/view-ssl-supply-installation-request" element={wrap(BiharSSLInstallationSupplyInspection)} />,
+      <Route key="vm.bihar.ssl.inst.supinsp3" path="bihar/view-ssl-supply-installation-request" element={wrap(BiharSSLInstallationSupplyInspection)} />,
+
+      <Route key="vm.bihar.ssl.inst.insp" path="vendor-management/bihar/ssl/installation/installation-inspection" element={wrap(BiharSSLInstallationInspectionRequest)} />,
+      <Route key="vm.bihar.ssl.inst.insp2" path="vendor-management/bihar/view-ssl-installation-inspection-request" element={wrap(BiharSSLInstallationInspectionRequest)} />,
+      <Route key="vm.bihar.ssl.inst.insp3" path="bihar/view-ssl-installation-inspection-request" element={wrap(BiharSSLInstallationInspectionRequest)} />,
+
+      // Bihar Installation: SRT
+      <Route key="vm.bihar.srt.inst.db" path="vendor-management/bihar/srt/installation/dashboard" element={wrap(BiharSRTInstallationDashboard)} />,
+      <Route key="vm.bihar.srt.inst.db2" path="vendor-management/bihar/srt-installation-dashboard" element={wrap(BiharSRTInstallationDashboard)} />,
+      <Route key="vm.bihar.srt.inst.db3" path="bihar/srt-installation-dashboard" element={wrap(BiharSRTInstallationDashboard)} />,
+
+      <Route key="vm.bihar.srt.inst.assign" path="vendor-management/bihar/srt/installation/assign" element={wrap(BiharSRTInstallationAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.assign_sites" path="vendor-management/bihar/srt/installation/assign-sites" element={wrap(BiharSRTInstallationAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.assign_short" path="bihar/srt/installation/assign" element={wrap(BiharSRTInstallationAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.assign_sites_short" path="bihar/srt/installation/assign-sites" element={wrap(BiharSRTInstallationAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.assign2" path="vendor-management/srt/assign-srt" element={wrap(BiharSRTInstallationAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.assign3" path="srt/assign-srt" element={wrap(BiharSRTInstallationAssignSites)} />,
+
+      <Route key="vm.bihar.srt.inst.vassign" path="vendor-management/bihar/srt/installation/view-assign" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.vassign_sites" path="vendor-management/bihar/srt/installation/view-assign-sites" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.vassign_short" path="bihar/srt/installation/view-assign" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.vassign_sites_short" path="bihar/srt/installation/view-assign-sites" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.vassign2" path="vendor-management/srt/view" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.srt.inst.vassign3" path="srt/view" element={wrap(BiharSRTInstallationViewAssignSites)} />,
+
+      <Route key="vm.bihar.srt.inst.verify" path="vendor-management/bihar/srt/installation/verify" element={wrap(BiharSRTInstallationVerifySites)} />,
+      <Route key="vm.bihar.srt.inst.verify_sites" path="vendor-management/bihar/srt/installation/verify-sites" element={wrap(BiharSRTInstallationVerifySites)} />,
+      <Route key="vm.bihar.srt.inst.verify_short" path="bihar/srt/installation/verify" element={wrap(BiharSRTInstallationVerifySites)} />,
+      <Route key="vm.bihar.srt.inst.verify_sites_short" path="bihar/srt/installation/verify-sites" element={wrap(BiharSRTInstallationVerifySites)} />,
+      <Route key="vm.bihar.srt.inst.verify2" path="vendor-management/srt/verificationsite" element={wrap(BiharSRTInstallationVerifySites)} />,
+      <Route key="vm.bihar.srt.inst.verify3" path="srt/verificationsite" element={wrap(BiharSRTInstallationVerifySites)} />,
+
+      <Route key="vm.bihar.srt.inst.claim" path="vendor-management/bihar/srt/installation/claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+      <Route key="vm.bihar.srt.inst.claim_view" path="vendor-management/bihar/srt/installation/view-claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+      <Route key="vm.bihar.srt.inst.claim_short" path="bihar/srt/installation/claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+      <Route key="vm.bihar.srt.inst.claim_view_short" path="bihar/srt/installation/view-claim" element={wrap(BiharSRTInstallationViewClaim)} />,
+      <Route key="vm.bihar.srt.inst.claim2" path="vendor-management/srt/claimsite" element={wrap(BiharSRTInstallationViewClaim)} />,
+      <Route key="vm.bihar.srt.inst.claim3" path="srt/claimsite" element={wrap(BiharSRTInstallationViewClaim)} />,
+
+      <Route key="vm.bihar.srt.inst.pay" path="vendor-management/bihar/srt/installation/payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+      <Route key="vm.bihar.srt.inst.pay_view" path="vendor-management/bihar/srt/installation/view-payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+      <Route key="vm.bihar.srt.inst.pay_short" path="bihar/srt/installation/payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+      <Route key="vm.bihar.srt.inst.pay_view_short" path="bihar/srt/installation/view-payment" element={wrap(BiharSRTInstallationViewPayment)} />,
+      <Route key="vm.bihar.srt.inst.pay2" path="vendor-management/srt/assignsrtpayment" element={wrap(BiharSRTInstallationViewPayment)} />,
+      <Route key="vm.bihar.srt.inst.pay3" path="srt/assignsrtpayment" element={wrap(BiharSRTInstallationViewPayment)} />,
+
+      // Bihar Installation: ULA
+      <Route key="vm.bihar.ula.inst.db" path="vendor-management/bihar/ula/installation/dashboard" element={wrap(BiharVMULAInstallationDashboard)} />,
+      <Route key="vm.bihar.ula.inst.db2" path="vendor-management/bihar/ula-installation-dashboard" element={wrap(BiharVMULAInstallationDashboard)} />,
+      <Route key="vm.bihar.ula.inst.db3" path="bihar/ula/installation/dashboard" element={wrap(BiharVMULAInstallationDashboard)} />,
+
+      <Route key="vm.bihar.ula.inst.status" path="vendor-management/bihar/ula/installation/status-view" element={wrap(BiharULAInstallationStatusView)} />,
+      <Route key="vm.bihar.ula.inst.status2" path="vendor-management/bihar/ula-installation-status-view" element={wrap(BiharULAInstallationStatusView)} />,
+      <Route key="vm.bihar.ula.inst.status3" path="bihar/ula/installation/status-view" element={wrap(BiharULAInstallationStatusView)} />,
+      <Route key="vm.bihar.ula.inst.status4" path="bihar/ula-installation-status-view" element={wrap(BiharULAInstallationStatusView)} />,
+
+      <Route key="vm.bihar.ula.inst.cassign" path="vendor-management/bihar/ula/installation/create-assign-site" element={wrap(BiharULAInstallationAssignSites)} />,
+      <Route key="vm.bihar.ula.inst.cassign2" path="bihar/ula/installation/create-assign-site" element={wrap(BiharULAInstallationAssignSites)} />,
+
+      <Route key="vm.bihar.ula.inst.vassign" path="vendor-management/bihar/ula/installation/view-assign-site" element={wrap(BiharULAInstallationViewAssignSites)} />,
+      <Route key="vm.bihar.ula.inst.vassign2" path="bihar/ula/installation/view-assign-site" element={wrap(BiharULAInstallationViewAssignSites)} />,
+
+      <Route key="vm.bihar.ula.inst.sapp" path="vendor-management/bihar/ula/installation/structure-approval-site" element={wrap(BiharULAInstallationStructureApproval)} />,
+      <Route key="vm.bihar.ula.inst.sapp2" path="bihar/ula/installation/structure-approval-site" element={wrap(BiharULAInstallationStructureApproval)} />,
+
+      <Route key="vm.bihar.ula.inst.vsite" path="vendor-management/bihar/ula/installation/view-site" element={wrap(BiharULAInstallationViewSite)} />,
+      <Route key="vm.bihar.ula.inst.vsite2" path="bihar/ula/installation/view-site" element={wrap(BiharULAInstallationViewSite)} />,
+
+      <Route key="vm.bihar.ula.inst.vdoc" path="vendor-management/bihar/ula/installation/view-document" element={wrap(BiharULAInstallationViewDocument)} />,
+      <Route key="vm.bihar.ula.inst.vdoc2" path="bihar/ula/installation/view-document" element={wrap(BiharULAInstallationViewDocument)} />,
+
+      <Route key="vm.bihar.ula.inst.vclaim" path="vendor-management/bihar/ula/installation/view-claim" element={wrap(BiharULAInstallationViewClaim)} />,
+      <Route key="vm.bihar.ula.inst.vclaim2" path="bihar/ula/installation/view-claim" element={wrap(BiharULAInstallationViewClaim)} />,
+
+      <Route key="vm.bihar.ula.inst.vpay" path="vendor-management/bihar/ula/installation/view-payment" element={wrap(BiharULAInstallationViewPayment)} />,
+      <Route key="vm.bihar.ula.inst.vpay2" path="bihar/ula/installation/view-payment" element={wrap(BiharULAInstallationViewPayment)} />,
+
+      // Bihar AMC: SSL
+      <Route key="vm.bihar.amc.ssl.db" path="vendor-management/bihar/ssl/amc/dashboard" element={wrap(BiharSSLAMCDashboard)} />,
+      <Route key="vm.bihar.amc.ssl.db2" path="vendor-management/bihar-ssl-amc-dashboard" element={wrap(BiharSSLAMCDashboard)} />,
+      <Route key="vm.bihar.amc.ssl.db3" path="bihar-ssl-amc-dashboard" element={wrap(BiharSSLAMCDashboard)} />,
+
+      <Route key="vm.bihar.amc.ssl.assign" path="vendor-management/bihar/ssl/amc/assign" element={wrap(BiharSSLAMCAssignSSL)} />,
+      <Route key="vm.bihar.amc.ssl.assign2" path="vendor-management/assign-vendor-biharssl" element={wrap(BiharSSLAMCAssignSSL)} />,
+      <Route key="vm.bihar.amc.ssl.assign3" path="assign-vendor-biharssl" element={wrap(BiharSSLAMCAssignSSL)} />,
+
+      <Route key="vm.bihar.amc.ssl.verify" path="vendor-management/bihar/ssl/amc/verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
+      <Route key="vm.bihar.amc.ssl.verify2" path="vendor-management/bihar-ssl-amc-verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
+      <Route key="vm.bihar.amc.ssl.verify3" path="bihar-ssl-amc-verify" element={wrap(BiharSSLAMCVerrifyAMC)} />,
+
+      <Route key="vm.bihar.amc.ssl.status" path="vendor-management/bihar/ssl/amc/status-view" element={wrap(BiharSSLAMCStatusView)} />,
+      <Route key="vm.bihar.amc.ssl.status2" path="vendor-management/bihar-ssl-amc-status-view" element={wrap(BiharSSLAMCStatusView)} />,
+      <Route key="vm.bihar.amc.ssl.status3" path="bihar/ssl/amc/status-view" element={wrap(BiharSSLAMCStatusView)} />,
+      <Route key="vm.bihar.amc.ssl.status4" path="bihar-ssl-amc-status-view" element={wrap(BiharSSLAMCStatusView)} />,
+
+      // Bihar AMC: SRT
+      <Route key="vm.bihar.amc.srt.db" path="vendor-management/bihar/srt/amc/dashboard" element={wrap(BiharSRTAMCDashboard)} />,
+      <Route key="vm.bihar.amc.srt.db2" path="vendor-management/bihar/bihar-srt-amc-dashboard" element={wrap(BiharSRTAMCDashboard)} />,
+      <Route key="vm.bihar.amc.srt.db3" path="bihar/bihar-srt-amc-dashboard" element={wrap(BiharSRTAMCDashboard)} />,
+
+      <Route key="vm.bihar.amc.srt.assign" path="vendor-management/bihar/srt/amc/assign" element={wrap(BiharSRTAMCAssignSRT)} />,
+      <Route key="vm.bihar.amc.srt.assign2" path="vendor-management/assign-vendor-srt-bihar" element={wrap(BiharSRTAMCAssignSRT)} />,
+      <Route key="vm.bihar.amc.srt.assign3" path="assign-vendor-srt-bihar" element={wrap(BiharSRTAMCAssignSRT)} />,
+
+      <Route key="vm.bihar.amc.srt.vassign" path="vendor-management/bihar/srt/amc/view-assign" element={wrap(BiharSRTAMCAssignViewSite)} />,
+      <Route key="vm.bihar.amc.srt.vassign2" path="vendor-management/bihar-srt-amc-assign-site-view" element={wrap(BiharSRTAMCAssignViewSite)} />,
+      <Route key="vm.bihar.amc.srt.vassign3" path="bihar-srt-amc-assign-site-view" element={wrap(BiharSRTAMCAssignViewSite)} />,
+
+      <Route key="vm.bihar.amc.srt.verify" path="vendor-management/bihar/srt/amc/verify" element={wrap(BiharSRTAMCVerifySite)} />,
+      <Route key="vm.bihar.amc.srt.verify2" path="vendor-management/bihar-amc-srt-site-verify" element={wrap(BiharSRTAMCVerifySite)} />,
+      <Route key="vm.bihar.amc.srt.verify3" path="bihar-amc-srt-site-verify" element={wrap(BiharSRTAMCVerifySite)} />,
+
+      // ── SUPER ADMIN: JAMMU ──
+
+
+      // ── SUPER ADMIN: KASHMIR ──
+      <Route key="vm.kashmir.root" path="vendor-management/kashmir" element={wrap(KashmirSRT70MWInstallationDashboard)} />,
+      <Route key="vm.kashmir.inst" path="vendor-management/kashmir/installation" element={wrap(KashmirSRT70MWInstallationDashboard)} />,
+
+      // Kashmir Installation: SRT 70MW
+      <Route key="vm.kashmir.srt.inst.db" path="vendor-management/kashmir/srt70mw/installation/dashboard" element={wrap(KashmirSRT70MWInstallationDashboard)} />,
+      <Route key="vm.kashmir.srt.inst.db2" path="kashmir/srt70mw/installation-dashboard" element={wrap(KashmirSRT70MWInstallationDashboard)} />,
+
+      <Route key="vm.kashmir.srt.inst.assign" path="vendor-management/kashmir/srt70mw/installation/assign" element={wrap(KashmirSRT70MWInstallationAssignSites)} />,
+      <Route key="vm.kashmir.srt.inst.assign2" path="vendor-management/kashmir/assign-installation-srt70mw" element={wrap(KashmirSRT70MWInstallationAssignSites)} />,
+      <Route key="vm.kashmir.srt.inst.assign3" path="kashmir/assign-installation-srt70mw" element={wrap(KashmirSRT70MWInstallationAssignSites)} />,
+
+      <Route key="vm.kashmir.srt.inst.vassign" path="vendor-management/kashmir/srt70mw/installation/view-assign" element={wrap(KashmirSRT70MWInstallationViewAssignSites)} />,
+      <Route key="vm.kashmir.srt.inst.vassign2" path="vendor-management/kashmir/view-assign-installation-srt70mw" element={wrap(KashmirSRT70MWInstallationViewAssignSites)} />,
+      <Route key="vm.kashmir.srt.inst.vassign3" path="kashmir/view-assign-installation-srt70mw" element={wrap(KashmirSRT70MWInstallationViewAssignSites)} />,
+
+      <Route key="vm.kashmir.srt.inst.verify" path="vendor-management/kashmir/srt70mw/installation/verify" element={wrap(KashmirSRT70MWInstallationVerifySites)} />,
+      <Route key="vm.kashmir.srt.inst.verify2" path="vendor-management/kashmir/verify-srt70mw-installation" element={wrap(KashmirSRT70MWInstallationVerifySites)} />,
+      <Route key="vm.kashmir.srt.inst.verify3" path="kashmir/verify-srt70mw-installation" element={wrap(KashmirSRT70MWInstallationVerifySites)} />,
+
+      <Route key="vm.kashmir.srt.inst.claim" path="vendor-management/kashmir/srt70mw/installation/view-claim" element={wrap(KashmirSRT70MWInstallationViewClaim)} />,
+      <Route key="vm.kashmir.srt.inst.claim2" path="vendor-management/kashmir/view-srt70mw-claim-request" element={wrap(KashmirSRT70MWInstallationViewClaim)} />,
+      <Route key="vm.kashmir.srt.inst.claim3" path="kashmir/view-srt70mw-claim-request" element={wrap(KashmirSRT70MWInstallationViewClaim)} />,
+
+      <Route key="vm.kashmir.srt.inst.pay" path="vendor-management/kashmir/srt70mw/installation/view-payment" element={wrap(KashmirSRT70MWInstallationViewPayment)} />,
+      <Route key="vm.kashmir.srt.inst.pay2" path="vendor-management/kashmir/view-srt70mw-payment-request" element={wrap(KashmirSRT70MWInstallationViewPayment)} />,
+      <Route key="vm.kashmir.srt.inst.pay3" path="kashmir/view-srt70mw-payment-request" element={wrap(KashmirSRT70MWInstallationViewPayment)} />,
+
+      <Route key="vm.kashmir.srt.inst.status" path="vendor-management/kashmir/srt70mw/installation/status-view" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
+      <Route key="vm.kashmir.srt.inst.status2" path="kashmir/srt70mw/installation/status-view" element={wrap(KashmirSRT70MWInstallationStatusView)} />,
+
+      // Kashmir Expense: SRT 70MW
+      <Route key="vm.kashmir.exp.claim" path="vendor-management/kashmir/srt70mw/expense/claim-requests" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,
+      <Route key="vm.kashmir.exp.claim2" path="vendor-management/kashmir/srt-installation-claim-expense" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,
+      <Route key="vm.kashmir.exp.claim3" path="kashmir/srt-installation-claim-expense" element={wrap(KashmirSRT70MWExpenseClaimRequests)} />,
+
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       <Route key="vm.kashmir.exp.pay" path="vendor-management/kashmir/srt70mw/expense/view-payments" element={wrap(KashmirSRT70MWExpenseViewPayments)} />,
       <Route key="vm.kashmir.exp.pay2" path="vendor-management/kashmir/srt-installation-view-payment-expense" element={wrap(KashmirSRT70MWExpenseViewPayments)} />,
       <Route key="vm.kashmir.exp.pay3" path="kashmir/srt-installation-view-payment-expense" element={wrap(KashmirSRT70MWExpenseViewPayments)} />,
@@ -1235,8 +1554,11 @@ export const vendorManagementRoutes: ReactElement[] = [
 
       <Route key="vm.jammu.resco.vsurv1" path="vendor-management/jammu/survey/resco/verify-survey" element={wrap(JammuVerifySurvey)} />,
       <Route key="vm.jammu.resco.vsurv2" path="jammu/survey/resco/verify-survey" element={wrap(JammuVerifySurvey)} />,
+<<<<<<< HEAD
       <Route key="vm.jammu.resco.sv1" path="vendor-management/jammu/survey/resco/status-view" element={wrap(JammuRescoSurveyStatusView)} />,
       <Route key="vm.jammu.resco.sv2" path="jammu/survey/resco/status-view" element={wrap(JammuRescoSurveyStatusView)} />,
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
       <Route key="vm.jammu.srt.vsurv1" path="vendor-management/jammu/survey/srt-70mw/verify-survey" element={wrap(JammuVerifySrt70MWSurvey)} />,
       <Route key="vm.jammu.srt.vsurv2" path="jammu/survey/srt-70mw/verify-survey" element={wrap(JammuVerifySrt70MWSurvey)} />,

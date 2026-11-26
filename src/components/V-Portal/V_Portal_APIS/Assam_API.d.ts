@@ -1,7 +1,11 @@
 export declare const ASSAM_SWP_API: {
   ASSIGNED_SITES: string;
   ASSIGN_SITE_DETAIL: (id: any) => string;
+<<<<<<< HEAD
   ACCEPT_INSTALLATION: (id: any, assignId?: any) => string;
+=======
+  ACCEPT_INSTALLATION: (id: any) => string;
+>>>>>>> b7724a26675275e33c5aa8bd0f2e9734dbf67476
   INSTALL_SITE_NAME_LIST: string;
   INSTALL_SITE_DETAILS: (siteId: string | number) => string;
   INSTALL_SITE_STORE: string;

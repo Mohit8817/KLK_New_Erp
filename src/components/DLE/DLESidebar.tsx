@@ -98,9 +98,20 @@ const DLE_SECTIONS: NavSection[] = [
             title: 'SSL Lights',
             tag: 'SSL',
             children: [
+              { id: 'dle.up.ssl.amc.dashboard', title: 'Dashboard', to: '/dle/up/ssl/amc/dashboard', iconType: 'analytics' },
               { id: 'dle.up.ssl.amc.assign', title: 'Assign Lights', to: '/dle/up/ssl/amc/create-assign-light', iconType: 'assign' },
               { id: 'dle.up.ssl.amc.view-assign', title: 'View Assign Light', to: '/dle/up/ssl/amc/view-assign-light', iconType: 'view-assign' },
               { id: 'dle.up.ssl.amc.view-survey', title: 'View Survey Light', to: '/dle/up/ssl/amc/view-verify-light', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.dle.up.amc.kusumc',
+            title: 'KUSUM-C Pumps',
+            tag: 'KUSUM-C',
+            children: [
+              { id: 'dle.up.kusumc.amc.dashboard', title: 'Dashboard', to: '/dle/up/kusumc/amc/dashboard', iconType: 'analytics' },
+              // { id: 'dle.up.kusumc.amc.assign', title: 'Assign Pumps', to: '/dle/up/kusumc/amc/create-assign', iconType: 'assign' },
+              { id: 'dle.up.kusumc.amc.view-assign', title: 'View Assign', to: '/dle/up/kusumc/amc/view-assign', iconType: 'view-assign' },
             ],
           },
         ],

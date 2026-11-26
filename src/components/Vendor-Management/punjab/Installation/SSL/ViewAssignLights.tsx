@@ -1250,10 +1250,27 @@ export function ViewAssignLights() {
           <button
             type="button"
             onClick={() => setSelectedAssignForSites(null)}
+<<<<<<< HEAD
             className="ax-btn ax-btn--primary"
             style={{
               padding: '6px 16px',
               fontSize: 13,
+=======
+<<<<<<< HEAD
+            className="ax-btn ax-btn--primary"
+            style={{
+              padding: '6px 16px',
+              fontSize: 13,
+=======
+            style={{
+              padding: '6px 16px',
+              fontSize: 13,
+              borderRadius: 6,
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1462,10 +1479,26 @@ export function ViewAssignLights() {
                     download
                     target="_blank"
                     rel="noopener noreferrer"
+<<<<<<< HEAD
                     className="ax-btn ax-btn--primary"
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+=======
+<<<<<<< HEAD
+                    className="ax-btn ax-btn--primary"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+=======
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 16px',
+                      borderRadius: 6,
+                      background: '#2563eb',
+                      color: '#fff',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                       fontWeight: 700,
                       fontSize: 13,
                       textDecoration: 'none',

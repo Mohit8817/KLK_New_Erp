@@ -959,6 +959,62 @@ export function AssignLights() {
         </div>
       )}
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+      {/* Edit Mode Notice Banner */}
+      {isEditMode && !isAcceptedLocked && (
+        <div
+          style={{
+            padding: '14px 18px',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: 10,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            color: '#1e40af',
+            fontSize: 13,
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ flexShrink: 0, color: '#2563eb' }}
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 2 }}>
+<<<<<<< HEAD
+              Edit Mode — Assigned Lights ID: {editId}
+=======
+<<<<<<< HEAD
+              Edit Mode — Assigned Lights ID: {editId}
+=======
+              Edit Mode — Assigned Lights #{editId}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+            </div>
+            <div>
+              Territory & vendor allocation (Vendor, Volume, District, Block, and assigned Panchayats) is locked to this assignment record. You can update the completion deadline date, remarks, and work order file.
+            </div>
+          </div>
+        </div>
+      )}
+
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       {/* Status Banners */}
       {errorMsg && (
         <div
@@ -1012,7 +1068,23 @@ export function AssignLights() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <h2 className="ax-card__title" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--ax-text-strong, #0f172a)' }}>
+<<<<<<< HEAD
                 {isEditMode ? `Edit Assigned Lights #${editId}` : 'Arunachal SHL Installation Assignment Form'}
+=======
+<<<<<<< HEAD
+                {isEditMode ? `Edit Assigned Lights #${editId}` : 'Arunachal SHL Installation Assignment Form'}
+=======
+<<<<<<< HEAD
+                {isEditMode ? `Edit Assigned Lights ID: ${editId}` : 'SHL Installation Assign Lights'}
+=======
+<<<<<<< HEAD
+                {isEditMode ? `Edit Assigned Lights ID: ${editId}` : 'SHL Installation Assign Lights'}
+=======
+                {isEditMode ? `Edit Assigned Lights #${editId}` : 'SHL Installation Assign Lights'}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
               </h2>
               <p className="ax-card__subtitle" style={{ fontSize: '0.85rem', color: isAcceptedLocked ? '#2563eb' : '#ef4444', margin: '4px 0 0' }}>
                 {isAcceptedLocked
@@ -1085,6 +1157,220 @@ export function AssignLights() {
                     <span
                       style={{
                         fontSize: 11,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+                        background: '#f1f5f9',
+                        color: '#475569',
+                        border: '1px solid #cbd5e1',
+                        padding: '2px 8px',
+                        borderRadius: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+<<<<<<< HEAD
+                      Locked to Work Order ID: {editId}
+=======
+<<<<<<< HEAD
+                      Locked to Work Order ID: {editId}
+=======
+                      Locked to Work Order #{editId}
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--ax-text-muted, #64748b)' }}>
+                  {isEditMode
+                    ? 'Panchayats allocated to this work order assignment'
+                    : 'Choose eligible panchayats with available solar street lights for installation'}
+                </span>
+              </div>
+              {panchayats.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#2563eb' }}>
+                    {selectedPanchayats.length} of {panchayats.length} Selected ({selectedLightsTally} Lights)
+                  </span>
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={handleSelectAll}
+                      disabled={isAcceptedLocked || isEditMode}
+                      className="ax-btn ax-btn--secondary ax-btn--sm"
+                      style={{ fontSize: 11, padding: '3px 10px', opacity: (isAcceptedLocked || isEditMode) ? 0.6 : 1 }}
+                    >
+                      {selectedPanchayats.length === panchayats.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Quick dropdown for Panchayat */}
+            <div className="ax-float" style={{ marginBottom: 16, maxWidth: '640px' }}>
+              <select
+                id="panchayat_dropdown"
+                className="ax-float__input"
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  if (val && !selectedPanchayats.includes(val)) {
+                    setSelectedPanchayats((prev) => [...prev, val]);
+                  }
+                }}
+                disabled={isEditMode || !selectedBlock || panchayatsLoading || panchayats.length === 0 || submitting || isAcceptedLocked}
+              >
+                <option value="">
+                  {isEditMode
+                    ? '-- Panchayats Locked in Edit Mode --'
+                    : !selectedBlock
+                    ? '-- Select Block First --'
+                    : panchayatsLoading
+                    ? 'Loading Panchayats...'
+                    : panchayats.length === 0
+                    ? 'No panchayat available'
+                    : '-- Select Panchayat Name --'}
+                </option>
+                {panchayats.map((p, idx) => (
+                  <option key={idx} value={p.panchayat}>
+                    {p.panchayat} {p.count !== undefined ? `(${p.count} lights available)` : ''}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="panchayat_dropdown" className="ax-float__label floating">
+                Panchayat <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+            </div>
+
+            {!selectedBlock ? (
+              <div
+                style={{
+                  padding: '24px',
+                  background: 'var(--ax-surface-subtle, #f8fafc)',
+                  border: '1.5px dashed var(--ax-border, #cbd5e1)',
+                  borderRadius: 10,
+                  color: 'var(--ax-text-muted, #64748b)',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                -- Select District & Block to Load Panchayats --
+              </div>
+            ) : panchayatsLoading ? (
+              <div style={{ padding: '28px', textAlign: 'center', color: '#2563eb', fontSize: 13 }}>
+                <span className="ax-spinner" style={{ marginRight: 8 }} />
+                Fetching panchayats for block &ldquo;{selectedBlock}&rdquo;...
+              </div>
+            ) : panchayats.length === 0 ? (
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 8,
+                  color: '#b91c1c',
+                  fontSize: 13,
+                  textAlign: 'center',
+                }}
+              >
+                No panchayat available
+              </div>
+            ) : (
+              <div style={{ border: '1px solid var(--ax-border, #e2e8f0)', borderRadius: 10, overflow: 'hidden', background: 'var(--ax-surface-solid, #ffffff)' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle, #f8fafc)', borderBottom: '1px solid var(--ax-border, #e2e8f0)' }}>
+                  <input
+                    type="text"
+                    className="ax-form-input"
+                    value={panchayatFilterQuery}
+                    onChange={(e) => setPanchayatFilterQuery(e.target.value)}
+                    placeholder="Search panchayat name..."
+                    disabled={isAcceptedLocked}
+                    style={{ width: '100%', padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+                  />
+                </div>
+
+                <div style={{ maxHeight: 260, overflowY: 'auto', padding: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                    {filteredPanchayats.map((p, idx) => {
+                      const isSelected = selectedPanchayats.includes(p.panchayat);
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => handleTogglePanchayat(p.panchayat)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: `1.5px solid ${isSelected ? '#3b82f6' : 'var(--ax-border, #e2e8f0)'}`,
+                            background: isSelected ? '#eff6ff' : 'var(--ax-surface-solid, #ffffff)',
+                            cursor: (isAcceptedLocked || isEditMode) ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            fontSize: 12,
+                            opacity: (isAcceptedLocked || isEditMode) ? 0.9 : 1,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={isAcceptedLocked || isEditMode}
+                            onChange={() => handleTogglePanchayat(p.panchayat)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: 'var(--ax-text-strong, #1e293b)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.panchayat}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--ax-text-muted, #64748b)' }}>
+                              {isEditMode ? 'Assigned under this order' : (p.count !== undefined ? `${p.count} lights available` : 'Available for allocation')}
+                            </div>
+                          </div>
+                          {p.count !== undefined && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                background: isSelected ? '#dbeafe' : '#f1f5f9',
+                                color: isSelected ? '#1e40af' : '#475569',
+                              }}
+                            >
+                              {p.count}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <hr className="shl-section-divider" />
+
+          {/* Section 4: Timeline & Work Order */}
+          <div ref={sec4} className="shl-section-block">
+            <div className="shl-section-header">
+              <div className="shl-section-title-wrap">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>4. Timeline & Work Order</h3>
+                  {isEditMode && (
+                    <span
+                      style={{
+                        fontSize: 11,
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                         background: '#ecfdf5',
                         color: '#047857',
                         border: '1px solid #a7f3d0',

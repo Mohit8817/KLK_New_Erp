@@ -8,6 +8,7 @@ export const ADMIN_BASE_URL = `${API_ROOT}/admin`;
 export const ROOT_URL = RAW_BASE.replace(/\/api\/?$/, '');
 
 /**
+<<<<<<< HEAD
  * Build candidate URLs for a given route path (supporting both /api/admin/... and /admin/...)
  */
 export function buildCandidateUrls(path: string): string[] {
@@ -33,6 +34,68 @@ export function buildCandidateUrls(path: string): string[] {
   }
 
   return Array.from(new Set(candidates));
+=======
+ * Build candidate URLs for a given route path (supporting web routes, /admin, /api, and root routes)
+ */
+export function buildCandidateUrls(rawPathOrUrl: string): string[] {
+  let path = (rawPathOrUrl || '').trim();
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const u = new URL(path);
+      path = u.pathname + u.search;
+    } catch {
+      // ignore
+    }
+  }
+  
+
+  let pathname = path;
+  let search = '';
+  const qIndex = path.indexOf('?');
+  if (qIndex !== -1) {
+    pathname = path.slice(0, qIndex);
+    search = path.slice(qIndex);
+  }
+
+  // Strip repeated /api/admin, /admin, /api prefixes until clean
+  let cleaned = pathname;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    if (cleaned.startsWith('/api/admin/')) {
+      cleaned = cleaned.slice('/api/admin'.length);
+      changed = true;
+    } else if (cleaned.startsWith('/admin/')) {
+      cleaned = cleaned.slice('/admin'.length);
+      changed = true;
+    } else if (cleaned.startsWith('/api/')) {
+      cleaned = cleaned.slice('/api'.length);
+      changed = true;
+    }
+  }
+
+  if (!cleaned.startsWith('/')) {
+    cleaned = `/${cleaned}`;
+  }
+
+  const routePath = `${cleaned}${search}`;
+
+  const candidates: string[] = [
+    // 1. API Admin route: e.g. https://klkerp.com/api/admin/punjab/ssl/installation/...
+    `${ADMIN_BASE_URL}${routePath}`,
+
+    // 2. Direct API route: e.g. https://klkerp.com/api/punjab/ssl/installation/...
+    `${BASE_URL}${routePath}`,
+
+    // 3. Direct Web / Admin route: e.g. https://klkerp.com/admin/punjab/ssl/installation/...
+    `${ROOT_URL}/admin${routePath}`,
+
+    // 4. Root web route: e.g. https://klkerp.com/punjab/ssl/installation/...
+    `${ROOT_URL}${routePath}`,
+  ];
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 }
 
 /**
@@ -125,6 +188,20 @@ export const PUNJAB_ADMIN_SSL_API = {
   // ── 5. Save assignment ──
   // POST /admin/punjab/ssl/installation/store-assign
   STORE_ASSIGN: `${ADMIN_BASE_URL}/punjab/ssl/installation/store-assign`,
+<<<<<<< HEAD
+=======
+  STORE_ASSIGN_ROOT: `${BASE_URL}/punjab/ssl/installation/store-assign`,
+  STORE_ASSIGN_CANDIDATES: () => [
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/store-assign'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/assign'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/store'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/store-assign-light'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/store-assign-lights'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/assign-lights'),
+    ...buildCandidateUrls('/admin/punjab/ssl/installation/assign-store'),
+    ...buildCandidateUrls('/vendor/punjab/ssl/installation/store-assign'),
+  ],
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
   // ── 6. Edit form ──
   // GET /admin/punjab/ssl/installation/edit-assign/{id}

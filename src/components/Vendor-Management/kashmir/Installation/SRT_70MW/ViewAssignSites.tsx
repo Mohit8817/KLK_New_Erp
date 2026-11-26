@@ -21,7 +21,15 @@ import {
 const PAGE_CSS = `
   .solar-erp-page {
     --asw-primary: var(--ax-accent, #2563eb);
+<<<<<<< HEAD
     --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+=======
+<<<<<<< HEAD
+    --asw-primary-rgb: var(--ax-accent-rgb, 37, 99, 235);
+=======
+    --asw-primary-rgb: 37, 99, 235;
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   }
   .solar-erp-page .ax-card { min-width: 0; }
   .solar-erp-page .ax-card__footer { width: 100%; box-sizing: border-box; }
@@ -1275,6 +1283,9 @@ export function ViewAssignSites() {
         footer={
           <button
             type="button"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
             className="ax-btn ax-btn--primary"
             onClick={() => setSelectedAssignForSites(null)}
             style={{
@@ -1282,18 +1293,84 @@ export function ViewAssignSites() {
               fontSize: 13,
               fontWeight: 600,
               cursor: 'pointer',
+=======
+            onClick={() => {
+              setSelectedAssignForSites(null);
+              setModalSiteSearch('');
+            }}
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
+            className="ax-btn ax-btn--primary"
+            onClick={() => setSelectedAssignForSites(null)}
+            style={{
+              padding: '6px 16px',
+              fontSize: 13,
+<<<<<<< HEAD
+              fontWeight: 600,
+              cursor: 'pointer',
+=======
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
             }}
           >
             Close
           </button>
         }
       >
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
         {selectedAssignForSites && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
                 <strong style={{ fontSize: 13 }}>{vendorOf(selectedAssignForSites)}</strong>
+<<<<<<< HEAD
+=======
+=======
+        {selectedAssignForSites && (() => {
+          const allSites = parseSiteItems(selectedAssignForSites);
+          const filteredSites = modalSiteSearch.trim()
+            ? allSites.filter((s) =>
+                s.name.toLowerCase().includes(modalSiteSearch.toLowerCase()) ||
+                (s.district || '').toLowerCase().includes(modalSiteSearch.toLowerCase())
+              )
+            : allSites;
+
+          return (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Vendor</span>
+                  <strong style={{ fontSize: 13 }}>{vendorOf(selectedAssignForSites)}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
+                  <strong style={{ fontSize: 13 }}>{fmtDate(selectedAssignForSites.deadline_date) || allSites[0]?.deadline || '—'}</strong>
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Status</span>
+                  <strong
+                    style={{
+                      fontSize: 13,
+                      color:
+                        Number(selectedAssignForSites.status) === 2
+                          ? 'var(--ax-accent, #2563eb)'
+                          : Number(selectedAssignForSites.status) === 1
+                          ? '#10b981'
+                          : '#d97706',
+                    }}
+                  >
+                    {Number(selectedAssignForSites.status) === 2
+                      ? 'Accepted'
+                      : Number(selectedAssignForSites.status) === 1
+                      ? 'Approved'
+                      : 'Pending'}
+                  </strong>
+                </div>
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
               </div>
               <div>
                 <span style={{ fontSize: 11, color: '#64748b', display: 'block' }}>Deadline Date</span>
@@ -1466,8 +1543,16 @@ export function ViewAssignSites() {
                     style={{
                       display: 'inline-block',
                       padding: '8px 16px',
+<<<<<<< HEAD
                       fontWeight: 700,
                       fontSize: 13,
+=======
+<<<<<<< HEAD
+                      fontWeight: 700,
+                      fontSize: 13,
+=======
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                       textDecoration: 'none',
                     }}
                   >

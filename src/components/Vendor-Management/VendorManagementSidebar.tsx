@@ -22,7 +22,11 @@ interface NavSubGroup {
 interface NavGroup {
   id: string;
   title: string;
+<<<<<<< HEAD
   icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' | 'material' | 'survey' | 'expense';
+=======
+  icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' | 'survey';
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   badge?: string;
   children: (NavLeaf | NavSubGroup)[];
 }
@@ -47,9 +51,1082 @@ const VENDOR_SECTIONS: NavSection[] = [
     ],
   },
 
+<<<<<<< HEAD
 
     {
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+  {
+    section: 'Assam',
+    state: 'assam',
+    items: [
+      {
+        id: 'grp.vm.assam.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.assam.inst.swp',
+            title: 'SWP',
+            tag: 'SWP',
+            children: [
+              { id: 'vm.assam.swp.dashboard', title: 'Dashboard', to: '/vendor-management/assam/swp/dashboard', iconType: 'analytics' },
+              { id: 'vm.assam.swp.assign', title: 'Assign Installation', to: '/vendor-management/assam/swp/assign-installation', iconType: 'assign' },
+              { id: 'vm.assam.swp.view-assign', title: 'View Assign Installation', to: '/vendor-management/assam/swp/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.assam.swp.verify-install', title: 'Verify Installation', to: '/vendor-management/assam/swp/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.assam.swp.verify-doc', title: 'Verify Document', to: '/vendor-management/assam/swp/verify-document', iconType: 'view-data' },
+              { id: 'vm.assam.swp.verify-claim', title: 'Verify Claim', to: '/vendor-management/assam/swp/verify-claim', iconType: 'view-data' },
+              { id: 'vm.assam.swp.view-payment', title: 'View Payment', to: '/vendor-management/assam/swp/view-payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+<<<<<<< HEAD
+  // Punjab 
+
+    {
+=======
+<<<<<<< HEAD
+=======
+  // Arunachal Pradesh
+  {
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light (SHL)',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Lights', to: '/vendor-management/arunachal/shl/assign-light', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Lights', to: '/vendor-management/arunachal/shl/view-assign', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify', title: 'Verify Lights', to: '/vendor-management/arunachal/shl/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+
+  {
+
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light',
+            tag: 'SHL',
+            children: [
+<<<<<<< HEAD
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
+             
+=======
+              { id: 'vm.bihar.inst.view', title: 'Installation Desk', to: '/vendor-management/bihar/installation', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · UTTAR PRADESH',
+    state: 'up',
+    items: [
+      {
+        id: 'grp.vm.up.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.up.inst.resco',
+            title: 'Resco / SSL / Kusum C',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.up.inst.view', title: 'Installation Desk', to: '/vendor-management/up/installation', iconType: 'view-data' },
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+<<<<<<< HEAD
+  
+  // {
+  //   section: 'VENDOR · BIHAR',
+  //   state: 'bihar',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.bihar.inst',
+  //       title: 'Installation System',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.bihar.inst.ssl',
+  //           title: 'SSL / SRT / ULA',
+  //           tag: 'SSL',
+  //           children: [
+  //             { id: 'vm.bihar.inst.view', title: 'Installation Desk', to: '/vendor-management/bihar/installation', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+  // {
+  //   section: 'VENDOR · UTTAR PRADESH',
+  //   state: 'up',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.up.inst',
+  //       title: 'Installation System',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.up.inst.resco',
+  //           title: 'Resco / SSL / Kusum C',
+  //           tag: 'RESCO',
+  //           children: [
+  //             { id: 'vm.up.inst.view', title: 'Installation Desk', to: '/vendor-management/up/installation', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+
+
+
+
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+  {
+    section: 'VENDOR · JAMMU',
+    state: 'jammu',
+    items: [
+      {
+        id: 'grp.vm.jammu.survey',
+        title: 'Survey System',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.jammu.survey.srt',
+            title: 'SRT 70MW Survey',
+            tag: '70MW',
+            children: [
+              {
+                id: 'vm.jammu.survey.srt.verify',
+                title: 'Verify 70MW Survey',
+                to: '/vendor-management/jammu/survey/srt-70mw/verify',
+                iconType: 'view-survey',
+                keywords: ['jammu', 'survey', 'srt', '70mw', 'verify', 'solar rooftop'],
+              },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.survey.resco',
+            title: 'Resco Survey',
+            tag: 'RESCO',
+            children: [
+              {
+                id: 'vm.jammu.survey.resco.dashboard',
+                title: 'Resco Dashboard',
+                to: '/vendor-management/jammu/survey/resco/dashboard',
+                iconType: 'analytics',
+                keywords: ['jammu', 'survey', 'resco', 'dashboard', 'analytics'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.assign',
+                title: 'Assign Survey',
+                to: '/vendor-management/jammu/survey/resco/assign',
+                iconType: 'assign',
+                keywords: ['jammu', 'survey', 'resco', 'assign', 'allocation'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.view-assign',
+                title: 'Assign View Survey',
+                to: '/vendor-management/jammu/survey/resco/view-assign',
+                iconType: 'view-assign',
+                keywords: ['jammu', 'survey', 'resco', 'view assign', 'assigned surveys'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.assigned-vendor',
+                title: 'Assigned Survey Vendor',
+                to: '/vendor-management/jammu/survey/resco/assigned-vendor',
+                iconType: 'view-data',
+                keywords: ['jammu', 'survey', 'resco', 'assigned vendor', 'conduct survey', 'audit'],
+              },
+              {
+                id: 'vm.jammu.survey.resco.verify',
+                title: 'Verify Survey',
+                to: '/vendor-management/jammu/survey/resco/verify',
+                iconType: 'view-survey',
+                keywords: ['jammu', 'survey', 'resco', 'verify', 'bos', 'approval'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.jammu.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+<<<<<<< HEAD
+            id: 'grp.vm.jammu.inst.srt',
+            title: 'SRT (70MW Rooftop)',
+=======
+            id: 'grp.vm.jammu.inst.70mw',
+            title: '70MW / SSL / SWP',
+            tag: '70MW',
+            children: [
+              { id: 'vm.jammu.inst.view', title: 'Installation Desk', to: '/vendor-management/jammu/installation', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · KASHMIR',
+    state: 'kashmir',
+    items: [
+      {
+        id: 'grp.vm.kashmir.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.kashmir.inst.srt',
+            title: '70MW Rooftop (SRT)',
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+            tag: 'SRT',
+            children: [
+              { id: 'vm.jammu.inst.srt.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/srt-70mw/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/assign-sites', iconType: 'assign' },
+              { id: 'vm.jammu.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/jammu/installation/srt-70mw/view-assign-sites', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/jammu/installation/srt-70mw/verify-sites', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.srt.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/srt-70mw/view-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.srt.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/srt-70mw/view-payment', iconType: 'view-data' },
+            ],
+          },
+<<<<<<< HEAD
+=======
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · GOA',
+    state: 'goa',
+    items: [
+      {
+        id: 'grp.vm.goa.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+          {
+            id: 'grp.vm.jammu.inst.ssl',
+            title: 'SSL (Street Light)',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.jammu.inst.ssl.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/ssl/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.ssl.assign', title: 'Assign Light', to: '/vendor-management/jammu/installation/ssl/assign-lights', iconType: 'assign' },
+              { id: 'vm.jammu.inst.ssl.view-assign', title: 'View Assign Light', to: '/vendor-management/jammu/installation/ssl/view-assign-lights', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.ssl.verify', title: 'Verify Light', to: '/vendor-management/jammu/installation/ssl/verify-lights', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.ssl.claim', title: 'Claim Request', to: '/vendor-management/jammu/installation/ssl/claim-request', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.ssl.payment', title: 'Payment Request', to: '/vendor-management/jammu/installation/ssl/payment-request', iconType: 'view-data' },
+            ],
+          },
+<<<<<<< HEAD
+=======
+        ],
+      },
+    ],
+  },
+
+  {
+    section: 'VENDOR · KARNATAKA',
+    state: 'karnataka',
+    items: [
+      {
+        id: 'grp.vm.karnataka.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+          {
+            id: 'grp.vm.jammu.inst.swp',
+            title: 'SWP (Water Pump)',
+            tag: 'SWP',
+            children: [
+              { id: 'vm.jammu.inst.swp.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/swp/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.swp.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/swp/assign-installation', iconType: 'assign' },
+              { id: 'vm.jammu.inst.swp.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/swp/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.swp.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/swp/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.swp.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/swp/verify-document', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.swp.verify-claim', title: 'Verify Claim', to: '/vendor-management/jammu/installation/swp/verify-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.swp.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/swp/view-payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.jammu.inst.resco',
+            title: 'RESCO Installation',
+            tag: 'RESCO',
+            children: [
+              { id: 'vm.jammu.inst.resco.db', title: 'Dashboard', to: '/vendor-management/jammu/installation/resco/dashboard', iconType: 'analytics' },
+              { id: 'vm.jammu.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/jammu/installation/resco/assign-installation', iconType: 'assign' },
+              { id: 'vm.jammu.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/jammu/installation/resco/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.jammu.inst.resco.view-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/jammu/installation/resco/view-assign-vendor-installation', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.verify-inst', title: 'Verify Installation', to: '/vendor-management/jammu/installation/resco/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.jammu.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/jammu/installation/resco/verify-document', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.claim', title: 'View Claim', to: '/vendor-management/jammu/installation/resco/view-claim', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.payment', title: 'View Payment', to: '/vendor-management/jammu/installation/resco/view-payment', iconType: 'view-data' },
+              { id: 'vm.jammu.inst.resco.bills', title: 'View Created Bills', to: '/vendor-management/jammu/installation/resco/view-bills', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.jammu.expenses',
+        title: 'Installation Expenses',
+        icon: 'management',
+        children: [
+          {
+            id: 'grp.vm.jammu.expenses.srt',
+            title: 'SRT 70MW Expense',
+            tag: 'EXP',
+            children: [
+              { id: 'vm.jammu.expenses.srt.claims', title: 'Claim Requests', to: '/vendor-management/jammu/expenses/srt-70mw/claim-requests', iconType: 'view-data' },
+              { id: 'vm.jammu.expenses.srt.payments', title: 'View Payments', to: '/vendor-management/jammu/expenses/srt-70mw/view-payments', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+<<<<<<< HEAD
+  // {
+  //   section: 'VENDOR · KASHMIR',
+  //   state: 'kashmir',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.kashmir.inst',
+  //       title: 'Installation System',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.kashmir.inst.srt',
+  //           title: '70MW Rooftop (SRT)',
+  //           tag: 'SRT',
+  //           children: [
+  //             { id: 'vm.kashmir.inst.view', title: 'Installation Desk', to: '/vendor-management/kashmir/installation', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+  // {
+  //   section: 'VENDOR · GOA',
+  //   state: 'goa',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.goa.inst',
+  //       title: 'Installation System',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.goa.inst.srt',
+  //           title: 'Solar Rooftop (SRT)',
+  //           tag: 'SRT',
+  //           children: [
+  //             { id: 'vm.goa.inst.view', title: 'Installation Desk', to: '/vendor-management/goa/installation', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+
+
+
+=======
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
+
+  {
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+    section: 'VENDOR · PUNJAB',
+    state: 'punjab',
+    items: [
+      {
+        id: 'grp.vm.punjab.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.punjab.inst.ssl',
+            title: 'Solar Street Light',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.punjab.ssl.dashboard', title: 'Dashboard', to: '/vendor-management/punjab/ssl/dashboard', iconType: 'analytics' },
+              { id: 'vm.punjab.ssl.assign', title: 'Assign Installation', to: '/vendor-management/punjab/ssl/assign-installation', iconType: 'assign' },
+              { id: 'vm.punjab.ssl.view-assign', title: 'View Assign Installation', to: '/vendor-management/punjab/ssl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.punjab.ssl.verify-install', title: 'Verify Installation', to: '/vendor-management/punjab/ssl/verify-installation', iconType: 'view-survey' },
+<<<<<<< HEAD
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // Arunachal Pradesh
+
+  {
+    section: 'VENDOR · ARUNACHAL',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
+             
+=======
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+<<<<<<< HEAD
+  // Uttar Pradesh------View SWP Installation Payment Data
+
+
+  // {
+  //   section: 'Uttar Pradesh',
+  //   state: 'up',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.up.inst',
+  //       title: 'Installation',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.up.inst.kusumc',
+  //           title: 'Kusum C',
+  //           tag: 'Kusum C',
+  //           children: [
+  //             { id: 'vm.up.inst.kusumc.dashboard', title: 'Dashboard', to: '/vendor-management/up/kusumc/installation/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.up.inst.kusumc.assign', title: 'Assign Installation', to: '/vendor-management/up/kusumc/installation/assign', iconType: 'assign' },
+  //             { id: 'vm.up.inst.kusumc.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/kusumc/installation/view-assign', iconType: 'view-assign' },
+  //             { id: 'vm.up.inst.kusumc.verify-install', title: 'Verify Installation', to: '/vendor-management/up/kusumc/installation/verify', iconType: 'view-survey' },
+  //             { id: 'vm.up.inst.kusumc.verify-doc', title: 'Verify Document', to: '/vendor-management/up/kusumc/installation/verify-doc', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.kusumc.verify-claim', title: 'Verify Claim', to: '/vendor-management/up/kusumc/installation/verify-claim', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.kusumc.view-payment', title: 'View Payment', to: '/vendor-management/up/kusumc/installation/view-payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.inst.resco',
+  //           title: 'Resco',
+  //           tag: 'RESCO',
+  //           children: [
+  //             { id: 'vm.up.inst.resco.dashboard', title: 'Dashboard', to: '/vendor-management/up/resco/installation/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.up.inst.resco.assign', title: 'Assign Installation', to: '/vendor-management/up/resco/installation/assign', iconType: 'assign' },
+  //             { id: 'vm.up.inst.resco.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/resco/installation/view-assign', iconType: 'view-assign' },
+  //             { id: 'vm.up.inst.resco.verify-install', title: 'Verify Installation', to: '/vendor-management/up/resco/installation/verify', iconType: 'view-survey' },
+  //             { id: 'vm.up.inst.resco.verify-doc', title: 'Verify Document', to: '/vendor-management/up/resco/installation/verify-doc', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.resco.view-claim', title: 'View Claim', to: '/vendor-management/up/resco/installation/view-claim', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.resco.view-payment', title: 'View Payment', to: '/vendor-management/up/resco/installation/view-payment', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.resco.view-create-bill', title: 'View Created Bills', to: '/vendor-management/up/resco/installation/view-create-bill', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.resco.view-assign-vendor', title: 'View Assign Vendor Installation', to: '/vendor-management/up/resco/installation/view-assign-vendor', iconType: 'view-assign' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.inst.ssl18w',
+  //           title: 'SSL 18W',
+  //           tag: 'SSL 18W',
+  //           children: [
+  //             { id: 'vm.up.inst.ssl18w.dashboard', title: 'Dashboard', to: '/vendor-management/up/ssl18w/installation/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.up.inst.ssl18w.assign', title: 'Assign Installation', to: '/vendor-management/up/ssl18w/installation/assign', iconType: 'assign' },
+  //             { id: 'vm.up.inst.ssl18w.view-assign', title: 'View Assign Installation', to: '/vendor-management/up/ssl18w/installation/view-assign', iconType: 'view-assign' },
+  //             { id: 'vm.up.inst.ssl18w.verify-install', title: 'Verify Installation', to: '/vendor-management/up/ssl18w/installation/verify', iconType: 'view-survey' },
+  //             { id: 'vm.up.inst.ssl18w.view-claim', title: 'View Claim', to: '/vendor-management/up/ssl18w/installation/view-claim', iconType: 'view-data' },
+  //             { id: 'vm.up.inst.ssl18w.view-payment', title: 'View Payment', to: '/vendor-management/up/ssl18w/installation/view-payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       id: 'grp.vm.up.amc',
+  //       title: 'AMC',
+  //       icon: 'amc',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.up.amc.resco',
+  //           title: 'Resco',
+  //           tag: 'RESCO',
+  //           children: [
+  //             { id: 'vm.up.amc.resco.assign-site', title: 'Assign site', to: '/vendor-management/up/resco/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.resco.view-assign-site', title: 'View Assign Site', to: '/vendor-management/up/resco/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.resco.verify-site', title: 'Verify Site', to: '/vendor-management/up/resco/amc/verify-site', iconType: 'view-survey' },
+  //             { id: 'vm.up.amc.resco.claim-request', title: 'Claim Request', to: '/vendor-management/up/resco/amc/claim-request', iconType: 'view-data' },
+  //             { id: 'vm.up.amc.resco.view-payment', title: 'Payment', to: '/vendor-management/up/resco/amc/view-payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.ssl',
+  //           title: 'Up SSL',
+  //           tag: 'SSL',
+  //           children: [
+  //             { id: 'vm.up.amc.ssl.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl/amc/assign-light', iconType: 'assign' },
+  //             { id: 'vm.up.amc.ssl.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl/amc/view-assign-light', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.ssl.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl/amc/verify-assign-light', iconType: 'view-survey' },
+  //             { id: 'vm.up.amc.ssl.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl/amc/claim-request', iconType: 'view-data' },
+  //             { id: 'vm.up.amc.ssl.view-payment', title: 'Payment', to: '/vendor-management/up/ssl/amc/view-payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.ssl18w',
+  //           title: 'Up SSL 18w',
+  //           tag: 'SSL 18W',
+  //           children: [
+  //             { id: 'vm.up.amc.ssl18w.assign-light', title: 'Assign Lights', to: '/vendor-management/up/ssl18w/amc/assign-light', iconType: 'assign' },
+  //             { id: 'vm.up.amc.ssl18w.view-assign-light', title: 'View Assign Light', to: '/vendor-management/up/ssl18w/amc/view-assign-light', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.ssl18w.verify-assign-light', title: 'Verify Light', to: '/vendor-management/up/ssl18w/amc/verify-assign-light', iconType: 'view-survey' },
+  //             { id: 'vm.up.amc.ssl18w.claim-request', title: 'Claim Request', to: '/vendor-management/up/ssl18w/amc/claim-request', iconType: 'view-data' },
+  //             { id: 'vm.up.amc.ssl18w.view-payment', title: 'Payment', to: '/vendor-management/up/ssl18w/amc/view-payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.kusumb',
+  //           title: 'Kusum B',
+  //           tag: 'Kusum B',
+  //           children: [
+  //             { id: 'vm.up.amc.kusumb.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumb/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.kusumb.view-assigne-site', title: 'View AMC', to: '/vendor-management/up/kusumb/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.kusumb.verify-site', title: 'Verify Amc', to: '/vendor-management/up/kusumb/amc/verify-site', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.kusumc',
+  //           title: 'Kusum C',
+  //           tag: 'Kusum C',
+  //           children: [
+  //             { id: 'vm.up.amc.kusumc.assign-site', title: 'Assign AMC', to: '/vendor-management/up/kusumc/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.kusumc.view-assign-site', title: 'View Assign AMC', to: '/vendor-management/up/kusumc/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.kusumc.verify-site', title: 'Verify Site', to: '/vendor-management/up/kusumc/amc/verify-site', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.powerpack',
+  //           title: 'Power Pack',
+  //           tag: 'Power Pack',
+  //           children: [
+  //             { id: 'vm.up.amc.powerpack.assign-site', title: 'Assign AMC', to: '/vendor-management/up/powerpack/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.powerpack.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/powerpack/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.powerpack.verify-site', title: 'Verify Site', to: '/vendor-management/up/powerpack/amc/verify-site', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.ongrid',
+  //           title: 'Ongrid',
+  //           tag: 'Ongrid',
+  //           children: [
+  //             { id: 'vm.up.amc.ongrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/ongrid/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.ongrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/ongrid/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.ongrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/ongrid/amc/verify-site', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //         {
+  //           id: 'grp.vm.up.amc.offgrid',
+  //           title: 'Offgrid',
+  //           tag: 'Offgrid',
+  //           children: [
+  //             { id: 'vm.up.amc.offgrid.assign-site', title: 'Assign AMC', to: '/vendor-management/up/offgrid/amc/assign-site', iconType: 'assign' },
+  //             { id: 'vm.up.amc.offgrid.view-assigne-site', title: 'View Assign AMC', to: '/vendor-management/up/offgrid/amc/view-assign-site', iconType: 'view-assign' },
+  //             { id: 'vm.up.amc.offgrid.verify-site', title: 'Verify Site', to: '/vendor-management/up/offgrid/amc/verify-site', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       id: 'grp.vm.up.survey',
+  //       title: 'Survey',
+  //       icon: 'survey',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.up.survey.resco',
+  //           title: 'Resco Survey',
+  //           tag: 'RESCO',
+  //           children: [
+  //             { id: 'vm.up.survey.resco.dashboard', title: 'Resco Dashboard', to: '/vendor-management/up/resco/survey/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.up.survey.resco.assign', title: 'Assign Survey', to: '/vendor-management/up/resco/survey/assign', iconType: 'assign' },
+  //             { id: 'vm.up.survey.resco.assign-view', title: 'Assign View Survey', to: '/vendor-management/up/resco/survey/assign-view', iconType: 'view-assign' },
+  //             { id: 'vm.up.survey.resco.verify', title: 'Verify Survey', to: '/vendor-management/up/resco/survey/verify', iconType: 'view-survey' },
+  //             { id: 'vm.up.survey.resco.assign-vendor', title: 'Assigned Sites Update', to: '/vendor-management/up/resco/survey/assign-vendor', iconType: 'view-data' },
+  //           ],
+  //         },
+=======
+<<<<<<< HEAD
+
+  // {
+  //   section: 'VENDOR MANAGEMENT',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.mgmt',
+  //       title: 'User Management',
+  //       icon: 'management',
+  //       children: [
+  //         { id: 'vm.users', title: 'Vendor Master & Users', to: '/vendor-management/users', iconType: 'view-data' },
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+  //       ],
+  //     },
+  //   ],
+  // },
+<<<<<<< HEAD
+
+=======
+=======
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+  {
+    section: 'Kashmir',
+    state: 'kashmir',
+    items: [
+      {
+        id: 'grp.vm.kashmir.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.kashmir.inst.srt70mw',
+            title: 'SRT 70MW',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.kashmir.inst.srt70mw.dashboard', title: 'Dashboard', to: '/vendor-management/kashmir/srt70mw/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.kashmir.inst.srt70mw.assign', title: 'Assign Sites', to: '/vendor-management/kashmir/srt70mw/installation/assign', iconType: 'assign' },
+              { id: 'vm.kashmir.inst.srt70mw.view-assign', title: 'View Assign Sites', to: '/vendor-management/kashmir/srt70mw/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.kashmir.inst.srt70mw.verify', title: 'Verify Sites', to: '/vendor-management/kashmir/srt70mw/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.kashmir.inst.srt70mw.view-claim', title: 'View Claim', to: '/vendor-management/kashmir/srt70mw/installation/view-claim', iconType: 'view-data' },
+              { id: 'vm.kashmir.inst.srt70mw.view-payment', title: 'View Payment', to: '/vendor-management/kashmir/srt70mw/installation/view-payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.kashmir.expense',
+        title: 'Expenses',
+        icon: 'expense',
+        children: [
+          {
+            id: 'grp.vm.kashmir.expense.srt70mw',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.kashmir.expense.srt70mw.claim-requests', title: 'Claim Requests', to: '/vendor-management/kashmir/srt70mw/expense/claim-requests', iconType: 'view-data' },
+              { id: 'vm.kashmir.expense.srt70mw.view-payments', title: 'View Payments', to: '/vendor-management/kashmir/srt70mw/expense/view-payments', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+<<<<<<< HEAD
+  {
+    section: 'Goa',
+    state: 'goa',
+    items: [
+      {
+        id: 'grp.vm.goa.survey',
+        title: 'Survey',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.goa.survey.srt',
+            title: 'SRT Survey',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.survey.srt.dashboard', title: 'SRT Dashboard', to: '/vendor-management/goa/srt/survey/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.survey.srt.assign', title: 'Assign Survey', to: '/vendor-management/goa/srt/survey/assign', iconType: 'assign' },
+              { id: 'vm.goa.survey.srt.assign-view', title: 'Assign View Survey', to: '/vendor-management/goa/srt/survey/assign-view', iconType: 'view-assign' },
+              { id: 'vm.goa.survey.srt.verify', title: 'Verify Survey', to: '/vendor-management/goa/srt/survey/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.goa.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.goa.inst.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.inst.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/goa/srt/installation/assign', iconType: 'assign' },
+              { id: 'vm.goa.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/goa/srt/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.goa.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/goa/srt/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.goa.inst.srt.claim', title: 'View Claim', to: '/vendor-management/goa/srt/installation/claim', iconType: 'view-data' },
+              { id: 'vm.goa.inst.srt.payment', title: 'View Payment', to: '/vendor-management/goa/srt/installation/payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.goa.amc',
+        title: 'AMC',
+        icon: 'amc',
+        children: [
+          {
+            id: 'grp.vm.goa.amc.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.goa.amc.srt.dashboard', title: 'SRT AMC Dashboard', to: '/vendor-management/goa/srt/amc/dashboard', iconType: 'analytics' },
+              { id: 'vm.goa.amc.srt.assign', title: 'Assign SRT', to: '/vendor-management/goa/srt/amc/assign', iconType: 'assign' },
+              { id: 'vm.goa.amc.srt.view-assign', title: 'Assign View Site', to: '/vendor-management/goa/srt/amc/view-assign', iconType: 'view-assign' },
+              { id: 'vm.goa.amc.srt.verify', title: 'Verify Site', to: '/vendor-management/goa/srt/amc/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+=======
+
+
+  // {
+  //   section: 'Goa',
+  //   state: 'goa',
+  //   items: [
+  //     {
+  //       id: 'grp.vm.goa.survey',
+  //       title: 'Survey',
+  //       icon: 'survey',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.goa.survey.srt',
+  //           title: 'SRT',
+  //           tag: 'SRT',
+  //           children: [
+  //             { id: 'vm.goa.survey.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/survey/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.goa.survey.srt.assign', title: 'Assign Survey', to: '/vendor-management/goa/srt/survey/assign', iconType: 'assign' },
+  //             { id: 'vm.goa.survey.srt.assign-view', title: 'Assign View Survey', to: '/vendor-management/goa/srt/survey/assign-view', iconType: 'view-assign' },
+  //             { id: 'vm.goa.survey.srt.verify', title: 'Verify Survey', to: '/vendor-management/goa/srt/survey/verify', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       id: 'grp.vm.goa.inst',
+  //       title: 'Installation',
+  //       icon: 'installation',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.goa.inst.srt',
+  //           title: 'SRT',
+  //           tag: 'SRT',
+  //           children: [
+  //             { id: 'vm.goa.inst.srt.dashboard', title: 'Dashboard', to: '/vendor-management/goa/srt/installation/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.goa.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/goa/srt/installation/assign', iconType: 'assign' },
+  //             { id: 'vm.goa.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/goa/srt/installation/view-assign', iconType: 'view-assign' },
+  //             { id: 'vm.goa.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/goa/srt/installation/verify', iconType: 'view-survey' },
+  //             { id: 'vm.goa.inst.srt.claim', title: 'View Claim', to: '/vendor-management/goa/srt/installation/claim', iconType: 'view-data' },
+  //             { id: 'vm.goa.inst.srt.payment', title: 'View Payment', to: '/vendor-management/goa/srt/installation/payment', iconType: 'view-data' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //     {
+  //       id: 'grp.vm.goa.amc',
+  //       title: 'AMC',
+  //       icon: 'amc',
+  //       children: [
+  //         {
+  //           id: 'grp.vm.goa.amc.srt',
+  //           title: 'SRT',
+  //           tag: 'SRT',
+  //           children: [
+  //             { id: 'vm.goa.amc.srt.dashboard', title: 'SRT AMC Dashboard', to: '/vendor-management/goa/srt/amc/dashboard', iconType: 'analytics' },
+  //             { id: 'vm.goa.amc.srt.assign', title: 'Assign SRT', to: '/vendor-management/goa/srt/amc/assign', iconType: 'assign' },
+  //             { id: 'vm.goa.amc.srt.view-assign', title: 'Assign View Site', to: '/vendor-management/goa/srt/amc/view-assign', iconType: 'view-assign' },
+  //             { id: 'vm.goa.amc.srt.verify', title: 'Verify Site', to: '/vendor-management/goa/srt/amc/verify', iconType: 'view-survey' },
+  //           ],
+  //         },
+  //       ],
+  //     },
+  //   ],
+  // },
+
+
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+  {
+    section: 'Karnataka',
+    state: 'karnataka',
+    items: [
+      {
+        id: 'grp.vm.karnataka.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.karnataka.inst.swp',
+            title: 'SWP',
+            tag: 'SWP',
+            children: [
+              { id: 'vm.karnataka.swp.dashboard', title: 'Dashboard', to: '/vendor-management/karnataka/swp/dashboard', iconType: 'analytics' },
+              { id: 'vm.karnataka.swp.assign', title: 'Assign Installation', to: '/vendor-management/karnataka/swp/assign-installation', iconType: 'assign' },
+              { id: 'vm.karnataka.swp.view-assign', title: 'View Assign Installation', to: '/vendor-management/karnataka/swp/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.karnataka.swp.verify-install', title: 'Verify Installation', to: '/vendor-management/karnataka/swp/verify-installation', iconType: 'view-survey' },
+              { id: 'vm.karnataka.swp.verify-doc', title: 'Verify Document', to: '/vendor-management/karnataka/swp/verify-document', iconType: 'view-data' },
+              { id: 'vm.karnataka.swp.verify-claim', title: 'Verify Claim', to: '/vendor-management/karnataka/swp/verify-claim', iconType: 'view-data' },
+              { id: 'vm.karnataka.swp.view-payment', title: 'View Payment', to: '/vendor-management/karnataka/swp/view-payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.karnataka.material',
+        title: 'Material',
+        icon: 'material',
+        children: [
+          {
+            id: 'grp.vm.karnataka.material.swp',
+            title: 'SWP',
+            tag: 'SWP',
+            children: [
+              { id: 'vm.karnataka.swp.dispatch-material', title: 'Dispatch Material', to: '/vendor-management/karnataka/swp/material-dispatch', iconType: 'assign' },
+              { id: 'vm.karnataka.swp.view-dispatch-material', title: 'View Dispatch Material', to: '/vendor-management/karnataka/swp/view-material-dispatch', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+    {
+    section: 'Bihar',
+    state: 'bihar',
+    items: [
+      {
+        id: 'grp.vm.bihar.survey',
+        title: 'Survey',
+        icon: 'survey',
+        children: [
+          {
+            id: 'grp.vm.bihar.survey.srt200mw',
+            title: 'SRT 200MW',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.bihar.survey.srt200mw.dashboard', title: 'Dashboard', to: '/vendor-management/bihar/srt200mw/survey/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.survey.srt200mw.assign', title: 'Assign Survey', to: '/vendor-management/bihar/srt200mw/survey/assign', iconType: 'assign' },
+              { id: 'vm.bihar.survey.srt200mw.assign-view', title: 'Assign View Survey', to: '/vendor-management/bihar/srt200mw/survey/assign-view', iconType: 'view-assign' },
+              { id: 'vm.bihar.survey.srt200mw.verify', title: 'Verify Survey', to: '/vendor-management/bihar/srt200mw/survey/verify', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.bihar.survey.ula',
+            title: 'ULA',
+            tag: 'ULA',
+            children: [
+              { id: 'vm.bihar.survey.ula.view', title: 'View Data', to: '/vendor-management/bihar/ula/survey/view', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.bihar.inst',
+        title: 'Installation',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.bihar.inst.ssl',
+            title: 'SSL',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.bihar.inst.ssl.dashboard', title: 'Dashboard', to: '/vendor-management/bihar/ssl/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.inst.ssl.assign', title: 'Assign Light', to: '/vendor-management/bihar/ssl/installation/assign', iconType: 'assign' },
+              { id: 'vm.bihar.inst.ssl.view-assign', title: 'View Assign Light', to: '/vendor-management/bihar/ssl/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.bihar.inst.ssl.verify', title: 'Verify Light', to: '/vendor-management/bihar/ssl/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.bihar.inst.ssl.claim-request', title: 'Claim Request', to: '/vendor-management/bihar/ssl/installation/claim-request', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ssl.payment-request', title: 'Payment Request', to: '/vendor-management/bihar/ssl/installation/payment-request', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ssl.supply-inspection', title: 'Supply Inspection Request', to: '/vendor-management/bihar/ssl/installation/supply-inspection', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ssl.installation-inspection', title: 'Installation Inspection Request', to: '/vendor-management/bihar/ssl/installation/installation-inspection', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.bihar.inst.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.bihar.inst.srt.dashboard', title: 'Dashboard', to: '/vendor-management/bihar/srt/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.inst.srt.assign', title: 'Assign Sites', to: '/vendor-management/bihar/srt/installation/assign', iconType: 'assign' },
+              { id: 'vm.bihar.inst.srt.view-assign', title: 'View Assign Sites', to: '/vendor-management/bihar/srt/installation/view-assign', iconType: 'view-assign' },
+              { id: 'vm.bihar.inst.srt.verify', title: 'Verify Sites', to: '/vendor-management/bihar/srt/installation/verify', iconType: 'view-survey' },
+              { id: 'vm.bihar.inst.srt.claim', title: 'View Claim', to: '/vendor-management/bihar/srt/installation/claim', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.srt.payment', title: 'View Payment', to: '/vendor-management/bihar/srt/installation/payment', iconType: 'view-data' },
+            ],
+          },
+          {
+            id: 'grp.vm.bihar.inst.ula',
+            title: 'ULA',
+            tag: 'ULA',
+            children: [
+              { id: 'vm.bihar.inst.ula.dashboard', title: 'Dashboard', to: '/vendor-management/bihar/ula/installation/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.inst.ula.assign', title: 'Assign Sites', to: '/vendor-management/bihar/ula/installation/create-assign-site', iconType: 'assign' },
+              { id: 'vm.bihar.inst.ula.view-assign', title: 'View Assign Sites', to: '/vendor-management/bihar/ula/installation/view-assign-site', iconType: 'view-assign' },
+              { id: 'vm.bihar.inst.ula.structure-approval', title: 'Structure Approval', to: '/vendor-management/bihar/ula/installation/structure-approval-site', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ula.view-site', title: 'Install Site', to: '/vendor-management/bihar/ula/installation/view-site', iconType: 'view-survey' },
+              { id: 'vm.bihar.inst.ula.view-doc', title: 'View Document', to: '/vendor-management/bihar/ula/installation/view-document', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ula.view-claim', title: 'View Claim', to: '/vendor-management/bihar/ula/installation/view-claim', iconType: 'view-data' },
+              { id: 'vm.bihar.inst.ula.view-payment', title: 'View Payment', to: '/vendor-management/bihar/ula/installation/view-payment', iconType: 'view-data' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'grp.vm.bihar.amc',
+        title: 'AMC',
+        icon: 'amc',
+        children: [
+          {
+            id: 'grp.vm.bihar.amc.ssl',
+            title: 'SSL',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.bihar.amc.ssl.dashboard', title: 'SSL AMC Dashboard', to: '/vendor-management/bihar/ssl/amc/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.amc.ssl.assign', title: 'Assign SSL', to: '/vendor-management/bihar/ssl/amc/assign', iconType: 'assign' },
+              { id: 'vm.bihar.amc.ssl.verify', title: 'Verify AMC', to: '/vendor-management/bihar/ssl/amc/verify', iconType: 'view-survey' },
+            ],
+          },
+          {
+            id: 'grp.vm.bihar.amc.srt',
+            title: 'SRT',
+            tag: 'SRT',
+            children: [
+              { id: 'vm.bihar.amc.srt.dashboard', title: 'SRT AMC Dashboard', to: '/vendor-management/bihar/srt/amc/dashboard', iconType: 'analytics' },
+              { id: 'vm.bihar.amc.srt.assign', title: 'Assign SRT', to: '/vendor-management/bihar/srt/amc/assign', iconType: 'assign' },
+              { id: 'vm.bihar.amc.srt.view-assign', title: 'Assign View Site', to: '/vendor-management/bihar/srt/amc/view-assign', iconType: 'view-assign' },
+              { id: 'vm.bihar.amc.srt.verify', title: 'Verify Site', to: '/vendor-management/bihar/srt/amc/verify', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+<<<<<<< HEAD
+
+
+
+
+  {
+    section: 'Punjab',
+    state: 'punjab',
+    items: [
+      {
+        id: 'grp.vm.punjab.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.punjab.inst.ssl',
+            title: 'Solar Street Light',
+            tag: 'SSL',
+            children: [
+              { id: 'vm.punjab.ssl.dashboard', title: 'Dashboard', to: '/vendor-management/punjab/ssl/dashboard', iconType: 'analytics' },
+              { id: 'vm.punjab.ssl.assign', title: 'Assign Installation', to: '/vendor-management/punjab/ssl/assign-installation', iconType: 'assign' },
+              { id: 'vm.punjab.ssl.view-assign', title: 'View Assign Installation', to: '/vendor-management/punjab/ssl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.punjab.ssl.verify-install', title: 'Verify Installation', to: '/vendor-management/punjab/ssl/verify-installation', iconType: 'view-survey' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+  {
+    section: 'Arunachal Pradesh',
+    state: 'arunachal',
+    items: [
+      {
+        id: 'grp.vm.arunachal.inst',
+        title: 'Installation System',
+        icon: 'installation',
+        children: [
+          {
+            id: 'grp.vm.arunachal.inst.shl',
+            title: 'Solar Street Light',
+            tag: 'SHL',
+            children: [
+              { id: 'vm.arunachal.shl.dashboard', title: 'Dashboard', to: '/vendor-management/arunachal/shl/dashboard', iconType: 'analytics' },
+              { id: 'vm.arunachal.shl.assign', title: 'Assign Installation', to: '/vendor-management/arunachal/shl/assign-installation', iconType: 'assign' },
+              { id: 'vm.arunachal.shl.view-assign', title: 'View Assign Installation', to: '/vendor-management/arunachal/shl/view-assign-installation', iconType: 'view-assign' },
+              { id: 'vm.arunachal.shl.verify-install', title: 'Verify Installation', to: '/vendor-management/arunachal/shl/verify-installation', iconType: 'view-survey' },
+             
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+
+  {
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
     section: 'Jammu',
+=======
+        {
+    section: 'VENDOR · JAMMU',
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
     state: 'jammu',
     items: [
       {
@@ -792,21 +1869,20 @@ const VENDOR_SECTIONS: NavSection[] = [
               { id: 'vm.core.report.daily_progress', title: 'View Daily Progress', to: '/vendor-management/report/view-daily-progress', iconType: 'view-data' },
             ],
           },
-          {
-            id: 'grp.vm.core.users',
-            title: 'User Master',
-            tag: 'Users',
-            children: [
-              { id: 'vm.users', title: 'Vendor Master & Users', to: '/vendor-management/users', iconType: 'view-data' },
-            ],
-          },
+         
         ],
       },
     ],
   },
+
+>>>>>>> 5088f43ed9f14038a9aea42e1ee87fc739be08a6
 ];
 
+<<<<<<< HEAD
 function VPIconBox({ icon }: { icon: string }) {
+=======
+function GroupIconBox({ icon }: { icon: 'dashboard' | 'amc' | 'installation' | 'management' | 'attendance' | 'survey' }) {
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   switch (icon) {
     case 'dashboard':
       return (
@@ -899,6 +1975,7 @@ function VPIconBox({ icon }: { icon: string }) {
           </svg>
         </div>
       );
+<<<<<<< HEAD
     case 'material':
       return (
         <div className="vp-sb__icon-box vp-sb__icon-box--expenses">
@@ -914,6 +1991,15 @@ function VPIconBox({ icon }: { icon: string }) {
         <div className="vp-sb__icon-box vp-sb__icon-box--dashboard">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <circle cx="12" cy="12" r="3" />
+=======
+    case 'survey':
+      return (
+        <div className="vm-sb__icon-box vm-sb__icon-box--survey">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="m9 15 2 2 4-4" />
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
           </svg>
         </div>
       );
@@ -1428,8 +2514,12 @@ const ROUTE_ALIASES: Record<string, string[]> = {
   ],
 
   // ── Jammu Expense: SRT 70MW ──
+<<<<<<< HEAD
 
    '/vendor-management/jammu/expenses/srt-70mw/claim-requests': [
+=======
+  '/vendor-management/jammu/expenses/srt-70mw/claim-requests': [
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
     '/jammu/srt-installation-claim-expense',
     '/vendor-management/jammu/srt-installation-claim-expense',
     '/jammu/installation-view-expenses-claim',
@@ -1599,6 +2689,23 @@ const hasVisibleGroupChildren = (group: NavGroup, filterText: string): boolean =
   });
 };
 
+const checkIsLeafActive = (to: string, currentPath: string): boolean => {
+  if (currentPath === to) return true;
+  if (
+    (to.endsWith('/assign-light') || to.endsWith('/assign-installation')) &&
+    (currentPath.endsWith('/assign-light') || currentPath.endsWith('/assign-installation'))
+  ) return true;
+  if (
+    (to.endsWith('/view-assign') || to.endsWith('/view-assign-installation')) &&
+    (currentPath.endsWith('/view-assign') || currentPath.endsWith('/view-assign-installation'))
+  ) return true;
+  if (
+    (to.endsWith('/verify') || to.endsWith('/verify-installation')) &&
+    (currentPath.endsWith('/verify') || currentPath.endsWith('/verify-installation'))
+  ) return true;
+  return false;
+};
+
 export function VendorManagementSidebar({
   filter = '',
   onNavigate,
@@ -1609,12 +2716,16 @@ export function VendorManagementSidebar({
   const location = useLocation();
   const currentPath = location.pathname;
 
+<<<<<<< HEAD
   const isLeafActive = (to: string) => checkLeafActive(to, currentPath);
 
   const isDashboardActive =
     currentPath === '/vendor-management' ||
     currentPath === '/vendor/dashboard' ||
     currentPath === '/vendor';
+=======
+  const isLeafActive = (to: string) => checkIsLeafActive(to, currentPath);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
 
   return (
     <div className="vp-sidebar">
@@ -1714,7 +2825,11 @@ function VendorGroupItem({
   if (!hasVisibleGroupChildren(group, filter)) {
     return null;
   }
+<<<<<<< HEAD
   const isLeafActive = (to: string) => checkLeafActive(to, currentPath);
+=======
+  const isLeafActive = (to: string) => checkIsLeafActive(to, currentPath);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   const isSubGroupActive = (sg: NavSubGroup) =>
     sg.children.some((c) => isLeafActive(c.to));
   const hasActiveChild = group.children.some((c) =>
@@ -1865,7 +2980,11 @@ function VendorSubGroupItem({
   filter: string;
   onNavigate?: () => void;
 }) {
+<<<<<<< HEAD
   const isLeafActive = (to: string) => checkLeafActive(to, currentPath);
+=======
+  const isLeafActive = (to: string) => checkIsLeafActive(to, currentPath);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
   const hasActiveChild = subGroup.children.some((c) => isLeafActive(c.to));
 
   const [open, setOpen] = useState(hasActiveChild);

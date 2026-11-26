@@ -22,7 +22,15 @@ import {
 /* ───────── Responsive page CSS (Exact Assam SWP / Punjab Solar ERP Design Reference) ───────── */
 const PAGE_CSS = `
   .solar-erp-page {
+<<<<<<< HEAD
     --asw-primary: var(--ax-accent, #2563eb);
+=======
+<<<<<<< HEAD
+    --asw-primary: var(--ax-accent, #2563eb);
+=======
+    --asw-primary: #2563eb;
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
     --asw-primary-rgb: 37, 99, 235;
   }
   .solar-erp-page .ax-card { min-width: 0; }
@@ -76,6 +84,7 @@ const PAGE_CSS = `
     color: var(--ax-text-muted, #64748b);
   }
   .solar-erp-page .asw-pill-btn:hover {
+<<<<<<< HEAD
     border-color: var(--ax-accent, #2563eb);
     color: var(--ax-accent, #2563eb);
   }
@@ -84,6 +93,27 @@ const PAGE_CSS = `
     color: var(--ax-on-accent, #ffffff);
     border-color: transparent;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+=======
+<<<<<<< HEAD
+    border-color: var(--ax-accent, #2563eb);
+    color: var(--ax-accent, #2563eb);
+  }
+  .solar-erp-page .asw-pill-btn.active {
+    background: var(--ax-gradient-accent, var(--ax-accent, #2563eb));
+    color: var(--ax-on-accent, #ffffff);
+    border-color: transparent;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+=======
+    border-color: #2563eb;
+    color: #2563eb;
+  }
+  .solar-erp-page .asw-pill-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
   }
 
   .solar-erp-page .ax-card__header {
@@ -353,7 +383,15 @@ function Modal({
 type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet' | 'rose';
 
 const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+<<<<<<< HEAD
   accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+=======
+<<<<<<< HEAD
+  accent: { bg: 'rgba(var(--asw-primary-rgb), 0.12)', fg: 'var(--ax-accent, #2563eb)' },
+=======
+  accent: { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563eb' },
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
   cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
   emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
   amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
@@ -990,7 +1028,15 @@ export function VerifyLights() {
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted, #64748b)' }}>Report Wise Bifurcation:</span>
         <button
           type="button"
+<<<<<<< HEAD
           className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+=======
+<<<<<<< HEAD
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+=======
+          className={`asw-pill-btn ${activeTab === 'pending' ? 'active' : ''}`}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
           onClick={() => setActiveTab('pending')}
         >
           Lights Completed
@@ -1000,7 +1046,15 @@ export function VerifyLights() {
         </button>
         <button
           type="button"
+<<<<<<< HEAD
           className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
+=======
+<<<<<<< HEAD
+          className={`asw-pill-btn ${activeTab === 'verified' ? 'active ax-btn--primary' : ''}`}
+=======
+          className={`asw-pill-btn ${activeTab === 'verified' ? 'active' : ''}`}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
           onClick={() => setActiveTab('verified')}
         >
           Approved / Rejected Lights
@@ -1082,16 +1136,42 @@ export function VerifyLights() {
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Panel Image</th>
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Battery Serial Image</th>
                 <th className="ax-table__th" style={{ minWidth: 150 }}>Remark</th>
+<<<<<<< HEAD
                 <th className="ax-table__th" style={{ textAlign: 'center' }}>Verify Status</th>
+=======
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Status</th>
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                 {activeTab === 'pending' && (
                   <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
                 )}
+=======
+<<<<<<< HEAD
+                {activeTab === 'pending' && (
+                  <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+                )}
+=======
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
+<<<<<<< HEAD
                   <td colSpan={activeTab === 'pending' ? 27 : 26} style={centerCell}>
+=======
+<<<<<<< HEAD
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+=======
+<<<<<<< HEAD
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+=======
+                  <td colSpan={24} style={centerCell}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <span className="ax-spinner" aria-hidden="true" />
                       <span>Loading light installation records...</span>
@@ -1100,7 +1180,19 @@ export function VerifyLights() {
                 </tr>
               ) : pagination.paged.length === 0 ? (
                 <tr>
+<<<<<<< HEAD
                   <td colSpan={activeTab === 'pending' ? 27 : 26} style={centerCell}>
+=======
+<<<<<<< HEAD
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+=======
+<<<<<<< HEAD
+                  <td colSpan={activeTab === 'pending' ? 24 : 23} style={centerCell}>
+=======
+                  <td colSpan={24} style={centerCell}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                     <TableEmptyState
                       title="No installation records found"
                       description={searchQuery ? 'Try adjusting your search criteria' : 'No records match this bifurcation view'}
@@ -1135,8 +1227,18 @@ export function VerifyLights() {
                           tabIndex={0}
                           title="Click to view full installation details"
                           style={{
+<<<<<<< HEAD
                             background: 'rgba(var(--asw-primary-rgb), 0.12)',
                             color: 'var(--ax-accent, #2563eb)',
+=======
+<<<<<<< HEAD
+                            background: 'rgba(var(--asw-primary-rgb), 0.12)',
+                            color: 'var(--ax-accent, #2563eb)',
+=======
+                            background: 'rgba(37, 99, 235, 0.12)',
+                            color: '#2563eb',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                             fontWeight: 700,
                             padding: '3px 8px',
                             borderRadius: 6,
@@ -1174,7 +1276,15 @@ export function VerifyLights() {
                               alignItems: 'center',
                               gap: 3,
                               fontSize: 11,
+<<<<<<< HEAD
                               color: 'var(--ax-accent, #2563eb)',
+=======
+<<<<<<< HEAD
+                              color: 'var(--ax-accent, #2563eb)',
+=======
+                              color: '#2563eb',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                               textDecoration: 'none',
                               fontWeight: 600,
                             }}
@@ -1231,15 +1341,56 @@ export function VerifyLights() {
                           </span>
                         )}
                       </td>
+<<<<<<< HEAD
                       {activeTab === 'pending' && (
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
+=======
+<<<<<<< HEAD
+                      {activeTab === 'pending' && (
+                        <td className="ax-table__td" style={{ textAlign: 'center' }}>
+=======
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {activeTab === 'verified' || verifyStatus === 1 || verifyStatus === 2 ? (
+                          verifyStatus === 1 ? (
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--success"
+                              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700 }}
+                            >
+                              Approved
+                            </span>
+                          ) : (
+                            <span
+                              className="ax-badge ax-badge--soft ax-badge--danger"
+                              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700 }}
+                            >
+                              Rejected
+                            </span>
+                          )
+                        ) : (
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <button
                               type="button"
                               onClick={() => setSelectedLightForDetails(row)}
+<<<<<<< HEAD
                               className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 padding: '4px 8px',
+=======
+<<<<<<< HEAD
+                              className="ax-btn ax-btn--secondary ax-btn--sm"
+                              style={{
+                                padding: '4px 8px',
+=======
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: 6,
+                                background: '#f1f5f9',
+                                color: '#1e293b',
+                                border: '1px solid #cbd5e1',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                                 fontSize: 11,
                                 fontWeight: 600,
                                 cursor: 'pointer',
@@ -1262,9 +1413,24 @@ export function VerifyLights() {
                                 setActionStatus('1');
                                 setActionRemarks(row.inst_verify_remarks || row.inst_remark || row.remark || '');
                               }}
+<<<<<<< HEAD
                               className="ax-btn ax-btn--primary ax-btn--sm"
                               style={{
                                 padding: '4px 10px',
+=======
+<<<<<<< HEAD
+                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              style={{
+                                padding: '4px 10px',
+=======
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                                 fontSize: 11,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -1281,8 +1447,18 @@ export function VerifyLights() {
                               Verify
                             </button>
                           </div>
+<<<<<<< HEAD
                         </td>
                       )}
+=======
+<<<<<<< HEAD
+                        </td>
+                      )}
+=======
+                        )}
+                      </td>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                     </tr>
                   );
                 })
@@ -1330,9 +1506,24 @@ export function VerifyLights() {
                     setActionStatus('1');
                     setActionRemarks(site.inst_verify_remarks || site.remark || '');
                   }}
+<<<<<<< HEAD
                   className="ax-btn ax-btn--primary"
                   style={{
                     padding: '6px 14px',
+=======
+<<<<<<< HEAD
+                  className="ax-btn ax-btn--primary"
+                  style={{
+                    padding: '6px 14px',
+=======
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    background: '#2563eb',
+                    color: '#ffffff',
+                    border: 'none',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -1351,7 +1542,15 @@ export function VerifyLights() {
             </div>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={() => setSelectedLightForDetails(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >
@@ -1378,7 +1577,15 @@ export function VerifyLights() {
             >
               <div>
                 <span style={{ fontSize: 12, color: '#64748b' }}>UID: </span>
+<<<<<<< HEAD
                 <strong style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--ax-accent, #2563eb)' }}>
+=======
+<<<<<<< HEAD
+                <strong style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--ax-accent, #2563eb)' }}>
+=======
+                <strong style={{ fontFamily: 'monospace', fontSize: 13, color: '#2563eb' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   {selectedLightForDetails.uid || selectedLightForDetails.unique_id || selectedLightForDetails.id}
                 </strong>
                 <span style={{ marginLeft: 12, fontSize: 12, color: '#64748b' }}>
@@ -1412,7 +1619,15 @@ export function VerifyLights() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
               {/* Beneficiary Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   Beneficiary & Governance Details
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1440,7 +1655,15 @@ export function VerifyLights() {
 
               {/* Location Details */}
               <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
                 <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                   Site Location
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: 6, fontSize: 12 }}>
@@ -1463,7 +1686,15 @@ export function VerifyLights() {
                         href={`https://www.google.com/maps?q=${selectedLightForDetails.latitude},${selectedLightForDetails.longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
+<<<<<<< HEAD
                         style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+=======
+<<<<<<< HEAD
+                        style={{ color: 'var(--ax-accent, #2563eb)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+=======
+                        style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                       >
                         {selectedLightForDetails.latitude}, {selectedLightForDetails.longitude} ↗
                       </a>
@@ -1477,7 +1708,15 @@ export function VerifyLights() {
 
             {/* Grid 2: Hardware & Equipment Specifications */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Hardware & Equipment Specifications
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: 12 }}>
@@ -1510,9 +1749,18 @@ export function VerifyLights() {
 
             {/* Grid 3: Photographic Evidence (4 Real On-site Photos) */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 12, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 12, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Photographic Evidence
               </div>
+<<<<<<< HEAD
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
                 {[
                   {
@@ -1535,6 +1783,42 @@ export function VerifyLights() {
                   <div key={photoIdx} style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', textAlign: 'center' }}>
                     <div style={{ padding: '6px 8px', background: '#f8fafc', fontSize: 11, fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
                       {item.title}
+=======
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                {(() => {
+                  const img =
+                    selectedLightForDetails.light_file ||
+                    selectedLightForDetails.file ||
+                    selectedLightForDetails.inst_file;
+                  return (
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden', textAlign: 'center' }}>
+                      <div style={{ padding: '6px 8px', background: '#f8fafc', fontSize: 11, fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>
+                        Installed Light Image
+                      </div>
+                      {img ? (
+                        <div
+                          style={{ padding: 8, cursor: 'pointer', background: '#f1f5f9' }}
+                          onClick={() => setLightboxUrl(resolvePunjabMediaUrl(img))}
+                        >
+                          <img
+                            src={resolvePunjabMediaUrl(img)}
+                            alt="Installed Light"
+                            style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 6, background: '#fff' }}
+                          />
+<<<<<<< HEAD
+                          <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to view full image</div>
+=======
+<<<<<<< HEAD
+                          <div style={{ fontSize: 10, color: 'var(--ax-accent, #2563eb)', marginTop: 4, fontWeight: 600 }}>Click to view full image</div>
+=======
+                          <div style={{ fontSize: 10, color: '#2563eb', marginTop: 4, fontWeight: 600 }}>Click to view full image</div>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+                        </div>
+                      ) : (
+                        <div style={{ padding: 40, color: '#94a3b8', fontSize: 12 }}>No Image Available</div>
+                      )}
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                     </div>
                     {item.src ? (
                       <div
@@ -1558,7 +1842,15 @@ export function VerifyLights() {
 
             {/* Grid 4: Audit & QA Verification Notes */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, background: '#ffffff' }}>
+<<<<<<< HEAD
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+<<<<<<< HEAD
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-accent, #2563eb)', marginBottom: 10, letterSpacing: '0.04em' }}>
+=======
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', marginBottom: 10, letterSpacing: '0.04em' }}>
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 Remarks & Audit Log
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', rowGap: 8, fontSize: 12 }}>
@@ -1595,7 +1887,15 @@ export function VerifyLights() {
           <>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={() => setSelectedSiteForAction(null)}
               disabled={submittingAction}
               style={{ padding: '6px 14px', fontSize: 13 }}
@@ -1604,7 +1904,15 @@ export function VerifyLights() {
             </button>
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--primary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--primary"
+=======
+              className="ax-button ax-button--primary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={handleActionSubmit}
               disabled={submittingAction}
               style={{ padding: '6px 18px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -1664,11 +1972,29 @@ export function VerifyLights() {
                 href={lightboxUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+<<<<<<< HEAD
+                className="ax-btn ax-btn--primary ax-btn--sm"
+=======
+<<<<<<< HEAD
                 className="ax-btn ax-btn--primary ax-btn--sm"
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
                   textDecoration: 'none',
+=======
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+<<<<<<< HEAD
+=======
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  border: '1px solid #bfdbfe',
+                  background: '#eff6ff',
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
                 }}
               >
                 Open Original ↗
@@ -1676,7 +2002,15 @@ export function VerifyLights() {
             )}
             <button
               type="button"
+<<<<<<< HEAD
               className="ax-btn ax-btn--secondary"
+=======
+<<<<<<< HEAD
+              className="ax-btn ax-btn--secondary"
+=======
+              className="ax-button ax-button--secondary"
+>>>>>>> 1734fe6c6a1a76ca36492f9e29deed599b8f9488
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
               onClick={() => setLightboxUrl(null)}
               style={{ padding: '6px 16px', fontSize: 13 }}
             >

@@ -450,6 +450,10 @@ class AuthService {
     );
   }
 
+  getAuthToken(): string | null {
+    return this.getToken();
+  }
+
 
   getCompanyId(): string | null {
     const session =
@@ -477,8 +481,12 @@ class AuthService {
       : null;
   }
 
+<<<<<<< HEAD
 
     getUser(): UserSession | null {
+=======
+  getUser(): UserSession | null {
+>>>>>>> badb0f295a88dcf0659d85f3d42697131e540c1b
     return this.getSession();
   }
 

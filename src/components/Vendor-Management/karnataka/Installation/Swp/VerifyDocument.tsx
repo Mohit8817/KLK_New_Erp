@@ -1048,10 +1048,20 @@ export function VerifyDocument() {
         <button
           type="button"
           className={`asw-pill-btn ${activeTab === 'pending' ? 'active ax-btn--primary' : ''}`}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
           onClick={() => {
             setActiveTab('pending');
             pagination.setPage(1);
           }}
+<<<<<<< HEAD
+=======
+=======
+          onClick={() => setActiveTab('pending')}
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
         >
           Verification Pending
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
@@ -1061,10 +1071,20 @@ export function VerifyDocument() {
         <button
           type="button"
           className={`asw-pill-btn ${activeTab === 'approved_rejected' ? 'active ax-btn--primary' : ''}`}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
           onClick={() => {
             setActiveTab('approved_rejected');
             pagination.setPage(1);
           }}
+<<<<<<< HEAD
+=======
+=======
+          onClick={() => setActiveTab('approved_rejected')}
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
         >
           Approved / Rejected Data
           <span style={{ padding: '1px 6px', borderRadius: 10, background: activeTab === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
@@ -1348,15 +1368,54 @@ export function VerifyDocument() {
 
                       {/* Document Verify Status (inst_doc_status: 2=Approved, 3=Rejected, 1=Pending, 0=Not Uploaded) */}
                       <td className="ax-table__td" style={{ textAlign: 'center' }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                         <StatusBadge status={docStatus} label={getDocVerifyLabel(docStatus)} />
                       </td>
 
                       {activeTab === 'pending' && (
                         <td className="ax-table__td" style={{ textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+<<<<<<< HEAD
                             <button
                               type="button"
                               onClick={() => setSelectedSiteForDetails(row)}
+=======
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSiteForDetails(row)}
+=======
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSiteForDetails(row)}
+                            className="ax-btn ax-btn--secondary ax-btn--sm"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 3,
+                            }}
+                            title="View full site details"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            Details
+                          </button>
+                          {Number(row.inst_doc_status) === 2 || Number(row.inst_doc_status) === 3 ? (
+                            <button
+                              type="button"
+                              disabled
+                              title={`Document has been ${Number(row.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                               className="ax-btn ax-btn--secondary ax-btn--sm"
                               style={{
                                 padding: '4px 8px',
@@ -1365,7 +1424,21 @@ export function VerifyDocument() {
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
+<<<<<<< HEAD
                                 gap: 3,
+=======
+<<<<<<< HEAD
+                                gap: 3,
+=======
+                                justifyContent: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'not-allowed',
+                                opacity: 0.75,
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                               }}
                               title="View full site details"
                             >
@@ -1375,6 +1448,10 @@ export function VerifyDocument() {
                               </svg>
                               Details
                             </button>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                             {docStatus === 'approved' || docStatus === 'rejected' ? (
                               <button
                                 type="button"
@@ -1421,6 +1498,32 @@ export function VerifyDocument() {
                           </div>
                         </td>
                       )}
+<<<<<<< HEAD
+=======
+=======
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSiteForAction(row);
+                                setActionStatus(String(row.inst_doc_status === 1 ? '2' : row.inst_doc_status || '2'));
+                                setActionRemarks(row.inst_doc_remarks || '');
+                              }}
+                              className="ax-btn ax-btn--primary ax-btn--sm"
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Verify
+                            </button>
+                          )}
+                        </div>
+                      </td>
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                     </tr>
                   );
                 })
@@ -1464,7 +1567,15 @@ export function VerifyDocument() {
                   <button
                     type="button"
                     disabled
+<<<<<<< HEAD
                     title={`Document has been ${detailStatus === 'approved' ? 'Approved' : 'Rejected'} (Locked)`}
+=======
+<<<<<<< HEAD
+                    title={`Document has been ${detailStatus === 'approved' ? 'Approved' : 'Rejected'} (Locked)`}
+=======
+                    title={`Document has been ${Number(selectedSiteForDetails.inst_doc_status) === 2 ? 'Approved' : 'Rejected'} (Locked)`}
+>>>>>>> 59fd9085bf4bc8a389c8081f5e629e98c59272e9
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
                     className="ax-btn ax-btn--secondary"
                     style={{
                       padding: '6px 14px',

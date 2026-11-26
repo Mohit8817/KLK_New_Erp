@@ -636,11 +636,15 @@ class GoaAdminService {
     const candidateList: string[] = [];
     const inputs = Array.isArray(endpointOrCandidates) ? endpointOrCandidates : [endpointOrCandidates];
     for (const item of inputs) {
+<<<<<<< HEAD
       if (typeof item === 'string' && (item.startsWith('http://') || item.startsWith('https://') || item.startsWith('/'))) {
         candidateList.push(item);
       } else {
         buildCandidateUrls(item).forEach((u) => candidateList.push(u));
       }
+=======
+      buildCandidateUrls(item).forEach((u) => candidateList.push(u));
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
     }
 
     let lastError: any = null;
@@ -1419,18 +1423,42 @@ class GoaAdminService {
     return this.getAMCDashboard();
   }
 
+<<<<<<< HEAD
   // Backwards compatibility / Drilldown (derived from authentic AMC routes)
+=======
+  // Backwards compatibility / Drilldown
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   async getAMCViewData(): Promise<any[]> {
     try {
       const res = await this.getAMCVerifyView();
       return [...(res.srt || []), ...(res.coms || [])];
     } catch {
+<<<<<<< HEAD
+=======
+      const res = await this.request(GOA_ADMIN_AMC_API.VIEW_DATA_CANDIDATES(), { method: 'GET' });
+      const payload = res?.data || res;
+      if (Array.isArray(payload?.totalsite)) return payload.totalsite;
+      if (Array.isArray(payload)) return payload;
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       return [];
     }
   }
 
   async getAMCDrilldown(status: string): Promise<any[]> {
     try {
+<<<<<<< HEAD
+=======
+      const res = await this.request(GOA_ADMIN_AMC_API.DRILLDOWN_CANDIDATES(status), { method: 'GET' });
+      const payload = res?.data || res;
+      if (Array.isArray(payload?.totalsite)) return payload.totalsite;
+      if (Array.isArray(payload?.data)) return payload.data;
+      if (Array.isArray(payload)) return payload;
+    } catch {
+      // Fallback: derive drilldown from verify view or view-assign
+    }
+
+    try {
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
       const verifyData = await this.getAMCVerifyView();
       const allVerify = [
         ...(verifyData.srt || []).map((x) => ({ ...x, visit_done: true, verify_status: x.amcverify_status ?? 0 })),
@@ -1444,10 +1472,18 @@ class GoaAdminService {
       if (s === 'verify-pending') return allVerify.filter((x) => Number(x.verify_status) === 0);
       if (s === 'verify-reject' || s === 'rejected') return allVerify.filter((x) => Number(x.verify_status) === 2);
       if (s === 'total-site' || s === 'all') return allVerify;
+<<<<<<< HEAD
       return allVerify;
     } catch {
       return [];
     }
+=======
+    } catch {
+      // ignore
+    }
+
+    return [];
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   }
 }
 

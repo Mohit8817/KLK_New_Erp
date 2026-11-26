@@ -14,6 +14,7 @@ import {
   jammuSrtExpenseService,
   resolveJammuMediaUrl,
   type JammuSrtExpenseClaimItem,
+<<<<<<< HEAD
   type JammuSrtExpensePaymentItem,
   type ExpensePaymentStats,
 } from './jammuSrtExpenseService';
@@ -23,6 +24,9 @@ import {
   exportRowsExcel,
   exportRowsPDF,
 } from '../../../up/Installation/upInstallationShared';
+=======
+} from './jammuSrtExpenseService';
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
 /* ───────── Responsive page CSS matching Solar ERP standard ───────── */
 const PAGE_CSS = `
@@ -51,7 +55,22 @@ const PAGE_CSS = `
   }
   .solar-erp-page .ula-pagination-left > * { margin-left: 0 !important; margin-right: 0 !important; }
 
+<<<<<<< HEAD
   /* Compact table action buttons */
+=======
+  .solar-erp-page .asw-cards-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ax-space-4, 16px);
+    margin-bottom: var(--ax-space-5, 20px);
+  }
+  .solar-erp-page .asw-cards-row span svg {
+    width: 15px !important;
+    height: 15px !important;
+    display: block !important;
+  }
+  /* Compact table action buttons - NO icons */
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   .solar-erp-page .ax-table .ax-btn--sm,
   .solar-erp-page .ax-table .ax-btn--xs,
   .solar-erp-page .ax-table button.ax-btn,
@@ -65,6 +84,51 @@ const PAGE_CSS = `
     align-items: center !important;
     justify-content: center !important;
   }
+<<<<<<< HEAD
+=======
+  @media (max-width: 1024px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 640px) {
+    .solar-erp-page .asw-cards-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .solar-erp-page .asw-bifurcation-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .solar-erp-page .asw-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid var(--ax-border, #cbd5e1);
+    background: var(--ax-surface, #ffffff);
+    color: var(--ax-text-muted, #64748b);
+  }
+  .solar-erp-page .asw-pill-btn:hover {
+    border-color: #2559bf;
+    color: #2559bf;
+  }
+  .solar-erp-page .asw-pill-btn.active {
+    background: #2559bf;
+    color: #ffffff;
+    border-color: #2559bf;
+    box-shadow: 0 2px 4px rgba(37, 89, 191, 0.2);
+  }
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 
   .solar-erp-page .ax-card__header {
     display: flex;
@@ -224,6 +288,7 @@ const OVERLAY_CSS = `
     padding: 16px 24px; border-top: 1px solid var(--ax-border, #e2e8f0);
     background: var(--ax-surface-subtle, #f8fafc);
   }
+<<<<<<< HEAD
 
   /* ── Action Dropdown Button & Menu ── */
   .ula-action-btn {
@@ -265,6 +330,8 @@ const OVERLAY_CSS = `
     cursor: not-allowed;
     opacity: 0.6;
   }
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 `;
 
 const actionsRowStyle = { gap: 'var(--ax-space-2)', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', width: '100%' } as const;
@@ -279,6 +346,7 @@ const footerStyle = {
 } as const;
 const centerCell = { textAlign: 'center', padding: 24 } as const;
 
+<<<<<<< HEAD
 const X_ICON = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
     <path d="M18 6l-12 12" />
@@ -563,6 +631,8 @@ function RowActionDropdown({
   );
 }
 
+=======
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
 /* ── Modal Component ── */
 function Modal({
   open,
@@ -575,8 +645,13 @@ function Modal({
 }: {
   open: boolean;
   onClose: () => void;
+<<<<<<< HEAD
   title: string | ReactNode;
   subtitle?: string | ReactNode;
+=======
+  title: string;
+  subtitle?: string;
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
   children: ReactNode;
   footer?: ReactNode;
   maxWidth?: number;
@@ -605,6 +680,7 @@ function Modal({
       >
         <div className="ax-modal__header">
           <div>
+<<<<<<< HEAD
             {typeof title === 'string' ? (
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{title}</h3>
             ) : (
@@ -620,6 +696,13 @@ function Modal({
           </div>
           <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
             {X_ICON}
+=======
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{title}</h3>
+            {subtitle && <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>{subtitle}</p>}
+          </div>
+          <button type="button" className="ax-modal__close" onClick={onClose} aria-label="Close dialog">
+            ✕
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
           </button>
         </div>
         <div className="ax-modal__body">{children}</div>
@@ -630,6 +713,7 @@ function Modal({
   );
 }
 
+<<<<<<< HEAD
 /* ── In-Row Media File Thumbnail Component ── */
 function MediaFileThumbnail({ file, onClick }: { file?: string | null; onClick: (url: string) => void }) {
   if (!file) {
@@ -1555,6 +1639,539 @@ export function SrtExpenseClaimRequests() {
                 style={{ textDecoration: 'none', padding: '6px 16px' }}
               >
                 Open in New Tab ↗
+              </a>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+=======
+/* ── Top KPI Card Component ── */
+type KpiTone = 'accent' | 'cyan' | 'emerald' | 'amber' | 'violet';
+
+const TONE: Record<KpiTone, { bg: string; fg: string }> = {
+  accent: { bg: 'rgba(37, 89, 191, 0.12)', fg: '#2559bf' },
+  cyan: { bg: 'color-mix(in oklab, var(--ax-viz-cyan, #06b6d4) 14%, transparent)', fg: '#0891b2' },
+  emerald: { bg: 'color-mix(in oklab, var(--ax-viz-emerald, #10b981) 14%, transparent)', fg: '#16a34a' },
+  amber: { bg: 'color-mix(in oklab, var(--ax-viz-amber, #f59e0b) 14%, transparent)', fg: '#d97706' },
+  violet: { bg: 'color-mix(in oklab, var(--ax-viz-violet, #8b5cf6) 14%, transparent)', fg: '#7c3aed' },
+};
+>>>>>>> 70f527ba60f555fe6ad1fa61874f359bd66bf9d7
+
+function KpiCard({
+  icon,
+  tone,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  tone: KpiTone;
+  label: string;
+  value: ReactNode;
+  sub: string;
+}) {
+  const t = TONE[tone];
+  return (
+    <div className="ax-card" style={{ padding: '14px 18px', borderRadius: 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            background: t.bg,
+            color: t.fg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            {icon}
+          </span>
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--ax-text-muted, #64748b)', letterSpacing: '0.04em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: t.fg, marginTop: 4, fontFamily: 'var(--ax-font-display)' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--ax-text-muted, #64748b)', marginTop: 2 }}>
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+export function SrtExpenseClaimRequests() {
+  const [claimsList, setClaimsList] = useState<JammuSrtExpenseClaimItem[]>([]);
+  const [stats, setStats] = useState({ total: 42, approved: 8, pending: 28, rejected: 6 });
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeBifurcation, setActiveBifurcation] = useState<'pending' | 'approved_rejected'>('pending');
+
+  // Audit modal state
+  const [selectedClaimForAudit, setSelectedClaimForAudit] = useState<JammuSrtExpenseClaimItem | null>(null);
+  const [auditStatus, setAuditStatus] = useState<1 | 2 | 3>(2);
+  const [auditRemarks, setAuditRemarks] = useState('');
+  const [submittingAudit, setSubmittingAudit] = useState(false);
+
+  // Lightbox preview state
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await jammuSrtExpenseService.getExpenseClaims();
+      setClaimsList(data.list);
+      setStats(data.stats);
+    } catch (e) {
+      console.error('Failed to load SRT expense claims:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Handle Audit submit
+  const handleAuditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClaimForAudit) return;
+    setSubmittingAudit(true);
+    try {
+      await jammuSrtExpenseService.auditExpenseClaim(selectedClaimForAudit.id, auditStatus, auditRemarks);
+      await loadData();
+      setSelectedClaimForAudit(null);
+    } catch (err) {
+      console.error('Audit submit error:', err);
+    } finally {
+      setSubmittingAudit(false);
+    }
+  };
+
+  // Bifurcated and search filtered list
+  const filteredList = useMemo(() => {
+    const byBif = claimsList.filter((c) =>
+      activeBifurcation === 'pending' ? c.claim_status === 1 : c.claim_status === 2 || c.claim_status === 3
+    );
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return byBif;
+    return byBif.filter(
+      (c) =>
+        c.vendor.toLowerCase().includes(q) ||
+        c.district.toLowerCase().includes(q) ||
+        c.site_name.toLowerCase().includes(q) ||
+        c.purpose.toLowerCase().includes(q) ||
+        (c.claim_verify_remarks && c.claim_verify_remarks.toLowerCase().includes(q))
+    );
+  }, [claimsList, activeBifurcation, searchQuery]);
+
+  const pagination = usePagination(filteredList, { initialPageSize: 10 });
+
+  // Export Columns matching exact fields
+  const exportCols: ExportColumn<JammuSrtExpenseClaimItem>[] = useMemo(
+    () => [
+      { header: 'Sr. No.', accessor: (_r, idx) => (idx !== undefined ? idx + 1 : '') } as any,
+      { header: 'State', accessor: () => 'JAMMU & KASHMIR' },
+      { header: 'Vendor', accessor: (r) => r.vendor },
+      { header: 'Claim Date', accessor: (r) => r.claim_date },
+      { header: 'District', accessor: (r) => r.district },
+      { header: 'Claim Count', accessor: (r) => r.claim_count },
+      { header: 'Site Name', accessor: (r) => r.site_name },
+      { header: 'Purpose', accessor: (r) => r.purpose },
+      { header: 'Claim Amount', accessor: (r) => `₹${r.claim_amount.toLocaleString('en-IN')}` },
+      { header: 'Claim Update Date', accessor: (r) => r.claim_update_date },
+      {
+        header: 'Claim Status',
+        accessor: (r) => (r.claim_status === 2 ? 'Approved' : r.claim_status === 3 ? 'Rejected' : 'Pending'),
+      },
+      { header: 'Claim Verify Remarks', accessor: (r) => r.claim_verify_remarks || '—' },
+    ],
+    []
+  );
+
+  return (
+    <div className="solar-erp-page">
+      <style>{PAGE_CSS}</style>
+      <style>{OVERLAY_CSS}</style>
+
+      {/* Page Header */}
+      <PageHead
+        title="View Expenses Claim Request"
+        subtitle="Review vendor installation expense claims, travel/material reimbursement audits, and approvals in Jammu & Kashmir."
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Vendor Management', href: '/vendor-management' },
+          { label: 'Jammu', href: '/vendor-management/jammu' },
+          { label: 'Installation Expenses' },
+          { label: 'View Expenses Claim Request' },
+        ]}
+      />
+
+      {/* Top 4 KPI Metric Cards with Icons */}
+      <div className="asw-cards-row">
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+          }
+          tone="accent"
+          label="Total Claims"
+          value={stats.total}
+          sub="Total raised vendor claims"
+        />
+
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          }
+          tone="emerald"
+          label="Approved Claims"
+          value={stats.approved}
+          sub="Audit cleared for disbursement"
+        />
+
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          }
+          tone="amber"
+          label="Pending Audit"
+          value={stats.pending}
+          sub="Awaiting admin QA review"
+        />
+
+        <KpiCard
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 15, height: 15 }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          }
+          tone="violet"
+          label="Rejected Claims"
+          value={stats.rejected}
+          sub="Returned with audit remarks"
+        />
+      </div>
+
+      {/* Report Wise Bifurcation Pills */}
+      <div className="asw-bifurcation-row">
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ax-text-muted, #64748b)' }}>
+          Report Wise Bifurcation:
+        </span>
+        <button
+          type="button"
+          className={`asw-pill-btn ${activeBifurcation === 'pending' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveBifurcation('pending');
+            pagination.setPage(1);
+          }}
+        >
+          Audit Pending
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeBifurcation === 'pending' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {stats.pending}
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`asw-pill-btn ${activeBifurcation === 'approved_rejected' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveBifurcation('approved_rejected');
+            pagination.setPage(1);
+          }}
+        >
+          Approved / Rejected Data
+          <span style={{ padding: '1px 6px', borderRadius: 10, background: activeBifurcation === 'approved_rejected' ? 'rgba(255,255,255,0.25)' : '#e2e8f0', fontSize: 11 }}>
+            {stats.approved + stats.rejected}
+          </span>
+        </button>
+      </div>
+
+      {/* Main Table Card */}
+      <section className="ax-card ax-col--12">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">
+              {activeBifurcation === 'pending' ? 'Pending Expense Claims' : 'Approved & Rejected Expense Claims'}
+            </h2>
+            <p className="ax-card__subtitle">Showing {filteredList.length} expense claim submission records</p>
+          </div>
+          <div className="ax-card__actions">
+            <div className="ax-cluster" style={actionsRowStyle}>
+              {searchQuery.trim() !== '' && (
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    pagination.setPage(1);
+                  }}
+                  style={{ height: 30, padding: '0 8px', fontSize: '11px' }}
+                >
+                  Reset
+                </button>
+              )}
+              <SearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="Search vendor, district, site name..."
+                size="sm"
+              />
+              <TableExportToolbar
+                onCopy={() => {}}
+                onExportCSV={() => {}}
+                onExportExcel={() => {}}
+                onExportPDF={() => {}}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Responsive Horizontal Scroll Table */}
+        <div className="ax-table-wrap">
+          <table className="ax-table ax-table--hover" style={{ whiteSpace: 'nowrap', minWidth: 1600 }}>
+            <thead className="ax-table__head">
+              <tr>
+                <th className="ax-table__th">Sr. No.</th>
+                <th className="ax-table__th">State</th>
+                <th className="ax-table__th">Vendor</th>
+                <th className="ax-table__th">Claim Date</th>
+                <th className="ax-table__th">District</th>
+                <th className="ax-table__th ax-table__th--num">Claim Count</th>
+                <th className="ax-table__th">Site Name</th>
+                <th className="ax-table__th">Purpose</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Claim Invoice</th>
+                <th className="ax-table__th ax-table__th--num">Claim Amount</th>
+                <th className="ax-table__th">Claim Update Date</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Claim Status</th>
+                <th className="ax-table__th">Claim Verify Remarks</th>
+                <th className="ax-table__th" style={{ textAlign: 'center' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={14} style={centerCell}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <span className="ax-spinner" aria-hidden="true" />
+                      <span>Loading expense claims...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : pagination.paged.length === 0 ? (
+                <tr>
+                  <td colSpan={14} style={centerCell}>
+                    <TableEmptyState
+                      title="No expense claims found"
+                      description={searchQuery ? 'Adjust your search query' : 'No records under this bifurcation view'}
+                    />
+                  </td>
+                </tr>
+              ) : (
+                pagination.paged.map((row, idx) => {
+                  const globalIdx = (pagination.curPage - 1) * pagination.pageSize + idx + 1;
+                  return (
+                    <tr key={row.id}>
+                      <td className="ax-table__td" style={{ fontWeight: 600 }}>{globalIdx}</td>
+                      <td className="ax-table__td">JAMMU &amp; KASHMIR</td>
+                      <td className="ax-table__td" style={{ fontWeight: 700, color: '#0f172a' }}>{row.vendor}</td>
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>{row.claim_date}</td>
+                      <td className="ax-table__td">{row.district}</td>
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 700 }}>{row.claim_count}</td>
+                      <td className="ax-table__td" style={{ fontWeight: 600, color: '#2559bf' }}>{row.site_name}</td>
+                      <td className="ax-table__td" style={{ maxWidth: 220, whiteSpace: 'normal', fontSize: 12 }}>
+                        {row.purpose}
+                      </td>
+
+                      {/* Claim Invoice Link */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        {row.claim_invoice ? (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxUrl(resolveJammuMediaUrl(row.claim_invoice))}
+                            className="ax-btn ax-btn--ghost ax-btn--xs"
+                            style={{ color: '#2559bf', fontWeight: 600, padding: '3px 8px', fontSize: 11 }}
+                          >
+                            📄 Invoice
+                          </button>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      <td className="ax-table__td ax-table__td--num" style={{ fontWeight: 800, color: '#16a34a' }}>
+                        ₹{row.claim_amount.toLocaleString('en-IN')}
+                      </td>
+                      <td className="ax-table__td" style={{ fontSize: 12 }}>{row.claim_update_date}</td>
+
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <span
+                          className={`ax-badge ax-badge--soft ${
+                            row.claim_status === 2
+                              ? 'ax-badge--success'
+                              : row.claim_status === 3
+                              ? 'ax-badge--danger'
+                              : 'ax-badge--warning'
+                          }`}
+                          style={{ padding: '3px 8px', fontSize: 11, fontWeight: 700 }}
+                        >
+                          {row.claim_status === 2 ? 'Approved' : row.claim_status === 3 ? 'Rejected' : 'Pending'}
+                        </span>
+                      </td>
+
+                      <td className="ax-table__td" style={{ fontSize: 11, maxWidth: 180, whiteSpace: 'normal' }}>
+                        {row.claim_verify_remarks || '—'}
+                      </td>
+
+                      {/* Action column - Compact button without icons */}
+                      <td className="ax-table__td" style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClaimForAudit(row);
+                            setAuditStatus(row.claim_status === 2 ? 2 : row.claim_status === 3 ? 3 : 2);
+                            setAuditRemarks(row.claim_verify_remarks || '');
+                          }}
+                          className="ax-btn ax-btn--primary ax-btn--sm"
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            lineHeight: 1.2,
+                            height: 'auto',
+                            minHeight: 'unset',
+                          }}
+                        >
+                          Audit
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Pagination */}
+        <div className="ax-card__footer" style={footerStyle}>
+          <div className="ula-pagination-left">
+            <Pagination
+              currentPage={pagination.curPage}
+              totalItems={pagination.totalItems}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+              onPageSizeChange={pagination.setPageSize}
+              pageSizeOptions={[10, 25, 50, 100]}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Audit Action Modal */}
+      <Modal
+        open={Boolean(selectedClaimForAudit)}
+        onClose={() => setSelectedClaimForAudit(null)}
+        title="Audit Installation Expense Claim"
+        subtitle={selectedClaimForAudit ? `${selectedClaimForAudit.vendor} • Claim #${selectedClaimForAudit.id} • ${selectedClaimForAudit.site_name}` : ''}
+        maxWidth={500}
+        footer={
+          <>
+            <button
+              type="button"
+              className="ax-btn ax-btn--secondary"
+              onClick={() => setSelectedClaimForAudit(null)}
+              disabled={submittingAudit}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary"
+              onClick={handleAuditSubmit}
+              disabled={submittingAudit}
+            >
+              {submittingAudit ? 'Saving...' : 'Submit Audit Decision'}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleAuditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+              Audit Decision Status <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <select
+              value={auditStatus}
+              onChange={(e) => setAuditStatus(Number(e.target.value) as 1 | 2 | 3)}
+              className="ax-select"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1' }}
+              required
+            >
+              <option value="2">Approved</option>
+              <option value="3">Rejected</option>
+              <option value="1">Pending Audit</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+              Claim Verification Remarks
+            </label>
+            <textarea
+              rows={3}
+              value={auditRemarks}
+              onChange={(e) => setAuditRemarks(e.target.value)}
+              placeholder="Enter finance voucher audit notes, transport clearance..."
+              className="ax-textarea"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+            />
+          </div>
+        </form>
+      </Modal>
+
+      {/* Lightbox Modal */}
+      <Modal open={Boolean(lightboxUrl)} onClose={() => setLightboxUrl(null)} title="Claim Invoice Document" maxWidth={720}>
+        {lightboxUrl && (
+          <div style={{ textAlign: 'center', padding: 8 }}>
+            <div style={{ padding: '30px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2559bf" strokeWidth={1.5}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Expense Invoice Voucher</div>
+              <a
+                href={lightboxUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ax-btn ax-btn--primary ax-btn--sm"
+                style={{ textDecoration: 'none', padding: '6px 14px' }}
+              >
+                Download / Open Full PDF
               </a>
             </div>
           </div>

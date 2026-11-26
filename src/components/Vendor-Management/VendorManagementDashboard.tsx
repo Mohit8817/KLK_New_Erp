@@ -841,6 +841,8 @@ export function VendorManagementDashboard() {
   ];
 
   const canAssam = canAccessState('assam');
+  const canArunachal = canAccessState('arunachal');
+  const canPunjab = canAccessState('punjab');
   const canBihar = canAccessState('bihar');
   const canUP = canAccessState('up');
 
@@ -1125,6 +1127,124 @@ export function VendorManagementDashboard() {
 
               <div style={{ paddingTop: 'var(--ax-space-2)', borderTop: '1px solid var(--ax-border-subtle)', fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>
                 <b>Allotted Sites:</b> 110 solar pump sites (Barpeta, Dhubri, Kamrup, Nagaon, Golaghat, Cachar) · 19 claims pending verification
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Arunachal Pradesh Operations Card */}
+        {canArunachal && (
+          <section className="ax-card ax-col--6" role="region" aria-label="Arunachal SHL Field Operations">
+            <div className="ax-card__header">
+              <div className="ax-card__titles">
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)' }}>State Operations</span>
+                <h3 className="ax-card__title">Arunachal Pradesh · Solar Street Light (SHL)</h3>
+                <p className="ax-card__subtitle">Solar street lights installation across Arunachal Pradesh districts</p>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--sm ax-btn--primary"
+                onClick={() => navigate('/vendor-management/arunachal/shl/dashboard')}
+              >
+                View Desk →
+              </button>
+            </div>
+            <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
+              <div className="ax-grid ax-grid--2" style={{ gap: 'var(--ax-space-2)' }}>
+                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
+                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Installation System</small>
+                  <div style={{ fontSize: 'var(--ax-text-md)', fontWeight: 700, color: 'var(--ax-viz-emerald)' }}>
+                    Active
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
+                  <small style={{ color: 'var(--ax-text-muted)', fontSize: 'var(--ax-text-xs)' }}>Verification</small>
+                  <div style={{ fontSize: 'var(--ax-text-md)', fontWeight: 700, color: 'var(--ax-viz-amber)' }}>
+                    Pending Verification
+                  </div>
+                </div>
+              </div>
+              <div className="ax-cluster" style={{ gap: 'var(--ax-space-2)', marginTop: 'auto', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/arunachal/shl/assign-light')}
+                >
+                  Assign Installation
+                </button>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/arunachal/shl/view-assign')}
+                >
+                  View Assign
+                </button>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/arunachal/shl/verify')}
+                >
+                  Verify Installation
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Punjab SSL Operations Card */}
+        {canPunjab && (
+          <section className="ax-card ax-col--6" role="region" aria-label="Punjab SSL Field Operations">
+            <div className="ax-card__header">
+              <div className="ax-card__titles">
+                <span className="ax-card__eyebrow" style={{ color: 'var(--ax-accent)' }}>State Operations</span>
+                <h3 className="ax-card__title">Punjab · Solar Street Light (SSL)</h3>
+                <p className="ax-card__subtitle">Solar street lights installation across Punjab districts</p>
+              </div>
+              <button
+                type="button"
+                className="ax-btn ax-btn--sm ax-btn--primary"
+                onClick={() => navigate('/vendor-management/punjab/ssl/dashboard')}
+              >
+                View Desk →
+              </button>
+            </div>
+            <div className="ax-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--ax-space-3)' }}>
+              <div className="ax-grid ax-grid--3" style={{ gap: 'var(--ax-space-2)' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
+                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Assigned Lights</span>
+                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-text-strong)' }}>8</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
+                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Installed</span>
+                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-emerald)' }}>9</div>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--ax-surface-subtle)', borderRadius: 'var(--ax-radius-md)' }}>
+                  <span style={{ fontSize: 'var(--ax-text-xs)', color: 'var(--ax-text-muted)' }}>Pending</span>
+                  <div style={{ fontSize: 'var(--ax-text-lg)', fontWeight: 700, color: 'var(--ax-viz-amber)' }}>1</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--ax-space-2)', marginTop: 'var(--ax-space-2)' }}>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/punjab/ssl/assign-installation')}
+                >
+                  Assign Installation
+                </button>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/punjab/ssl/view-assign')}
+                >
+                  View Assign
+                </button>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--sm ax-btn--secondary"
+                  onClick={() => navigate('/vendor-management/punjab/ssl/verify')}
+                >
+                  Verify Installation
+                </button>
               </div>
             </div>
           </section>
